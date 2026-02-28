@@ -1,12 +1,15 @@
 # Riddlr Implementation Plan (Enhanced)
 
 ## Context
+
 Real-time multiplayer riddle game. Admins create riddles, players compete to solve first. Scoring: 10/7/3 pts for 1st/2nd/3rd. Greenfield Phoenix project—only spec docs exist currently.
 
 ## Architecture Decisions
 
 ### Context Boundaries
+
 **5 core contexts:**
+
 - **Accounts** - User auth, profiles, stats (total_points, wins_count), leaderboard queries
 - **Games** - Riddle lifecycle, state machine, CRUD, tags, answer validation
 - **Gameplay** - Ephemeral game state (answer feed, cooldowns, player connections)
@@ -14,13 +17,16 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - **Notifications** - Email/SMS delivery via PubSub subscription to game events
 
 **Key patterns:**
+
 - One-way flow: Games → `Accounts.increment_stats/3` (prevents circular deps)
 - Tags live in Games (not separate context until reusability needed)
 - No Admin context (role-based authorization, not domain)
 - PubSub topics: `context:resource:id:event` (e.g., `gameplay:123:answer_submitted`)
 
 ### Answer Storage Architecture
+
 **Decision: ETS over GenServer**
+
 - `:bag` table with composite key `{riddle_id, user_id}`
 - `:read_concurrency` + `:write_concurrency` for 100+ concurrent submissions
 - No GenServer needed - pure concurrent data structure
@@ -28,6 +34,7 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - Table name: `:riddle_answers`
 
 ### LiveView Patterns
+
 - **Countdown:** Hybrid (server tick 1s, JS hook updates 100ms for smooth UX)
 - **Player count:** Phoenix Presence (assigns, not streams - small data)
 - **Answer feed:** Streams with `at: 0, limit: 100` (prevents memory explosion)
@@ -35,7 +42,9 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - **Cooldown:** Server-enforced via ETS atomic check-and-set
 
 ### Oban Workers
+
 **Separate workers per transition type:**
+
 - `ReadyRiddleTransitionWorker` - scheduled → ready (5 min before live_date)
 - `LiveRiddleTransitionWorker` - ready → live (exact live_date)
 - `ArchiveRiddleTransitionWorker` - completed → archived (+3 min)
@@ -45,6 +54,7 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 **Unique constraints:** `[period: {1, :hour}, keys: [:riddle_id], states: [:available, :scheduled]]`
 
 ### Security Patterns
+
 - **Admin auth:** `on_mount` hooks (not controller plugs) - LiveView-first
 - **Roles:** Hierarchical with flat permission map (`@role_permissions`)
 - **Content moderation:** Async (display immediately, flag in background), fail-open on API errors
@@ -53,6 +63,7 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - **Ban enforcement:** 3-layer (mount check + PubSub push + 5-min periodic verify)
 
 ## Critical Files (post-creation)
+
 - `lib/riddlr/accounts.ex` — user management, stats updates, leaderboard queries
 - `lib/riddlr/games.ex` — riddle CRUD, state machine, answer validation
 - `lib/riddlr/gameplay.ex` — ephemeral answer storage, cooldown checks
@@ -68,9 +79,11 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 ---
 
 ## Phase 1: Project Bootstrap
+
 **Goal:** Working Phoenix app
 
 **Deliverables:**
+
 - `mix phx.new riddlr` (Phoenix 1.8)
 - PostgreSQL configured
 - Tailwind CSS
@@ -78,6 +91,7 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - Oban dependency (`{:oban, "~> 2.18"}`)
 
 **Tests:**
+
 - `mix test` passes
 - Server starts, home page renders
 
@@ -86,14 +100,17 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 ---
 
 ## Phase 2: Authentication
+
 **Goal:** User registration, login, sessions
 
 **Deliverables:**
+
 - `mix phx.gen.auth Accounts User users`
 - Add `username` field (unique, required, index)
 - Basic profile page
 
 **Tests:**
+
 - Registration with username
 - Login/logout
 - Session persistence
@@ -103,30 +120,35 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 
 ---
 
-## Phase 3: Enhanced Player Schema
+<!-- ## Phase 3: Enhanced Player Schema
+
 **Goal:** Complete player profile with MVP fields
 
 **Deliverables:**
+
 - Migration: Add to User: `display_name`, `mobile_number`, `email_address`, `communication_preference`, `account_status` (default: `:active`), `total_points` (default: 0), `wins_count` (default: 0), `podium_count` (default: 0), `games_played` (default: 0), `current_streak` (default: 0), `longest_streak` (default: 0), `last_active_at`, `notification_settings` (map, default: `%{email: true, sms: false}`)
 - Profile edit LiveView
 - `Accounts.increment_stats/3` public API for Games context
 - Index on `total_points` (leaderboards)
 
 **Tests:**
+
 - Changeset validation (all fields)
 - Profile update
 - Default values
 - Notification settings map structure
 - `increment_stats/3` (total_points, wins_count, etc.)
 
-**Verify:** Edit profile, check DB values, test defaults, call `increment_stats` in IEx
+**Verify:** Edit profile, check DB values, test defaults, call `increment_stats` in IEx -->
 
 ---
 
 ## Phase 4: Riddle Schema & Contexts
+
 **Goal:** Core riddle data structure + context split
 
 **Deliverables:**
+
 - **Games context** - Riddle schema: `name`, `description`, `answers` (array), `play_status` (enum: closed/scheduled/ready/live/completed/archived), `solve_time` (seconds), `category`, `difficulty`, `hint`, `hint_delay`, `live_date`, `publish_status`, `first_solver_id`, `first_solve_time`, `completion_rate`, `average_solve_time`
 - **Gameplay context** (stub) - Will handle ephemeral state (Phase 9)
 - CRUD functions: `create_riddle/1`, `list_riddles/0`, `get_riddle!/1`, `update_riddle/2`
@@ -134,6 +156,7 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - Index on `play_status` (frequent queries)
 
 **Tests:**
+
 - Changeset validation (answers array non-empty, enums, required fields)
 - CRUD functions
 - Enum validation (play_status, difficulty)
@@ -144,9 +167,11 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 ---
 
 ## Phase 5: Admin Area & Riddle Management
+
 **Goal:** Admin-only CRUD UI with role-based auth
 
 **Deliverables:**
+
 - Migration: Add `role` to User (enum: super_admin/moderator/editor/viewer/player, default: `:player`)
 - **Authorization module** (`lib/riddlr/authorization.ex`) - `@role_permissions` map, `has_permission?/2`, `authorize/3`
 - **AdminAuth module** (`lib/riddlr_web/admin_auth.ex`) - `on_mount` hook with `:require_admin` and `{:require_role, roles}`
@@ -155,6 +180,7 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - Router: `live_session :admin` with `on_mount: [{RiddlrWeb.AdminAuth, :require_admin}]`
 
 **Tests:**
+
 - Authorization module (`has_permission?/2` for each role)
 - Admin `on_mount` hook (redirects non-admin)
 - LiveView mount (admin only, assigns `:current_admin`)
@@ -163,13 +189,14 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - Non-admin redirect (player role → home)
 
 **Verify:**
+
 - Login as admin, navigate `/admin/riddles`, CRUD riddles
 - Login as player, verify redirect from `/admin/riddles`
 - Test role permissions (editor can create, viewer cannot)
 
 ---
 
-## Phase 6: Tag System
+<!-- ## Phase 6: Tag System
 **Goal:** Tag management and riddle tagging
 
 **Deliverables:**
@@ -186,14 +213,16 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - Multiple tags per riddle
 - Autocomplete query (ILIKE search)
 
-**Verify:** Create tags, assign to riddles, test autocomplete, verify case-insensitivity
+**Verify:** Create tags, assign to riddles, test autocomplete, verify case-insensitivity -->
 
 ---
 
 ## Phase 7: Game Lifecycle State Machine
+
 **Goal:** Play status transitions with Oban auto-scheduling
 
 **Deliverables:**
+
 - **State transition functions:**
   - `schedule_riddle(riddle, live_date)` - closed → scheduled, enqueues Ready + Live jobs
   - `ready_riddle(riddle_id)` - scheduled → ready (called by Oban worker)
@@ -213,6 +242,7 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - State validation in Riddle changeset (prevent invalid transitions)
 
 **Tests:**
+
 - Each transition function (valid state → next state)
 - Invalid transitions fail (e.g., closed → live)
 - State machine flow (full cycle: closed → scheduled → ready → live → completed → archived)
@@ -221,12 +251,14 @@ Real-time multiplayer riddle game. Admins create riddles, players compete to sol
 - Auto-archive after 3 min (scheduled job)
 
 **Verify:**
+
 - `schedule_riddle` in IEx, check DB play_status, verify 2 jobs enqueued
 - Trigger transitions, verify state changes
 - Test invalid transition (e.g., `start_riddle` when :scheduled → error)
 - Drain queue, verify auto-transitions execute
 
 **Implementation notes:**
+
 ```elixir
 # schedule_riddle/2 pattern
 def schedule_riddle(riddle, live_date) do
@@ -257,9 +289,11 @@ end
 ---
 
 ## Phase 8: Game Lobby (Ready State)
+
 **Goal:** Pre-game countdown, player list with Presence
 
 **Deliverables:**
+
 - Lobby LiveView (`/game/:id/lobby`)
 - **Countdown:** Hybrid pattern
   - Server: `:timer.send_interval(1000)` sends `:tick` with authoritative time remaining
@@ -274,6 +308,7 @@ end
 - Optional: "Ready" button (defer to Phase 17 backlog)
 
 **Tests:**
+
 - Lobby mount (only accessible when :ready, redirect if :closed/:scheduled)
 - Countdown timer (tick every 1s, display updates)
 - Player count Presence (join/leave tracked, count updates)
@@ -281,12 +316,14 @@ end
 - Redirect to game when :live (broadcast transition)
 
 **Verify:**
+
 - Schedule riddle (live_date +2 min), navigate `/game/:id/lobby`
 - Open multiple browser tabs, verify player count increments
 - Watch countdown reach zero
 - Verify auto-redirect when game goes :live
 
 **Implementation notes:**
+
 ```elixir
 # Presence tracking
 def mount(%{"id" => id}, _session, socket) do
@@ -314,9 +351,11 @@ end
 ---
 
 ## Phase 9: Live Game - Answer Submission
+
 **Goal:** Core gameplay loop with ETS storage
 
 **Deliverables:**
+
 - Live game LiveView (`/game/:id/play`)
 - Display riddle question, category, difficulty
 - Text input for answers (form with phx-submit)
@@ -345,9 +384,10 @@ end
 - PubSub broadcast answer to feed (`gameplay:#{id}:answer_submitted`)
 
 **Tests:**
+
 - Answer submission (correct, incorrect)
 - Case-insensitivity ("PARIS" = "paris")
-- Trimming ("  paris  " = "paris")
+- Trimming (" paris " = "paris")
 - Cooldown enforcement (2 submissions <1s apart → error)
 - Duplicate submission prevention (already solved → error)
 - Placement calculation (3 users, timestamps differ by ms)
@@ -357,6 +397,7 @@ end
 - Game state check (not :live → error)
 
 **Verify:**
+
 - Start riddle, open as 3+ users
 - Submit wrong answers, verify "incorrect" message
 - Submit correct answer, verify "correct" + points awarded
@@ -366,6 +407,7 @@ end
 - Ban user mid-game, verify next submission redirects
 
 **Implementation notes:**
+
 ```elixir
 # ETS setup in application.ex
 :ets.new(:riddle_answers, [:bag, :public, :named_table, read_concurrency: true, write_concurrency: true])
@@ -416,9 +458,11 @@ end
 ---
 
 ## Phase 10: Live Game - Answer Feed
+
 **Goal:** Real-time answer display with streams
 
 **Deliverables:**
+
 - Answer feed component (chronological, newest at top)
 - **Streams pattern:** `stream(:answers, at: 0, limit: 100)`
   - Prevents memory explosion (100 viewers × 500 answers = O(1) memory with streams vs O(n) with assigns)
@@ -436,6 +480,7 @@ end
 - Optional: Scroll to bottom on new answer (JS hook)
 
 **Tests:**
+
 - Answer broadcast (submit answer, verify appears in other users' feeds)
 - Feed ordering (chronological, newest first)
 - Time offset calculation (ms precision from game start)
@@ -444,6 +489,7 @@ end
 - Stream limit (submit 150 answers, verify only 100 visible)
 
 **Verify:**
+
 - Play game with multiple users
 - Submit answers, verify real-time display in all tabs
 - Verify time offsets accurate (ms since game went :live)
@@ -451,6 +497,7 @@ end
 - Complete game, verify correct answers highlighted
 
 **Implementation notes:**
+
 ```elixir
 # Streams setup
 def mount(%{"id" => id}, _session, socket) do
@@ -506,9 +553,11 @@ end
 ---
 
 ## Phase 11: Game Completion & Results
+
 **Goal:** Post-game experience with auto-archive
 
 **Deliverables:**
+
 - **Auto-complete triggers:**
   - When `solve_time` expires (Oban scheduled job at `live_date + solve_time`)
   - When first correct answer submitted (immediate, cancel scheduled job)
@@ -529,6 +578,7 @@ end
 - Cleanup ETS entries on archive (`:ets.match_delete(:riddle_answers, {{riddle_id, :_}, :_})`)
 
 **Tests:**
+
 - Completion trigger (solve_time elapsed, no correct answers)
 - Completion trigger (first correct answer, immediate)
 - Winner announcement (1st place user displayed)
@@ -540,6 +590,7 @@ end
 - ETS cleanup (verify entries deleted after archive)
 
 **Verify:**
+
 - Start game, wait for solve_time to expire without answers → auto-complete
 - Start game, submit correct answer → immediate complete, verify scheduled job cancelled
 - View post-game screen, verify winner, correct answers, top 3
@@ -548,6 +599,7 @@ end
 - Check ETS (should be empty for archived game)
 
 **Implementation notes:**
+
 ```elixir
 # Schedule auto-complete on game start
 def start_riddle(riddle_id) do
@@ -603,11 +655,13 @@ end
 ---
 
 ## Phase 12: Leaderboards
+
 **Goal:** All-time, monthly, weekly leaderboards
 
 **Context:** Leaderboards live in **Accounts context** (queries User schema)
 
 **Deliverables:**
+
 - Leaderboard LiveView (`/leaderboards`)
 - Tabs: All-time, Monthly, Weekly
 - **Queries:**
@@ -621,6 +675,7 @@ end
 **Note:** No separate monthly_points/weekly_points fields. Calculate based on user.inserted_at for MVP. For more accuracy, Phase 17+ could add Submission schema with timestamps.
 
 **Tests:**
+
 - All-time query (top 100 by total_points)
 - Monthly query (users who joined this month, sorted by points)
 - Weekly query (users who joined this week, sorted by points)
@@ -629,6 +684,7 @@ end
 - Pagination (101 users, verify pagination)
 
 **Verify:**
+
 - Play games with different users, accumulate points
 - Navigate `/leaderboards`
 - Verify all-time shows correct ranking
@@ -636,6 +692,7 @@ end
 - Test monthly/weekly filters
 
 **Implementation notes:**
+
 ```elixir
 # Leaderboard query (Accounts context)
 def leaderboard(:all_time, limit \\ 100) do
@@ -662,11 +719,13 @@ end
 ---
 
 ## Phase 13: Email Notifications
+
 **Goal:** Email for game events via Notifications context
 
 **Context:** New **Notifications context** subscribes to Games PubSub events
 
 **Deliverables:**
+
 - Swoosh config (adapter: local for dev, SMTP/SendGrid for prod)
 - Notifications context module
 - Email templates (HEEx): game_scheduled, starting_soon (5 min warning), game_results
@@ -681,6 +740,7 @@ end
 - Async delivery (Oban queue `:mailers`)
 
 **Tests:**
+
 - Email delivery (Swoosh.TestAssertions in test env)
 - Settings respect (disabled email → no send)
 - Game scheduled email (riddle name, live_date, category)
@@ -689,12 +749,14 @@ end
 - Unsubscribed user no email (notification_settings.email = false)
 
 **Verify:**
+
 - Schedule game, check email sent (Swoosh local inbox)
 - Complete game, check results email
 - Disable email notifications, schedule game, verify no email
 - Test in production with real SMTP
 
 **Implementation notes:**
+
 ```elixir
 # Notifications context subscribes to game events
 defmodule Riddlr.Notifications.Subscriber do
@@ -732,9 +794,11 @@ end
 ---
 
 ## Phase 14: SMS Notifications
+
 **Goal:** SMS via Twilio integration
 
 **Deliverables:**
+
 - ExTwilio dependency (`{:ex_twilio, "~> 0.9"}`)
 - Twilio config in runtime.exs (account_sid, auth_token, from_number from env vars)
 - SMS templates: game_scheduled, starting_soon
@@ -744,6 +808,7 @@ end
 - Async delivery (Oban queue `:mailers`, separate worker `SendSMSWorker`)
 
 **Tests:**
+
 - SMS delivery (mock ExTwilio.Message.create in tests)
 - Settings respect (sms disabled → no send)
 - Communication preference (:email → no sms, :sms → send sms)
@@ -752,12 +817,14 @@ end
 - Missing mobile_number → skip (no error)
 
 **Verify:**
+
 - Add mobile_number to profile, set preference to :sms
 - Schedule game, check Twilio logs/dashboard
 - Verify SMS received on real phone (staging/prod)
 - Test communication_preference (email only → no SMS)
 
 **Implementation notes:**
+
 ```elixir
 # SMS worker
 defmodule Riddlr.Workers.SendSMSWorker do
@@ -788,9 +855,11 @@ end
 ---
 
 ## Phase 15: Admin Moderation
+
 **Goal:** Content moderation, player management with 3-layer ban enforcement
 
 **Deliverables:**
+
 - **Moderation dashboard** (`/admin/moderation`)
   - List flagged answers (from async moderation, Phase 10)
   - List banned users
@@ -814,6 +883,7 @@ end
   - Super_admin: all permissions
 
 **Tests:**
+
 - Flag answer (moderator role, answer hidden from feed)
 - Hide flagged answer (broadcast to PubSub, removed from streams)
 - Ban player (account_status updated)
@@ -825,6 +895,7 @@ end
 - Editor role permission (can create riddles but not ban)
 
 **Verify:**
+
 - Login as moderator, flag answer, verify hidden in all active feeds
 - Ban player, verify:
   - Player's active game session disconnects immediately (PubSub)
@@ -833,6 +904,7 @@ end
 - Unban player, verify can access game again
 
 **Implementation notes:**
+
 ```elixir
 # Ban player (Games or Accounts context)
 def ban_player(user_id, reason) do
@@ -884,12 +956,14 @@ end
 ---
 
 ## Phase 16: Production Polish
+
 **Goal:** Deployment ready
 
 **Deliverables:**
+
 - **Env config:**
   - prod.exs (compile-time config)
-  - runtime.exs (runtime env vars: DATABASE_URL, SECRET_KEY_BASE, TWILIO_*, SMTP_*, SENTRY_DSN)
+  - runtime.exs (runtime env vars: DATABASE*URL, SECRET_KEY_BASE, TWILIO*\_, SMTP\_\_, SENTRY_DSN)
 - **DB connection pooling:**
   - Pool size: 15+ (5 game_lifecycle + 3 mailers + 5 default + buffer)
   - Timeout: 15000ms
@@ -920,12 +994,14 @@ end
   - Test on iOS Safari, Android Chrome
 
 **Tests:**
+
 - Load test (100 concurrent users, 10 active games, k6 or Artillery)
 - Query performance (EXPLAIN ANALYZE for leaderboard, riddle list)
 - Error handling (network failures, DB timeouts, external API failures)
 - Release build (`MIX_ENV=prod mix release`, verify starts)
 
 **Verify:**
+
 - Deploy to prod (Fly.io: `fly deploy`)
 - Load test (verify <200ms p95 for answer submission)
 - Mobile testing (BrowserStack or real devices)
@@ -934,6 +1010,7 @@ end
 - Monitoring (verify AppSignal dashboards populate)
 
 **Implementation notes:**
+
 ```elixir
 # runtime.exs
 config :riddlr, Riddlr.Repo,
@@ -964,6 +1041,7 @@ end
 ---
 
 ## Key Dependencies
+
 - Auth (Phase 2) before admin (Phase 5)
 - Riddle schema (Phase 4) before lifecycle (Phase 7)
 - Lifecycle (Phase 7) before gameplay (Phases 8-11)
@@ -971,6 +1049,7 @@ end
 - Notifications (13-14) can parallelize after Phase 7
 
 ## Reusable Patterns
+
 - State machine transitions (Phase 7) reused in notifications (13-14)
 - PubSub pattern (Phase 8) reused in gameplay (9-10), leaderboards (12), moderation (15)
 - Admin auth `on_mount` (Phase 5) pattern for moderation (Phase 15)
@@ -1019,6 +1098,7 @@ end
 ## Research Notes
 
 Detailed research findings from specialist agents:
+
 - `research/oban-patterns.md` - Worker structure, idempotency, scheduling patterns
 - `research/liveview-patterns.md` - Countdown, Presence, streams, assign_async, cooldowns
 - `research/otp-answer-storage.md` - ETS vs GenServer decision, table structure
