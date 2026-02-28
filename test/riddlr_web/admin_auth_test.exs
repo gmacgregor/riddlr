@@ -29,7 +29,7 @@ defmodule RiddlrWeb.AdminAuthTest do
     end
 
     test "redirects unauthenticated user", %{conn: conn} do
-      {:error, {:redirect, %{to: "/"}}} = live(conn, "/admin/riddles")
+      {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, "/admin/riddles")
     end
   end
 end
