@@ -12,11 +12,14 @@ defmodule Riddlr.Accounts.UserTest do
 
     test "requires unique username" do
       _user = user_fixture(%{username: "testuser"})
-      assert {:error, changeset} = Accounts.register_user(%{
-        email: "other@example.com",
-        username: "testuser",
-        password: "password123password123"
-      })
+
+      assert {:error, changeset} =
+               Accounts.register_user(%{
+                 email: "other@example.com",
+                 username: "testuser",
+                 password: "password123password123"
+               })
+
       assert %{username: ["has already been taken"]} = errors_on(changeset)
     end
 
