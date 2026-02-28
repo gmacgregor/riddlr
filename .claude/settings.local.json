@@ -8,7 +8,8 @@
       "Bash(mix:*)",
       "Bash(elixir:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(iex -S mix:*)"
     ]
   }
 }
