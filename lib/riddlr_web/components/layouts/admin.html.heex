@@ -1,0 +1,16 @@
+<header class="navbar bg-base-200">
+  <div class="flex-1">
+    <.link navigate={~p"/"} class="btn btn-ghost text-xl">Riddlr</.link>
+    <span class="badge badge-primary ml-2">Admin</span>
+  </div>
+  <div class="flex-none">
+    <ul class="menu menu-horizontal px-1">
+      <li><.link navigate={~p"/admin/riddles"}>Riddles</.link></li>
+      <li><.link navigate={~p"/"}>Back to Site</.link></li>
+    </ul>
+  </div>
+</header>
+<main class="container mx-auto px-4 py-8">
+  <.flash_group flash={@flash} />
+  {@inner_content}
+</main>

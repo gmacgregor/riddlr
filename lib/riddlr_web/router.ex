@@ -75,4 +75,19 @@ defmodule RiddlrWeb.Router do
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
   end
+
+  ## Admin routes
+
+  scope "/admin", RiddlrWeb.Admin do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :admin,
+      on_mount: [{RiddlrWeb.AdminAuth, :require_admin}],
+      layout: {RiddlrWeb.Layouts, :admin} do
+      live "/riddles", RiddleLive.Index, :index
+      live "/riddles/new", RiddleLive.Index, :new
+      live "/riddles/:id/edit", RiddleLive.Index, :edit
+      live "/riddles/:id", RiddleLive.Index, :show
+    end
+  end
 end

@@ -26,11 +26,8 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     end
 
     test "redirects unauthenticated user", %{conn: conn} do
-      # This test will fail until we add proper unauthenticated handling
-      # For now, skip it as the plan's AdminAuth tests are also skipped
-      assert_raise RuntimeError, fn ->
-        live(conn, ~p"/admin/riddles")
-      end
+      # Unauthenticated users are redirected by :require_authenticated_user pipeline
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/admin/riddles")
     end
 
     test "creates new riddle", %{conn: conn, admin: admin} do
@@ -46,10 +43,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     test "shows riddle details", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, _index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      assert index_live |> element("#riddles-#{riddle.id}") |> render_click() =~
-               riddle.description
+      # Navigate to show view via patch
+      {:ok, _show_live, html} = live(conn, ~p"/admin/riddles/#{riddle.id}")
+
+      assert html =~ riddle.name
+      assert html =~ riddle.description
     end
 
     test "deletes riddle", %{conn: conn, admin: admin} do
