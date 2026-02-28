@@ -12,7 +12,6 @@ defmodule Riddlr.Games.Riddle do
     field :answers, {:array, :string}, default: []
     field :play_status, :string, default: "closed"
     field :solve_time, :integer
-    field :category, :string
     field :difficulty, :string
     field :hint, :string
     field :hint_delay, :integer
@@ -22,6 +21,7 @@ defmodule Riddlr.Games.Riddle do
     field :completion_rate, :float
     field :average_solve_time, :float
 
+    belongs_to :category, Riddlr.Games.Category
     belongs_to :first_solver, Riddlr.Accounts.User
 
     timestamps(type: :utc_datetime)
@@ -35,7 +35,7 @@ defmodule Riddlr.Games.Riddle do
       :description,
       :play_status,
       :solve_time,
-      :category,
+      :category_id,
       :difficulty,
       :hint,
       :hint_delay,
@@ -47,8 +47,9 @@ defmodule Riddlr.Games.Riddle do
       :average_solve_time
     ])
     |> cast_answers(attrs)
-    |> validate_required([:name, :description, :answers, :solve_time])
+    |> validate_required([:name, :description, :answers, :solve_time, :category_id])
     |> validate_answers()
+    |> foreign_key_constraint(:category_id)
     |> validate_inclusion(:play_status, @play_statuses)
     |> validate_inclusion(:publish_status, @publish_statuses)
     |> validate_inclusion(:difficulty, @difficulties, allow_nil: true)

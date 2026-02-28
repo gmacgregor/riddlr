@@ -8,7 +8,7 @@ defmodule Riddlr.GamesTest do
 
     import Riddlr.GamesFixtures
 
-    @invalid_attrs %{name: nil, description: nil, answers: [], solve_time: nil}
+    @invalid_attrs %{name: nil, description: nil, answers: [], solve_time: nil, category_id: nil}
 
     test "list_riddles/0 returns all riddles" do
       riddle = riddle_fixture()
@@ -21,12 +21,16 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_riddle/1 with valid data creates a riddle" do
+      # Get or create logic category for test
+      category = Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") ||
+        Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
+
       valid_attrs = %{
         name: "Test Riddle",
         description: "A test riddle description",
         answers: ["answer1", "answer2"],
         solve_time: 60,
-        category: "logic",
+        category_id: category.id,
         difficulty: "medium"
       }
 
@@ -44,11 +48,14 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_riddle/1 requires at least one answer" do
+      category = get_test_category()
+
       attrs = %{
         name: "Test",
         description: "Test",
         answers: [],
-        solve_time: 60
+        solve_time: 60,
+        category_id: category.id
       }
 
       assert {:error, changeset} = Games.create_riddle(attrs)
@@ -56,11 +63,14 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_riddle/1 validates play_status enum" do
+      category = get_test_category()
+
       attrs = %{
         name: "Test",
         description: "Test",
         answers: ["answer"],
         solve_time: 60,
+        category_id: category.id,
         play_status: "invalid_status"
       }
 
@@ -69,11 +79,14 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_riddle/1 validates difficulty enum" do
+      category = get_test_category()
+
       attrs = %{
         name: "Test",
         description: "Test",
         answers: ["answer"],
         solve_time: 60,
+        category_id: category.id,
         difficulty: "impossible"
       }
 
@@ -82,11 +95,14 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_riddle/1 validates publish_status enum" do
+      category = get_test_category()
+
       attrs = %{
         name: "Test",
         description: "Test",
         answers: ["answer"],
         solve_time: 60,
+        category_id: category.id,
         publish_status: "invalid_status"
       }
 
@@ -95,15 +111,23 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_riddle/1 rejects empty strings in answers array" do
+      category = get_test_category()
+
       attrs = %{
         name: "Test",
         description: "Test",
         answers: ["valid answer", "", "  "],
-        solve_time: 60
+        solve_time: 60,
+        category_id: category.id
       }
 
       assert {:error, changeset} = Games.create_riddle(attrs)
       assert %{answers: ["all answers must be non-empty strings"]} = errors_on(changeset)
+    end
+
+    defp get_test_category do
+      Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") ||
+        Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
     end
 
     test "update_riddle/2 with valid data updates the riddle" do

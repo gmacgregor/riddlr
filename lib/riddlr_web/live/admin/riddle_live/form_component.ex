@@ -17,7 +17,14 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       >
         <.input field={f[:name]} type="text" label="Name" required />
         <.input field={f[:description]} type="textarea" label="Description" rows="4" required />
-        <.input field={f[:category]} type="text" label="Category" />
+        <.input
+          field={f[:category_id]}
+          type="select"
+          label="Category"
+          prompt="Choose a category"
+          options={@categories}
+          required
+        />
         <.input
           field={f[:difficulty]}
           type="select"
@@ -75,10 +82,14 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     # Convert answers array to newline-separated string for textarea
     riddle = prepare_riddle_for_form(riddle)
 
+    # Load categories for select dropdown
+    categories = Games.list_categories() |> Enum.map(&{&1.name, &1.id})
+
     {:ok,
      socket
      |> assign(assigns)
      |> assign(:title, title(assigns.action))
+     |> assign(:categories, categories)
      |> assign_form(Games.change_riddle(riddle))}
   end
 
