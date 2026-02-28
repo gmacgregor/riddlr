@@ -60,8 +60,18 @@ defmodule Riddlr.Games.Riddle do
   end
 
   defp validate_answers(changeset) do
+    # Get the answers value from changes or data to handle explicit empty arrays
+    answers = get_field(changeset, :answers)
+
     changeset
-    |> validate_length(:answers, min: 1, message: "must have at least one answer")
+    |> validate_change(:answers, fn :answers, _answers ->
+      if length(answers) > 0 do
+        []
+      else
+        [answers: "must have at least one answer"]
+      end
+    end)
+    |> maybe_add_empty_answers_error(answers)
     |> validate_change(:answers, fn :answers, answers ->
       if Enum.all?(answers, &(is_binary(&1) && String.trim(&1) != "")) do
         []
@@ -70,6 +80,16 @@ defmodule Riddlr.Games.Riddle do
       end
     end)
   end
+
+  defp maybe_add_empty_answers_error(changeset, answers) when is_list(answers) do
+    if length(answers) == 0 do
+      add_error(changeset, :answers, "must have at least one answer")
+    else
+      changeset
+    end
+  end
+
+  defp maybe_add_empty_answers_error(changeset, _), do: changeset
 
   def play_statuses, do: @play_statuses
   def publish_statuses, do: @publish_statuses
