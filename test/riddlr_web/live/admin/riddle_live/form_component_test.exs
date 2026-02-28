@@ -10,7 +10,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   end
 
   describe "Form validation" do
-    @tag :skip
     test "validates required fields", %{conn: conn, admin: admin} do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
@@ -25,7 +24,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
              |> render_change() =~ "can&#39;t be blank"
     end
 
-    @tag :skip
     test "validates solve_time minimum", %{conn: conn, admin: admin} do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
@@ -39,7 +37,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   end
 
   describe "Create riddle" do
-    @tag :skip
     test "creates riddle with valid data", %{conn: conn, admin: admin} do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
@@ -68,7 +65,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   end
 
   describe "Edit riddle" do
-    @tag :skip
     test "updates riddle with valid data", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
@@ -96,7 +92,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       assert html =~ "Updated Riddle Name"
     end
 
-    @tag :skip
     test "displays error on invalid data", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)

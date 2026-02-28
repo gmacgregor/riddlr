@@ -2,6 +2,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   use RiddlrWeb, :live_view
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
+  alias Riddlr.Authorization
 
   @impl true
   def mount(_params, _session, socket) do
@@ -33,9 +34,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    riddle = Games.get_riddle!(id)
-    {:ok, _} = Games.delete_riddle(riddle)
-    {:noreply, socket |> stream_delete(:riddles, riddle) |> put_flash(:info, "Riddle deleted")}
+    # ⚠️ Authorization check required - on_mount hooks only run at mount time
+    # Event handlers must verify permissions independently
+    if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+      riddle = Games.get_riddle!(id)
+      {:ok, _} = Games.delete_riddle(riddle)
+      {:noreply, socket |> stream_delete(:riddles, riddle) |> put_flash(:info, "Riddle deleted")}
+    else
+      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
+    end
   end
 
   @impl true

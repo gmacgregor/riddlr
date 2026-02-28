@@ -8,7 +8,9 @@ defmodule RiddlrWeb.Endpoint do
     store: :cookie,
     key: "_riddlr_key",
     signing_salt: "yiRgXIpO",
-    same_site: "Lax"
+    same_site: "Lax",
+    http_only: true,
+    secure: true
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

@@ -47,7 +47,7 @@ defmodule Riddlr.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :username, :role])
+    |> cast(attrs, [:email, :username])
     |> validate_username(opts)
     |> validate_email(opts)
   end
