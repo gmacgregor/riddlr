@@ -20,12 +20,22 @@ defmodule Riddlr.AccountsFixtures do
   end
 
   def unconfirmed_user_fixture(attrs \\ %{}) do
+    role = Map.get(attrs, :role, :player)
+
     {:ok, user} =
       attrs
       |> valid_user_attributes()
       |> Accounts.register_user()
 
-    user
+    # Update role directly via repo (only in tests)
+    # Role cannot be cast in registration_changeset for security
+    if role != :player do
+      user
+      |> Ecto.Changeset.change(role: role)
+      |> Riddlr.Repo.update!()
+    else
+      user
+    end
   end
 
   def user_fixture(attrs \\ %{}) do

@@ -10,7 +10,21 @@ defmodule Riddlr.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
 
+    field :role, Ecto.Enum,
+      values: [:super_admin, :moderator, :editor, :viewer, :player],
+      default: :player
+
     timestamps(type: :utc_datetime)
+  end
+
+  @doc """
+  A general changeset for admin-controlled updates including role assignment.
+  This should NOT be used for user-facing registration.
+  """
+  def changeset(user, attrs) do
+    user
+    |> cast(attrs, [:role])
+    |> validate_inclusion(:role, [:super_admin, :moderator, :editor, :viewer, :player])
   end
 
   @doc """

@@ -29,4 +29,19 @@ defmodule Riddlr.Accounts.UserTest do
       assert changeset.valid?
     end
   end
+
+  describe "role" do
+    test "defaults to player" do
+      user = %User{}
+      assert user.role == :player
+    end
+
+    test "validates role enum" do
+      changeset = User.changeset(%User{}, %{role: :super_admin})
+      assert changeset.valid?
+
+      changeset = User.changeset(%User{}, %{role: :invalid})
+      refute changeset.valid?
+    end
+  end
 end

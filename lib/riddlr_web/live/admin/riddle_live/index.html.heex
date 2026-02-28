@@ -1,0 +1,87 @@
+<.header>
+  {@page_title}
+  <:actions>
+    <.link patch={~p"/admin/riddles/new"}>
+      <.button>New Riddle</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<div :if={@live_action in [:new, :edit]} class="mb-8">
+  <.live_component
+    module={RiddlrWeb.Admin.RiddleLive.FormComponent}
+    id={@riddle.id || :new}
+    action={@live_action}
+    riddle={@riddle}
+    patch={~p"/admin/riddles"}
+  />
+</div>
+
+<div :if={@live_action == :show && @riddle} class="mb-8 p-6 bg-white rounded-lg shadow">
+  <.header>
+    {@riddle.name}
+    <:actions>
+      <.link patch={~p"/admin/riddles/#{@riddle}/edit"}>
+        <.button>Edit</.button>
+      </.link>
+      <.link patch={~p"/admin/riddles"}>
+        <.button>Back</.button>
+      </.link>
+    </:actions>
+  </.header>
+  <div class="mt-4 space-y-4">
+    <div>
+      <h4 class="font-semibold">Description</h4>
+      <p>{@riddle.description}</p>
+    </div>
+    <div>
+      <h4 class="font-semibold">Category</h4>
+      <p>{@riddle.category}</p>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <h4 class="font-semibold">Difficulty</h4>
+        <p>{@riddle.difficulty}</p>
+      </div>
+      <div>
+        <h4 class="font-semibold">Solve Time</h4>
+        <p>{@riddle.solve_time} seconds</p>
+      </div>
+    </div>
+    <div>
+      <h4 class="font-semibold">Answers</h4>
+      <ul class="list-disc list-inside">
+        <%= for answer <- @riddle.answers do %>
+          <li>{answer}</li>
+        <% end %>
+      </ul>
+    </div>
+    <div :if={@riddle.hint}>
+      <h4 class="font-semibold">Hint</h4>
+      <p>{@riddle.hint}</p>
+      <p class="text-sm text-gray-500">Available after {@riddle.hint_delay} seconds</p>
+    </div>
+  </div>
+</div>
+
+<.table
+  id="riddles"
+  rows={@streams.riddles}
+  row_click={fn {_id, riddle} -> JS.patch(~p"/admin/riddles/#{riddle}") end}
+>
+  <:col :let={{_id, riddle}} label="Name">{riddle.name}</:col>
+  <:col :let={{_id, riddle}} label="Difficulty">{riddle.difficulty}</:col>
+  <:col :let={{_id, riddle}} label="Category">{riddle.category}</:col>
+  <:col :let={{_id, riddle}} label="Status">{riddle.publish_status}</:col>
+  <:action :let={{_id, riddle}}>
+    <.link patch={~p"/admin/riddles/#{riddle}/edit"}>Edit</.link>
+  </:action>
+  <:action :let={{_id, riddle}}>
+    <.link
+      phx-click={JS.push("delete", value: %{id: riddle.id}) |> hide("#riddles-#{riddle.id}")}
+      data-confirm="Are you sure?"
+    >
+      Delete
+    </.link>
+  </:action>
+</.table>

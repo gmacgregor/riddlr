@@ -10,7 +10,54 @@
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
+alias Riddlr.Accounts
 alias Riddlr.Games
+
+# Create admin and player users for testing
+IO.puts("Creating test users...")
+
+case Accounts.register_user(%{
+       email: "admin@example.com",
+       username: "admin",
+       role: :super_admin
+     }) do
+  {:ok, _admin} ->
+    IO.puts("✓ Created admin user: admin@example.com (role: super_admin)")
+    IO.puts("  To log in, use the magic link sent to the Swoosh mailbox")
+    IO.puts("  Visit: http://localhost:4000/dev/mailbox")
+
+  {:error, changeset} ->
+    IO.puts("✗ Failed to create admin user")
+    IO.inspect(changeset.errors)
+end
+
+case Accounts.register_user(%{
+       email: "editor@example.com",
+       username: "editor",
+       role: :editor
+     }) do
+  {:ok, _editor} ->
+    IO.puts("✓ Created editor user: editor@example.com (role: editor)")
+
+  {:error, changeset} ->
+    IO.puts("✗ Failed to create editor user")
+    IO.inspect(changeset.errors)
+end
+
+case Accounts.register_user(%{
+       email: "player@example.com",
+       username: "player",
+       role: :player
+     }) do
+  {:ok, _player} ->
+    IO.puts("✓ Created player user: player@example.com (role: player)")
+
+  {:error, changeset} ->
+    IO.puts("✗ Failed to create player user")
+    IO.inspect(changeset.errors)
+end
+
+IO.puts("\nSeeding riddles...")
 
 riddles = [
   %{
