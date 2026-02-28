@@ -12,16 +12,17 @@
 
 alias Riddlr.Accounts
 alias Riddlr.Games
+alias Riddlr.Repo
 
 # Create admin and player users for testing
+# Note: We register first, then update role directly via Repo
+# This is required because role cannot be cast in registration_changeset (security)
 IO.puts("Creating test users...")
 
-case Accounts.register_user(%{
-       email: "admin@example.com",
-       username: "admin",
-       role: :super_admin
-     }) do
-  {:ok, _admin} ->
+case Accounts.register_user(%{email: "admin@example.com", username: "admin"}) do
+  {:ok, admin} ->
+    # Update role directly via repo (only in seeds)
+    admin = admin |> Ecto.Changeset.change(role: :super_admin) |> Repo.update!()
     IO.puts("✓ Created admin user: admin@example.com (role: super_admin)")
     IO.puts("  To log in, use the magic link sent to the Swoosh mailbox")
     IO.puts("  Visit: http://localhost:4000/dev/mailbox")
@@ -31,12 +32,9 @@ case Accounts.register_user(%{
     IO.inspect(changeset.errors)
 end
 
-case Accounts.register_user(%{
-       email: "editor@example.com",
-       username: "editor",
-       role: :editor
-     }) do
-  {:ok, _editor} ->
+case Accounts.register_user(%{email: "editor@example.com", username: "editor"}) do
+  {:ok, editor} ->
+    editor |> Ecto.Changeset.change(role: :editor) |> Repo.update!()
     IO.puts("✓ Created editor user: editor@example.com (role: editor)")
 
   {:error, changeset} ->
@@ -44,12 +42,9 @@ case Accounts.register_user(%{
     IO.inspect(changeset.errors)
 end
 
-case Accounts.register_user(%{
-       email: "player@example.com",
-       username: "player",
-       role: :player
-     }) do
+case Accounts.register_user(%{email: "player@example.com", username: "player"}) do
   {:ok, _player} ->
+    # Player uses default role, no update needed
     IO.puts("✓ Created player user: player@example.com (role: player)")
 
   {:error, changeset} ->
