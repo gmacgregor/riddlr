@@ -20,9 +20,12 @@ defmodule Riddlr.AccountsFixtures do
   end
 
   def unconfirmed_user_fixture(attrs \\ %{}) do
+    role = Map.get(attrs, :role, :player)
+
     {:ok, user} =
       attrs
       |> valid_user_attributes()
+      |> Map.put(:role, role)
       |> Accounts.register_user()
 
     user
