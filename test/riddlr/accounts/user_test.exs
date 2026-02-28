@@ -37,12 +37,10 @@ defmodule Riddlr.Accounts.UserTest do
     end
 
     test "validates role enum" do
-      changeset =
-        User.registration_changeset(%User{}, valid_user_attributes(%{role: :super_admin}))
-
+      changeset = User.changeset(%User{}, %{role: :super_admin})
       assert changeset.valid?
 
-      changeset = User.registration_changeset(%User{}, valid_user_attributes(%{role: :invalid}))
+      changeset = User.changeset(%User{}, %{role: :invalid})
       refute changeset.valid?
     end
   end

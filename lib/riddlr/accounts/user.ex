@@ -18,6 +18,16 @@ defmodule Riddlr.Accounts.User do
   end
 
   @doc """
+  A general changeset for admin-controlled updates including role assignment.
+  This should NOT be used for user-facing registration.
+  """
+  def changeset(user, attrs) do
+    user
+    |> cast(attrs, [:role])
+    |> validate_inclusion(:role, [:super_admin, :moderator, :editor, :viewer, :player])
+  end
+
+  @doc """
   A user changeset for registering or changing the email.
 
   It requires the email to change otherwise an error is added.
