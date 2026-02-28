@@ -10,6 +10,28 @@
 
 ---
 
+## ⚠️ Important Notes for Claude
+
+**Security Critical:**
+- **NEVER** allow the `:role` field to be cast in public-facing registration changesets. Role assignment must only happen via admin-controlled functions or seeds.
+- **ALWAYS** verify authorization in LiveView event handlers, not just mount hooks. Event handlers like `handle_event("delete", ...)` must check permissions before performing actions.
+- **Session cookies** must have `http_only: true` and `secure: true` flags in production config.
+
+**Testing Requirements:**
+- All authorization tests must be enabled and passing before considering this phase complete.
+- Test both positive cases (authorized users can perform actions) and negative cases (unauthorized users are blocked).
+- Test fixtures must support role parameter: `user_fixture(%{role: :editor})`.
+
+**Code Review Issues from Prior Implementation:**
+This plan was previously implemented and reviewed. The following BLOCKER issues were identified:
+1. Role field castable in registration changeset (privilege escalation risk)
+2. Missing authorization checks in LiveView delete event handler
+3. 10 skipped tests providing zero coverage for security features
+
+These issues have been addressed in Tasks 8-9 below.
+
+---
+
 ## Task 1: Add Role Field to Users
 
 **Files:**
@@ -52,18 +74,22 @@ In `lib/riddlr/accounts/user.ex`, add to schema block:
 field :role, Ecto.Enum, values: [:super_admin, :moderator, :editor, :viewer, :player], default: :player
 ```
 
-**Step 4: Add role to registration changeset**
+**Step 4: Update registration changeset (DO NOT cast :role)**
 
-In `lib/riddlr/accounts/user.ex`, update `registration_changeset/3`:
+⚠️ **SECURITY CRITICAL:** Do NOT add `:role` to the cast/2 call in `registration_changeset/3`. This would allow privilege escalation attacks where users can register as admins.
+
+In `lib/riddlr/accounts/user.ex`, the `registration_changeset/3` should remain:
 
 ```elixir
 def registration_changeset(user, attrs, opts \\ []) do
   user
-  |> cast(attrs, [:email, :username, :role])  # Add :role
+  |> cast(attrs, [:email, :username])  # DO NOT add :role here
   |> validate_username(opts)
   |> validate_email(opts)
 end
 ```
+
+Role assignment will be handled via seeds and admin-only functions only.
 
 **Step 5: Write role validation tests**
 
@@ -326,6 +352,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   use RiddlrWeb, :live_view
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
+  alias Riddlr.Authorization
 
   @impl true
   def mount(_params, _session, socket) do
@@ -357,9 +384,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    riddle = Games.get_riddle!(id)
-    {:ok, _} = Games.delete_riddle(riddle)
-    {:noreply, socket |> stream_delete(:riddles, riddle) |> put_flash(:info, "Riddle deleted")}
+    # ⚠️ Authorization check required - on_mount hooks only run at mount time
+    # Event handlers must verify permissions independently
+    if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+      riddle = Games.get_riddle!(id)
+      {:ok, _} = Games.delete_riddle(riddle)
+      {:noreply, socket |> stream_delete(:riddles, riddle) |> put_flash(:info, "Riddle deleted")}
+    else
+      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
+    end
   end
 
   @impl true
@@ -598,29 +631,63 @@ Expected: Commit successful
 
 **Step 1: Add admin user to seeds**
 
+⚠️ **Note:** Seeds bypass the normal registration flow to assign roles. This is the ONLY place where role assignment should happen outside of admin-controlled functions.
+
 In `priv/repo/seeds.exs`, add at the top:
 
 ```elixir
 alias Riddlr.Accounts
+alias Riddlr.Accounts.User
+alias Riddlr.Repo
 
-# Create admin user for testing
-{:ok, admin} = Accounts.register_user(%{
+# Create admin and editor users for testing
+# Note: We insert directly to assign roles, since register_user doesn't cast :role
+IO.puts("Creating test users...")
+
+case Accounts.register_user(%{
   email: "admin@example.com",
-  username: "admin",
-  password: "adminpassword123",
-  role: :super_admin
-})
+  username: "admin"
+}) do
+  {:ok, admin} ->
+    # Update role directly via repo (only in seeds)
+    admin
+    |> Ecto.Changeset.change(role: :super_admin)
+    |> Repo.update!()
+    IO.puts("✓ Created admin user: admin@example.com (role: super_admin)")
+    IO.puts("  To log in, use the magic link sent to the Swoosh mailbox")
+    IO.puts("  Visit: http://localhost:4000/dev/mailbox")
 
-IO.puts("Created admin user: admin@example.com / adminpassword123")
+  {:error, changeset} ->
+    IO.puts("✗ Failed to create admin user")
+    IO.inspect(changeset.errors)
+end
 
-{:ok, player} = Accounts.register_user(%{
+case Accounts.register_user(%{
+  email: "editor@example.com",
+  username: "editor"
+}) do
+  {:ok, editor} ->
+    editor
+    |> Ecto.Changeset.change(role: :editor)
+    |> Repo.update!()
+    IO.puts("✓ Created editor user: editor@example.com (role: editor)")
+
+  {:error, changeset} ->
+    IO.puts("✗ Failed to create editor user")
+    IO.inspect(changeset.errors)
+end
+
+case Accounts.register_user(%{
   email: "player@example.com",
-  username: "player",
-  password: "playerpassword123",
-  role: :player
-})
+  username: "player"
+}) do
+  {:ok, _player} ->
+    IO.puts("✓ Created player user: player@example.com (role: player)")
 
-IO.puts("Created player user: player@example.com / playerpassword123")
+  {:error, changeset} ->
+    IO.puts("✗ Failed to create player user")
+    IO.inspect(changeset.errors)
+end
 ```
 
 **Step 2: Reset database and seed**
@@ -633,17 +700,19 @@ Expected: Database dropped, created, migrated, and seeded
 Run: `mix phx.server`
 
 Test flow:
-1. Login as admin (admin@example.com / adminpassword123)
-2. Navigate to /admin/riddles
-3. Create new riddle
-4. Edit existing riddle
-5. View riddle details
-6. Delete riddle
-7. Logout and login as player (player@example.com / playerpassword123)
-8. Try to access /admin/riddles
-9. Verify redirect to home with error message
+1. Visit http://localhost:4000/dev/mailbox to access Swoosh mailbox
+2. Find magic link for admin@example.com and click to login
+3. Navigate to /admin/riddles
+4. Verify "Manage Riddles" page loads with admin badge in navbar
+5. Click "New Riddle" and create a riddle
+6. Edit an existing riddle
+7. View riddle details via the show action
+8. Delete a riddle
+9. Logout and repeat magic link process for player@example.com
+10. Try to access /admin/riddles as player
+11. Verify redirect to home with error message "You must be an admin to access this page."
 
-Expected: All CRUD operations work for admin, player redirected
+Expected: All CRUD operations work for admin, player redirected with error flash
 
 **Step 4: Run format and compile**
 
@@ -657,19 +726,142 @@ Expected: Commit successful
 
 ---
 
+## Task 8: Enable and Fix AdminAuth Tests
+
+**Files:**
+- Modify: `test/riddlr_web/admin_auth_test.exs`
+
+**Step 1: Review skipped tests**
+
+Run: `grep -A 5 "@tag :skip" test/riddlr_web/admin_auth_test.exs`
+Expected: Identify all skipped tests (should be ~5 tests)
+
+**Step 2: Remove @tag :skip from all tests**
+
+In `test/riddlr_web/admin_auth_test.exs`, remove all `@tag :skip` annotations:
+
+```elixir
+# Remove these lines:
+@tag :skip
+```
+
+**Step 3: Update test fixtures if needed**
+
+Ensure `AccountsFixtures.user_fixture/1` accepts `role` parameter as implemented in Task 3.
+
+**Step 4: Run tests**
+
+Run: `mix test test/riddlr_web/admin_auth_test.exs`
+Expected: All AdminAuth tests pass
+
+**Step 5: Commit**
+
+Run: `git add test/riddlr_web/admin_auth_test.exs && git commit -m "test: enable AdminAuth tests with role support"`
+Expected: Commit successful
+
+---
+
+## Task 9: Enable and Fix Form Component Tests
+
+**Files:**
+- Modify: `test/riddlr_web/live/admin/riddle_live/form_component_test.exs`
+
+**Step 1: Review skipped tests**
+
+Run: `grep -A 5 "@tag :skip" test/riddlr_web/live/admin/riddle_live/form_component_test.exs`
+Expected: Identify all skipped tests (should be ~5 tests)
+
+**Step 2: Remove @tag :skip from all tests**
+
+In `test/riddlr_web/live/admin/riddle_live/form_component_test.exs`, remove all `@tag :skip` annotations.
+
+**Step 3: Add setup block with admin user**
+
+```elixir
+setup do
+  admin = Riddlr.AccountsFixtures.user_fixture(%{role: :editor})
+  %{admin: admin}
+end
+```
+
+**Step 4: Update tests to use authenticated admin**
+
+Ensure all tests that interact with the form component are authenticated:
+
+```elixir
+test "creates riddle", %{conn: conn, admin: admin} do
+  conn = log_in_user(conn, admin)
+  # ... rest of test
+end
+```
+
+**Step 5: Run tests**
+
+Run: `mix test test/riddlr_web/live/admin/riddle_live/form_component_test.exs`
+Expected: All form component tests pass
+
+**Step 6: Commit**
+
+Run: `git add test/riddlr_web/live/admin/riddle_live/form_component_test.exs && git commit -m "test: enable form component tests with authentication"`
+Expected: Commit successful
+
+---
+
+## Task 10: Configure Session Security
+
+**Files:**
+- Modify: `lib/riddlr_web/endpoint.ex`
+
+**Step 1: Update session configuration**
+
+In `lib/riddlr_web/endpoint.ex`, find the `Plug.Session` configuration and ensure it includes security flags:
+
+```elixir
+plug Plug.Session,
+  store: :cookie,
+  key: "_riddlr_key",
+  signing_salt: "your_signing_salt",
+  http_only: true,   # Add this line if missing
+  secure: true,      # Add this line if missing (HTTPS only in production)
+  same_site: "Lax"   # Add this line for CSRF protection
+```
+
+**Step 2: Verify configuration in different environments**
+
+Check `config/dev.exs`, `config/test.exs`, and `config/runtime.exs` to ensure:
+- `http_only: true` is set in all environments
+- `secure: true` is set in production only (via runtime.exs when HTTPS is enabled)
+
+**Step 3: Run tests**
+
+Run: `mix test`
+Expected: All tests still pass with updated session config
+
+**Step 4: Commit**
+
+Run: `git add lib/riddlr_web/endpoint.ex && git commit -m "security: add http_only and secure flags to session cookies"`
+Expected: Commit successful
+
+---
+
 ## Verification Checklist
 
 - [ ] Role enum added to users (super_admin, moderator, editor, viewer, player)
 - [ ] Default role is player
+- [ ] Role field NOT castable in registration changeset (security)
 - [ ] Authorization module with permission checks
 - [ ] AdminAuth on_mount hooks redirect non-admin users
 - [ ] Admin riddle index LiveView uses streams
+- [ ] Delete event handler includes authorization check (not just mount)
 - [ ] Form component validates riddle fields
 - [ ] Admin layout with navigation
 - [ ] Routes protected with live_session :admin
 - [ ] Admin user can CRUD riddles
 - [ ] Player user redirected from admin area
-- [ ] All tests passing
+- [ ] All AdminAuth tests enabled and passing
+- [ ] All form component tests enabled and passing
+- [ ] Session cookies have http_only and secure flags
+- [ ] All tests passing (125+ tests expected)
 - [ ] Code formatted
 
 ---
@@ -685,9 +877,32 @@ After completing Phase 5:
 
 ## Notes
 
+**Architecture:**
 - Single LiveView pattern (not multi-LiveView) for simpler routing
 - Modal form preserves scroll position and user context
 - Streams prevent memory issues with large riddle lists
 - Role hierarchy allows future expansion (e.g., moderator role for Phase 15)
 - Admin layout can be enhanced later with sidebar navigation
 - Answer array handling deferred to form component (use inputs_for or custom JS)
+
+**Security:**
+- **Defense in depth:** Authorization checks at multiple layers (routes via on_mount, event handlers via explicit checks, context layer via function guards)
+- **Never trust client data:** Role field must never be castable in public changesets
+- **Session hardening:** http_only and secure flags prevent XSS and man-in-the-middle attacks
+- **CSRF protection:** Phoenix automatically includes CSRF tokens in forms
+- **SQL injection prevention:** Ecto parameterized queries provide automatic protection
+
+**Testing:**
+- All authorization paths must be tested (positive and negative cases)
+- Test fixtures support role parameter for creating users with different permissions
+- Skipped tests indicate incomplete implementation and must be enabled
+- Expected test count after Phase 5: 125+ tests passing
+
+**Common Pitfalls:**
+- ❌ Casting `:role` in registration changeset (allows privilege escalation)
+- ❌ Relying solely on on_mount hooks (doesn't protect event handlers)
+- ❌ Using `git add .` for commits (might include sensitive files)
+- ❌ Skipping tests because "they don't work yet" (tests define the contract)
+- ✅ Always check authorization in event handlers, not just mount
+- ✅ Use specific file paths when staging commits
+- ✅ Enable all tests and make them pass before considering task complete
