@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(test:*)",
+      "Bash(mix phx.new:*)",
+      "Bash(mix deps.get:*)",
+      "Bash(mix:*)",
+      "Bash(elixir:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
