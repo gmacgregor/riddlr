@@ -4,6 +4,7 @@ defmodule Riddlr.Accounts.User do
 
   schema "users" do
     field :email, :string
+    field :username, :string
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
@@ -29,6 +30,24 @@ defmodule Riddlr.Accounts.User do
     |> validate_email(opts)
   end
 
+  @doc """
+  A user changeset for registration.
+
+  It requires email and username. Password is optional (used for password-based auth).
+
+  ## Options
+
+    * `:validate_unique` - Set to false if you don't want to validate the
+      uniqueness of fields, useful when displaying live validations.
+      Defaults to `true`.
+  """
+  def registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:email, :username])
+    |> validate_username(opts)
+    |> validate_email(opts)
+  end
+
   defp validate_email(changeset, opts) do
     changeset =
       changeset
@@ -51,6 +70,24 @@ defmodule Riddlr.Accounts.User do
   defp validate_email_changed(changeset) do
     if get_field(changeset, :email) && get_change(changeset, :email) == nil do
       add_error(changeset, :email, "did not change")
+    else
+      changeset
+    end
+  end
+
+  defp validate_username(changeset, opts) do
+    changeset =
+      changeset
+      |> validate_required([:username])
+      |> validate_length(:username, min: 3, max: 20)
+      |> validate_format(:username, ~r/^[a-zA-Z0-9_]+$/,
+        message: "must contain only letters, numbers, and underscores"
+      )
+
+    if Keyword.get(opts, :validate_unique, true) do
+      changeset
+      |> unsafe_validate_unique(:username, Riddlr.Repo)
+      |> unique_constraint(:username)
     else
       changeset
     end
