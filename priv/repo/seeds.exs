@@ -15,7 +15,8 @@ alias Riddlr.Games
 riddles = [
   %{
     name: "The Keyboard",
-    description: "What has keys but no locks, space but no room, and you can enter but can't go inside?",
+    description:
+      "What has keys but no locks, space but no room, and you can enter but can't go inside?",
     answers: ["keyboard", "a keyboard", "computer keyboard"],
     solve_time: 60,
     category: "technology",
@@ -37,7 +38,8 @@ riddles = [
   },
   %{
     name: "The Light Switch",
-    description: "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?",
+    description:
+      "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?",
     answers: ["map", "a map"],
     solve_time: 120,
     category: "logic",
@@ -48,7 +50,8 @@ riddles = [
   },
   %{
     name: "The River",
-    description: "What runs but never walks, has a mouth but never talks, has a bed but never sleeps?",
+    description:
+      "What runs but never walks, has a mouth but never talks, has a bed but never sleeps?",
     answers: ["river", "a river", "stream"],
     solve_time: 90,
     category: "nature",

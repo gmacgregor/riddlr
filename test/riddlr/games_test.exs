@@ -108,6 +108,7 @@ defmodule Riddlr.GamesTest do
 
     test "update_riddle/2 with valid data updates the riddle" do
       riddle = riddle_fixture()
+
       update_attrs = %{
         name: "Updated Name",
         description: "Updated description",

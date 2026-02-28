@@ -54,7 +54,10 @@ defmodule Riddlr.Games.Riddle do
     |> validate_inclusion(:difficulty, @difficulties, allow_nil: true)
     |> validate_number(:solve_time, greater_than: 0)
     |> validate_number(:hint_delay, greater_than_or_equal_to: 0)
-    |> validate_number(:completion_rate, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 100.0)
+    |> validate_number(:completion_rate,
+      greater_than_or_equal_to: 0.0,
+      less_than_or_equal_to: 100.0
+    )
     |> validate_number(:average_solve_time, greater_than_or_equal_to: 0.0)
     |> foreign_key_constraint(:first_solver_id)
   end
