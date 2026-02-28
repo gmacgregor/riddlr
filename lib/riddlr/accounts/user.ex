@@ -10,6 +10,10 @@ defmodule Riddlr.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
 
+    field :role, Ecto.Enum,
+      values: [:super_admin, :moderator, :editor, :viewer, :player],
+      default: :player
+
     timestamps(type: :utc_datetime)
   end
 
@@ -43,7 +47,7 @@ defmodule Riddlr.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :username])
+    |> cast(attrs, [:email, :username, :role])
     |> validate_username(opts)
     |> validate_email(opts)
   end
