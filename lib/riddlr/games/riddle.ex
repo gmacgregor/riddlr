@@ -33,7 +33,6 @@ defmodule Riddlr.Games.Riddle do
     |> cast(attrs, [
       :name,
       :description,
-      :answers,
       :play_status,
       :solve_time,
       :category,
@@ -47,6 +46,7 @@ defmodule Riddlr.Games.Riddle do
       :completion_rate,
       :average_solve_time
     ])
+    |> cast_answers(attrs)
     |> validate_required([:name, :description, :answers, :solve_time])
     |> validate_answers()
     |> validate_inclusion(:play_status, @play_statuses)
@@ -57,6 +57,20 @@ defmodule Riddlr.Games.Riddle do
     |> validate_number(:completion_rate, greater_than_or_equal_to: 0.0, less_than_or_equal_to: 100.0)
     |> validate_number(:average_solve_time, greater_than_or_equal_to: 0.0)
     |> foreign_key_constraint(:first_solver_id)
+  end
+
+  defp cast_answers(changeset, attrs) do
+    # Custom cast for answers to preserve empty strings for validation
+    case Map.get(attrs, :answers) || Map.get(attrs, "answers") do
+      nil ->
+        changeset
+
+      answers when is_list(answers) ->
+        put_change(changeset, :answers, answers)
+
+      _ ->
+        changeset
+    end
   end
 
   defp validate_answers(changeset) do

@@ -81,6 +81,31 @@ defmodule Riddlr.GamesTest do
       assert %{difficulty: ["is invalid"]} = errors_on(changeset)
     end
 
+    test "create_riddle/1 validates publish_status enum" do
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        publish_status: "invalid_status"
+      }
+
+      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert %{publish_status: ["is invalid"]} = errors_on(changeset)
+    end
+
+    test "create_riddle/1 rejects empty strings in answers array" do
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["valid answer", "", "  "],
+        solve_time: 60
+      }
+
+      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert %{answers: ["all answers must be non-empty strings"]} = errors_on(changeset)
+    end
+
     test "update_riddle/2 with valid data updates the riddle" do
       riddle = riddle_fixture()
       update_attrs = %{
