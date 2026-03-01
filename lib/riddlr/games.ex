@@ -237,6 +237,9 @@ defmodule Riddlr.Games do
   Enqueues ArchiveRiddleTransitionWorker (3 min delay).
   """
   def complete_riddle(riddle_id) do
+    # 3 mins
+    archive_riddle_after_period = 180
+
     case Repo.get(Riddle, riddle_id) do
       nil ->
         {:error, :not_found}
@@ -249,7 +252,9 @@ defmodule Riddlr.Games do
           |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "completed"}))
           |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
             %{riddle_id: updated_riddle.id}
-            |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: 180)
+            |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(
+              schedule_in: archive_riddle_after_period
+            )
           end)
           |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
             Phoenix.PubSub.broadcast(

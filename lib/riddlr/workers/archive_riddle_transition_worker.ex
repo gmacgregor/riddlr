@@ -1,6 +1,6 @@
 defmodule Riddlr.Workers.ArchiveRiddleTransitionWorker do
   @moduledoc """
-  Worker to transition a riddle from completed to archived state (3 min after completion).
+  Worker to transition a riddle from completed to archived state.
   Idempotent: cancels if riddle is not in completed state.
   """
   use Oban.Worker,
