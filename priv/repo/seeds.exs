@@ -22,7 +22,7 @@ IO.puts("Creating test users...")
 case Accounts.register_user(%{email: "admin@example.com", username: "admin"}) do
   {:ok, admin} ->
     # Update role directly via repo (only in seeds)
-    admin = admin |> Ecto.Changeset.change(role: :super_admin) |> Repo.update!()
+    _admin = admin |> Ecto.Changeset.change(role: :super_admin) |> Repo.update!()
     IO.puts("✓ Created admin user: admin@example.com (role: super_admin)")
     IO.puts("  To log in, use the magic link sent to the Swoosh mailbox")
     IO.puts("  Visit: http://localhost:4000/dev/mailbox")
@@ -61,6 +61,7 @@ riddles = [
       "What has keys but no locks, space but no room, and you can enter but can't go inside?",
     answers: ["keyboard", "a keyboard", "computer keyboard"],
     solve_time: 60,
+    category_id: 1,
     category: "technology",
     difficulty: "easy",
     hint: "Think about something you use every day to type.",
@@ -72,6 +73,7 @@ riddles = [
     description: "What can you hear but not see or touch, even though you control it?",
     answers: ["echo", "an echo"],
     solve_time: 90,
+    category_id: 2,
     category: "nature",
     difficulty: "medium",
     hint: "It's something that bounces back to you.",
@@ -84,6 +86,7 @@ riddles = [
       "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?",
     answers: ["map", "a map"],
     solve_time: 120,
+    category_id: 3,
     category: "logic",
     difficulty: "medium",
     hint: "Think about representation, not reality.",
@@ -96,6 +99,7 @@ riddles = [
       "What runs but never walks, has a mouth but never talks, has a bed but never sleeps?",
     answers: ["river", "a river", "stream"],
     solve_time: 90,
+    category_id: 2,
     category: "nature",
     difficulty: "easy",
     hint: "It flows through the land.",
@@ -107,6 +111,7 @@ riddles = [
     description: "The more you take, the more you leave behind. What am I?",
     answers: ["footsteps", "steps", "footprints"],
     solve_time: 120,
+    category_id: 3,
     category: "logic",
     difficulty: "hard",
     hint: "Think about what you create as you move.",
@@ -118,6 +123,7 @@ riddles = [
     description: "This riddle is not yet ready for play.",
     answers: ["test"],
     solve_time: 60,
+    category_id: 4,
     category: "test",
     difficulty: "easy",
     publish_status: "draft"
