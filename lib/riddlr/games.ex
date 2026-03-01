@@ -70,6 +70,7 @@ defmodule Riddlr.Games do
 
   @doc """
   Updates a riddle.
+  If publish_status changes from "published" to "draft", cancels all pending jobs.
 
   ## Examples
 
@@ -81,13 +82,43 @@ defmodule Riddlr.Games do
 
   """
   def update_riddle(%Riddle{} = riddle, attrs) do
-    riddle
-    |> Riddle.changeset(attrs)
-    |> Repo.update()
+    changeset = Riddle.changeset(riddle, attrs)
+
+    publish_status_changing_to_draft? =
+      riddle.publish_status == "published" &&
+        Ecto.Changeset.get_change(changeset, :publish_status) == "draft"
+
+    Multi.new()
+    |> Multi.update(:riddle, changeset)
+    |> Multi.run(:cancel_jobs, fn _repo, %{riddle: updated_riddle} ->
+      if publish_status_changing_to_draft? do
+        cancel_riddle_jobs(updated_riddle.id)
+      else
+        {:ok, :skipped}
+      end
+    end)
+    |> Repo.transaction()
     |> case do
-      {:ok, riddle} -> {:ok, Repo.preload(riddle, :category)}
-      {:error, changeset} -> {:error, changeset}
+      {:ok, %{riddle: riddle}} -> {:ok, Repo.preload(riddle, :category, force: true)}
+      {:error, :riddle, changeset, _} -> {:error, changeset}
+      {:error, _failed_operation, reason, _} -> {:error, reason}
     end
+  end
+
+  @doc """
+  Cancels all pending Oban jobs for a riddle.
+  Returns {:ok, count} where count is the number of cancelled jobs.
+  """
+  def cancel_riddle_jobs(riddle_id) do
+    import Ecto.Query
+
+    {count, _} =
+      Oban.Job
+      |> where([j], j.state in ["available", "scheduled", "retryable"])
+      |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+      |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
+
+    {:ok, count}
   end
 
   @doc """

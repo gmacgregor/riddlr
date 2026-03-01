@@ -8,14 +8,22 @@ defmodule Riddlr.Workers.ReadyRiddleTransitionWorkerTest do
   alias Riddlr.Workers.ReadyRiddleTransitionWorker
 
   test "transitions scheduled riddle to ready" do
-    riddle = riddle_fixture(%{play_status: "scheduled"})
+    riddle = riddle_fixture(%{play_status: "scheduled", publish_status: "published"})
 
     assert :ok = perform_job(ReadyRiddleTransitionWorker, %{riddle_id: riddle.id})
     assert Riddlr.Repo.reload(riddle).play_status == "ready"
   end
 
+  test "cancels if riddle is not published" do
+    riddle = riddle_fixture(%{play_status: "scheduled", publish_status: "draft"})
+
+    assert {:cancel, message} = perform_job(ReadyRiddleTransitionWorker, %{riddle_id: riddle.id})
+    assert message =~ "not published"
+    assert message =~ "draft"
+  end
+
   test "idempotency - cancels if already ready" do
-    riddle = riddle_fixture(%{play_status: "ready"})
+    riddle = riddle_fixture(%{play_status: "ready", publish_status: "published"})
 
     assert {:cancel, message} = perform_job(ReadyRiddleTransitionWorker, %{riddle_id: riddle.id})
     assert message =~ "Already transitioned"
@@ -23,7 +31,7 @@ defmodule Riddlr.Workers.ReadyRiddleTransitionWorkerTest do
   end
 
   test "cancels if riddle is in wrong state (live)" do
-    riddle = riddle_fixture(%{play_status: "live"})
+    riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
 
     assert {:cancel, message} = perform_job(ReadyRiddleTransitionWorker, %{riddle_id: riddle.id})
     assert message =~ "Already transitioned"
@@ -31,7 +39,7 @@ defmodule Riddlr.Workers.ReadyRiddleTransitionWorkerTest do
   end
 
   test "unique constraint prevents duplicate jobs within 1 hour" do
-    riddle = riddle_fixture(%{play_status: "scheduled"})
+    riddle = riddle_fixture(%{play_status: "scheduled", publish_status: "published"})
 
     # Insert first job
     assert {:ok, _job1} =

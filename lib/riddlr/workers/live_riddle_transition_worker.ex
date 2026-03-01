@@ -18,13 +18,18 @@ defmodule Riddlr.Workers.LiveRiddleTransitionWorker do
         {:cancel, "Riddle #{id} not found"}
 
       riddle ->
-        if riddle.play_status == "ready" do
-          case Games.start_riddle(id) do
-            {:ok, _riddle} -> :ok
-            {:error, reason} -> {:error, reason}
-          end
-        else
-          {:cancel, "Already transitioned (current: #{riddle.play_status})"}
+        cond do
+          riddle.publish_status != "published" ->
+            {:cancel, "Riddle not published (current: #{riddle.publish_status})"}
+
+          riddle.play_status != "ready" ->
+            {:cancel, "Already transitioned (current: #{riddle.play_status})"}
+
+          true ->
+            case Games.start_riddle(id) do
+              {:ok, _riddle} -> :ok
+              {:error, reason} -> {:error, reason}
+            end
         end
     end
   end
