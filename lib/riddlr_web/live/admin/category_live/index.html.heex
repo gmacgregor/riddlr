@@ -13,6 +13,7 @@
     id={@category.id || :new}
     action={@live_action}
     category={@category}
+    current_user={@current_user}
     patch={~p"/admin/categories"}
   />
 </div>
@@ -27,7 +28,9 @@
   </:action>
   <:action :let={{_id, category}}>
     <.link
-      phx-click={JS.push("delete", value: %{id: category.id}) |> hide("#categories-#{category.id}")}
+      phx-click={
+        JS.push("delete", value: %{id: category.id}) |> hide("#categories-#{category.id}")
+      }
       data-confirm="Are you sure? This will set all riddles in this category to have no category."
     >
       Delete

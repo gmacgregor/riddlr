@@ -26,6 +26,9 @@ config :riddlr, RiddlrWeb.Endpoint,
 # In test we don't send emails
 config :riddlr, Riddlr.Mailer, adapter: Swoosh.Adapters.Test
 
+# Configure Oban for testing (manual mode - jobs don't auto-execute)
+config :riddlr, Oban, testing: :manual
+
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 

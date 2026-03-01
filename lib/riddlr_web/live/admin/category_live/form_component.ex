@@ -1,6 +1,7 @@
 defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
   use RiddlrWeb, :live_component
   alias Riddlr.Games
+  alias Riddlr.Authorization
 
   @impl true
   def render(assigns) do
@@ -38,12 +39,18 @@ defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
 
   @impl true
   def handle_event("validate", %{"category" => params}, socket) do
-    changeset = Games.change_category(socket.assigns.category, params) |> Map.put(:action, :validate)
+    changeset =
+      Games.change_category(socket.assigns.category, params) |> Map.put(:action, :validate)
+
     {:noreply, assign_form(socket, changeset)}
   end
 
   def handle_event("save", %{"category" => params}, socket) do
-    save(socket, socket.assigns.action, params)
+    if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+      save(socket, socket.assigns.action, params)
+    else
+      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
+    end
   end
 
   defp save(socket, :edit, params) do

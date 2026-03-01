@@ -6,6 +6,15 @@ defmodule Riddlr.Games.Riddle do
   @publish_statuses ~w(draft published)
   @difficulties ~w(easy medium hard expert)
 
+  @valid_transitions %{
+    "closed" => ["scheduled"],
+    "scheduled" => ["ready", "closed"],
+    "ready" => ["live", "closed"],
+    "live" => ["completed"],
+    "completed" => ["archived"],
+    "archived" => []
+  }
+
   schema "riddles" do
     field :name, :string
     field :description, :string
@@ -51,6 +60,7 @@ defmodule Riddlr.Games.Riddle do
     |> validate_answers()
     |> foreign_key_constraint(:category_id)
     |> validate_inclusion(:play_status, @play_statuses)
+    |> validate_play_status_transition()
     |> validate_inclusion(:publish_status, @publish_statuses)
     |> validate_inclusion(:difficulty, @difficulties, allow_nil: true)
     |> validate_number(:solve_time, greater_than: 0)
@@ -108,6 +118,27 @@ defmodule Riddlr.Games.Riddle do
   end
 
   defp maybe_add_empty_answers_error(changeset, _), do: changeset
+
+  defp validate_play_status_transition(changeset) do
+    case {changeset.data.id, get_change(changeset, :play_status)} do
+      # New record, skip validation
+      {nil, _} -> changeset
+      # No status change
+      {_, nil} -> changeset
+      {_, new_status} -> validate_transition(changeset, changeset.data.play_status, new_status)
+    end
+  end
+
+  defp validate_transition(changeset, current, new) when current == new, do: changeset
+  defp validate_transition(changeset, nil, _new), do: changeset
+
+  defp validate_transition(changeset, current, new) do
+    if new in Map.get(@valid_transitions, current, []) do
+      changeset
+    else
+      add_error(changeset, :play_status, "cannot transition from #{current} to #{new}")
+    end
+  end
 
   def play_statuses, do: @play_statuses
   def publish_statuses, do: @publish_statuses

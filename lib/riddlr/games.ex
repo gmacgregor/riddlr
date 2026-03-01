@@ -4,6 +4,7 @@ defmodule Riddlr.Games do
   """
 
   import Ecto.Query, warn: false
+  alias Ecto.Multi
   alias Riddlr.Repo
 
   alias Riddlr.Games.Riddle
@@ -106,6 +107,189 @@ defmodule Riddlr.Games do
   """
   def change_riddle(%Riddle{} = riddle, attrs \\ %{}) do
     Riddle.changeset(riddle, attrs)
+  end
+
+  @doc """
+  Schedules a riddle to go live at the specified date.
+  Transitions: closed → scheduled
+  Enqueues ReadyRiddleTransitionWorker (5 min before live) and LiveRiddleTransitionWorker (at live_date).
+  """
+  def schedule_riddle(%Riddle{} = riddle, live_date) do
+    cond do
+      DateTime.compare(live_date, DateTime.utc_now()) == :lt ->
+        {:error, :live_date_in_past}
+
+      riddle.play_status != "closed" ->
+        {:error, "cannot schedule riddle in #{riddle.play_status} state"}
+
+      true ->
+        Multi.new()
+        |> Multi.update(
+          :riddle,
+          Riddle.changeset(riddle, %{
+            play_status: "scheduled",
+            live_date: live_date
+          })
+        )
+        |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
+          %{riddle_id: updated_riddle.id}
+          |> Riddlr.Workers.ReadyRiddleTransitionWorker.new(
+            scheduled_at: DateTime.add(live_date, -300, :second)
+          )
+        end)
+        |> Multi.insert(:live_job, fn %{riddle: updated_riddle} ->
+          %{riddle_id: updated_riddle.id}
+          |> Riddlr.Workers.LiveRiddleTransitionWorker.new(scheduled_at: live_date)
+        end)
+        |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+          Phoenix.PubSub.broadcast(
+            Riddlr.PubSub,
+            "games:riddle:scheduled",
+            {:riddle_scheduled, updated_riddle}
+          )
+
+          {:ok, :broadcasted}
+        end)
+        |> Repo.transaction()
+    end
+  end
+
+  @doc """
+  Transitions a riddle to ready state (5 min before live).
+  Transitions: scheduled → ready
+  """
+  def ready_riddle(riddle_id) do
+    case Repo.get(Riddle, riddle_id) do
+      nil ->
+        {:error, :not_found}
+
+      riddle ->
+        if riddle.play_status != "scheduled" do
+          {:error, "cannot transition from #{riddle.play_status} to ready"}
+        else
+          Multi.new()
+          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "ready"}))
+          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            Phoenix.PubSub.broadcast(
+              Riddlr.PubSub,
+              "games:riddle:ready",
+              {:riddle_ready, updated_riddle}
+            )
+
+            {:ok, :broadcasted}
+          end)
+          |> Repo.transaction()
+          |> case do
+            {:ok, %{riddle: riddle}} -> {:ok, riddle}
+            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
+          end
+        end
+    end
+  end
+
+  @doc """
+  Starts a riddle (transitions to live state).
+  Transitions: ready → live
+  Enqueues CompleteRiddleWorker (not implemented until Phase 11).
+  """
+  def start_riddle(riddle_id) do
+    case Repo.get(Riddle, riddle_id) do
+      nil ->
+        {:error, :not_found}
+
+      riddle ->
+        if riddle.play_status != "ready" do
+          {:error, "cannot transition from #{riddle.play_status} to live"}
+        else
+          Multi.new()
+          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "live"}))
+          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            Phoenix.PubSub.broadcast(
+              Riddlr.PubSub,
+              "games:riddle:started",
+              {:riddle_started, updated_riddle}
+            )
+
+            {:ok, :broadcasted}
+          end)
+          |> Repo.transaction()
+          |> case do
+            {:ok, %{riddle: riddle}} -> {:ok, riddle}
+            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
+          end
+        end
+    end
+  end
+
+  @doc """
+  Completes a riddle (marks as completed after solve_time expires).
+  Transitions: live → completed
+  Enqueues ArchiveRiddleTransitionWorker (3 min delay).
+  """
+  def complete_riddle(riddle_id) do
+    case Repo.get(Riddle, riddle_id) do
+      nil ->
+        {:error, :not_found}
+
+      riddle ->
+        if riddle.play_status != "live" do
+          {:error, "cannot transition from #{riddle.play_status} to completed"}
+        else
+          Multi.new()
+          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "completed"}))
+          |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
+            %{riddle_id: updated_riddle.id}
+            |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: 180)
+          end)
+          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            Phoenix.PubSub.broadcast(
+              Riddlr.PubSub,
+              "games:riddle:completed",
+              {:riddle_completed, updated_riddle}
+            )
+
+            {:ok, :broadcasted}
+          end)
+          |> Repo.transaction()
+          |> case do
+            {:ok, %{riddle: riddle}} -> {:ok, riddle}
+            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
+          end
+        end
+    end
+  end
+
+  @doc """
+  Archives a riddle (final state after 3 min cooling period).
+  Transitions: completed → archived
+  """
+  def archive_riddle(riddle_id) do
+    case Repo.get(Riddle, riddle_id) do
+      nil ->
+        {:error, :not_found}
+
+      riddle ->
+        if riddle.play_status != "completed" do
+          {:error, "cannot transition from #{riddle.play_status} to archived"}
+        else
+          Multi.new()
+          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "archived"}))
+          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            Phoenix.PubSub.broadcast(
+              Riddlr.PubSub,
+              "games:riddle:archived",
+              {:riddle_archived, updated_riddle}
+            )
+
+            {:ok, :broadcasted}
+          end)
+          |> Repo.transaction()
+          |> case do
+            {:ok, %{riddle: riddle}} -> {:ok, riddle}
+            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
+          end
+        end
+    end
   end
 
   alias Riddlr.Games.Category

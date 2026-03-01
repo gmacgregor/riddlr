@@ -31,6 +31,7 @@ defmodule Riddlr.GamesFixtures do
       nil ->
         {:ok, category} = Riddlr.Games.create_category(%{name: "logic"})
         category.id
+
       category ->
         category.id
     end

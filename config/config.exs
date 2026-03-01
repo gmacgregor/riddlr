@@ -24,6 +24,12 @@ config :riddlr,
   ecto_repos: [Riddlr.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Configure Oban
+config :riddlr, Oban,
+  repo: Riddlr.Repo,
+  plugins: [Oban.Plugins.Pruner],
+  queues: [game_lifecycle: 5, mailers: 3, default: 5]
+
 # Configure the endpoint
 config :riddlr, RiddlrWeb.Endpoint,
   url: [host: "localhost"],

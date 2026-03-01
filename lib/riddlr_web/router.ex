@@ -78,11 +78,11 @@ defmodule RiddlrWeb.Router do
 
   ## Admin routes
 
-  scope "/admin" do
+  scope "/admin", RiddlrWeb do
     pipe_through [:browser, :require_authenticated_user]
 
-    # Redirect /admin to /admin/riddles
-    get "/", RiddlrWeb.AdminController, :redirect_to_riddles
+    # AdminController redirect - requires admin permission via plug in controller
+    get "/", AdminController, :redirect_to_riddles
   end
 
   scope "/admin", RiddlrWeb.Admin do

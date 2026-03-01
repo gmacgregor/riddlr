@@ -10,6 +10,7 @@ defmodule Riddlr.Application do
     children = [
       RiddlrWeb.Telemetry,
       Riddlr.Repo,
+      {Oban, Application.fetch_env!(:riddlr, Oban)},
       {DNSCluster, query: Application.get_env(:riddlr, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Riddlr.PubSub},
       # Start a worker by calling: Riddlr.Worker.start_link(arg)

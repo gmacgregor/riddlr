@@ -33,7 +33,9 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
     if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
       category = Games.get_category!(id)
       {:ok, _} = Games.delete_category(category)
-      {:noreply, socket |> stream_delete(:categories, category) |> put_flash(:info, "Category deleted")}
+
+      {:noreply,
+       socket |> stream_delete(:categories, category) |> put_flash(:info, "Category deleted")}
     else
       {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
     end
