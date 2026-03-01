@@ -6,6 +6,9 @@ defmodule Riddlr.Games.Riddle do
   @publish_statuses ~w(draft published)
   @difficulties ~w(easy medium hard expert)
 
+  @solve_time 300
+  @hint_delay 30
+
   @valid_transitions %{
     "closed" => ["scheduled"],
     "scheduled" => ["ready", "closed"],
@@ -20,10 +23,10 @@ defmodule Riddlr.Games.Riddle do
     field :description, :string
     field :answers, {:array, :string}, default: []
     field :play_status, :string, default: "closed"
-    field :solve_time, :integer
+    field :solve_time, :integer, default: @solve_time
     field :difficulty, :string
     field :hint, :string
-    field :hint_delay, :integer
+    field :hint_delay, :integer, default: @hint_delay
     field :live_date, :utc_datetime
     field :publish_status, :string, default: "draft"
     field :first_solve_time, :integer
@@ -143,4 +146,6 @@ defmodule Riddlr.Games.Riddle do
   def play_statuses, do: @play_statuses
   def publish_statuses, do: @publish_statuses
   def difficulties, do: @difficulties
+  def default_solve_time, do: @solve_time
+  def default_hint_delay, do: @hint_delay
 end

@@ -3,6 +3,14 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   alias Riddlr.Games
   alias Riddlr.Authorization
 
+  defp hint_delay() do
+    Riddlr.Games.Riddle.default_hint_delay()
+  end
+
+  defp solve_time() do
+    Riddlr.Games.Riddle.default_solve_time()
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -39,16 +47,23 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
           label="Solve Time (seconds)"
           min="1"
           required
+          placeholder={solve_time()}
         />
         <.input field={f[:hint]} type="textarea" label="Hint" rows="2" />
-        <.input field={f[:hint_delay]} type="number" label="Hint Delay (seconds)" min="0" />
+        <.input
+          field={f[:hint_delay]}
+          type="number"
+          label="Hint Delay (seconds)"
+          min="0"
+          placeholder={hint_delay()}
+        />
         <.input
           field={f[:answers]}
           type="textarea"
-          label="Answers (one per line)"
+          label="Answers (one per line, most acceptable first)"
           rows="3"
           required
-          placeholder="keyboard&#10;a keyboard&#10;computer keyboard"
+          placeholder=""
         />
         <.input
           field={f[:publish_status]}
