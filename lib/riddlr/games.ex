@@ -21,6 +21,7 @@ defmodule Riddlr.Games do
   def list_riddles do
     Riddle
     |> preload(:category)
+    |> order_by(desc: :inserted_at)
     |> Repo.all()
   end
 
@@ -60,6 +61,11 @@ defmodule Riddlr.Games do
     %Riddle{}
     |> Riddle.changeset(attrs)
     |> Repo.insert()
+    |> case do
+      # preload category so that it's name can be referenced in display
+      {:ok, riddle} -> {:ok, Repo.preload(riddle, :category)}
+      {:error, changeset} -> {:error, changeset}
+    end
   end
 
   @doc """
@@ -78,6 +84,10 @@ defmodule Riddlr.Games do
     riddle
     |> Riddle.changeset(attrs)
     |> Repo.update()
+    |> case do
+      {:ok, riddle} -> {:ok, Repo.preload(riddle, :category)}
+      {:error, changeset} -> {:error, changeset}
+    end
   end
 
   @doc """
