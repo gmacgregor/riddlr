@@ -1,4 +1,59 @@
 defmodule Riddlr.Games.Riddle do
+  @moduledoc """
+  Riddle schema representing a puzzle in the system.
+
+  ## Play Status Lifecycle
+
+  Riddles transition through six play statuses in order:
+
+      closed → scheduled → ready → live → completed → archived
+
+  ### State Descriptions
+
+  - **closed**: Initial state, not scheduled for play
+  - **scheduled**: Published with live_date set, workers scheduled
+  - **ready**: 5 minutes before live_date, ready to go live
+  - **live**: Currently accepting answers from players
+  - **completed**: First correct answer received, cooldown period starts
+  - **archived**: Cooldown complete, riddle moved to archive
+
+  ### Automatic Transitions
+
+  State transitions are triggered by:
+
+  1. **Manual scheduling**: Admin sets live_date + publish_status
+  2. **Oban workers**: Time-based transitions (ready, live)
+  3. **Player action**: First correct answer triggers completion
+  4. **Cooldown timer**: Auto-archive after configurable delay
+
+  ### Scheduling Behavior
+
+  - **Rescheduling**: Changing live_date cancels old jobs and schedules new ones
+  - **Draft rollback**: Moving to draft status cancels all pending workers
+  - **Archive cooldown**: Configurable via `archive_cooldown_minutes` (default: 3)
+    - Set to 0 to skip cooldown and archive immediately
+
+  ### Example Flow
+
+      # Publish riddle with live date
+      {:ok, riddle} = Games.update_riddle(riddle, %{
+        publish_status: "published",
+        live_date: ~U[2026-04-01 14:00:00Z]
+      })
+      {:ok, riddle} = Games.schedule_riddle(riddle)
+      # => play_status: "scheduled", 2 jobs scheduled
+
+      # System automatically transitions:
+      # - 13:55:00 => play_status: "ready"
+      # - 14:00:00 => play_status: "live"
+      # - [first correct answer] => play_status: "completed"
+      # - [+3 minutes] => play_status: "archived"
+
+  ## Fields
+
+  See schema definition for complete field list.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
