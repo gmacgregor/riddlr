@@ -331,6 +331,101 @@ defmodule Riddlr.GamesTest do
     end
   end
 
+  describe "update_riddle/2 with draft rollback" do
+    import Riddlr.GamesFixtures
+
+    test "cancels all pending workers when changing to draft status" do
+      riddle =
+        riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed"
+        })
+
+      # Schedule jobs
+      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      {:ok, result} = Games.schedule_riddle(riddle, live_date)
+      riddle_id = result.riddle.id
+
+      # Verify jobs exist
+      pending_before =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_before) == 2
+
+      # Move back to draft
+      riddle = Games.get_riddle!(riddle_id)
+      {:ok, updated} = Games.update_riddle(riddle, %{publish_status: "draft"})
+
+      assert updated.publish_status == "draft"
+
+      # Verify jobs cancelled
+      pending_after =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_after) == 0
+    end
+
+    test "does not cancel jobs when changing other fields" do
+      riddle =
+        riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed"
+        })
+
+      # Schedule jobs
+      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      {:ok, result} = Games.schedule_riddle(riddle, live_date)
+      riddle_id = result.riddle.id
+
+      # Update other fields without changing publish_status
+      riddle = Games.get_riddle!(riddle_id)
+      {:ok, _updated} = Games.update_riddle(riddle, %{name: "Updated Name"})
+
+      # Verify jobs still exist
+      pending_after =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_after) == 2
+    end
+
+    test "does not cancel jobs when keeping published status" do
+      riddle =
+        riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed"
+        })
+
+      # Schedule jobs
+      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      {:ok, result} = Games.schedule_riddle(riddle, live_date)
+      riddle_id = result.riddle.id
+
+      # Update while keeping published status
+      riddle = Games.get_riddle!(riddle_id)
+
+      {:ok, _updated} =
+        Games.update_riddle(riddle, %{publish_status: "published", name: "Still Published"})
+
+      # Verify jobs still exist
+      pending_after =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_after) == 2
+    end
+  end
+
   describe "archive_cooldown_minutes" do
     import Riddlr.GamesFixtures
 
