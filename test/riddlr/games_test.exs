@@ -262,6 +262,51 @@ defmodule Riddlr.GamesTest do
       )
     end
 
+    test "complete_riddle uses custom archive_cooldown_minutes" do
+      riddle = riddle_fixture(%{play_status: "live", archive_cooldown_minutes: 5})
+
+      {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
+
+      assert updated_riddle.play_status == "completed"
+
+      # Verify archive job was enqueued with custom delay (5 minutes = 300 seconds)
+      assert_enqueued(
+        worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,
+        args: %{riddle_id: riddle.id}
+      )
+
+      # Verify the job is scheduled in the future (approximately 5 minutes)
+      [job] = all_enqueued(worker: Riddlr.Workers.ArchiveRiddleTransitionWorker)
+      scheduled_at = job.scheduled_at
+      now = DateTime.utc_now()
+
+      # Should be scheduled approximately 5 minutes in the future (allowing 5 second tolerance)
+      scheduled_diff = DateTime.diff(scheduled_at, now)
+      assert scheduled_diff >= 295 and scheduled_diff <= 305
+    end
+
+    test "complete_riddle supports zero cooldown for immediate archiving" do
+      riddle = riddle_fixture(%{play_status: "live", archive_cooldown_minutes: 0})
+
+      {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
+
+      assert updated_riddle.play_status == "completed"
+
+      # Verify archive job was enqueued immediately
+      assert_enqueued(
+        worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,
+        args: %{riddle_id: riddle.id}
+      )
+
+      # Verify the job is scheduled for immediate execution (within 5 seconds)
+      [job] = all_enqueued(worker: Riddlr.Workers.ArchiveRiddleTransitionWorker)
+      scheduled_at = job.scheduled_at
+      now = DateTime.utc_now()
+
+      scheduled_diff = DateTime.diff(scheduled_at, now)
+      assert scheduled_diff >= -5 and scheduled_diff <= 5
+    end
+
     test "state validation prevents invalid changeset transitions" do
       riddle = riddle_fixture(%{play_status: "closed"})
       # Reload to get the actual struct with current state
