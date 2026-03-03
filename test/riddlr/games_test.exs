@@ -285,4 +285,63 @@ defmodule Riddlr.GamesTest do
       assert_receive {:riddle_ready, ^updated_riddle}
     end
   end
+
+  describe "archive_cooldown_minutes" do
+    import Riddlr.GamesFixtures
+
+    test "defaults to 3 minutes" do
+      riddle = riddle_fixture()
+      assert riddle.archive_cooldown_minutes == 3
+    end
+
+    test "accepts valid cooldown values" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        archive_cooldown_minutes: 5
+      }
+
+      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert riddle.archive_cooldown_minutes == 5
+    end
+
+    test "rejects negative cooldown values" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        archive_cooldown_minutes: -1
+      }
+
+      assert {:error, changeset} = Games.create_riddle(attrs)
+
+      assert %{archive_cooldown_minutes: ["must be greater than or equal to 0"]} =
+               errors_on(changeset)
+    end
+
+    test "allows zero to skip cooldown" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        archive_cooldown_minutes: 0
+      }
+
+      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert riddle.archive_cooldown_minutes == 0
+    end
+  end
 end
