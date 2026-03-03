@@ -26,7 +26,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
         phx-submit="save"
       >
         <.input field={f[:name]} type="text" label="Name" required />
-        <.input field={f[:description]} type="textarea" label="Description" rows="4" />
         <.input
           field={f[:category_id]}
           type="select"
@@ -41,6 +40,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
           label="Difficulty"
           prompt="Choose"
           options={Riddlr.Games.Riddle.difficulties()}
+        />
+        <.input field={f[:description]} type="textarea" label="Riddle" rows="4" required />
+        <.input
+          field={f[:answers]}
+          type="textarea"
+          label="Answers (one per line, most acceptable first)"
+          rows="3"
+          required
+          placeholder=""
         />
         <.input
           field={f[:solve_time]}
@@ -57,14 +65,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
           label="Hint Delay (seconds)"
           min="0"
           placeholder={hint_delay()}
-        />
-        <.input
-          field={f[:answers]}
-          type="textarea"
-          label="Answers (one per line, most acceptable first)"
-          rows="3"
-          required
-          placeholder=""
         />
         <.input
           field={f[:publish_status]}
@@ -150,16 +150,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   end
 
   defp save(socket, :edit, params) do
-    old_riddle = socket.assigns.riddle
-    old_live_date = old_riddle.live_date
+    current_riddle = socket.assigns.riddle
+    old_live_date = current_riddle.live_date
     new_live_date = parse_live_date(params["live_date"])
 
-    # Auto-schedule if riddle is closed, date is future, and user didn't manually override status
     result =
-      if should_auto_schedule?(old_riddle, params, new_live_date) do
-        Games.schedule_riddle(old_riddle, new_live_date)
+      if should_auto_schedule?(current_riddle, params, new_live_date) do
+        Games.schedule_riddle(current_riddle, new_live_date)
       else
-        Games.update_riddle(old_riddle, params)
+        Games.update_riddle(current_riddle, params)
       end
 
     case result do
@@ -179,7 +178,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
       {:ok, riddle} ->
         # Check if we need to reschedule due to live_date change
-        if should_reschedule?(old_riddle, riddle, old_live_date) do
+        if should_reschedule?(current_riddle, riddle, old_live_date) do
           RiddleScheduler.reschedule_jobs(riddle.id, riddle.live_date)
         end
 
@@ -211,17 +210,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   # - Riddle is (or will be) published
   # - Riddle is currently closed
   # - Live date is set and in the future
-  # - User hasn't manually selected an incompatible play_status
   defp should_auto_schedule?(_riddle, _params, nil), do: false
 
   defp should_auto_schedule?(riddle, params, live_date) do
     # Check if riddle is or will be published
     publish_status = Map.get(params, "publish_status", riddle.publish_status)
 
-    publish_status == "published" &&
-      riddle.play_status == "closed" &&
-      DateTime.compare(live_date, DateTime.utc_now()) != :lt &&
-      params["play_status"] in ["closed", "scheduled"]
+    riddle.play_status == "closed" &&
+      publish_status == "published" &&
+      DateTime.compare(live_date, DateTime.utc_now()) != :lt
   end
 
   # Reschedule jobs if:

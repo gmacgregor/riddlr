@@ -62,7 +62,7 @@ defmodule Riddlr.Games.Riddle do
   @difficulties ~w(easy medium hard expert)
 
   @solve_time 300
-  @hint_delay 30
+  @hint_delay 90
 
   @valid_transitions %{
     "closed" => ["scheduled"],
@@ -116,7 +116,7 @@ defmodule Riddlr.Games.Riddle do
       :archive_cooldown_minutes
     ])
     |> cast_answers(attrs)
-    |> validate_required([:name, :answers, :solve_time, :category_id])
+    |> validate_required([:name, :description, :answers, :solve_time, :category_id])
     |> validate_answers()
     |> foreign_key_constraint(:category_id)
     |> validate_inclusion(:play_status, @play_statuses)
