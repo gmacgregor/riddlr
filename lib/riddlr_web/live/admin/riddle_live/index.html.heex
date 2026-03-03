@@ -74,6 +74,14 @@
   <:col :let={{_id, riddle}} label="Difficulty">{riddle.difficulty}</:col>
   <:col :let={{_id, riddle}} label="Category">{riddle.category.name}</:col>
   <:col :let={{_id, riddle}} label="Status">{riddle.publish_status}</:col>
+  <:col :let={{_id, riddle}} label="Play Status">
+    <span class={[
+      "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+      play_status_color(riddle.play_status)
+    ]}>
+      {riddle.play_status}
+    </span>
+  </:col>
   <:action :let={{_id, riddle}}>
     <.link patch={~p"/admin/riddles/#{riddle}/edit"}>Edit</.link>
   </:action>
