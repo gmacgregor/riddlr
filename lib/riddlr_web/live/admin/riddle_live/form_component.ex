@@ -72,12 +72,35 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
           label="Publish Status"
           options={Riddlr.Games.Riddle.publish_statuses()}
         />
-        <.input
-          field={f[:play_status]}
-          type="select"
-          label="Play Status"
-          options={Riddlr.Games.Riddle.play_statuses()}
-        />
+        <div class="space-y-2">
+          <label class="block text-sm font-medium leading-6 text-gray-900">
+            Play Status
+          </label>
+          <div>
+            <span class={[
+              "inline-flex items-center rounded-md px-2 py-1 text-sm font-medium ring-1 ring-inset",
+              play_status_color(@riddle.play_status)
+            ]}>
+              {@riddle.play_status}
+            </span>
+            <p class="mt-2 text-sm text-gray-500">
+              Play status is managed automatically by the system based on publish status and scheduling.
+            </p>
+          </div>
+        </div>
+        <%= if @riddle.play_status in ["completed", "archived"] do %>
+          <div class="space-y-2">
+            <.input
+              field={f[:archive_cooldown_minutes]}
+              type="number"
+              label="Archive Cooldown (minutes)"
+              min="0"
+            />
+            <p class="text-sm text-gray-500">
+              Minutes to wait before archiving after completion. Set to 0 to skip cooldown.
+            </p>
+          </div>
+        <% end %>
         <.input
           field={f[:live_date]}
           type="datetime-local"
@@ -290,4 +313,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
         params
     end
   end
+
+  # Helper function to assign color classes based on play_status
+  defp play_status_color("closed"), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
+  defp play_status_color("scheduled"), do: "bg-blue-50 text-blue-700 ring-blue-700/10"
+  defp play_status_color("ready"), do: "bg-yellow-50 text-yellow-800 ring-yellow-600/20"
+  defp play_status_color("live"), do: "bg-green-50 text-green-700 ring-green-600/20"
+  defp play_status_color("completed"), do: "bg-purple-50 text-purple-700 ring-purple-700/10"
+  defp play_status_color("archived"), do: "bg-gray-50 text-gray-500 ring-gray-500/10"
+  defp play_status_color(_), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
 end

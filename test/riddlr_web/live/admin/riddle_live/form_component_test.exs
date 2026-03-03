@@ -228,7 +228,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
           live_date: live_date
         })
 
-      # Change live_date - explicitly keep play_status as closed to avoid auto-scheduling
+      # Change live_date - play_status remains closed (it's now read-only in form)
       new_live_date = ~U[2026-04-01 14:00:00Z]
       conn = log_in_user(conn, admin)
       {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
@@ -236,8 +236,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       view
       |> form("#riddle-form",
         riddle: %{
-          live_date: format_datetime_local(new_live_date),
-          play_status: "closed"
+          live_date: format_datetime_local(new_live_date)
         }
       )
       |> render_submit()
@@ -250,6 +249,56 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
         |> Riddlr.Repo.all()
 
       assert length(jobs) == 0
+    end
+  end
+
+  describe "edit form play_status display" do
+    test "shows current play status as read-only badge", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture(%{play_status: "scheduled"})
+      conn = log_in_user(conn, admin)
+
+      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+
+      assert html =~ "Play Status"
+      assert html =~ "scheduled"
+      # Should NOT have a select input for play_status
+      refute html =~ ~r/<select[^>]*name="riddle\[play_status\]"/
+    end
+
+    test "shows archive cooldown field when riddle is completed", %{conn: conn, admin: admin} do
+      riddle =
+        GamesFixtures.riddle_fixture(%{play_status: "completed", archive_cooldown_minutes: 5})
+
+      conn = log_in_user(conn, admin)
+
+      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+
+      assert html =~ "Archive Cooldown"
+      assert html =~ "5"
+    end
+
+    test "shows archive cooldown field when riddle is archived", %{conn: conn, admin: admin} do
+      riddle =
+        GamesFixtures.riddle_fixture(%{play_status: "archived", archive_cooldown_minutes: 10})
+
+      conn = log_in_user(conn, admin)
+
+      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+
+      assert html =~ "Archive Cooldown"
+      assert html =~ "10"
+    end
+
+    test "does not show archive cooldown field for non-completed riddles", %{
+      conn: conn,
+      admin: admin
+    } do
+      riddle = GamesFixtures.riddle_fixture(%{play_status: "live"})
+      conn = log_in_user(conn, admin)
+
+      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+
+      refute html =~ "Archive Cooldown"
     end
   end
 
