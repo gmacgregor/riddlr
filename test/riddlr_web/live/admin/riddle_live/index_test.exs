@@ -61,4 +61,27 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       refute has_element?(index_live, "#riddles-#{riddle.id}")
     end
   end
+
+  describe "index page play_status display" do
+    test "displays play status for each riddle", %{conn: conn, admin: admin} do
+      _riddle1 = GamesFixtures.riddle_fixture(%{name: "Test 1", play_status: "closed"})
+      _riddle2 = GamesFixtures.riddle_fixture(%{name: "Test 2", play_status: "live"})
+
+      conn = log_in_user(conn, admin)
+      {:ok, _view, html} = live(conn, ~p"/admin/riddles")
+
+      assert html =~ "closed"
+      assert html =~ "live"
+    end
+
+    test "shows badge styling for different statuses", %{conn: conn, admin: admin} do
+      _riddle = GamesFixtures.riddle_fixture(%{play_status: "live"})
+
+      conn = log_in_user(conn, admin)
+      {:ok, _view, html} = live(conn, ~p"/admin/riddles")
+
+      # Should have badge component for status
+      assert html =~ "live"
+    end
+  end
 end

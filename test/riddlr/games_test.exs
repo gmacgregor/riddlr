@@ -262,6 +262,51 @@ defmodule Riddlr.GamesTest do
       )
     end
 
+    test "complete_riddle uses custom archive_cooldown_minutes" do
+      riddle = riddle_fixture(%{play_status: "live", archive_cooldown_minutes: 5})
+
+      {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
+
+      assert updated_riddle.play_status == "completed"
+
+      # Verify archive job was enqueued with custom delay (5 minutes = 300 seconds)
+      assert_enqueued(
+        worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,
+        args: %{riddle_id: riddle.id}
+      )
+
+      # Verify the job is scheduled in the future (approximately 5 minutes)
+      [job] = all_enqueued(worker: Riddlr.Workers.ArchiveRiddleTransitionWorker)
+      scheduled_at = job.scheduled_at
+      now = DateTime.utc_now()
+
+      # Should be scheduled approximately 5 minutes in the future (allowing 5 second tolerance)
+      scheduled_diff = DateTime.diff(scheduled_at, now)
+      assert scheduled_diff >= 295 and scheduled_diff <= 305
+    end
+
+    test "complete_riddle supports zero cooldown for immediate archiving" do
+      riddle = riddle_fixture(%{play_status: "live", archive_cooldown_minutes: 0})
+
+      {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
+
+      assert updated_riddle.play_status == "completed"
+
+      # Verify archive job was enqueued immediately
+      assert_enqueued(
+        worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,
+        args: %{riddle_id: riddle.id}
+      )
+
+      # Verify the job is scheduled for immediate execution (within 5 seconds)
+      [job] = all_enqueued(worker: Riddlr.Workers.ArchiveRiddleTransitionWorker)
+      scheduled_at = job.scheduled_at
+      now = DateTime.utc_now()
+
+      scheduled_diff = DateTime.diff(scheduled_at, now)
+      assert scheduled_diff >= -5 and scheduled_diff <= 5
+    end
+
     test "state validation prevents invalid changeset transitions" do
       riddle = riddle_fixture(%{play_status: "closed"})
       # Reload to get the actual struct with current state
@@ -281,8 +326,165 @@ defmodule Riddlr.GamesTest do
 
       {:ok, updated_riddle} = Games.ready_riddle(riddle.id)
 
-      # Assert broadcast received
-      assert_receive {:riddle_ready, ^updated_riddle}
+      # Assert broadcast received (category is preloaded in broadcast)
+      assert_receive {:riddle_ready, broadcast_riddle}
+      assert broadcast_riddle.id == updated_riddle.id
+      assert broadcast_riddle.play_status == "ready"
+      assert broadcast_riddle.category.id == riddle.category_id
+    end
+  end
+
+  describe "update_riddle/2 with draft rollback" do
+    import Riddlr.GamesFixtures
+
+    test "cancels all pending workers when changing to draft status" do
+      riddle =
+        riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed"
+        })
+
+      # Schedule jobs
+      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      {:ok, result} = Games.schedule_riddle(riddle, live_date)
+      riddle_id = result.riddle.id
+
+      # Verify jobs exist
+      pending_before =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_before) == 2
+
+      # Move back to draft
+      riddle = Games.get_riddle!(riddle_id)
+      {:ok, updated} = Games.update_riddle(riddle, %{publish_status: "draft"})
+
+      assert updated.publish_status == "draft"
+
+      # Verify jobs cancelled
+      pending_after =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_after) == 0
+    end
+
+    test "does not cancel jobs when changing other fields" do
+      riddle =
+        riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed"
+        })
+
+      # Schedule jobs
+      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      {:ok, result} = Games.schedule_riddle(riddle, live_date)
+      riddle_id = result.riddle.id
+
+      # Update other fields without changing publish_status
+      riddle = Games.get_riddle!(riddle_id)
+      {:ok, _updated} = Games.update_riddle(riddle, %{name: "Updated Name"})
+
+      # Verify jobs still exist
+      pending_after =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_after) == 2
+    end
+
+    test "does not cancel jobs when keeping published status" do
+      riddle =
+        riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed"
+        })
+
+      # Schedule jobs
+      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      {:ok, result} = Games.schedule_riddle(riddle, live_date)
+      riddle_id = result.riddle.id
+
+      # Update while keeping published status
+      riddle = Games.get_riddle!(riddle_id)
+
+      {:ok, _updated} =
+        Games.update_riddle(riddle, %{publish_status: "published", name: "Still Published"})
+
+      # Verify jobs still exist
+      pending_after =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(pending_after) == 2
+    end
+  end
+
+  describe "archive_cooldown_minutes" do
+    import Riddlr.GamesFixtures
+
+    test "defaults to 3 minutes" do
+      riddle = riddle_fixture()
+      assert riddle.archive_cooldown_minutes == 3
+    end
+
+    test "accepts valid cooldown values" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        archive_cooldown_minutes: 5
+      }
+
+      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert riddle.archive_cooldown_minutes == 5
+    end
+
+    test "rejects negative cooldown values" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        archive_cooldown_minutes: -1
+      }
+
+      assert {:error, changeset} = Games.create_riddle(attrs)
+
+      assert %{archive_cooldown_minutes: ["must be greater than or equal to 0"]} =
+               errors_on(changeset)
+    end
+
+    test "allows zero to skip cooldown" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        archive_cooldown_minutes: 0
+      }
+
+      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert riddle.archive_cooldown_minutes == 0
     end
   end
 end

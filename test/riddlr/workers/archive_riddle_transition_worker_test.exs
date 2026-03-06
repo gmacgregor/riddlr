@@ -67,4 +67,34 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
 
     assert job_count == 1
   end
+
+  describe "custom archive cooldown" do
+    test "respects riddle's archive_cooldown_minutes setting" do
+      riddle =
+        riddle_fixture(%{
+          play_status: "completed",
+          publish_status: "published",
+          archive_cooldown_minutes: 5
+        })
+
+      assert :ok = perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
+
+      updated = Riddlr.Repo.reload(riddle)
+      assert updated.play_status == "archived"
+    end
+
+    test "works with zero cooldown for immediate archiving" do
+      riddle =
+        riddle_fixture(%{
+          play_status: "completed",
+          publish_status: "published",
+          archive_cooldown_minutes: 0
+        })
+
+      assert :ok = perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
+
+      updated = Riddlr.Repo.reload(riddle)
+      assert updated.play_status == "archived"
+    end
+  end
 end

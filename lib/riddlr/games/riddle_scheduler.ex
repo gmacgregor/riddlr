@@ -1,0 +1,96 @@
+defmodule Riddlr.Games.RiddleScheduler do
+  @moduledoc """
+  Handles scheduling and rescheduling of Oban jobs for riddle state transitions.
+
+  This module provides utilities for:
+  - Canceling all pending jobs for a riddle
+  - Rescheduling jobs when a riddle's live_date changes
+  """
+  import Ecto.Query
+  alias Ecto.Multi
+  alias Riddlr.Repo
+  alias Riddlr.Workers.{ReadyRiddleTransitionWorker, LiveRiddleTransitionWorker}
+
+  @transition_workers [
+    "Riddlr.Workers.ReadyRiddleTransitionWorker",
+    "Riddlr.Workers.LiveRiddleTransitionWorker",
+    "Riddlr.Workers.ArchiveRiddleTransitionWorker"
+  ]
+
+  @doc """
+  Cancels all pending (scheduled or available) jobs for a riddle.
+
+  Returns `{:ok, count}` where count is the number of cancelled jobs.
+
+  ## Examples
+
+      iex> cancel_pending_jobs(123)
+      {:ok, 3}
+
+      iex> cancel_pending_jobs(999)
+      {:ok, 0}
+  """
+  def cancel_pending_jobs(riddle_id) when is_integer(riddle_id) do
+    riddle_id_string = Integer.to_string(riddle_id)
+    now = DateTime.utc_now()
+
+    query =
+      from j in Oban.Job,
+        where: j.worker in ^@transition_workers,
+        where: fragment("?->>'riddle_id' = ?", j.args, ^riddle_id_string),
+        where: j.state in ["scheduled", "available"]
+
+    {count, _jobs} =
+      Repo.update_all(query,
+        set: [state: "cancelled", cancelled_at: now]
+      )
+
+    {:ok, count}
+  end
+
+  @doc """
+  Cancels existing jobs and schedules new ones based on updated live_date.
+
+  Used when a riddle's live_date changes. This will:
+  1. Cancel all pending jobs for the riddle
+  2. Schedule new ReadyRiddleTransitionWorker (5 min before live_date)
+  3. Schedule new LiveRiddleTransitionWorker (at live_date)
+
+  Returns `{:ok, count}` where count is the number of new jobs scheduled.
+
+  ## Examples
+
+      iex> reschedule_jobs(123, ~U[2026-04-01 14:00:00Z])
+      {:ok, 2}
+  """
+  def reschedule_jobs(riddle_id, %DateTime{} = new_live_date) when is_integer(riddle_id) do
+    ready_time = DateTime.add(new_live_date, -300, :second)
+
+    multi =
+      Multi.new()
+      |> Oban.insert(
+        :ready_job,
+        ReadyRiddleTransitionWorker.new(%{riddle_id: riddle_id}, scheduled_at: ready_time)
+      )
+      |> Oban.insert(
+        :live_job,
+        LiveRiddleTransitionWorker.new(%{riddle_id: riddle_id}, scheduled_at: new_live_date)
+      )
+
+    with {:ok, _cancelled} <- cancel_pending_jobs(riddle_id),
+         {:ok, _changes} <- Repo.transaction(multi) do
+      {:ok, 2}
+    else
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes_so_far} ->
+        {:error, changeset}
+
+      {:error, _step, reason, _changes_so_far} ->
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def reschedule_jobs(_riddle_id, _new_live_date), do: {:error, :invalid_live_date}
+end

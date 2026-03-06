@@ -9,6 +9,9 @@ defmodule Riddlr.Games do
 
   alias Riddlr.Games.Riddle
 
+  @minutes_before_live 5
+  @seconds_before_live @minutes_before_live * 60
+
   @doc """
   Returns the list of riddles.
 
@@ -63,7 +66,7 @@ defmodule Riddlr.Games do
     |> Repo.insert()
     |> case do
       # preload category so that it's name can be referenced in display
-      {:ok, riddle} -> {:ok, Repo.preload(riddle, :category)}
+      {:ok, riddle} -> {:ok, preload_assoc(riddle)}
       {:error, changeset} -> {:error, changeset}
     end
   end
@@ -99,7 +102,7 @@ defmodule Riddlr.Games do
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{riddle: riddle}} -> {:ok, Repo.preload(riddle, :category, force: true)}
+      {:ok, %{riddle: riddle}} -> {:ok, preload_assoc_force(riddle)}
       {:error, :riddle, changeset, _} -> {:error, changeset}
       {:error, _failed_operation, reason, _} -> {:error, reason}
     end
@@ -175,7 +178,7 @@ defmodule Riddlr.Games do
         |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
           %{riddle_id: updated_riddle.id}
           |> Riddlr.Workers.ReadyRiddleTransitionWorker.new(
-            scheduled_at: DateTime.add(live_date, -300, :second)
+            scheduled_at: DateTime.add(live_date, -@seconds_before_live, :second)
           )
         end)
         |> Multi.insert(:live_job, fn %{riddle: updated_riddle} ->
@@ -196,7 +199,7 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Transitions a riddle to ready state (5 min before live).
+  Transitions a riddle to ready state (@minutes_before_live minutes before live).
   Transitions: scheduled → ready
   """
   def ready_riddle(riddle_id) do
@@ -211,6 +214,9 @@ defmodule Riddlr.Games do
           Multi.new()
           |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "ready"}))
           |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            # Preload category for LiveView rendering
+            updated_riddle = preload_assoc(updated_riddle)
+
             Phoenix.PubSub.broadcast(
               Riddlr.PubSub,
               "games:riddle:ready",
@@ -245,10 +251,13 @@ defmodule Riddlr.Games do
           Multi.new()
           |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "live"}))
           |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            # Preload category for LiveView rendering
+            updated_riddle = preload_assoc(updated_riddle)
+
             Phoenix.PubSub.broadcast(
               Riddlr.PubSub,
-              "games:riddle:started",
-              {:riddle_started, updated_riddle}
+              "games:riddle:live",
+              {:riddle_live, updated_riddle}
             )
 
             {:ok, :broadcasted}
@@ -268,9 +277,6 @@ defmodule Riddlr.Games do
   Enqueues ArchiveRiddleTransitionWorker (3 min delay).
   """
   def complete_riddle(riddle_id) do
-    # 3 mins
-    archive_riddle_after_period = 180
-
     case Repo.get(Riddle, riddle_id) do
       nil ->
         {:error, :not_found}
@@ -282,12 +288,16 @@ defmodule Riddlr.Games do
           Multi.new()
           |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "completed"}))
           |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
+            # Use the riddle's configured cooldown (in seconds)
+            cooldown_seconds = updated_riddle.archive_cooldown_minutes * 60
+
             %{riddle_id: updated_riddle.id}
-            |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(
-              schedule_in: archive_riddle_after_period
-            )
+            |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: cooldown_seconds)
           end)
           |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            # Preload category for LiveView rendering
+            updated_riddle = preload_assoc(updated_riddle)
+
             Phoenix.PubSub.broadcast(
               Riddlr.PubSub,
               "games:riddle:completed",
@@ -321,6 +331,9 @@ defmodule Riddlr.Games do
           Multi.new()
           |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "archived"}))
           |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+            # Preload category for LiveView rendering
+            updated_riddle = preload_assoc(updated_riddle)
+
             Phoenix.PubSub.broadcast(
               Riddlr.PubSub,
               "games:riddle:archived",
@@ -336,6 +349,14 @@ defmodule Riddlr.Games do
           end
         end
     end
+  end
+
+  defp preload_assoc(%Riddle{} = riddle) do
+    Repo.preload(riddle, :category)
+  end
+
+  defp preload_assoc_force(%Riddle{} = riddle) do
+    Repo.preload(riddle, :category, force: true)
   end
 
   alias Riddlr.Games.Category

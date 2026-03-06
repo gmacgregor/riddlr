@@ -3,9 +3,18 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
   alias Riddlr.Authorization
+  import Riddlr.Utils.Datetime
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:ready")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
+    end
+
     {:ok, socket |> assign(:page_title, "Manage Riddles") |> stream(:riddles, [])}
   end
 
@@ -34,14 +43,18 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    # ⚠️ Authorization check required - on_mount hooks only run at mount time
+    # Authorization check required - on_mount hooks only run at mount time
     # Event handlers must verify permissions independently
-    if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
-      riddle = Games.get_riddle!(id)
-      {:ok, _} = Games.delete_riddle(riddle)
-      {:noreply, socket |> stream_delete(:riddles, riddle) |> put_flash(:info, "Riddle deleted")}
-    else
-      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
+    case Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+      true ->
+        riddle = Games.get_riddle!(id)
+        {:ok, _} = Games.delete_riddle(riddle)
+
+        {:noreply,
+         socket |> stream_delete(:riddles, riddle) |> put_flash(:info, "Riddle deleted")}
+
+      false ->
+        {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
     end
   end
 
@@ -49,4 +62,39 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   def handle_info({:riddle_saved, riddle}, socket) do
     {:noreply, stream_insert(socket, :riddles, riddle, at: 0)}
   end
+
+  # Handle Oban worker state transitions
+  def handle_info({:riddle_scheduled, riddle}, socket) do
+    {:noreply, stream_insert(socket, :riddles, riddle)}
+  end
+
+  def handle_info({:riddle_ready, riddle}, socket) do
+    {:noreply, stream_insert(socket, :riddles, riddle)}
+  end
+
+  def handle_info({:riddle_live, riddle}, socket) do
+    {:noreply, stream_insert(socket, :riddles, riddle)}
+  end
+
+  def handle_info({:riddle_completed, riddle}, socket) do
+    {:noreply, stream_insert(socket, :riddles, riddle)}
+  end
+
+  def handle_info({:riddle_archived, riddle}, socket) do
+    {:noreply, stream_insert(socket, :riddles, riddle)}
+  end
+
+  defp format_live_date(live_date) when is_struct(live_date, DateTime) do
+    live_time_display(live_date)
+  end
+
+  defp format_live_date(nil), do: nil
+
+  defp play_status_color("closed"), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
+  defp play_status_color("scheduled"), do: "bg-blue-50 text-blue-700 ring-blue-700/10"
+  defp play_status_color("ready"), do: "bg-yellow-50 text-yellow-800 ring-yellow-600/20"
+  defp play_status_color("live"), do: "bg-green-50 text-green-700 ring-green-600/20"
+  defp play_status_color("completed"), do: "bg-purple-50 text-purple-700 ring-purple-700/10"
+  defp play_status_color("archived"), do: "bg-gray-50 text-gray-500 ring-gray-500/10"
+  defp play_status_color(_), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
 end
