@@ -302,8 +302,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     end
   end
 
-  # Helper to format datetime for datetime-local input
+  # Helper to format datetime for datetime-local input.
+  # Converts UTC to Eastern time first, mimicking what a browser sends
+  # when the admin's timezone is America/New_York.
   defp format_datetime_local(datetime) do
-    Calendar.strftime(datetime, "%Y-%m-%dT%H:%M:%S")
+    {:ok, eastern} = DateTime.shift_zone(datetime, "America/New_York")
+    Calendar.strftime(eastern, "%Y-%m-%dT%H:%M:%S")
   end
 end

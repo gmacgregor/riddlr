@@ -3,11 +3,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
   alias Riddlr.Authorization
+  import Riddlr.Utils.Datetime
 
   @impl true
   def mount(_params, _session, socket) do
-    # Subscribe to riddle state transition events from Oban workers
     if connected?(socket) do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:ready")
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
@@ -42,7 +43,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    # ⚠️ Authorization check required - on_mount hooks only run at mount time
+    # Authorization check required - on_mount hooks only run at mount time
     # Event handlers must verify permissions independently
     case Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
       true ->
@@ -63,6 +64,10 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   end
 
   # Handle Oban worker state transitions
+  def handle_info({:riddle_scheduled, riddle}, socket) do
+    {:noreply, stream_insert(socket, :riddles, riddle)}
+  end
+
   def handle_info({:riddle_ready, riddle}, socket) do
     {:noreply, stream_insert(socket, :riddles, riddle)}
   end
@@ -78,6 +83,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   def handle_info({:riddle_archived, riddle}, socket) do
     {:noreply, stream_insert(socket, :riddles, riddle)}
   end
+
+  defp format_live_date(live_date) when is_struct(live_date, DateTime) do
+    live_time_display(live_date)
+  end
+
+  defp format_live_date(nil), do: nil
 
   defp play_status_color("closed"), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
   defp play_status_color("scheduled"), do: "bg-blue-50 text-blue-700 ring-blue-700/10"

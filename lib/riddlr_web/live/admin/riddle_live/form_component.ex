@@ -3,6 +3,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   alias Riddlr.Games
   alias Riddlr.Games.RiddleScheduler
   alias Riddlr.Authorization
+  import Riddlr.Utils.Datetime
 
   defp hint_delay() do
     Riddlr.Games.Riddle.default_hint_delay()
@@ -104,7 +105,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
         <.input
           field={f[:live_date]}
           type="datetime-local"
-          label="Live Date (when riddle goes live)"
+          label="Live Date (EST/EDT - when riddle goes live)"
         />
         <div class="mt-4 flex gap-2">
           <.button phx-disable-with="Saving...">Save</.button>
@@ -119,23 +120,25 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
   @impl true
   def update(%{riddle: riddle} = assigns, socket) do
-    # Convert answers array to newline-separated string for textarea
-    riddle = prepare_riddle_for_form(riddle)
-
     # Load categories for select dropdown
     categories = Games.list_categories() |> Enum.map(&{&1.name, &1.id})
+
+    changeset = Games.change_riddle(riddle)
+    form_title = title(assigns.action)
 
     {:ok,
      socket
      |> assign(assigns)
-     |> assign(:title, title(assigns.action))
+     |> assign(:title, form_title)
      |> assign(:categories, categories)
-     |> assign_form(Games.change_riddle(riddle))}
+     |> assign_form(changeset)}
   end
 
   @impl true
   def handle_event("validate", %{"riddle" => params}, socket) do
     params = prepare_params_for_changeset(params)
+    # Convert live_date to UTC before validation to prevent Ecto from treating it as UTC
+    params = convert_live_date_param(params)
     changeset = Games.change_riddle(socket.assigns.riddle, params) |> Map.put(:action, :validate)
     {:noreply, assign_form(socket, changeset)}
   end
@@ -143,6 +146,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   def handle_event("save", %{"riddle" => params}, socket) do
     if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
       params = prepare_params_for_changeset(params)
+      params = convert_live_date_param(params)
       save(socket, socket.assigns.action, params)
     else
       {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
@@ -152,11 +156,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   defp save(socket, :edit, params) do
     current_riddle = socket.assigns.riddle
     old_live_date = current_riddle.live_date
-    new_live_date = parse_live_date(params["live_date"])
+    # live_date already converted by convert_live_date_param
+    effective_live_date = params["live_date"] || current_riddle.live_date
 
     result =
-      if should_auto_schedule?(current_riddle, params, new_live_date) do
-        Games.schedule_riddle(current_riddle, new_live_date)
+      if should_auto_schedule?(current_riddle, params, effective_live_date) do
+        Games.schedule_riddle(current_riddle, effective_live_date)
       else
         Games.update_riddle(current_riddle, params)
       end
@@ -165,8 +170,10 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       {:ok, %{riddle: updated_riddle, ready_job: ready_job, live_job: live_job}} ->
         # Scheduled with jobs
         send(self(), {:riddle_saved, updated_riddle})
-        ready_time = Calendar.strftime(ready_job.scheduled_at, "%Y-%m-%d %H:%M:%S UTC")
-        live_time = Calendar.strftime(live_job.scheduled_at, "%Y-%m-%d %H:%M:%S UTC")
+        ready_time_est = to_est_datetime(ready_job.scheduled_at)
+        live_time_est = to_est_datetime(live_job.scheduled_at)
+        ready_time = ready_time_display(ready_time_est)
+        live_time = live_time_display(live_time_est)
 
         {:noreply,
          socket
@@ -194,6 +201,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   end
 
   defp save(socket, :new, params) do
+    # live_date already converted by convert_live_date_param
     case Games.create_riddle(params) do
       {:ok, riddle} ->
         send(self(), {:riddle_saved, riddle})
@@ -203,6 +211,37 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
+    end
+  end
+
+  defp assign_form(socket, changeset) do
+    changeset =
+      changeset
+      |> convert_answers_for_form()
+      |> convert_live_date_for_form()
+
+    assign(socket, :form, to_form(changeset))
+  end
+
+  defp convert_answers_for_form(changeset) do
+    case Ecto.Changeset.get_field(changeset, :answers) do
+      answers when is_list(answers) and answers != [] ->
+        Ecto.Changeset.put_change(changeset, :answers, Enum.join(answers, "\n"))
+
+      _ ->
+        changeset
+    end
+  end
+
+  defp convert_live_date_for_form(changeset) do
+    # Convert UTC datetime to EST for datetime-local input display
+    case Ecto.Changeset.get_field(changeset, :live_date) do
+      %DateTime{} = live_date ->
+        local_string = to_local_input(live_date)
+        Ecto.Changeset.put_change(changeset, :live_date, local_string)
+
+      _ ->
+        changeset
     end
   end
 
@@ -233,58 +272,30 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       not is_nil(new_riddle.live_date)
   end
 
-  defp parse_live_date(nil), do: nil
-  defp parse_live_date(""), do: nil
-
-  defp parse_live_date(datetime_string) when is_binary(datetime_string) do
-    case NaiveDateTime.from_iso8601(datetime_string) do
-      {:ok, naive_datetime} ->
-        DateTime.from_naive!(naive_datetime, "Etc/UTC")
-
-      _ ->
-        nil
-    end
-  end
-
-  defp parse_live_date(_), do: nil
-
-  defp assign_form(socket, changeset) do
-    # Convert answers array back to string for display in form
-    changeset =
-      case Ecto.Changeset.get_field(changeset, :answers) do
-        nil ->
-          changeset
-
-        [] ->
-          changeset
-
-        answers when is_list(answers) ->
-          Ecto.Changeset.put_change(changeset, :answers, Enum.join(answers, "\n"))
-
-        _ ->
-          changeset
-      end
-
-    assign(socket, :form, to_form(changeset))
-  end
-
   defp title(:new), do: "New Riddle"
   defp title(:edit), do: "Edit Riddle"
 
-  # Convert riddle's answers array to newline-separated string for textarea
-  defp prepare_riddle_for_form(riddle) do
-    case riddle.answers do
+  # Convert live_date from EST/EDT to UTC
+  defp convert_live_date_param(params) do
+    case params["live_date"] do
       nil ->
-        riddle
+        params
 
-      [] ->
-        riddle
+      "" ->
+        Map.delete(params, "live_date")
 
-      answers when is_list(answers) ->
-        Map.put(riddle, :answers, Enum.join(answers, "\n"))
+      datetime_string when is_binary(datetime_string) ->
+        case to_utc_datetime(datetime_string) do
+          nil -> Map.delete(params, "live_date")
+          utc_datetime -> Map.put(params, "live_date", utc_datetime)
+        end
+
+      # Already a DateTime (shouldn't happen but handle it)
+      %DateTime{} ->
+        params
 
       _ ->
-        riddle
+        Map.delete(params, "live_date")
     end
   end
 

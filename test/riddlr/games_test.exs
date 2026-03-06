@@ -326,8 +326,11 @@ defmodule Riddlr.GamesTest do
 
       {:ok, updated_riddle} = Games.ready_riddle(riddle.id)
 
-      # Assert broadcast received
-      assert_receive {:riddle_ready, ^updated_riddle}
+      # Assert broadcast received (category is preloaded in broadcast)
+      assert_receive {:riddle_ready, broadcast_riddle}
+      assert broadcast_riddle.id == updated_riddle.id
+      assert broadcast_riddle.play_status == "ready"
+      assert broadcast_riddle.category.id == riddle.category_id
     end
   end
 

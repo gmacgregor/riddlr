@@ -11,6 +11,12 @@ defmodule Riddlr.Games.RiddleScheduler do
   alias Riddlr.Repo
   alias Riddlr.Workers.{ReadyRiddleTransitionWorker, LiveRiddleTransitionWorker}
 
+  @transition_workers [
+    "Riddlr.Workers.ReadyRiddleTransitionWorker",
+    "Riddlr.Workers.LiveRiddleTransitionWorker",
+    "Riddlr.Workers.ArchiveRiddleTransitionWorker"
+  ]
+
   @doc """
   Cancels all pending (scheduled or available) jobs for a riddle.
 
@@ -25,21 +31,19 @@ defmodule Riddlr.Games.RiddleScheduler do
       {:ok, 0}
   """
   def cancel_pending_jobs(riddle_id) when is_integer(riddle_id) do
-    riddle_id_string = to_string(riddle_id)
+    riddle_id_string = Integer.to_string(riddle_id)
+    now = DateTime.utc_now()
 
-    {count, _} =
-      Oban.Job
-      |> where(
-        [j],
-        j.worker in [
-          "Riddlr.Workers.ReadyRiddleTransitionWorker",
-          "Riddlr.Workers.LiveRiddleTransitionWorker",
-          "Riddlr.Workers.ArchiveRiddleTransitionWorker"
-        ]
+    query =
+      from j in Oban.Job,
+        where: j.worker in ^@transition_workers,
+        where: fragment("?->>'riddle_id' = ?", j.args, ^riddle_id_string),
+        where: j.state in ["scheduled", "available"]
+
+    {count, _jobs} =
+      Repo.update_all(query,
+        set: [state: "cancelled", cancelled_at: now]
       )
-      |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^riddle_id_string))
-      |> where([j], j.state in ["scheduled", "available"])
-      |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
 
     {:ok, count}
   end
@@ -59,32 +63,34 @@ defmodule Riddlr.Games.RiddleScheduler do
       iex> reschedule_jobs(123, ~U[2026-04-01 14:00:00Z])
       {:ok, 2}
   """
-  def reschedule_jobs(riddle_id, new_live_date) when is_integer(riddle_id) do
-    # Cancel existing jobs
-    {:ok, _cancelled} = cancel_pending_jobs(riddle_id)
-
-    # Schedule new jobs
+  def reschedule_jobs(riddle_id, %DateTime{} = new_live_date) when is_integer(riddle_id) do
     ready_time = DateTime.add(new_live_date, -300, :second)
 
-    Multi.new()
-    |> Multi.insert(
-      :ready_job,
-      ReadyRiddleTransitionWorker.new(
-        %{riddle_id: riddle_id},
-        scheduled_at: ready_time
+    multi =
+      Multi.new()
+      |> Oban.insert(
+        :ready_job,
+        ReadyRiddleTransitionWorker.new(%{riddle_id: riddle_id}, scheduled_at: ready_time)
       )
-    )
-    |> Multi.insert(
-      :live_job,
-      LiveRiddleTransitionWorker.new(
-        %{riddle_id: riddle_id},
-        scheduled_at: new_live_date
+      |> Oban.insert(
+        :live_job,
+        LiveRiddleTransitionWorker.new(%{riddle_id: riddle_id}, scheduled_at: new_live_date)
       )
-    )
-    |> Repo.transaction()
-    |> case do
-      {:ok, _} -> {:ok, 2}
-      {:error, _step, changeset, _} -> {:error, changeset}
+
+    with {:ok, _cancelled} <- cancel_pending_jobs(riddle_id),
+         {:ok, _changes} <- Repo.transaction(multi) do
+      {:ok, 2}
+    else
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes_so_far} ->
+        {:error, changeset}
+
+      {:error, _step, reason, _changes_so_far} ->
+        {:error, reason}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
+
+  def reschedule_jobs(_riddle_id, _new_live_date), do: {:error, :invalid_live_date}
 end
