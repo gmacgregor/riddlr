@@ -68,7 +68,8 @@ defmodule Riddlr.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:oban, "~> 2.18"},
-      {:tidewave, "~> 0.5", only: :dev}
+      {:tidewave, "~> 0.5", only: :dev},
+      {:tzdata, "~> 1.1"}
     ]
   end
 
