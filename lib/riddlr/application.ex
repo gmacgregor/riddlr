@@ -13,6 +13,7 @@ defmodule Riddlr.Application do
       {Oban, Application.fetch_env!(:riddlr, Oban)},
       {DNSCluster, query: Application.get_env(:riddlr, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Riddlr.PubSub},
+      Riddlr.Gameplay.Presence,
       # Start a worker by calling: Riddlr.Worker.start_link(arg)
       # {Riddlr.Worker, arg},
       # Start to serve requests, typically the last entry

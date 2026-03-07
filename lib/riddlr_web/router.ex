@@ -60,6 +60,8 @@ defmodule RiddlrWeb.Router do
     live_session :require_authenticated_user,
       on_mount: [{RiddlrWeb.UserAuth, :ensure_authenticated}] do
       live "/profile", UserProfileLive.Show, :show
+      live "/game/:id/lobby", GameLive.Lobby, :lobby
+      live "/game/:id/play", GameLive.Play, :play
     end
 
     get "/users/settings", UserSettingsController, :edit
