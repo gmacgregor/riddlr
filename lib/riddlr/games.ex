@@ -237,7 +237,7 @@ defmodule Riddlr.Games do
   @doc """
   Starts a riddle (transitions to live state).
   Transitions: ready → live
-  Enqueues CompleteRiddleWorker (not implemented until Phase 11).
+  Enqueues CompleteRiddleWorker after solve_time seconds unless live_until_solved is true.
   """
   def start_riddle(riddle_id) do
     case Repo.get(Riddle, riddle_id) do
@@ -248,20 +248,33 @@ defmodule Riddlr.Games do
         if riddle.play_status != "ready" do
           {:error, "cannot transition from #{riddle.play_status} to live"}
         else
-          Multi.new()
-          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "live"}))
-          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
-            # Preload category for LiveView rendering
-            updated_riddle = preload_assoc(updated_riddle)
+          multi =
+            Multi.new()
+            |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "live"}))
+            |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+              # Preload category for LiveView rendering
+              updated_riddle = preload_assoc(updated_riddle)
 
-            Phoenix.PubSub.broadcast(
-              Riddlr.PubSub,
-              "games:riddle:live",
-              {:riddle_live, updated_riddle}
-            )
+              Phoenix.PubSub.broadcast(
+                Riddlr.PubSub,
+                "games:riddle:live",
+                {:riddle_live, updated_riddle}
+              )
 
-            {:ok, :broadcasted}
-          end)
+              {:ok, :broadcasted}
+            end)
+
+          multi =
+            if riddle.live_until_solved do
+              multi
+            else
+              Multi.insert(multi, :complete_job, fn %{riddle: updated_riddle} ->
+                %{"riddle_id" => updated_riddle.id}
+                |> Riddlr.Workers.CompleteRiddleWorker.new(schedule_in: updated_riddle.solve_time)
+              end)
+            end
+
+          multi
           |> Repo.transaction()
           |> case do
             {:ok, %{riddle: riddle}} -> {:ok, riddle}
@@ -282,18 +295,23 @@ defmodule Riddlr.Games do
         {:error, :not_found}
 
       riddle ->
-        if riddle.play_status != "live" do
-          {:error, "cannot transition from #{riddle.play_status} to completed"}
-        else
-          Multi.new()
-          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "completed"}))
-          |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
-            # Use the riddle's configured cooldown (in seconds)
-            cooldown_seconds = updated_riddle.archive_cooldown_minutes * 60
+        cond do
+          riddle.play_status != "live" ->
+            {:error, "cannot transition from #{riddle.play_status} to completed"}
 
-            %{riddle_id: updated_riddle.id}
-            |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: cooldown_seconds)
-          end)
+          not is_nil(riddle.first_solver_id) ->
+            {:error, "riddle already solved by user #{riddle.first_solver_id}"}
+
+          true ->
+            Multi.new()
+            |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "completed"}))
+            |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
+              # Use the riddle's configured cooldown (in seconds)
+              cooldown_seconds = updated_riddle.archive_cooldown_minutes * 60
+
+              %{"riddle_id" => updated_riddle.id}
+              |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: cooldown_seconds)
+            end)
           |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
             # Preload category for LiveView rendering
             updated_riddle = preload_assoc(updated_riddle)

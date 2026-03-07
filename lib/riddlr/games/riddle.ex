@@ -88,6 +88,7 @@ defmodule Riddlr.Games.Riddle do
     field :completion_rate, :float
     field :average_solve_time, :float
     field :archive_cooldown_minutes, :integer, default: 3
+    field :live_until_solved, :boolean, default: false
 
     belongs_to :category, Riddlr.Games.Category
     belongs_to :first_solver, Riddlr.Accounts.User
@@ -113,7 +114,8 @@ defmodule Riddlr.Games.Riddle do
       :first_solve_time,
       :completion_rate,
       :average_solve_time,
-      :archive_cooldown_minutes
+      :archive_cooldown_minutes,
+      :live_until_solved
     ])
     |> cast_answers(attrs)
     |> validate_required([:name, :description, :answers, :solve_time, :category_id])

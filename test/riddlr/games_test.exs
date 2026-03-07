@@ -334,6 +334,48 @@ defmodule Riddlr.GamesTest do
     end
   end
 
+  describe "start_riddle/1 scheduling" do
+    import Riddlr.GamesFixtures
+
+    test "enqueues CompleteRiddleWorker when live_until_solved is false" do
+      riddle = riddle_fixture(%{play_status: "ready", publish_status: "published"})
+
+      {:ok, _riddle} = Games.start_riddle(riddle.id)
+
+      assert_enqueued(
+        worker: Riddlr.Workers.CompleteRiddleWorker,
+        args: %{"riddle_id" => riddle.id}
+      )
+    end
+
+    test "does not enqueue CompleteRiddleWorker when live_until_solved is true" do
+      riddle =
+        riddle_fixture(%{
+          play_status: "ready",
+          publish_status: "published",
+          live_until_solved: true
+        })
+
+      {:ok, _riddle} = Games.start_riddle(riddle.id)
+
+      refute_enqueued(
+        worker: Riddlr.Workers.CompleteRiddleWorker,
+        args: %{"riddle_id" => riddle.id}
+      )
+    end
+
+    test "CompleteRiddleWorker scheduled after solve_time seconds" do
+      riddle =
+        riddle_fixture(%{play_status: "ready", publish_status: "published", solve_time: 120})
+
+      {:ok, _riddle} = Games.start_riddle(riddle.id)
+
+      [job] = all_enqueued(worker: Riddlr.Workers.CompleteRiddleWorker)
+      diff = DateTime.diff(job.scheduled_at, DateTime.utc_now())
+      assert diff >= 115 and diff <= 125
+    end
+  end
+
   describe "update_riddle/2 with draft rollback" do
     import Riddlr.GamesFixtures
 

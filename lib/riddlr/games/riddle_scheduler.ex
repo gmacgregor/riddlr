@@ -14,7 +14,8 @@ defmodule Riddlr.Games.RiddleScheduler do
   @transition_workers [
     "Riddlr.Workers.ReadyRiddleTransitionWorker",
     "Riddlr.Workers.LiveRiddleTransitionWorker",
-    "Riddlr.Workers.ArchiveRiddleTransitionWorker"
+    "Riddlr.Workers.ArchiveRiddleTransitionWorker",
+    "Riddlr.Workers.CompleteRiddleWorker"
   ]
 
   @doc """
@@ -65,29 +66,40 @@ defmodule Riddlr.Games.RiddleScheduler do
   """
   def reschedule_jobs(riddle_id, %DateTime{} = new_live_date) when is_integer(riddle_id) do
     ready_time = DateTime.add(new_live_date, -300, :second)
+    riddle_id_string = Integer.to_string(riddle_id)
+    now = DateTime.utc_now()
 
-    multi =
-      Multi.new()
-      |> Oban.insert(
-        :ready_job,
-        ReadyRiddleTransitionWorker.new(%{riddle_id: riddle_id}, scheduled_at: ready_time)
-      )
-      |> Oban.insert(
-        :live_job,
-        LiveRiddleTransitionWorker.new(%{riddle_id: riddle_id}, scheduled_at: new_live_date)
-      )
+    cancel_query =
+      from j in Oban.Job,
+        where: j.worker in ^@transition_workers,
+        where: fragment("?->>'riddle_id' = ?", j.args, ^riddle_id_string),
+        where: j.state in ["scheduled", "available"]
 
-    with {:ok, _cancelled} <- cancel_pending_jobs(riddle_id),
-         {:ok, _changes} <- Repo.transaction(multi) do
-      {:ok, 2}
-    else
+    case Multi.new()
+         |> Multi.run(:cancel_jobs, fn repo, _changes ->
+           {count, _} =
+             repo.update_all(cancel_query, set: [state: "cancelled", cancelled_at: now])
+
+           {:ok, count}
+         end)
+         |> Oban.insert(
+           :ready_job,
+           ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle_id}, scheduled_at: ready_time)
+         )
+         |> Oban.insert(
+           :live_job,
+           LiveRiddleTransitionWorker.new(%{"riddle_id" => riddle_id},
+             scheduled_at: new_live_date
+           )
+         )
+         |> Repo.transaction() do
+      {:ok, _changes} ->
+        {:ok, 2}
+
       {:error, _step, %Ecto.Changeset{} = changeset, _changes_so_far} ->
         {:error, changeset}
 
       {:error, _step, reason, _changes_so_far} ->
-        {:error, reason}
-
-      {:error, reason} ->
         {:error, reason}
     end
   end
