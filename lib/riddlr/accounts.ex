@@ -288,6 +288,53 @@ defmodule Riddlr.Accounts do
     :ok
   end
 
+  ## Player stats
+
+  @doc """
+  Atomically increments a single stat field by the given amount.
+  Broadcasts to leaderboard subscribers on change.
+  """
+  def increment_stats(user_id, field, amount)
+      when field in [:total_points, :wins_count, :podium_count] and is_integer(amount) do
+    {count, _} =
+      from(u in User, where: u.id == ^user_id)
+      |> Repo.update_all(inc: [{field, amount}])
+
+    if count > 0 do
+      Phoenix.PubSub.broadcast(Riddlr.PubSub, "accounts:leaderboard:updated", :stats_changed)
+    end
+
+    :ok
+  end
+
+  @doc """
+  Awards points to a user based on game placement (1st=10, 2nd=7, 3rd=3, 4th+=0).
+  Updates total_points, podium_count (top 3), and wins_count (1st place) atomically.
+  """
+  def award_game_points(user_id, placement) do
+    points = points_for_placement(placement)
+
+    updates =
+      [total_points: points] ++
+        if(placement <= 3, do: [podium_count: 1], else: []) ++
+        if placement == 1, do: [wins_count: 1], else: []
+
+    {count, _} =
+      from(u in User, where: u.id == ^user_id)
+      |> Repo.update_all(inc: updates)
+
+    if count > 0 do
+      Phoenix.PubSub.broadcast(Riddlr.PubSub, "accounts:leaderboard:updated", :stats_changed)
+    end
+
+    {:ok, points}
+  end
+
+  defp points_for_placement(1), do: 10
+  defp points_for_placement(2), do: 7
+  defp points_for_placement(3), do: 3
+  defp points_for_placement(_), do: 0
+
   ## Token helper
 
   defp update_user_and_delete_all_tokens(changeset) do

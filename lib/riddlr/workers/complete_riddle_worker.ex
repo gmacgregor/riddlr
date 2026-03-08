@@ -24,9 +24,6 @@ defmodule Riddlr.Workers.CompleteRiddleWorker do
           riddle.live_until_solved ->
             {:cancel, "live_until_solved is set, skipping auto-complete"}
 
-          riddle.first_solver_id != nil ->
-            {:cancel, "Riddle already solved by user #{riddle.first_solver_id}"}
-
           true ->
             case Games.complete_riddle(id) do
               {:ok, _riddle} -> :ok

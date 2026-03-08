@@ -211,12 +211,12 @@ defmodule Riddlr.GamesTest do
 
       # Verify ready job scheduled 5 min before live
       assert result.ready_job.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker"
-      assert result.ready_job.args == %{riddle_id: riddle.id}
+      assert result.ready_job.args == %{"riddle_id" => riddle.id}
       assert DateTime.diff(result.ready_job.scheduled_at, live_date, :second) == -300
 
       # Verify live job scheduled at live_date
       assert result.live_job.worker == "Riddlr.Workers.LiveRiddleTransitionWorker"
-      assert result.live_job.args == %{riddle_id: riddle.id}
+      assert result.live_job.args == %{"riddle_id" => riddle.id}
       assert DateTime.compare(result.live_job.scheduled_at, live_date) == :eq
     end
 
@@ -246,6 +246,24 @@ defmodule Riddlr.GamesTest do
       # Second call fails with error
       {:error, error} = Games.ready_riddle(riddle_id)
       assert error == "cannot transition from ready to ready"
+    end
+
+    test "complete_riddle succeeds when riddle has a winner" do
+      riddle = riddle_fixture(%{play_status: "live"})
+      user = Riddlr.AccountsFixtures.user_fixture()
+      {:ok, _} = Games.record_first_solver(riddle.id, user.id)
+
+      {:ok, completed} = Games.complete_riddle(riddle.id)
+      assert completed.play_status == "completed"
+      assert completed.first_solver_id == user.id
+    end
+
+    test "complete_riddle records no winner when first_solver_id is nil" do
+      riddle = riddle_fixture(%{play_status: "live"})
+
+      {:ok, completed} = Games.complete_riddle(riddle.id)
+      assert completed.play_status == "completed"
+      assert is_nil(completed.first_solver_id)
     end
 
     test "complete_riddle enqueues archive job with 180 second delay" do
@@ -468,6 +486,29 @@ defmodule Riddlr.GamesTest do
         |> Riddlr.Repo.all()
 
       assert length(pending_after) == 2
+    end
+  end
+
+  describe "record_first_solver/2" do
+    import Riddlr.GamesFixtures
+    import Riddlr.AccountsFixtures
+
+    test "records first solver when field is nil" do
+      riddle = riddle_fixture(%{play_status: "live"})
+      user = user_fixture()
+
+      assert {:ok, :recorded} = Games.record_first_solver(riddle.id, user.id)
+      assert Games.get_riddle!(riddle.id).first_solver_id == user.id
+    end
+
+    test "no-op when first solver already set" do
+      riddle = riddle_fixture(%{play_status: "live"})
+      user1 = user_fixture()
+      user2 = user_fixture()
+
+      {:ok, :recorded} = Games.record_first_solver(riddle.id, user1.id)
+      assert {:ok, :already_set} = Games.record_first_solver(riddle.id, user2.id)
+      assert Games.get_riddle!(riddle.id).first_solver_id == user1.id
     end
   end
 

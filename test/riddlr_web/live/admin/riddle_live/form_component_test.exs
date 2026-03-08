@@ -1,5 +1,6 @@
 defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   use RiddlrWeb.ConnCase
+  use Oban.Testing, repo: Riddlr.Repo
   import Phoenix.LiveViewTest
   import Ecto.Query
   alias Riddlr.AccountsFixtures
@@ -64,6 +65,83 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       html = render(index_live)
       assert html =~ "Riddle created"
       assert html =~ "Test Riddle"
+    end
+  end
+
+  describe "Create riddle with auto-scheduling" do
+    setup do
+      category =
+        Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") ||
+          Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
+
+      %{category: category}
+    end
+
+    test "auto-schedules when created with published status and future live_date", %{
+      conn: conn,
+      admin: admin,
+      category: category
+    } do
+      future_live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      index_live |> element("a", "New Riddle") |> render_click()
+
+      index_live
+      |> form("#riddle-form",
+        riddle: %{
+          name: "Auto-schedule test",
+          description: "Will this be scheduled?",
+          answers: "keyboard\na keyboard",
+          solve_time: 120,
+          category_id: category.id,
+          publish_status: "published",
+          live_date: format_datetime_local(future_live_date)
+        }
+      )
+      |> render_submit()
+
+      riddle = Riddlr.Repo.get_by(Riddlr.Games.Riddle, name: "Auto-schedule test")
+      assert riddle.play_status == "scheduled"
+      assert riddle.publish_status == "published"
+
+      jobs =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.all()
+
+      assert length(jobs) == 2
+    end
+
+    test "does not schedule when created with draft status", %{
+      conn: conn,
+      admin: admin,
+      category: category
+    } do
+      future_live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      index_live |> element("a", "New Riddle") |> render_click()
+
+      index_live
+      |> form("#riddle-form",
+        riddle: %{
+          name: "Draft test riddle",
+          description: "Stays closed",
+          answers: "keyboard",
+          solve_time: 120,
+          category_id: category.id,
+          publish_status: "draft",
+          live_date: format_datetime_local(future_live_date)
+        }
+      )
+      |> render_submit()
+
+      riddle = Riddlr.Repo.get_by(Riddlr.Games.Riddle, name: "Draft test riddle")
+      assert riddle.play_status == "closed"
     end
   end
 

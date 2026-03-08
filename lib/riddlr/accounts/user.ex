@@ -14,6 +14,11 @@ defmodule Riddlr.Accounts.User do
       values: [:super_admin, :moderator, :editor, :viewer, :player],
       default: :player
 
+    field :account_status, Ecto.Enum, values: [:active, :banned, :suspended], default: :active
+    field :total_points, :integer, default: 0
+    field :wins_count, :integer, default: 0
+    field :podium_count, :integer, default: 0
+
     timestamps(type: :utc_datetime)
   end
 
@@ -25,6 +30,17 @@ defmodule Riddlr.Accounts.User do
     user
     |> cast(attrs, [:role])
     |> validate_inclusion(:role, [:super_admin, :moderator, :editor, :viewer, :player])
+  end
+
+  @doc """
+  A changeset for updating player stats (points, counts, account_status).
+  """
+  def stats_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:total_points, :wins_count, :podium_count, :account_status])
+    |> validate_number(:total_points, greater_than_or_equal_to: 0)
+    |> validate_number(:wins_count, greater_than_or_equal_to: 0)
+    |> validate_number(:podium_count, greater_than_or_equal_to: 0)
   end
 
   @doc """

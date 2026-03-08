@@ -36,17 +36,15 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
     assert message =~ "completed"
   end
 
-  test "cancels if first_solver_id is set (player already won)" do
+  test "completes riddle even when a player has already won" do
     user = user_fixture()
     riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
 
     {:ok, riddle} =
       Riddlr.Games.update_riddle(riddle, %{first_solver_id: user.id, play_status: "live"})
 
-    assert {:cancel, message} =
-             perform_job(CompleteRiddleWorker, %{riddle_id: riddle.id})
-
-    assert message =~ "already solved"
+    assert :ok = perform_job(CompleteRiddleWorker, %{riddle_id: riddle.id})
+    assert Riddlr.Repo.reload(riddle).play_status == "completed"
   end
 
   test "cancels if live_until_solved is true at execution time" do

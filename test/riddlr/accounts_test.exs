@@ -389,6 +389,70 @@ defmodule Riddlr.AccountsTest do
     end
   end
 
+  describe "increment_stats/3" do
+    test "increments total_points" do
+      user = user_fixture()
+      assert :ok = Accounts.increment_stats(user.id, :total_points, 10)
+      assert Accounts.get_user!(user.id).total_points == 10
+    end
+
+    test "increments wins_count" do
+      user = user_fixture()
+      assert :ok = Accounts.increment_stats(user.id, :wins_count, 1)
+      assert Accounts.get_user!(user.id).wins_count == 1
+    end
+
+    test "increments podium_count" do
+      user = user_fixture()
+      assert :ok = Accounts.increment_stats(user.id, :podium_count, 1)
+      assert Accounts.get_user!(user.id).podium_count == 1
+    end
+
+    test "is cumulative across multiple calls" do
+      user = user_fixture()
+      Accounts.increment_stats(user.id, :total_points, 10)
+      Accounts.increment_stats(user.id, :total_points, 7)
+      assert Accounts.get_user!(user.id).total_points == 17
+    end
+  end
+
+  describe "award_game_points/2" do
+    test "1st place awards 10 points, wins_count, and podium_count" do
+      user = user_fixture()
+      assert {:ok, 10} = Accounts.award_game_points(user.id, 1)
+      updated = Accounts.get_user!(user.id)
+      assert updated.total_points == 10
+      assert updated.wins_count == 1
+      assert updated.podium_count == 1
+    end
+
+    test "2nd place awards 7 points and podium_count but not wins_count" do
+      user = user_fixture()
+      assert {:ok, 7} = Accounts.award_game_points(user.id, 2)
+      updated = Accounts.get_user!(user.id)
+      assert updated.total_points == 7
+      assert updated.wins_count == 0
+      assert updated.podium_count == 1
+    end
+
+    test "3rd place awards 3 points and podium_count" do
+      user = user_fixture()
+      assert {:ok, 3} = Accounts.award_game_points(user.id, 3)
+      updated = Accounts.get_user!(user.id)
+      assert updated.total_points == 3
+      assert updated.podium_count == 1
+    end
+
+    test "4th place awards 0 points" do
+      user = user_fixture()
+      assert {:ok, 0} = Accounts.award_game_points(user.id, 4)
+      updated = Accounts.get_user!(user.id)
+      assert updated.total_points == 0
+      assert updated.wins_count == 0
+      assert updated.podium_count == 0
+    end
+  end
+
   describe "inspect/2 for the User module" do
     test "does not include password" do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""

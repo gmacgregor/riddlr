@@ -24,7 +24,7 @@ defmodule Riddlr.Games do
   def list_riddles do
     Riddle
     |> preload(:category)
-    |> order_by(desc: :inserted_at)
+    |> order_by([c], desc: c.inserted_at, desc: c.play_status)
     |> Repo.all()
   end
 
@@ -113,8 +113,6 @@ defmodule Riddlr.Games do
   Returns {:ok, count} where count is the number of cancelled jobs.
   """
   def cancel_riddle_jobs(riddle_id) do
-    import Ecto.Query
-
     {count, _} =
       Oban.Job
       |> where([j], j.state in ["available", "scheduled", "retryable"])
@@ -176,13 +174,13 @@ defmodule Riddlr.Games do
           })
         )
         |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
-          %{riddle_id: updated_riddle.id}
+          %{"riddle_id" => updated_riddle.id}
           |> Riddlr.Workers.ReadyRiddleTransitionWorker.new(
             scheduled_at: DateTime.add(live_date, -@seconds_before_live, :second)
           )
         end)
         |> Multi.insert(:live_job, fn %{riddle: updated_riddle} ->
-          %{riddle_id: updated_riddle.id}
+          %{"riddle_id" => updated_riddle.id}
           |> Riddlr.Workers.LiveRiddleTransitionWorker.new(scheduled_at: live_date)
         end)
         |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
@@ -299,9 +297,6 @@ defmodule Riddlr.Games do
           riddle.play_status != "live" ->
             {:error, "cannot transition from #{riddle.play_status} to completed"}
 
-          not is_nil(riddle.first_solver_id) ->
-            {:error, "riddle already solved by user #{riddle.first_solver_id}"}
-
           true ->
             Multi.new()
             |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "completed"}))
@@ -312,23 +307,23 @@ defmodule Riddlr.Games do
               %{"riddle_id" => updated_riddle.id}
               |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: cooldown_seconds)
             end)
-          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
-            # Preload category for LiveView rendering
-            updated_riddle = preload_assoc(updated_riddle)
+            |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
+              # Preload category for LiveView rendering
+              updated_riddle = preload_assoc(updated_riddle)
 
-            Phoenix.PubSub.broadcast(
-              Riddlr.PubSub,
-              "games:riddle:completed",
-              {:riddle_completed, updated_riddle}
-            )
+              Phoenix.PubSub.broadcast(
+                Riddlr.PubSub,
+                "games:riddle:completed",
+                {:riddle_completed, updated_riddle}
+              )
 
-            {:ok, :broadcasted}
-          end)
-          |> Repo.transaction()
-          |> case do
-            {:ok, %{riddle: riddle}} -> {:ok, riddle}
-            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
-          end
+              {:ok, :broadcasted}
+            end)
+            |> Repo.transaction()
+            |> case do
+              {:ok, %{riddle: riddle}} -> {:ok, riddle}
+              {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
+            end
         end
     end
   end
@@ -367,6 +362,20 @@ defmodule Riddlr.Games do
           end
         end
     end
+  end
+
+  @doc """
+  Records the first solver of a riddle (no-op if already set).
+  Uses atomic update to avoid race conditions.
+  """
+  def record_first_solver(riddle_id, user_id) do
+    {count, _} =
+      from(r in Riddle,
+        where: r.id == ^riddle_id and is_nil(r.first_solver_id)
+      )
+      |> Repo.update_all(set: [first_solver_id: user_id])
+
+    if count > 0, do: {:ok, :recorded}, else: {:ok, :already_set}
   end
 
   defp preload_assoc(%Riddle{} = riddle) do

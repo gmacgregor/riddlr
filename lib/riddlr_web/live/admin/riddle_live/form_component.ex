@@ -123,6 +123,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     # Load categories for select dropdown
     categories = Games.list_categories() |> Enum.map(&{&1.name, &1.id})
 
+    # Pre-select "logic" category for new riddles
+    riddle =
+      if assigns.action == :new && is_nil(riddle.category_id) do
+        logic_id = Enum.find_value(categories, fn {name, id} -> name == "logic" && id end)
+        %{riddle | category_id: logic_id}
+      else
+        riddle
+      end
+
     changeset = Games.change_riddle(riddle)
     form_title = title(assigns.action)
 
@@ -202,13 +211,39 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
   defp save(socket, :new, params) do
     # live_date already converted by convert_live_date_param
-    case Games.create_riddle(params) do
-      {:ok, riddle} ->
+    effective_live_date = params["live_date"]
+
+    with {:ok, riddle} <- Games.create_riddle(params) do
+      if should_auto_schedule?(riddle, params, effective_live_date) do
+        case Games.schedule_riddle(riddle, effective_live_date) do
+          {:ok, %{riddle: scheduled_riddle, ready_job: ready_job, live_job: live_job}} ->
+            send(self(), {:riddle_saved, scheduled_riddle})
+            ready_time = ready_time_display(to_est_datetime(ready_job.scheduled_at))
+            live_time = live_time_display(to_est_datetime(live_job.scheduled_at))
+
+            {:noreply,
+             socket
+             |> put_flash(
+               :info,
+               "#{riddle.name} saved.\nLobby opens: #{ready_time}\nRiddle goes live: #{live_time}"
+             )
+             |> push_patch(to: socket.assigns.patch)}
+
+          {:error, reason} ->
+            send(self(), {:riddle_saved, riddle})
+
+            {:noreply,
+             socket
+             |> put_flash(:warning, "Riddle created but scheduling failed: #{inspect(reason)}")
+             |> push_patch(to: socket.assigns.patch)}
+        end
+      else
         send(self(), {:riddle_saved, riddle})
 
         {:noreply,
          socket |> put_flash(:info, "Riddle created") |> push_patch(to: socket.assigns.patch)}
-
+      end
+    else
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end

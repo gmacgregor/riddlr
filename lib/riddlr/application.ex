@@ -8,14 +8,14 @@ defmodule Riddlr.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      Riddlr.Gameplay.EtsOwner,
       RiddlrWeb.Telemetry,
       Riddlr.Repo,
       {Oban, Application.fetch_env!(:riddlr, Oban)},
       {DNSCluster, query: Application.get_env(:riddlr, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Riddlr.PubSub},
       Riddlr.Gameplay.Presence,
-      # Start a worker by calling: Riddlr.Worker.start_link(arg)
-      # {Riddlr.Worker, arg},
+      {Task.Supervisor, name: Riddlr.TaskSupervisor},
       # Start to serve requests, typically the last entry
       RiddlrWeb.Endpoint
     ]
