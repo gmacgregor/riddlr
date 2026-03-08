@@ -280,7 +280,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   end
 
   describe "multi-user placement" do
-    test "2nd solver gets 7 points", %{user: user} do
+    test "2nd solver gets 9 points", %{user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       user2 = AccountsFixtures.user_fixture()
 
@@ -297,10 +297,10 @@ defmodule RiddlrWeb.GameLive.PlayTest do
         |> render_submit()
 
       assert html =~ "2nd"
-      assert html =~ "+7 points"
+      assert html =~ "+9 points"
     end
 
-    test "3rd solver gets 3 points", %{user: user} do
+    test "3rd solver gets 8 points", %{user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       user2 = AccountsFixtures.user_fixture()
       user3 = AccountsFixtures.user_fixture()
@@ -319,7 +319,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
         |> render_submit()
 
       assert html =~ "3rd"
-      assert html =~ "+3 points"
+      assert html =~ "+8 points"
     end
   end
 

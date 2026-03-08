@@ -142,16 +142,16 @@ defmodule Riddlr.GameplayTest do
       assert Gameplay.points_for_placement(1) == 10
     end
 
-    test "2nd place gets 7 points" do
-      assert Gameplay.points_for_placement(2) == 7
+    test "2nd place gets 9 points" do
+      assert Gameplay.points_for_placement(2) == 9
     end
 
-    test "3rd place gets 3 points" do
-      assert Gameplay.points_for_placement(3) == 3
+    test "3rd place gets 8 points" do
+      assert Gameplay.points_for_placement(3) == 8
     end
 
-    test "4th place and beyond gets 0 points" do
-      assert Gameplay.points_for_placement(4) == 0
+    test "4th place gets 7 points, 11th and beyond gets 0 points" do
+      assert Gameplay.points_for_placement(4) == 7
       assert Gameplay.points_for_placement(100) == 0
     end
   end

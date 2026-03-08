@@ -426,28 +426,28 @@ defmodule Riddlr.AccountsTest do
       assert updated.podium_count == 1
     end
 
-    test "2nd place awards 7 points and podium_count but not wins_count" do
+    test "2nd place awards 9 points and podium_count but not wins_count" do
       user = user_fixture()
-      assert {:ok, 7} = Accounts.award_game_points(user.id, 2)
+      assert {:ok, 9} = Accounts.award_game_points(user.id, 2)
       updated = Accounts.get_user!(user.id)
-      assert updated.total_points == 7
+      assert updated.total_points == 9
       assert updated.wins_count == 0
       assert updated.podium_count == 1
     end
 
-    test "3rd place awards 3 points and podium_count" do
+    test "3rd place awards 8 points and podium_count" do
       user = user_fixture()
-      assert {:ok, 3} = Accounts.award_game_points(user.id, 3)
+      assert {:ok, 8} = Accounts.award_game_points(user.id, 3)
       updated = Accounts.get_user!(user.id)
-      assert updated.total_points == 3
+      assert updated.total_points == 8
       assert updated.podium_count == 1
     end
 
-    test "4th place awards 0 points" do
+    test "4th place awards 7 points" do
       user = user_fixture()
-      assert {:ok, 0} = Accounts.award_game_points(user.id, 4)
+      assert {:ok, 7} = Accounts.award_game_points(user.id, 4)
       updated = Accounts.get_user!(user.id)
-      assert updated.total_points == 0
+      assert updated.total_points == 7
       assert updated.wins_count == 0
       assert updated.podium_count == 0
     end
