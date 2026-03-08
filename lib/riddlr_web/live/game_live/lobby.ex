@@ -6,41 +6,50 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    riddle = Games.get_riddle!(id)
+    case Games.fetch_riddle(id) do
+      {:ok, riddle} ->
+        cond do
+          riddle.play_status == "live" ->
+            {:ok, push_navigate(socket, to: ~p"/game/#{id}/play")}
 
-    cond do
-      riddle.play_status == "live" ->
-        {:ok, push_navigate(socket, to: ~p"/game/#{id}/play")}
+          riddle.play_status != "ready" ->
+            {:ok,
+             socket
+             |> put_flash(:info, "Game lobby is not yet available.")
+             |> push_navigate(to: ~p"/")}
 
-      riddle.play_status != "ready" ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Game lobby is not available.")
-         |> push_navigate(to: ~p"/")}
+          true ->
+            timer_ref =
+              if connected?(socket) do
+                Presence.track(
+                  self(),
+                  lobby_topic(id),
+                  to_string(socket.assigns.current_user.id),
+                  %{
+                    username: socket.assigns.current_user.username
+                  }
+                )
 
-      true ->
-        timer_ref =
-          if connected?(socket) do
-            Presence.track(self(), lobby_topic(id), to_string(socket.assigns.current_user.id), %{
-              username: socket.assigns.current_user.username
-            })
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(id))
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
+                {:ok, ref} = :timer.send_interval(1000, self(), :tick)
+                ref
+              end
 
-            Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(id))
-            Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
-            {:ok, ref} = :timer.send_interval(1000, self(), :tick)
-            ref
-          end
+            player_count = lobby_topic(id) |> Presence.list() |> map_size()
+            time_remaining = time_remaining(riddle.live_date)
 
-        player_count = lobby_topic(id) |> Presence.list() |> map_size()
-        time_remaining = time_remaining(riddle.live_date)
+            {:ok,
+             socket
+             |> assign(:page_title, "Lobby — #{riddle.name}")
+             |> assign(:riddle, riddle)
+             |> assign(:player_count, player_count)
+             |> assign(:time_remaining, time_remaining)
+             |> assign(:timer_ref, timer_ref)}
+        end
 
-        {:ok,
-         socket
-         |> assign(:page_title, "Lobby — #{riddle.name}")
-         |> assign(:riddle, riddle)
-         |> assign(:player_count, player_count)
-         |> assign(:time_remaining, time_remaining)
-         |> assign(:timer_ref, timer_ref)}
+      {:error, :not_found} ->
+        {:ok, socket |> push_navigate(to: ~p"/")}
     end
   end
 

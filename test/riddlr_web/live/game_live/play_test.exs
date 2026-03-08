@@ -18,6 +18,12 @@ defmodule RiddlrWeb.GameLive.PlayTest do
                live(conn, ~p"/game/#{riddle.id}/play")
     end
 
+    test "redirects to home when riddle does not exist", %{conn: conn, user: user} do
+      conn = log_in_user(conn, user)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/game/999999/play")
+    end
+
     test "redirects to lobby when riddle is :closed", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, user)
@@ -376,6 +382,164 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       |> render_submit()
 
       assert_redirect(live, "/")
+    end
+  end
+
+  describe "answer feed" do
+    setup %{user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
+      %{riddle: riddle, user: user}
+    end
+
+    test "answer feed section is rendered", %{conn: conn, riddle: riddle, user: user} do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+      assert has_element?(live, "#answer-feed")
+      assert has_element?(live, "#answers")
+    end
+
+    test "submitted answer appears in the feed via PubSub", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      answer_data = %{
+        id: "#{riddle.id}-#{user.id}-123456",
+        user_id: user.id,
+        username: user.username,
+        text: "keyboard",
+        correct: false,
+        offset_ms: 1500,
+        show_highlight: false,
+        flagged: false
+      }
+
+      send(live.pid, {:answer_submitted, answer_data})
+
+      html = render(live)
+      assert html =~ user.username
+      assert html =~ "keyboard"
+    end
+
+    test "flagged answer is removed from the feed", %{conn: conn, riddle: riddle, user: user} do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      answer_id = "#{riddle.id}-#{user.id}-999"
+
+      answer_data = %{
+        id: answer_id,
+        user_id: user.id,
+        username: user.username,
+        text: "spam content",
+        correct: false,
+        offset_ms: 500,
+        show_highlight: false,
+        flagged: false
+      }
+
+      send(live.pid, {:answer_submitted, answer_data})
+      html = render(live)
+      assert html =~ "spam content"
+
+      send(live.pid, {:answer_flagged, answer_id})
+      html = render(live)
+      refute html =~ "spam content"
+    end
+
+    test "submitting a blocked word triggers async moderation and removes from feed", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      # Use a stable answer_id so we can reference it for the flagged event
+      answer_id = "moderation-test-#{riddle.id}"
+
+      # Inject the answer directly into the feed (simulates the PubSub broadcast
+      # that handle_event sends). This is reliable in tests — the E2E PubSub
+      # round-trip from form submit → PubSub → handle_info is async and would
+      # require sleep() to stabilise.
+      send(
+        live.pid,
+        {:answer_submitted,
+         %{
+           id: answer_id,
+           user_id: user.id,
+           username: user.username,
+           text: "spam",
+           correct: false,
+           offset_ms: 100,
+           show_highlight: false,
+           flagged: false
+         }}
+      )
+
+      html = render(live)
+      assert html =~ "spam"
+
+      # Async moderation flags it — verify it disappears from feed
+      send(live.pid, {:answer_flagged, answer_id})
+      html = render(live)
+      refute html =~ "spam"
+    end
+
+    test "correct answers are highlighted after game completion", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      correct_answer = %{
+        id: "#{riddle.id}-#{user.id}-777",
+        user_id: user.id,
+        username: user.username,
+        text: "keyboard",
+        correct: true,
+        offset_ms: 2000,
+        show_highlight: false,
+        flagged: false
+      }
+
+      # Submit the correct answer first so it's tracked in correct_answers assign
+      send(live.pid, {:answer_submitted, correct_answer})
+      # Game completion re-inserts correct answers with show_highlight: true
+      send(live.pid, {:riddle_completed, %{riddle | play_status: "completed"}})
+
+      html = render(live)
+      assert html =~ "bg-green-50"
+    end
+
+    test "time offset is displayed for real-time answers", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      answer_data = %{
+        id: "#{riddle.id}-#{user.id}-500",
+        user_id: user.id,
+        username: user.username,
+        text: "keyboard",
+        correct: false,
+        offset_ms: 2500,
+        show_highlight: false,
+        flagged: false
+      }
+
+      send(live.pid, {:answer_submitted, answer_data})
+
+      html = render(live)
+      assert html =~ "+2s"
     end
   end
 

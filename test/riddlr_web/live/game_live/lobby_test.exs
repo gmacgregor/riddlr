@@ -18,6 +18,12 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
                live(conn, ~p"/game/#{riddle.id}/lobby")
     end
 
+    test "redirects to home when riddle does not exist", %{conn: conn, user: user} do
+      conn = log_in_user(conn, user)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/game/999999/lobby")
+    end
+
     test "redirects when riddle is :closed", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture()
       assert riddle.play_status == "closed"
@@ -27,7 +33,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["error"] == "Game lobby is not available."
+      assert flash["info"] == "Game lobby is not yet available."
     end
 
     test "redirects when riddle is :scheduled", %{conn: conn, user: user} do
@@ -40,7 +46,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["error"] == "Game lobby is not available."
+      assert flash["info"] == "Game lobby is not yet available."
     end
 
     test "redirects when riddle is :completed", %{conn: conn, user: user} do
@@ -53,7 +59,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["error"] == "Game lobby is not available."
+      assert flash["info"] == "Game lobby is not yet available."
     end
 
     test "redirects when riddle is :archived", %{conn: conn, user: user} do
@@ -66,7 +72,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["error"] == "Game lobby is not available."
+      assert flash["info"] == "Game lobby is not yet available."
     end
 
     test "mounts successfully when riddle is :ready", %{conn: conn, user: user} do

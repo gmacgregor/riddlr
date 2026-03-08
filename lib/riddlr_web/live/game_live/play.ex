@@ -20,40 +20,65 @@ defmodule RiddlrWeb.GameLive.Play do
   def mount(%{"id" => id}, _session, socket) do
     # DB query in both connected and disconnected mount is intentional: we need
     # play_status to decide the redirect destination before the socket connects.
-    riddle = Games.get_riddle!(id)
+    case Games.fetch_riddle(id) do
+      {:ok, riddle} ->
+        case riddle.play_status do
+          status when status in ["closed", "scheduled", "ready"] ->
+            {:ok,
+             socket
+             |> put_flash(:error, "Game is not live yet.")
+             |> push_navigate(to: ~p"/game/#{id}/lobby")}
 
-    case riddle.play_status do
-      status when status in ["closed", "scheduled", "ready"] ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Game is not live yet.")
-         |> push_navigate(to: ~p"/game/#{id}/lobby")}
+          "archived" ->
+            {:ok,
+             socket
+             |> put_flash(:info, "That game has ended.")
+             |> push_navigate(to: ~p"/")}
 
-      "archived" ->
-        {:ok,
-         socket
-         |> put_flash(:info, "That game has ended.")
-         |> push_navigate(to: ~p"/")}
+          status when status in ["live", "completed"] ->
+            user = socket.assigns.current_user
 
-      status when status in ["live", "completed"] ->
-        user = socket.assigns.current_user
+            if connected?(socket) do
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_submitted")
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_flagged")
+            end
 
-        if connected?(socket) do
-          Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
-          Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
+            already_solved =
+              status == "live" and
+                match?(
+                  {:error, :already_solved},
+                  Gameplay.check_already_solved(riddle.id, user.id)
+                )
+
+            game_completed = status == "completed"
+            initial_answers = build_initial_feed(riddle.id, game_completed)
+
+            # Track correct answers in assigns so we can re-stream them with highlight
+            # when the game completes (stream items don't re-render on outer assign changes).
+            correct_answers =
+              initial_answers
+              |> Enum.filter(& &1.correct)
+              |> Map.new(&{&1.id, &1})
+
+            {:ok,
+             socket
+             |> assign(:page_title, "Play — #{riddle.name}")
+             |> assign(:riddle, riddle)
+             |> assign(:game_start_time, riddle.live_date)
+             |> assign(:game_completed, game_completed)
+             |> assign(:already_solved, already_solved)
+             |> assign(:submission_state, nil)
+             |> assign(:correct_answers, correct_answers)
+             |> stream(:answers, initial_answers, limit: 100)}
         end
 
-        already_solved =
-          status == "live" and
-            match?({:error, :already_solved}, Gameplay.check_already_solved(riddle.id, user.id))
+      {:error, :not_found} ->
+        {:ok, socket |> push_navigate(to: ~p"/")}
 
-        {:ok,
-         socket
-         |> assign(:page_title, "Play — #{riddle.name}")
-         |> assign(:riddle, riddle)
-         |> assign(:game_completed, status == "completed")
-         |> assign(:already_solved, already_solved)
-         |> assign(:submission_state, nil)}
+      {_, _} ->
+        {:ok, socket |> push_navigate(to: ~p"/")}
     end
   end
 
@@ -74,16 +99,22 @@ defmodule RiddlrWeb.GameLive.Play do
       correct? = Gameplay.validate_answer(riddle, text)
       timestamp = Gameplay.store_answer(riddle.id, user.id, text, correct?)
 
+      offset_ms = compute_offset_ms(socket.assigns.game_start_time)
+
       answer_data = %{
         id: "#{riddle.id}-#{user.id}-#{timestamp}",
         user_id: user.id,
         username: user.username,
         text: text,
         correct: correct?,
-        timestamp: timestamp
+        timestamp: timestamp,
+        offset_ms: offset_ms,
+        show_highlight: false,
+        flagged: false
       }
 
       Gameplay.broadcast_answer(riddle.id, answer_data)
+      Gameplay.moderate_answer_async(riddle.id, answer_data.id, text)
 
       if correct? do
         placement = Gameplay.calculate_placement(riddle.id, timestamp)
@@ -114,8 +145,33 @@ defmodule RiddlrWeb.GameLive.Play do
   end
 
   @impl true
+  def handle_info({:answer_submitted, answer_data}, socket) do
+    socket = stream_insert(socket, :answers, answer_data, at: 0)
+
+    socket =
+      if answer_data.correct do
+        update(socket, :correct_answers, &Map.put(&1, answer_data.id, answer_data))
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:answer_flagged, answer_id}, socket) do
+    {:noreply, stream_delete(socket, :answers, %{id: answer_id})}
+  end
+
   def handle_info({:riddle_completed, riddle}, socket) do
     if riddle.id == socket.assigns.riddle.id do
+      # Re-insert correct answers with show_highlight: true so the stream items
+      # update in the DOM (stream items don't re-render on outer assign changes).
+      socket =
+        socket.assigns.correct_answers
+        |> Enum.reduce(socket, fn {_id, answer}, acc ->
+          stream_insert(acc, :answers, %{answer | show_highlight: true})
+        end)
+
       {:noreply,
        socket
        |> assign(:riddle, riddle)
@@ -226,6 +282,32 @@ defmodule RiddlrWeb.GameLive.Play do
         <p class="text-xl font-semibold text-gray-700">Time's up!</p>
         <p class="text-gray-500 mt-1">Better luck next time.</p>
       </div>
+
+      <%!-- Answer feed --%>
+      <div id="answer-feed" class="mt-8">
+        <h2 class="text-base font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Answer Feed
+        </h2>
+        <div id="answers" phx-update="stream" class="space-y-2">
+          <div
+            :for={{dom_id, answer} <- @streams.answers}
+            id={dom_id}
+            class={[
+              "flex items-center gap-3 px-4 py-2 rounded-lg border text-sm",
+              if(answer.show_highlight,
+                do: "bg-green-50 border-green-200",
+                else: "bg-gray-50 border-gray-100"
+              )
+            ]}
+          >
+            <span class="font-medium text-gray-800 shrink-0">{answer.username}</span>
+            <span class="text-gray-600 flex-1 truncate">{answer.text}</span>
+            <span :if={answer.offset_ms} class="text-xs text-gray-400 shrink-0">
+              +{format_offset(answer.offset_ms)}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
     """
   end
@@ -262,4 +344,44 @@ defmodule RiddlrWeb.GameLive.Play do
   defp try_again() do
     Enum.random(@try_again_messages)
   end
+
+  # Builds feed items for answers already in ETS when the LiveView mounts.
+  # Batch-loads usernames from the DB to avoid N+1 queries.
+  # When game_completed is true, correct answers are immediately highlighted.
+  defp build_initial_feed(riddle_id, game_completed) do
+    ets_answers = Gameplay.get_answers(riddle_id)
+
+    user_ids = ets_answers |> Enum.map(& &1.user_id) |> Enum.uniq()
+    users_by_id = Accounts.get_users_by_ids(user_ids)
+
+    ets_answers
+    |> Enum.take(100)
+    |> Enum.map(fn a ->
+      username =
+        case Map.get(users_by_id, a.user_id) do
+          %{username: u} -> u
+          nil -> "Player"
+        end
+
+      %{
+        id: "#{riddle_id}-#{a.user_id}-#{a.timestamp}",
+        user_id: a.user_id,
+        username: username,
+        text: a.text,
+        correct: a.correct,
+        offset_ms: nil,
+        show_highlight: game_completed and a.correct,
+        flagged: false
+      }
+    end)
+  end
+
+  defp compute_offset_ms(nil), do: nil
+
+  defp compute_offset_ms(game_start) do
+    max(DateTime.diff(DateTime.utc_now(), game_start, :millisecond), 0)
+  end
+
+  defp format_offset(ms) when ms < 1000, do: "#{ms}ms"
+  defp format_offset(ms), do: "#{div(ms, 1000)}s"
 end
