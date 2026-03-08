@@ -61,8 +61,8 @@ defmodule Riddlr.Games.Riddle do
   @publish_statuses ~w(draft published)
   @difficulties ~w(easy medium hard expert)
 
-  @solve_time 300
-  @hint_delay 90
+  @solve_time 120
+  @hint_delay 60
 
   @valid_transitions %{
     "closed" => ["scheduled"],

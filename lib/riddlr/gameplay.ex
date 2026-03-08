@@ -146,6 +146,42 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
+  Returns game completion stats computed from ETS data.
+  Used when transitioning a riddle to :completed.
+
+  Returns:
+  - `completion_rate` — percentage of players who submitted a correct answer (0.0–100.0)
+  """
+  def get_completion_stats(riddle_id) do
+    answers = get_answers(riddle_id)
+    unique_players = answers |> Enum.map(& &1.user_id) |> Enum.uniq() |> length()
+
+    unique_solvers =
+      answers |> Enum.filter(& &1.correct) |> Enum.map(& &1.user_id) |> Enum.uniq() |> length()
+
+    completion_rate =
+      if unique_players > 0, do: unique_solvers / unique_players * 100.0, else: 0.0
+
+    %{completion_rate: completion_rate}
+  end
+
+  @doc """
+  Returns the top `limit` solvers for a riddle, ordered by solve time (fastest first).
+  Each entry: %{user_id, placement, points}.
+  """
+  def get_top_solvers(riddle_id, limit \\ 10) do
+    @answers_table
+    |> :ets.match_object({{riddle_id, :_}, :_, :_, true})
+    |> Enum.map(fn {{_rid, user_id}, _text, ts, _} -> {user_id, ts} end)
+    |> Enum.sort_by(&elem(&1, 1))
+    |> Enum.take(limit)
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{user_id, _ts}, placement} ->
+      %{user_id: user_id, placement: placement, points: points_for_placement(placement)}
+    end)
+  end
+
+  @doc """
   Removes all ETS entries for a riddle (call on archive).
   """
   def cleanup_riddle(riddle_id) do

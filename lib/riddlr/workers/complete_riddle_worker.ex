@@ -4,7 +4,7 @@ defmodule Riddlr.Workers.CompleteRiddleWorker do
     max_attempts: 3,
     unique: [period: {1, :hour}, keys: [:riddle_id]]
 
-  alias Riddlr.{Games, Repo}
+  alias Riddlr.{Games, Gameplay, Repo}
   alias Riddlr.Games.Riddle
 
   @impl Oban.Worker
@@ -25,7 +25,9 @@ defmodule Riddlr.Workers.CompleteRiddleWorker do
             {:cancel, "live_until_solved is set, skipping auto-complete"}
 
           true ->
-            case Games.complete_riddle(id) do
+            stats = Gameplay.get_completion_stats(id)
+
+            case Games.complete_riddle(id, stats) do
               {:ok, _riddle} -> :ok
               {:error, reason} -> {:error, reason}
             end

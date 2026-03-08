@@ -38,13 +38,6 @@ defmodule RiddlrWeb.GameLive.Play do
           status when status in ["live", "completed"] ->
             user = socket.assigns.current_user
 
-            if connected?(socket) do
-              Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
-              Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
-              Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_submitted")
-              Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_flagged")
-            end
-
             already_solved =
               status == "live" and
                 match?(
@@ -53,7 +46,19 @@ defmodule RiddlrWeb.GameLive.Play do
                 )
 
             game_completed = status == "completed"
-            initial_answers = build_initial_feed(riddle.id, game_completed)
+
+            {initial_answers, top_solvers} =
+              if connected?(socket) do
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_submitted")
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_flagged")
+                answers = build_initial_feed(riddle.id, game_completed)
+                solvers = if game_completed, do: load_top_solvers(riddle.id), else: []
+                {answers, solvers}
+              else
+                {[], []}
+              end
 
             # Track correct answers in assigns so we can re-stream them with highlight
             # when the game completes (stream items don't re-render on outer assign changes).
@@ -83,6 +88,7 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:submission_state, nil)
              |> assign(:time_remaining, time_remaining)
              |> assign(:correct_answers, correct_answers)
+             |> assign(:top_solvers, top_solvers)
              |> stream(:answers, initial_answers, limit: 100)}
         end
 
@@ -133,7 +139,16 @@ defmodule RiddlrWeb.GameLive.Play do
         {:ok, points} = Accounts.award_game_points(user.id, placement)
 
         if placement == 1 do
-          Games.record_first_solver(riddle.id, user.id)
+          first_solve_time =
+            if riddle.live_date,
+              do: DateTime.diff(DateTime.utc_now(), riddle.live_date, :second),
+              else: nil
+
+          stats =
+            Gameplay.get_completion_stats(riddle.id)
+            |> Map.put(:first_solve_time, first_solve_time)
+
+          Games.complete_riddle_on_first_solve(riddle.id, user.id, stats)
         end
 
         {:noreply,
@@ -184,11 +199,14 @@ defmodule RiddlrWeb.GameLive.Play do
           stream_insert(acc, :answers, %{answer | show_highlight: true})
         end)
 
+      top_solvers = load_top_solvers(riddle.id)
+
       {:noreply,
        socket
        |> assign(:riddle, riddle)
        |> assign(:game_completed, true)
-       |> assign(:time_remaining, 0)}
+       |> assign(:time_remaining, 0)
+       |> assign(:top_solvers, top_solvers)}
     else
       {:noreply, socket}
     end
@@ -209,7 +227,8 @@ defmodule RiddlrWeb.GameLive.Play do
     if socket.assigns.game_completed do
       {:noreply, socket}
     else
-      time_remaining = compute_time_remaining(socket.assigns.game_start_time, socket.assigns.riddle.solve_time)
+      time_remaining =
+        compute_time_remaining(socket.assigns.game_start_time, socket.assigns.riddle.solve_time)
 
       if time_remaining > 0 do
         Process.send_after(self(), :tick, 1000)
@@ -318,6 +337,68 @@ defmodule RiddlrWeb.GameLive.Play do
         <p class="text-gray-500 mt-1">Better luck next time.</p>
       </div>
 
+      <%!-- Post-game results (shown when game is completed) --%>
+      <div :if={@game_completed} id="post-game-results" class="mt-6 space-y-6">
+        <%!-- Winner announcement --%>
+        <div
+          :if={@riddle.first_solver}
+          id="winner-announcement"
+          class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center"
+        >
+          <p class="text-sm font-medium text-amber-600 uppercase tracking-wide mb-1">Winner</p>
+          <p class="text-2xl font-bold text-amber-800">{@riddle.first_solver.username}</p>
+          <p :if={@riddle.first_solve_time} class="text-sm text-amber-600 mt-1">
+            Solved in {format_time(@riddle.first_solve_time)}
+          </p>
+        </div>
+
+        <%!-- Correct answers revealed --%>
+        <div
+          id="correct-answers-revealed"
+          class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
+        >
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            The Answer{if length(@riddle.answers) > 1, do: "s", else: ""}
+          </h3>
+          <ul class="space-y-1">
+            <li :for={answer <- @riddle.answers} class="text-gray-800 font-medium">
+              {answer}
+            </li>
+          </ul>
+        </div>
+
+        <%!-- Top 10 game leaderboard --%>
+        <div
+          :if={@top_solvers != []}
+          id="game-leaderboard"
+          class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
+        >
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Top Solvers
+          </h3>
+          <ol class="space-y-2">
+            <li
+              :for={solver <- @top_solvers}
+              class="flex items-center justify-between py-1"
+            >
+              <div class="flex items-center gap-3">
+                <span class={[
+                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+                  solver.placement == 1 && "bg-amber-100 text-amber-700",
+                  solver.placement == 2 && "bg-gray-100 text-gray-600",
+                  solver.placement == 3 && "bg-orange-100 text-orange-700",
+                  solver.placement > 3 && "bg-gray-50 text-gray-500"
+                ]}>
+                  {solver.placement}
+                </span>
+                <span class="text-gray-800 font-medium">{solver.username}</span>
+              </div>
+              <span class="text-sm text-gray-500">+{solver.points} pts</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+
       <%!-- Answer feed --%>
       <div id="answer-feed" class="mt-8">
         <h2 class="text-base font-semibold text-gray-500 uppercase tracking-wide mb-3">
@@ -408,6 +489,23 @@ defmodule RiddlrWeb.GameLive.Play do
         show_highlight: game_completed and a.correct,
         flagged: false
       }
+    end)
+  end
+
+  # Loads top solvers from ETS and batch-fetches their usernames from the DB.
+  defp load_top_solvers(riddle_id) do
+    solver_entries = Gameplay.get_top_solvers(riddle_id)
+    user_ids = Enum.map(solver_entries, & &1.user_id)
+    users_by_id = Accounts.get_users_by_ids(user_ids)
+
+    Enum.map(solver_entries, fn entry ->
+      username =
+        case Map.get(users_by_id, entry.user_id) do
+          %{username: u} -> u
+          nil -> "Player"
+        end
+
+      Map.put(entry, :username, username)
     end)
   end
 

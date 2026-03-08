@@ -564,7 +564,7 @@ end
 - Post-game screen (same LiveView, different state)
   - Winner announcement (1st place user)
   - Correct answers list
-  - Top 3 leaderboard (for this game)
+  - Top 10 leaderboard (for this game)
   - Link to full leaderboard
 - Update riddle stats:
   - `first_solver_id` (user_id of 1st place)

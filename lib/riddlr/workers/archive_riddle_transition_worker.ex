@@ -8,7 +8,7 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorker do
     max_attempts: 3,
     unique: [period: {1, :hour}, keys: [:riddle_id]]
 
-  alias Riddlr.{Games, Repo}
+  alias Riddlr.{Games, Gameplay, Repo}
   alias Riddlr.Games.Riddle
 
   @impl Oban.Worker
@@ -27,8 +27,12 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorker do
 
           true ->
             case Games.archive_riddle(id) do
-              {:ok, _riddle} -> :ok
-              {:error, reason} -> {:error, reason}
+              {:ok, _riddle} ->
+                Gameplay.cleanup_riddle(id)
+                :ok
+
+              {:error, reason} ->
+                {:error, reason}
             end
         end
     end

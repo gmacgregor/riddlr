@@ -24,7 +24,7 @@ defmodule Riddlr.Games do
   """
   def list_riddles do
     Riddle
-    |> preload(:category)
+    |> preload([:category, :first_solver])
     |> order_by([c], desc: c.inserted_at, desc: c.play_status)
     |> Repo.all()
   end
@@ -45,7 +45,7 @@ defmodule Riddlr.Games do
   """
   def get_riddle!(id) do
     Riddle
-    |> preload(:category)
+    |> preload([:category, :first_solver])
     |> Repo.get!(id)
   end
 
@@ -189,7 +189,8 @@ defmodule Riddlr.Games do
         {:error, "cannot schedule riddle in #{riddle.play_status} state"}
 
       true ->
-        schedule_attrs = Map.merge(attrs, %{"play_status" => "scheduled", "live_date" => live_date})
+        schedule_attrs =
+          Map.merge(attrs, %{"play_status" => "scheduled", "live_date" => live_date})
 
         Multi.new()
         |> Multi.update(
@@ -309,8 +310,10 @@ defmodule Riddlr.Games do
   Completes a riddle (marks as completed after solve_time expires).
   Transitions: live → completed
   Enqueues ArchiveRiddleTransitionWorker (3 min delay).
+
+  Optional `stats` map may include: first_solver_id, first_solve_time, completion_rate.
   """
-  def complete_riddle(riddle_id) do
+  def complete_riddle(riddle_id, stats \\ %{}) do
     case Repo.get(Riddle, riddle_id) do
       nil ->
         {:error, :not_found}
@@ -321,8 +324,13 @@ defmodule Riddlr.Games do
             {:error, "cannot transition from #{riddle.play_status} to completed"}
 
           true ->
+            allowed_stats =
+              Map.take(stats, [:first_solver_id, :first_solve_time, :completion_rate])
+
+            attrs = Map.put(allowed_stats, :play_status, "completed")
+
             Multi.new()
-            |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "completed"}))
+            |> Multi.update(:riddle, Riddle.changeset(riddle, attrs))
             |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
               # Use the riddle's configured cooldown (in seconds)
               cooldown_seconds = updated_riddle.archive_cooldown_minutes * 60
@@ -401,12 +409,50 @@ defmodule Riddlr.Games do
     if count > 0, do: {:ok, :recorded}, else: {:ok, :already_set}
   end
 
+  @doc """
+  Atomically claims first-solver status and immediately completes the riddle.
+  Uses `record_first_solver/2`'s conditional DB write as the concurrency gate —
+  only the caller that successfully sets first_solver_id proceeds with completion.
+
+  Stats map may include: first_solve_time, completion_rate.
+  first_solver_id is set internally from user_id.
+
+  Returns {:ok, riddle} on success, {:ok, :skipped} if another caller won the race,
+  or {:error, reason} on failure.
+  """
+  def complete_riddle_on_first_solve(riddle_id, user_id, stats \\ %{}) do
+    case record_first_solver(riddle_id, user_id) do
+      {:ok, :recorded} ->
+        cancel_complete_worker(riddle_id)
+        complete_riddle(riddle_id, Map.put(stats, :first_solver_id, user_id))
+
+      {:ok, :already_set} ->
+        {:ok, :skipped}
+    end
+  end
+
+  @doc """
+  Cancels any pending CompleteRiddleWorker jobs for a riddle.
+  Called when the first correct answer triggers immediate completion.
+  Returns {:ok, count} where count is the number of cancelled jobs.
+  """
+  def cancel_complete_worker(riddle_id) do
+    {count, _} =
+      Oban.Job
+      |> where([j], j.state in ["available", "scheduled", "retryable"])
+      |> where([j], j.worker == ^"Riddlr.Workers.CompleteRiddleWorker")
+      |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+      |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
+
+    {:ok, count}
+  end
+
   defp preload_assoc(%Riddle{} = riddle) do
-    Repo.preload(riddle, :category)
+    Repo.preload(riddle, [:category, :first_solver])
   end
 
   defp preload_assoc_force(%Riddle{} = riddle) do
-    Repo.preload(riddle, :category, force: true)
+    Repo.preload(riddle, [:category, :first_solver], force: true)
   end
 
   @doc """

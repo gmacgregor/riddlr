@@ -578,4 +578,88 @@ defmodule Riddlr.GamesTest do
       assert riddle.archive_cooldown_minutes == 0
     end
   end
+
+  describe "complete_riddle/2 with stats" do
+    import Riddlr.GamesFixtures
+
+    test "saves first_solver_id and first_solve_time when provided" do
+      user = Riddlr.AccountsFixtures.user_fixture()
+      riddle = riddle_fixture(%{play_status: "live"})
+
+      stats = %{first_solver_id: user.id, first_solve_time: 42, completion_rate: 33.3}
+      {:ok, completed} = Games.complete_riddle(riddle.id, stats)
+
+      assert completed.play_status == "completed"
+      assert completed.first_solver_id == user.id
+      assert completed.first_solve_time == 42
+      assert_in_delta completed.completion_rate, 33.3, 0.01
+    end
+
+    test "saves completion_rate without a solver" do
+      riddle = riddle_fixture(%{play_status: "live"})
+
+      stats = %{completion_rate: 0.0}
+      {:ok, completed} = Games.complete_riddle(riddle.id, stats)
+
+      assert completed.play_status == "completed"
+      assert is_nil(completed.first_solver_id)
+      assert_in_delta completed.completion_rate, 0.0, 0.01
+    end
+
+    test "play_status is always set to completed regardless of stats content" do
+      riddle = riddle_fixture(%{play_status: "live"})
+
+      # Even if stats somehow includes a different play_status, completed wins
+      stats = %{completion_rate: 10.0}
+      {:ok, completed} = Games.complete_riddle(riddle.id, stats)
+
+      assert completed.play_status == "completed"
+    end
+  end
+
+  describe "cancel_complete_worker/1" do
+    import Riddlr.GamesFixtures
+
+    test "cancels a scheduled CompleteRiddleWorker for a riddle" do
+      riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
+
+      # Enqueue a job
+      {:ok, _job} =
+        Riddlr.Workers.CompleteRiddleWorker.new(%{"riddle_id" => riddle.id})
+        |> Oban.insert()
+
+      assert_enqueued(
+        worker: Riddlr.Workers.CompleteRiddleWorker,
+        args: %{"riddle_id" => riddle.id}
+      )
+
+      {:ok, count} = Games.cancel_complete_worker(riddle.id)
+      assert count == 1
+
+      refute_enqueued(
+        worker: Riddlr.Workers.CompleteRiddleWorker,
+        args: %{"riddle_id" => riddle.id}
+      )
+    end
+
+    test "returns {:ok, 0} when no jobs exist" do
+      riddle = riddle_fixture(%{play_status: "live"})
+      assert {:ok, 0} = Games.cancel_complete_worker(riddle.id)
+    end
+
+    test "does not cancel ArchiveRiddleTransitionWorker jobs" do
+      riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
+
+      {:ok, _job} =
+        Riddlr.Workers.ArchiveRiddleTransitionWorker.new(%{"riddle_id" => riddle.id})
+        |> Oban.insert()
+
+      Games.cancel_complete_worker(riddle.id)
+
+      assert_enqueued(
+        worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,
+        args: %{"riddle_id" => riddle.id}
+      )
+    end
+  end
 end

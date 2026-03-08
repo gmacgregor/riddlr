@@ -68,6 +68,28 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
     assert job_count == 1
   end
 
+  describe "ETS cleanup on archive" do
+    test "removes riddle answers and cooldowns from ETS after archiving" do
+      riddle = riddle_fixture(%{play_status: "completed", publish_status: "published"})
+
+      user_id = :erlang.unique_integer([:positive])
+
+      # Manually insert ETS entries for this riddle
+      :ets.insert(
+        :riddle_answers,
+        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true}
+      )
+
+      :ets.insert(:answer_cooldowns, {{riddle.id, user_id}, System.monotonic_time(:microsecond)})
+
+      assert :ok = perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
+
+      # Verify ETS entries were cleaned up
+      assert :ets.lookup(:riddle_answers, {riddle.id, user_id}) == []
+      assert :ets.lookup(:answer_cooldowns, {riddle.id, user_id}) == []
+    end
+  end
+
   describe "custom archive cooldown" do
     test "respects riddle's archive_cooldown_minutes setting" do
       riddle =
