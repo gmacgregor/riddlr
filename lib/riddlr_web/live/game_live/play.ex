@@ -62,6 +62,17 @@ defmodule RiddlrWeb.GameLive.Play do
               |> Enum.filter(& &1.correct)
               |> Map.new(&{&1.id, &1})
 
+            time_remaining =
+              if game_completed do
+                0
+              else
+                compute_time_remaining(riddle.live_date, riddle.solve_time)
+              end
+
+            if connected?(socket) and not game_completed and time_remaining > 0 do
+              Process.send_after(self(), :tick, 1000)
+            end
+
             {:ok,
              socket
              |> assign(:page_title, "Play — #{riddle.name}")
@@ -70,6 +81,7 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:game_completed, game_completed)
              |> assign(:already_solved, already_solved)
              |> assign(:submission_state, nil)
+             |> assign(:time_remaining, time_remaining)
              |> assign(:correct_answers, correct_answers)
              |> stream(:answers, initial_answers, limit: 100)}
         end
@@ -175,7 +187,8 @@ defmodule RiddlrWeb.GameLive.Play do
       {:noreply,
        socket
        |> assign(:riddle, riddle)
-       |> assign(:game_completed, true)}
+       |> assign(:game_completed, true)
+       |> assign(:time_remaining, 0)}
     else
       {:noreply, socket}
     end
@@ -189,6 +202,20 @@ defmodule RiddlrWeb.GameLive.Play do
        |> push_navigate(to: ~p"/")}
     else
       {:noreply, socket}
+    end
+  end
+
+  def handle_info(:tick, socket) do
+    if socket.assigns.game_completed do
+      {:noreply, socket}
+    else
+      time_remaining = compute_time_remaining(socket.assigns.game_start_time, socket.assigns.riddle.solve_time)
+
+      if time_remaining > 0 do
+        Process.send_after(self(), :tick, 1000)
+      end
+
+      {:noreply, assign(socket, :time_remaining, time_remaining)}
     end
   end
 
@@ -220,6 +247,14 @@ defmodule RiddlrWeb.GameLive.Play do
           </span>
         </div>
         <h1 id="riddle-name" class="text-3xl font-bold text-gray-900">{@riddle.name}</h1>
+        <div :if={not @game_completed} id="countdown-timer" class="mt-3">
+          <span class={[
+            "text-2xl font-mono font-bold tabular-nums",
+            if(@time_remaining <= 30, do: "text-red-600", else: "text-gray-700")
+          ]}>
+            {format_time(@time_remaining)}
+          </span>
+        </div>
       </div>
 
       <div
@@ -374,6 +409,19 @@ defmodule RiddlrWeb.GameLive.Play do
         flagged: false
       }
     end)
+  end
+
+  defp compute_time_remaining(nil, solve_time), do: solve_time
+
+  defp compute_time_remaining(live_date, solve_time) do
+    elapsed = DateTime.diff(DateTime.utc_now(), live_date, :second)
+    max(solve_time - elapsed, 0)
+  end
+
+  defp format_time(seconds) do
+    minutes = div(seconds, 60)
+    secs = rem(seconds, 60)
+    :io_lib.format("~2..0B:~2..0B", [minutes, secs]) |> IO.iodata_to_binary()
   end
 
   defp compute_offset_ms(nil), do: nil
