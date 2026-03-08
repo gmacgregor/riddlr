@@ -7,6 +7,7 @@ defmodule Riddlr.Accounts do
   alias Riddlr.Repo
 
   alias Riddlr.Accounts.{User, UserToken, UserNotifier}
+  import Riddlr.Gameplay, only: [points_for_placement: 1]
 
   ## Database getters
 
@@ -337,11 +338,6 @@ defmodule Riddlr.Accounts do
 
     {:ok, points}
   end
-
-  defp points_for_placement(1), do: 10
-  defp points_for_placement(2), do: 7
-  defp points_for_placement(3), do: 3
-  defp points_for_placement(_), do: 0
 
   ## Token helper
 

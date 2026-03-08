@@ -81,11 +81,18 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
-  Returns points for a given placement (1st=10, 2nd=7, 3rd=3, 4th+=0).
+  Returns points for a given placement.
   """
   def points_for_placement(1), do: 10
-  def points_for_placement(2), do: 7
-  def points_for_placement(3), do: 3
+  def points_for_placement(2), do: 9
+  def points_for_placement(3), do: 8
+  def points_for_placement(4), do: 7
+  def points_for_placement(5), do: 6
+  def points_for_placement(6), do: 5
+  def points_for_placement(7), do: 4
+  def points_for_placement(8), do: 3
+  def points_for_placement(9), do: 2
+  def points_for_placement(10), do: 1
   def points_for_placement(_), do: 0
 
   @doc """
