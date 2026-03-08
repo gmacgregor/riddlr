@@ -171,7 +171,7 @@ defmodule Riddlr.GamesTest do
     import Riddlr.GamesFixtures
 
     test "full riddle lifecycle from closed to archived" do
-      riddle = riddle_fixture(%{play_status: "closed"})
+      riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
       live_date = DateTime.add(DateTime.utc_now(), 600, :second) |> DateTime.truncate(:second)
 
       # Schedule
@@ -204,7 +204,7 @@ defmodule Riddlr.GamesTest do
     end
 
     test "schedule_riddle enqueues two jobs with correct timing" do
-      riddle = riddle_fixture(%{play_status: "closed"})
+      riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
       live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
 
       {:ok, result} = Games.schedule_riddle(riddle, live_date)
@@ -220,6 +220,13 @@ defmodule Riddlr.GamesTest do
       assert DateTime.compare(result.live_job.scheduled_at, live_date) == :eq
     end
 
+    test "schedule_riddle returns error when riddle is not published" do
+      riddle = riddle_fixture(%{play_status: "closed", publish_status: "draft"})
+      live_date = DateTime.add(DateTime.utc_now(), 600, :second)
+
+      assert {:error, :riddle_not_published} = Games.schedule_riddle(riddle, live_date)
+    end
+
     test "invalid state transitions return errors" do
       riddle = riddle_fixture(%{play_status: "closed"})
 
@@ -233,7 +240,7 @@ defmodule Riddlr.GamesTest do
     end
 
     test "idempotency: calling ready_riddle twice on scheduled riddle" do
-      riddle = riddle_fixture(%{play_status: "closed"})
+      riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
       live_date = DateTime.add(DateTime.utc_now(), 600, :second)
 
       {:ok, result} = Games.schedule_riddle(riddle, live_date)
@@ -423,6 +430,7 @@ defmodule Riddlr.GamesTest do
       {:ok, updated} = Games.update_riddle(riddle, %{publish_status: "draft"})
 
       assert updated.publish_status == "draft"
+      assert updated.play_status == "closed"
 
       # Verify jobs cancelled
       pending_after =

@@ -170,7 +170,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
     result =
       if should_auto_schedule?(current_riddle, params, effective_live_date) do
-        Games.schedule_riddle(current_riddle, effective_live_date)
+        Games.schedule_riddle(current_riddle, effective_live_date, params)
       else
         Games.update_riddle(current_riddle, params)
       end

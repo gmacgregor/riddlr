@@ -8,6 +8,7 @@ defmodule Riddlr.Games do
   alias Riddlr.Repo
 
   alias Riddlr.Games.Riddle
+  alias Riddlr.Games.Category
 
   @minutes_before_live 5
   @seconds_before_live @minutes_before_live * 60
@@ -46,6 +47,16 @@ defmodule Riddlr.Games do
     Riddle
     |> preload(:category)
     |> Repo.get!(id)
+  end
+
+  def fetch_riddle(id) do
+    case get_riddle!(id) do
+      %Riddle{} = riddle -> {:ok, riddle}
+      _ -> {:error, :not_found}
+    end
+  rescue
+    # i.e Ecto.NoResultsError, Ecto.Query.CastError
+    _ -> {:error, :not_found}
   end
 
   @doc """
@@ -90,6 +101,14 @@ defmodule Riddlr.Games do
     publish_status_changing_to_draft? =
       riddle.publish_status == "published" &&
         Ecto.Changeset.get_change(changeset, :publish_status) == "draft"
+
+    # If rolling back to draft from a scheduled/ready state, also reset play_status to closed
+    changeset =
+      if publish_status_changing_to_draft? && riddle.play_status in ["scheduled", "ready"] do
+        Ecto.Changeset.put_change(changeset, :play_status, "closed")
+      else
+        changeset
+      end
 
     Multi.new()
     |> Multi.update(:riddle, changeset)
@@ -156,8 +175,13 @@ defmodule Riddlr.Games do
   Transitions: closed → scheduled
   Enqueues ReadyRiddleTransitionWorker (5 min before live) and LiveRiddleTransitionWorker (at live_date).
   """
-  def schedule_riddle(%Riddle{} = riddle, live_date) do
+  def schedule_riddle(%Riddle{} = riddle, live_date, attrs \\ %{}) do
+    effective_publish_status = Map.get(attrs, "publish_status", riddle.publish_status)
+
     cond do
+      effective_publish_status != "published" ->
+        {:error, :riddle_not_published}
+
       DateTime.compare(live_date, DateTime.utc_now()) == :lt ->
         {:error, :live_date_in_past}
 
@@ -165,13 +189,12 @@ defmodule Riddlr.Games do
         {:error, "cannot schedule riddle in #{riddle.play_status} state"}
 
       true ->
+        schedule_attrs = Map.merge(attrs, %{"play_status" => "scheduled", "live_date" => live_date})
+
         Multi.new()
         |> Multi.update(
           :riddle,
-          Riddle.changeset(riddle, %{
-            play_status: "scheduled",
-            live_date: live_date
-          })
+          Riddle.changeset(riddle, schedule_attrs)
         )
         |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
           %{"riddle_id" => updated_riddle.id}
@@ -385,8 +408,6 @@ defmodule Riddlr.Games do
   defp preload_assoc_force(%Riddle{} = riddle) do
     Repo.preload(riddle, :category, force: true)
   end
-
-  alias Riddlr.Games.Category
 
   @doc """
   Returns the list of categories.
