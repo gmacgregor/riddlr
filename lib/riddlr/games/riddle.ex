@@ -79,7 +79,7 @@ defmodule Riddlr.Games.Riddle do
     field :answers, {:array, :string}, default: []
     field :play_status, :string, default: "closed"
     field :solve_time, :integer, default: @solve_time
-    field :difficulty, :string
+    field :difficulty, :string, default: "easy"
     field :hint, :string
     field :hint_delay, :integer, default: @hint_delay
     field :live_date, :utc_datetime
