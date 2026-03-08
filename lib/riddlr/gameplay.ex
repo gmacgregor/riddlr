@@ -113,6 +113,32 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
+  Broadcasts that an answer was flagged for content moderation.
+  Listeners should remove the answer from their feed.
+  """
+  def broadcast_answer_flagged(riddle_id, answer_id) do
+    Phoenix.PubSub.broadcast(
+      Riddlr.PubSub,
+      "gameplay:#{riddle_id}:answer_flagged",
+      {:answer_flagged, answer_id}
+    )
+  end
+
+  @doc """
+  Spawns an async Task.Supervisor child to moderate an answer.
+  If flagged, broadcasts `:answer_flagged` so all subscribers can remove it.
+  Fails open — moderation errors never block gameplay.
+  """
+  def moderate_answer_async(riddle_id, answer_id, text) do
+    Task.Supervisor.start_child(Riddlr.TaskSupervisor, fn ->
+      case Riddlr.Moderation.check(text) do
+        {:flagged, _reason} -> broadcast_answer_flagged(riddle_id, answer_id)
+        :ok -> :noop
+      end
+    end)
+  end
+
+  @doc """
   Removes all ETS entries for a riddle (call on archive).
   """
   def cleanup_riddle(riddle_id) do

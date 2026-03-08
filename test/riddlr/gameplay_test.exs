@@ -197,6 +197,31 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
+  describe "broadcast_answer_flagged/2" do
+    test "broadcasts :answer_flagged to the riddle's topic" do
+      rid = unique_riddle_id()
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{rid}:answer_flagged")
+      Gameplay.broadcast_answer_flagged(rid, "some-answer-id")
+      assert_receive {:answer_flagged, "some-answer-id"}
+    end
+  end
+
+  describe "moderate_answer_async/3" do
+    test "broadcasts :answer_flagged when text contains a blocked word" do
+      rid = unique_riddle_id()
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{rid}:answer_flagged")
+      Gameplay.moderate_answer_async(rid, "answer-123", "this is spam")
+      assert_receive {:answer_flagged, "answer-123"}, 500
+    end
+
+    test "does not broadcast :answer_flagged for clean text" do
+      rid = unique_riddle_id()
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{rid}:answer_flagged")
+      Gameplay.moderate_answer_async(rid, "answer-456", "the eiffel tower")
+      refute_receive {:answer_flagged, _}, 200
+    end
+  end
+
   describe "cleanup_riddle/1" do
     test "removes all answers for the riddle" do
       rid = unique_riddle_id()

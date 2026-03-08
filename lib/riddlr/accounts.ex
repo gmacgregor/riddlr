@@ -60,6 +60,14 @@ defmodule Riddlr.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc """
+  Returns a map of %{user_id => user} for the given list of IDs.
+  Missing IDs are omitted from the result.
+  """
+  def get_users_by_ids(ids) when is_list(ids) do
+    Repo.all(from u in User, where: u.id in ^ids) |> Map.new(&{&1.id, &1})
+  end
+
   ## User registration
 
   @doc """
