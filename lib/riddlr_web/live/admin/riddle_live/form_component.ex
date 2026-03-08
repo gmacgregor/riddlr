@@ -188,7 +188,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
          socket
          |> put_flash(
            :info,
-           "Riddle scheduled! The lobby will open #{ready_time}, and the game will be live #{live_time}"
+           "Riddle scheduled. The lobby will open #{ready_time}, and the game will be live #{live_time}"
          )
          |> push_patch(to: socket.assigns.patch)}
 
