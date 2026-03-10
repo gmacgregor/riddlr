@@ -157,7 +157,10 @@ defmodule RiddlrWeb.GameLive.Play do
          |> assign(:submission_state, {:correct, placement, points})}
       else
         socket = assign(socket, :try_again_message, try_again())
-        {:noreply, assign(socket, :submission_state, :incorrect)}
+        {:noreply,
+         socket
+         |> assign(:submission_state, :incorrect)
+         |> push_event("answer-shake", %{})}
       end
     else
       {:error, :banned} ->
@@ -296,223 +299,258 @@ defmodule RiddlrWeb.GameLive.Play do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-2xl mx-auto px-4 py-12">
-      <div class="text-center mb-8">
-        <div class="flex items-center justify-center gap-3 mb-2">
-          <span
-            :if={@riddle.category}
-            class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10"
-          >
-            {@riddle.category.name}
-          </span>
-          <span
-            :if={@riddle.difficulty}
-            class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20"
-          >
-            {@riddle.difficulty}
-          </span>
-          <span
-            :if={@game_completed}
-            class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10"
-          >
-            Game Over
-          </span>
-        </div>
-        <h1 id="riddle-name" class="text-3xl font-bold text-gray-900">{@riddle.name}</h1>
-        <div :if={not @game_completed} class="mt-4 flex justify-center">
-          <div
-            id="solve-timer-card"
-            style="view-transition-name: game-timer"
-            class="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-3 text-center"
-          >
-            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
-              Solve time
-            </p>
-            <div
-              id="countdown-timer"
-              phx-hook=".SolveTimer"
-              data-seconds={@time_remaining}
-              class="leading-none"
+    <div
+      class="min-h-screen px-4 py-10"
+      style="background: var(--bg); color: var(--text)"
+    >
+      <div class="max-w-lg mx-auto">
+
+        <%!-- Header: badges + riddle name --%>
+        <div class="text-center mb-6">
+          <div class="flex items-center justify-center gap-2 mb-3">
+            <span
+              :if={@riddle.category}
+              class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+              style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
             >
-              <span
-                data-timer-display
-                class="text-3xl font-mono font-bold tabular-nums text-gray-700"
+              <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>
+              {@riddle.category.name}
+            </span>
+            <span
+              :if={@riddle.difficulty}
+              class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+              style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
+            >
+              <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block"></span>
+              {@riddle.difficulty}
+            </span>
+            <span
+              :if={@game_completed}
+              class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+              style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
+            >
+              Game Over
+            </span>
+          </div>
+          <h1 id="riddle-name" class="text-2xl font-bold" style="color: var(--text)">
+            {@riddle.name}
+          </h1>
+
+          <%!-- Solve timer --%>
+          <div :if={not @game_completed} class="mt-4 flex justify-center">
+            <div
+              id="solve-timer-card"
+              style="view-transition-name: game-timer; background: var(--surface); border: 1px solid var(--surface-border)"
+              class="rounded-xl px-6 py-3 text-center"
+            >
+              <p class="text-[10px] font-semibold uppercase tracking-widest mb-1" style="color: var(--text-muted)">
+                Solve time
+              </p>
+              <div
+                id="countdown-timer"
+                phx-hook=".SolveTimer"
+                data-seconds={@time_remaining}
+                class="leading-none"
               >
-                {format_time(@time_remaining)}
+                <span
+                  data-timer-display
+                  class="text-2xl font-mono font-bold tabular-nums"
+                  style="color: var(--text)"
+                >
+                  {format_time(@time_remaining)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Riddle description (word-by-word reveal via JS hook) --%>
+        <div
+          id="riddle-description"
+          class="rounded-2xl p-6 mb-6 text-center"
+          style="background: var(--surface); border: 1px solid var(--surface-border)"
+          phx-hook=".RiddleReveal"
+          data-text={@riddle.description}
+        >
+          <p class="text-base leading-relaxed" style="color: var(--text)">
+            {@riddle.description}
+          </p>
+        </div>
+
+        <%!-- Correct answer result --%>
+        <div
+          :if={match?({:correct, _, _}, @submission_state)}
+          id="correct-result"
+          class="rounded-2xl p-6 mb-6 text-center"
+          style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25)"
+        >
+          <p class="text-xl font-bold mb-1" style="color: #4ade80">Correct!</p>
+          <p style="color: #86efac">
+            {placement_text(elem(@submission_state, 1))} place &mdash; +{elem(@submission_state, 2)} points
+          </p>
+        </div>
+
+        <%!-- Answer form --%>
+        <div
+          :if={not @already_solved and not @game_completed}
+          id="answer-form-container"
+          phx-hook=".AnswerForm"
+          class="mb-6"
+        >
+          <form id="answer-form" phx-submit="submit_answer" class="flex flex-col gap-3">
+            <input
+              id="answer-input"
+              type="text"
+              name="answer"
+              placeholder="Your answer…"
+              autocomplete="off"
+              class="w-full rounded-xl px-4 py-3 text-base focus-ring"
+              style="background: var(--surface); border: 1px solid var(--surface-border); color: var(--text); outline: none"
+            />
+            <button
+              id="submit-btn"
+              type="submit"
+              class="w-full rounded-xl py-3 text-sm font-semibold pressable focus-ring"
+              style="background: var(--accent); color: #fff; min-height: 52px; border: none"
+            >
+              Submit
+            </button>
+          </form>
+
+          <div :if={@submission_state == :incorrect} id="incorrect-feedback" class="mt-3">
+            <p class="text-sm" style="color: var(--text-muted)">{@try_again_message}</p>
+          </div>
+          <div :if={match?({:error, _}, @submission_state)} id="error-feedback" class="mt-3">
+            <p class="text-sm" style="color: #a78bfa">{elem(@submission_state, 1)}</p>
+          </div>
+        </div>
+
+        <%!-- Game over (didn't solve) --%>
+        <div
+          :if={@game_completed and not @already_solved}
+          id="game-over"
+          class="rounded-2xl p-8 text-center mb-6"
+          style="background: var(--surface); border: 1px solid var(--surface-border)"
+        >
+          <p class="text-lg font-semibold" style="color: var(--text)">Time's up!</p>
+          <p class="mt-1" style="color: var(--text-muted)">Better luck next time.</p>
+        </div>
+
+        <%!-- Post-game chat --%>
+        <div :if={@game_completed} id="chat-form-container" class="mb-6">
+          <form id="chat-form" phx-submit="send_chat" class="flex flex-col gap-3">
+            <input
+              id="chat-input"
+              type="text"
+              name="message"
+              placeholder="Chat with other players…"
+              autocomplete="off"
+              class="w-full rounded-xl px-4 py-3 text-base focus-ring"
+              style="background: var(--surface); border: 1px solid var(--surface-border); color: var(--text); outline: none"
+            />
+            <button
+              type="submit"
+              class="w-full rounded-xl py-3 text-sm font-semibold pressable focus-ring"
+              style="background: #4338ca; color: #fff; min-height: 52px; border: none"
+            >
+              Send
+            </button>
+          </form>
+        </div>
+
+        <%!-- Post-game results --%>
+        <div :if={@game_completed} id="post-game-results" class="space-y-4">
+          <%!-- Winner --%>
+          <div
+            :if={@riddle.first_solver}
+            id="winner-announcement"
+            class="rounded-2xl p-6 text-center"
+            style="background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.25)"
+          >
+            <p class="text-xs font-semibold uppercase tracking-wide mb-1" style="color: #d97706">Winner</p>
+            <p class="text-xl font-bold" style="color: #fcd34d">{@riddle.first_solver.username}</p>
+            <p :if={@riddle.first_solve_time} class="text-sm mt-1" style="color: #fbbf24">
+              Solved in {format_time(@riddle.first_solve_time)}
+            </p>
+          </div>
+
+          <%!-- The answer(s) revealed --%>
+          <div
+            id="correct-answers-revealed"
+            class="rounded-2xl p-6"
+            style="background: var(--surface); border: 1px solid var(--surface-border)"
+          >
+            <h3 class="text-xs font-semibold uppercase tracking-wide mb-3" style="color: var(--text-muted)">
+              The Answer{if length(@riddle.answers) > 1, do: "s", else: ""}
+            </h3>
+            <ul class="space-y-1">
+              <li :for={answer <- @riddle.answers} class="font-medium" style="color: var(--text)">
+                {answer}
+              </li>
+            </ul>
+          </div>
+
+          <%!-- Top solvers leaderboard --%>
+          <div
+            :if={@top_solvers != []}
+            id="game-leaderboard"
+            class="rounded-2xl p-6"
+            style="background: var(--surface); border: 1px solid var(--surface-border)"
+          >
+            <h3 class="text-xs font-semibold uppercase tracking-wide mb-3" style="color: var(--text-muted)">
+              Top Solvers
+            </h3>
+            <ol class="space-y-2">
+              <li
+                :for={solver <- @top_solvers}
+                class="flex items-center justify-between py-1"
+              >
+                <div class="flex items-center gap-3">
+                  <span class={[
+                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+                    solver.placement == 1 && "bg-amber-500/20 text-amber-400",
+                    solver.placement == 2 && "bg-zinc-700 text-zinc-400",
+                    solver.placement == 3 && "bg-orange-500/20 text-orange-400",
+                    solver.placement > 3 && "bg-zinc-800 text-zinc-500"
+                  ]}>
+                    {solver.placement}
+                  </span>
+                  <span class="font-medium" style="color: var(--text)">{solver.username}</span>
+                </div>
+                <span class="text-sm" style="color: var(--text-muted)">{solver.solve_time_display || "—"}</span>
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <%!-- Answer feed --%>
+        <div id="answer-feed" class="mt-8">
+          <h2 class="text-xs font-semibold uppercase tracking-wide mb-3" style="color: var(--text-muted)">
+            Answer Feed
+          </h2>
+          <div id="answers" phx-update="stream" class="space-y-0">
+            <div
+              :for={{dom_id, answer} <- @streams.answers}
+              id={dom_id}
+              class="feed-entry flex items-center gap-3 px-3 py-2.5 text-sm"
+              style={[
+                "border-bottom: 1px solid rgba(255,255,255,0.03);",
+                cond do
+                  answer.show_highlight -> "border-left: 3px solid var(--accent); padding-left: 10px"
+                  Map.get(answer, :chat, false) -> "border-left: 3px solid #4338ca; padding-left: 10px"
+                  true -> ""
+                end
+              ]}
+            >
+              <span class="font-medium shrink-0" style="color: var(--text)">{answer.username}</span>
+              <span class="flex-1 truncate" style="color: var(--text-muted)">{answer.text}</span>
+              <span :if={answer.offset_ms} class="text-xs shrink-0" style="color: #52525b">
+                +{format_offset(answer.offset_ms)}
               </span>
             </div>
           </div>
         </div>
-      </div>
 
-      <div
-        id="riddle-description"
-        class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-6"
-      >
-        <p class="text-lg text-gray-700 text-center">{@riddle.description}</p>
-      </div>
-
-      <%!-- Correct answer result --%>
-      <div
-        :if={match?({:correct, _, _}, @submission_state)}
-        id="correct-result"
-        class="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 text-center"
-      >
-        <p class="text-2xl font-bold text-green-700 mb-1">Correct!</p>
-        <p class="text-green-600">
-          {placement_text(elem(@submission_state, 1))} place &mdash; +{elem(@submission_state, 2)} points
-        </p>
-      </div>
-
-      <%!-- Answer submission form (hidden once solved or game over) --%>
-      <div :if={not @already_solved and not @game_completed} id="answer-form-container">
-        <form id="answer-form" phx-submit="submit_answer" class="flex gap-3">
-          <input
-            id="answer-input"
-            type="text"
-            name="answer"
-            placeholder="Your answer..."
-            autocomplete="off"
-            class="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          />
-          <button
-            type="submit"
-            class="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            Submit
-          </button>
-        </form>
-
-        <%!-- Feedback messages --%>
-        <div :if={@submission_state == :incorrect} id="incorrect-feedback" class="mt-4">
-          <p class="text-sm text-red-600 font-medium">{@try_again_message}</p>
-        </div>
-        <div
-          :if={match?({:error, _}, @submission_state)}
-          id="error-feedback"
-          class="mt-4"
-        >
-          <p class="text-sm text-yellow-600 font-medium">{elem(@submission_state, 1)}</p>
-        </div>
-      </div>
-
-      <%!-- Game over state (user didn't solve it) --%>
-      <div
-        :if={@game_completed and not @already_solved}
-        id="game-over"
-        class="bg-gray-50 border border-gray-200 rounded-2xl p-8 text-center"
-      >
-        <p class="text-xl font-semibold text-gray-700">Time's up!</p>
-        <p class="text-gray-500 mt-1">Better luck next time.</p>
-      </div>
-
-      <%!-- Chat during cooldown (visible to all users once game is completed) --%>
-      <div :if={@game_completed} id="chat-form-container" class="mt-6">
-        <form id="chat-form" phx-submit="send_chat" class="flex gap-3">
-          <input
-            id="chat-input"
-            type="text"
-            name="message"
-            placeholder="Chat with other players..."
-            autocomplete="off"
-            class="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          />
-          <button
-            type="submit"
-            class="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            Send
-          </button>
-        </form>
-      </div>
-
-      <%!-- Post-game results (shown when game is completed) --%>
-      <div :if={@game_completed} id="post-game-results" class="mt-6 space-y-6">
-        <%!-- Winner announcement --%>
-        <div
-          :if={@riddle.first_solver}
-          id="winner-announcement"
-          class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center"
-        >
-          <p class="text-sm font-medium text-amber-600 uppercase tracking-wide mb-1">Winner</p>
-          <p class="text-2xl font-bold text-amber-800">{@riddle.first_solver.username}</p>
-          <p :if={@riddle.first_solve_time} class="text-sm text-amber-600 mt-1">
-            Solved in {format_time(@riddle.first_solve_time)}
-          </p>
-        </div>
-
-        <%!-- Correct answers revealed --%>
-        <div
-          id="correct-answers-revealed"
-          class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
-        >
-          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            The Answer{if length(@riddle.answers) > 1, do: "s", else: ""}
-          </h3>
-          <ul class="space-y-1">
-            <li :for={answer <- @riddle.answers} class="text-gray-800 font-medium">
-              {answer}
-            </li>
-          </ul>
-        </div>
-
-        <%!-- Top 10 game leaderboard --%>
-        <div
-          :if={@top_solvers != []}
-          id="game-leaderboard"
-          class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
-        >
-          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Top Solvers
-          </h3>
-          <ol class="space-y-2">
-            <li
-              :for={solver <- @top_solvers}
-              class="flex items-center justify-between py-1"
-            >
-              <div class="flex items-center gap-3">
-                <span class={[
-                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                  solver.placement == 1 && "bg-amber-100 text-amber-700",
-                  solver.placement == 2 && "bg-gray-100 text-gray-600",
-                  solver.placement == 3 && "bg-orange-100 text-orange-700",
-                  solver.placement > 3 && "bg-gray-50 text-gray-500"
-                ]}>
-                  {solver.placement}
-                </span>
-                <span class="text-gray-800 font-medium">{solver.username}</span>
-              </div>
-              <span class="text-sm text-gray-500">{solver.solve_time_display || "—"}</span>
-            </li>
-          </ol>
-        </div>
-      </div>
-
-      <%!-- Answer feed --%>
-      <div id="answer-feed" class="mt-8">
-        <h2 class="text-base font-semibold text-gray-500 uppercase tracking-wide mb-3">
-          Answer Feed
-        </h2>
-        <div id="answers" phx-update="stream" class="space-y-2">
-          <div
-            :for={{dom_id, answer} <- @streams.answers}
-            id={dom_id}
-            class={[
-              "flex items-center gap-3 px-4 py-2 rounded-lg border text-sm",
-              cond do
-                answer.show_highlight -> "bg-green-50 border-green-200"
-                Map.get(answer, :chat, false) -> "bg-indigo-50 border-indigo-100"
-                true -> "bg-gray-50 border-gray-100"
-              end
-            ]}
-          >
-            <span class="font-medium text-gray-800 shrink-0">{answer.username}</span>
-            <span class="text-gray-600 flex-1 truncate">{answer.text}</span>
-            <span :if={answer.offset_ms} class="text-xs text-gray-400 shrink-0">
-              +{format_offset(answer.offset_ms)}
-            </span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -530,25 +568,66 @@ defmodule RiddlrWeb.GameLive.Play do
           const s = (secs % 60).toString().padStart(2, "0")
           if (this.displayEl) this.displayEl.textContent = `${m}:${s}`
 
-          // Urgency states drive CSS animation and color
           const urgency = secs <= 10 ? "critical" : secs <= 30 ? "warning" : "normal"
           const card = this.el.closest("[id='solve-timer-card']") || this.el
           if (card.dataset.urgency !== urgency) {
             card.dataset.urgency = urgency
           }
 
-          // Progressive color interpolation (gray-700 → orange-600 → red-600)
           if (this.displayEl) {
             if (secs > 30 || secs <= 10) {
               this.displayEl.style.color = ""
             } else {
-              const t = (30 - secs) / 20 // 0.0 at 30s → 1.0 at 10s
+              const t = (30 - secs) / 20
               const r = Math.round(55 + t * (234 - 55))
               const g = Math.round(65 + t * (88 - 65))
               const b = Math.round(81 + t * (12 - 81))
               this.displayEl.style.color = `rgb(${r},${g},${b})`
             }
           }
+        }
+      }
+    </script>
+
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".RiddleReveal">
+      export default {
+        mounted() {
+          const para = this.el.querySelector("p")
+          if (!para) return
+
+          const escape = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          const words = para.textContent.trim().split(/\s+/)
+          para.innerHTML = words
+            .map(w => `<span class="riddle-word">${escape(w)} </span>`)
+            .join("")
+
+          setTimeout(() => {
+            const spans = para.querySelectorAll(".riddle-word")
+            spans.forEach((span, i) => {
+              setTimeout(() => span.classList.add("revealed"), i * 60)
+            })
+          }, 300)
+        }
+      }
+    </script>
+
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".AnswerForm">
+      export default {
+        mounted() {
+          this.handleEvent("answer-shake", () => {
+            const input = this.el.querySelector("#answer-input")
+            if (!input) return
+            input.classList.remove("shake")
+            void input.offsetWidth
+            input.classList.add("shake")
+            input.addEventListener("animationend", () => input.classList.remove("shake"), { once: true })
+          })
+
+          this.handleEvent("answer-correct", () => {
+            this.el.style.transition = "opacity 400ms ease"
+            this.el.style.opacity = "0"
+            setTimeout(() => { this.el.style.display = "none" }, 400)
+          })
         }
       }
     </script>

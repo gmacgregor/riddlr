@@ -507,7 +507,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       send(live.pid, {:riddle_completed, %{riddle | play_status: "completed"}})
 
       html = render(live)
-      assert html =~ "bg-green-50"
+      assert html =~ "border-left: 3px solid var(--accent)"
     end
 
     test "time offset is displayed for real-time answers", %{
