@@ -19,22 +19,18 @@ defmodule RiddlrWeb.GameLive.Lobby do
              |> push_navigate(to: ~p"/")}
 
           true ->
-            timer_ref =
-              if connected?(socket) do
-                Presence.track(
-                  self(),
-                  lobby_topic(id),
-                  to_string(socket.assigns.current_user.id),
-                  %{
-                    username: socket.assigns.current_user.username
-                  }
-                )
+            if connected?(socket) do
+              Presence.track(
+                self(),
+                lobby_topic(id),
+                to_string(socket.assigns.current_user.id),
+                %{username: socket.assigns.current_user.username}
+              )
 
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(id))
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
-                {:ok, ref} = :timer.send_interval(1000, self(), :tick)
-                ref
-              end
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(id))
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
+              Riddlr.LobbyTimer.ensure_started(id, riddle.live_date)
+            end
 
             player_count = lobby_topic(id) |> Presence.list() |> map_size()
             time_remaining = time_remaining(riddle.live_date)
@@ -44,8 +40,7 @@ defmodule RiddlrWeb.GameLive.Lobby do
              |> assign(:page_title, "Lobby — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:player_count, player_count)
-             |> assign(:time_remaining, time_remaining)
-             |> assign(:timer_ref, timer_ref)}
+             |> assign(:time_remaining, time_remaining)}
         end
 
       {:error, :not_found} ->
@@ -54,16 +49,11 @@ defmodule RiddlrWeb.GameLive.Lobby do
   end
 
   @impl true
-  def handle_info(:tick, socket) do
-    riddle = socket.assigns.riddle
-    time_remaining = time_remaining(riddle.live_date)
-
-    socket =
-      socket
-      |> assign(:time_remaining, time_remaining)
-      |> push_event("countdown-tick", %{seconds: time_remaining})
-
-    {:noreply, socket}
+  def handle_info({:countdown_tick, seconds}, socket) do
+    {:noreply,
+     socket
+     |> assign(:time_remaining, seconds)
+     |> push_event("countdown-tick", %{seconds: seconds})}
   end
 
   @impl true
@@ -207,12 +197,6 @@ defmodule RiddlrWeb.GameLive.Lobby do
       }
     </script>
     """
-  end
-
-  @impl true
-  def terminate(_reason, socket) do
-    if ref = socket.assigns[:timer_ref], do: :timer.cancel(ref)
-    :ok
   end
 
   defp lobby_topic(id), do: "game:lobby:#{id}"
