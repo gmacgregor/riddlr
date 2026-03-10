@@ -89,6 +89,7 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:banned, user.account_status == :banned)
              |> assign(:submission_state, nil)
              |> assign(:time_remaining, time_remaining)
+             |> assign(:cooldown_remaining, 0)
              |> assign(:correct_answers, correct_answers)
              |> assign(:top_solvers, top_solvers)
              |> stream(:answers, initial_answers, limit: 100)}
@@ -240,12 +241,18 @@ defmodule RiddlrWeb.GameLive.Play do
         end)
 
       top_solvers = load_top_solvers(riddle.id)
+      cooldown_remaining = riddle.archive_cooldown_minutes * 60
+
+      if cooldown_remaining > 0 do
+        Process.send_after(self(), :cooldown_tick, 1000)
+      end
 
       {:noreply,
        socket
        |> assign(:riddle, riddle)
        |> assign(:game_completed, true)
        |> assign(:time_remaining, 0)
+       |> assign(:cooldown_remaining, cooldown_remaining)
        |> assign(:top_solvers, top_solvers)}
     else
       {:noreply, socket}
@@ -281,6 +288,16 @@ defmodule RiddlrWeb.GameLive.Play do
        |> assign(:time_remaining, time_remaining)
        |> push_event("countdown-tick", %{seconds: time_remaining})}
     end
+  end
+
+  def handle_info(:cooldown_tick, socket) do
+    remaining = max(0, socket.assigns.cooldown_remaining - 1)
+
+    if remaining > 0 do
+      Process.send_after(self(), :cooldown_tick, 1000)
+    end
+
+    {:noreply, assign(socket, :cooldown_remaining, remaining)}
   end
 
   def handle_info({:user_status_changed, :banned}, socket) do
@@ -439,6 +456,21 @@ defmodule RiddlrWeb.GameLive.Play do
         >
           <p class="text-lg font-semibold" style="color: var(--text)">Time's up!</p>
           <p class="mt-1" style="color: var(--text-muted)">Better luck next time.</p>
+          <div
+            :if={@cooldown_remaining > 0}
+            class="mt-5 pt-4"
+            style="border-top: 1px solid var(--surface-border)"
+          >
+            <p
+              class="text-3xl font-mono font-bold tabular-nums mb-1"
+              style="color: var(--text)"
+            >
+              {format_time(@cooldown_remaining)}
+            </p>
+            <p class="text-xs" style="color: var(--text-muted)">
+              This game will auto-archive in {format_time(@cooldown_remaining)}
+            </p>
+          </div>
         </div>
 
         <%!-- Post-game chat --%>
