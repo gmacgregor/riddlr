@@ -132,14 +132,14 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
       assert has_element?(live, "#countdown[phx-hook][data-seconds]")
-      assert has_element?(live, "p", "Riddle starts in…")
+      assert has_element?(live, "p", "Starts in")
     end
 
     test "shows player count element", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert has_element?(live, "#player-count")
-      assert has_element?(live, "p", "Players in lobby")
+      assert has_element?(live, "#player-dots")
+      assert has_element?(live, "p", "waiting")
     end
   end
 
@@ -213,7 +213,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
       # Connected LiveView test triggers Presence.track, so count is 1
-      assert has_element?(live, "#player-count", "1")
+      assert has_element?(live, "p", "1 player waiting")
     end
 
     test "updates player count when Presence diff received", %{conn: conn, user: user} do
@@ -235,7 +235,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       )
 
       # Player count re-renders after diff; connected mount tracks 1 player
-      assert has_element?(live, "#player-count", "1")
+      assert has_element?(live, "p", "1 player waiting")
     end
   end
 

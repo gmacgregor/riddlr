@@ -85,47 +85,81 @@ defmodule RiddlrWeb.GameLive.Lobby do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-2xl mx-auto px-4 py-12">
-      <div class="text-center mb-10">
-        <div class="flex items-center justify-center gap-3 mb-2">
+    <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12"
+         style="background: var(--bg); color: var(--text)">
+      <%!-- Riddle identity --%>
+      <div class="text-center mb-8 w-full max-w-sm">
+        <div class="flex items-center justify-center gap-2 mb-3">
           <span
             :if={@riddle.category}
-            class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10"
+            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+            style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
           >
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>
             {@riddle.category.name}
           </span>
           <span
             :if={@riddle.difficulty}
-            class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20"
+            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+            style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
           >
+            <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block"></span>
             {@riddle.difficulty}
           </span>
         </div>
-        <h1 id="riddle-name" class="text-3xl font-bold text-gray-900">{@riddle.name}</h1>
+        <h1 id="riddle-name" class="text-2xl font-bold" style="color: var(--text)">
+          {@riddle.name}
+        </h1>
       </div>
 
+      <%!-- Timer card --%>
       <div
         id="lobby-timer-card"
-        style="view-transition-name: game-timer"
-        class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mb-6"
+        style="view-transition-name: game-timer; background: var(--surface); border: 1px solid var(--surface-border)"
+        class="w-full max-w-sm rounded-2xl p-8 text-center mb-6"
       >
-        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
-          Riddle starts in…
+        <p class="text-xs font-semibold uppercase tracking-widest mb-4" style="color: var(--text-muted)">
+          Starts in
         </p>
         <div
           id="countdown"
           phx-hook=".Countdown"
           data-seconds={@time_remaining}
-          class="text-6xl font-mono font-bold text-gray-900 tabular-nums"
+          class="text-5xl font-mono font-bold tabular-nums"
+          style="color: var(--text)"
         >
           {format_time(@time_remaining)}
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
-        <p class="text-sm text-gray-500 mb-1">Players in lobby</p>
-        <p id="player-count" class="text-3xl font-bold text-gray-900">{@player_count}</p>
+      <%!-- Player presence --%>
+      <div
+        class="w-full max-w-sm rounded-2xl p-6 text-center mb-6"
+        style="background: var(--surface); border: 1px solid var(--surface-border)"
+      >
+        <div id="player-dots" class="flex items-center justify-center gap-2 flex-wrap mb-3">
+          <span
+            :for={_i <- if(@player_count > 0, do: 1..min(@player_count, 12)//1, else: [])}
+            class="player-dot"
+            style={"animation-delay: #{:rand.uniform(20) * 100}ms"}
+          />
+          <span
+            :if={@player_count > 12}
+            class="text-xs"
+            style="color: var(--text-muted)"
+          >
+            +{@player_count - 12} more
+          </span>
+        </div>
+        <p class="text-sm" style="color: var(--text-muted)">
+          {if @player_count == 1, do: "1 player waiting", else: "#{@player_count} players waiting"}
+        </p>
       </div>
+
+      <%!-- Anticipation hint --%>
+      <p class="text-sm italic text-center" style="color: #52525b">
+        Get ready. The riddle appears when the clock hits zero.
+      </p>
     </div>
 
     <script :type={Phoenix.LiveView.ColocatedHook} name=".Countdown">
@@ -146,6 +180,30 @@ defmodule RiddlrWeb.GameLive.Lobby do
           const m = Math.floor(secs / 60).toString().padStart(2, "0")
           const s = (secs % 60).toString().padStart(2, "0")
           this.el.textContent = `${m}:${s}`
+
+          // Color: violet > 60s, white < 60s, red < 10s
+          if (secs <= 10) {
+            this.el.style.color = "rgb(220,38,38)"
+          } else if (secs <= 60) {
+            this.el.style.color = "var(--text)"
+          } else {
+            this.el.style.color = "var(--accent)"
+          }
+
+          // Tick pulse: briefly add class, then remove
+          this.el.classList.remove("countdown-tick")
+          void this.el.offsetWidth // force reflow to restart animation
+          this.el.classList.add("countdown-tick")
+
+          // Timer card border glow when urgent
+          const card = document.getElementById("lobby-timer-card")
+          if (card) {
+            if (secs <= 10) {
+              card.classList.add("timer-card-urgent")
+            } else {
+              card.classList.remove("timer-card-urgent")
+            }
+          }
         }
       }
     </script>
