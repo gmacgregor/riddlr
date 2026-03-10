@@ -189,3 +189,129 @@
     opacity: 0;
   }
 }
+
+/* ─── Design tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:           #0d0d0f;
+  --surface:      #16161a;
+  --surface-border: rgba(255, 255, 255, 0.06);
+  --accent:       #7c3aed;
+  --accent-glow:  rgba(124, 58, 237, 0.35);
+  --text:         #f4f4f5;
+  --text-muted:   #71717a;
+}
+
+/* ─── Focus ring ─────────────────────────────────────────────────────────────── */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-glow);
+}
+
+/* ─── Press feel ─────────────────────────────────────────────────────────────── */
+.pressable {
+  transition: transform 75ms ease;
+  cursor: pointer;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+/* ─── Reconnection indicator ─────────────────────────────────────────────────── */
+@keyframes reconnect-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 1; }
+}
+
+#reconnect-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  animation: reconnect-pulse 1.2s ease-in-out infinite;
+  z-index: 10000;
+  display: none;
+}
+
+body.phx-connecting #reconnect-bar {
+  display: block;
+}
+
+/* ─── Player dots ────────────────────────────────────────────────────────────── */
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.15); }
+}
+
+.player-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+/* ─── Countdown tick pulse ───────────────────────────────────────────────────── */
+@keyframes countdown-tick {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+.countdown-tick {
+  animation: countdown-tick 150ms ease-out;
+}
+
+/* ─── Lobby timer border glow (intensifies near zero) ────────────────────────── */
+.timer-card-urgent {
+  box-shadow: 0 0 0 1px var(--accent), 0 0 16px var(--accent-glow);
+  transition: box-shadow 0.5s ease;
+}
+
+/* ─── Input shake (incorrect answer) ────────────────────────────────────────── */
+@keyframes input-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+
+.shake {
+  animation: input-shake 300ms ease-in-out;
+}
+
+/* ─── Feed entry slide-in ────────────────────────────────────────────────────── */
+@keyframes feed-in {
+  from { transform: translateY(-8px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.feed-entry {
+  animation: feed-in 200ms ease-out;
+}
+
+/* ─── Riddle reveal (word fade-in handled by JS) ─────────────────────────────── */
+.riddle-word {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.riddle-word.revealed {
+  opacity: 1;
+}
+
+/* ─── Cooldown progress bar ──────────────────────────────────────────────────── */
+.btn-cooldown {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-cooldown::after {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.15);
+  width: var(--cooldown-pct, 100%);
+  transition: width 0.1s linear;
+}
