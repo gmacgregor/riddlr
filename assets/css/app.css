@@ -201,26 +201,26 @@
   --text-muted:   #71717a;
 }
 
-/* ─── Light theme (Miami Vice) ───────────────────────────────────────────────── */
+/* ─── Light theme (Miami Vice — warm sand + teal) ────────────────────────────── */
 html[data-theme="light"] {
-  --bg:             #fdf0f8;
-  --surface:        #ffffff;
-  --surface-border: rgba(233, 30, 140, 0.12);
-  --accent:         #e91e8c;
-  --accent-glow:    rgba(233, 30, 140, 0.3);
-  --text:           #1a0520;
-  --text-muted:     #9b4f7a;
+  --bg:             #f4f1e8;
+  --surface:        #fffdf7;
+  --surface-border: rgba(0, 166, 147, 0.15);
+  --accent:         #00a693;
+  --accent-glow:    rgba(0, 166, 147, 0.3);
+  --text:           #1a1a2e;
+  --text-muted:     #5a7a72;
 }
 
 @media (prefers-color-scheme: light) {
   html:not([data-theme]) {
-    --bg:             #fdf0f8;
-    --surface:        #ffffff;
-    --surface-border: rgba(233, 30, 140, 0.12);
-    --accent:         #e91e8c;
-    --accent-glow:    rgba(233, 30, 140, 0.3);
-    --text:           #1a0520;
-    --text-muted:     #9b4f7a;
+    --bg:             #f4f1e8;
+    --surface:        #fffdf7;
+    --surface-border: rgba(0, 166, 147, 0.15);
+    --accent:         #00a693;
+    --accent-glow:    rgba(0, 166, 147, 0.3);
+    --text:           #1a1a2e;
+    --text-muted:     #5a7a72;
   }
 }
 
