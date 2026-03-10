@@ -282,6 +282,18 @@ body.phx-connecting #reconnect-bar {
   animation: input-shake 300ms ease-in-out;
 }
 
+/* ─── Input error flash (red glow on incorrect answer) ──────────────────────── */
+@keyframes input-error-flash {
+  0%   { box-shadow: none; }
+  15%  { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 10px rgba(239, 68, 68, 0.2); }
+  85%  { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 10px rgba(239, 68, 68, 0.2); }
+  100% { box-shadow: none; }
+}
+
+.input-error {
+  animation: input-error-flash 600ms ease-out forwards;
+}
+
 /* ─── Feed entry slide-in ────────────────────────────────────────────────────── */
 @keyframes feed-in {
   from { transform: translateY(-8px); opacity: 0; }

@@ -639,10 +639,10 @@ defmodule RiddlrWeb.GameLive.Play do
           this.handleEvent("answer-shake", () => {
             const input = this.el.querySelector("#answer-input")
             if (!input) return
-            input.classList.remove("shake")
+            input.classList.remove("shake", "input-error")
             void input.offsetWidth
-            input.classList.add("shake")
-            input.addEventListener("animationend", () => input.classList.remove("shake"), { once: true })
+            input.classList.add("shake", "input-error")
+            setTimeout(() => input.classList.remove("shake", "input-error"), 700)
           })
 
           this.handleEvent("answer-correct", () => {
