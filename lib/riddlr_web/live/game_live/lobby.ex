@@ -144,22 +144,14 @@ defmodule RiddlrWeb.GameLive.Lobby do
         class="w-full max-w-sm rounded-2xl p-6 text-center mb-6"
         style="background: var(--surface); border: 1px solid var(--surface-border)"
       >
-        <div id="player-dots" class="flex items-center justify-center gap-2 flex-wrap mb-3">
-          <span
-            :for={_i <- if(@player_count > 0, do: 1..min(@player_count, 12)//1, else: [])}
-            class="player-dot"
-            style={"animation-delay: #{:rand.uniform(20) * 100}ms"}
-          />
-          <span
-            :if={@player_count > 12}
-            class="text-xs"
-            style="color: var(--text-muted)"
-          >
-            +{@player_count - 12} more
+        <div class="flex items-center justify-center gap-2 mb-1">
+          <span class="player-dot" />
+          <span class="text-2xl font-mono font-bold tabular-nums" style="color: var(--text)">
+            {@player_count}
           </span>
         </div>
         <p class="text-sm" style="color: var(--text-muted)">
-          {if @player_count == 1, do: "1 player waiting", else: "#{@player_count} players waiting"}
+          {if @player_count == 1, do: "player waiting", else: "players waiting"}
         </p>
       </div>
 
