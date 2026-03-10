@@ -74,7 +74,11 @@
   rows={@streams.riddles}
   row_click={fn {_id, riddle} -> JS.patch(~p"/admin/riddles/#{riddle}") end}
 >
-  <:col :let={{_id, riddle}} label="Name">{riddle.name}</:col>
+  <:col :let={{_id, riddle}} label="Name">
+      <.link navigate={~p"/game/#{riddle}/lobby"} class="text-brand hover:underline">
+        {riddle.name}
+      </.link>
+    </:col>
   <:col :let={{_id, riddle}} label="Difficulty">{riddle.difficulty}</:col>
   <:col :let={{_id, riddle}} label="Category">{riddle.category.name}</:col>
   <:col :let={{_id, riddle}} label="Status">{riddle.publish_status}</:col>

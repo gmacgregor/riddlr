@@ -17,7 +17,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <.header>{@title}</.header>
+      <%!-- <.header>{@title}</.header> --%>
       <.form
         :let={f}
         for={@form}
