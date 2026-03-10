@@ -339,6 +339,33 @@ defmodule Riddlr.Accounts do
     {:ok, points}
   end
 
+  ## Moderation
+
+  @doc """
+  Updates a user's account_status and broadcasts the change to any connected sessions.
+
+  Broadcasts `{:user_status_changed, status}` to `"user:{user_id}"` so live views
+  can react immediately without polling the database.
+  """
+  def set_user_status(%User{} = user, status) when status in [:active, :banned, :suspended] do
+    user
+    |> User.stats_changeset(%{account_status: status})
+    |> Repo.update()
+    |> case do
+      {:ok, _updated} = result ->
+        Phoenix.PubSub.broadcast(
+          Riddlr.PubSub,
+          "user:#{user.id}",
+          {:user_status_changed, status}
+        )
+
+        result
+
+      error ->
+        error
+    end
+  end
+
   ## Token helper
 
   defp update_user_and_delete_all_tokens(changeset) do
