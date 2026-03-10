@@ -85,8 +85,10 @@ defmodule RiddlrWeb.GameLive.Lobby do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12"
-         style="background: var(--bg); color: var(--text)">
+    <div
+      class="min-h-screen flex flex-col items-center justify-center px-4 py-12"
+      style="background: var(--bg); color: var(--text)"
+    >
       <%!-- Riddle identity --%>
       <div class="text-center mb-8 w-full max-w-sm">
         <div class="flex items-center justify-center gap-2 mb-3">
@@ -95,7 +97,8 @@ defmodule RiddlrWeb.GameLive.Lobby do
             class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
             style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
           >
-            <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block">
+            </span>
             {@riddle.category.name}
           </span>
           <span
@@ -103,7 +106,8 @@ defmodule RiddlrWeb.GameLive.Lobby do
             class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
             style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
           >
-            <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block"></span>
+            <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block">
+            </span>
             {@riddle.difficulty}
           </span>
         </div>
@@ -118,7 +122,10 @@ defmodule RiddlrWeb.GameLive.Lobby do
         style="view-transition-name: game-timer; background: var(--surface); border: 1px solid var(--surface-border)"
         class="w-full max-w-sm rounded-2xl p-8 text-center mb-6"
       >
-        <p class="text-xs font-semibold uppercase tracking-widest mb-4" style="color: var(--text-muted)">
+        <p
+          class="text-xs font-semibold uppercase tracking-widest mb-4"
+          style="color: var(--text-muted)"
+        >
           Starts in
         </p>
         <div

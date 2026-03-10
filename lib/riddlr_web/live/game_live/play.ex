@@ -157,6 +157,7 @@ defmodule RiddlrWeb.GameLive.Play do
          |> assign(:submission_state, {:correct, placement, points})}
       else
         socket = assign(socket, :try_again_message, try_again())
+
         {:noreply,
          socket
          |> assign(:submission_state, :incorrect)
@@ -304,7 +305,6 @@ defmodule RiddlrWeb.GameLive.Play do
       style="background: var(--bg); color: var(--text)"
     >
       <div class="max-w-lg mx-auto">
-
         <%!-- Header: badges + riddle name --%>
         <div class="text-center mb-6">
           <div class="flex items-center justify-center gap-2 mb-3">
@@ -313,7 +313,8 @@ defmodule RiddlrWeb.GameLive.Play do
               class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
               style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
             >
-              <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block"></span>
+              <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block">
+              </span>
               {@riddle.category.name}
             </span>
             <span
@@ -321,7 +322,8 @@ defmodule RiddlrWeb.GameLive.Play do
               class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
               style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
             >
-              <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block"></span>
+              <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block">
+              </span>
               {@riddle.difficulty}
             </span>
             <span
@@ -343,7 +345,10 @@ defmodule RiddlrWeb.GameLive.Play do
               style="view-transition-name: game-timer; background: var(--surface); border: 1px solid var(--surface-border)"
               class="rounded-xl px-6 py-3 text-center"
             >
-              <p class="text-[10px] font-semibold uppercase tracking-widest mb-1" style="color: var(--text-muted)">
+              <p
+                class="text-[10px] font-semibold uppercase tracking-widest mb-1"
+                style="color: var(--text-muted)"
+              >
                 Solve time
               </p>
               <div
@@ -467,7 +472,9 @@ defmodule RiddlrWeb.GameLive.Play do
             class="rounded-2xl p-6 text-center"
             style="background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.25)"
           >
-            <p class="text-xs font-semibold uppercase tracking-wide mb-1" style="color: #d97706">Winner</p>
+            <p class="text-xs font-semibold uppercase tracking-wide mb-1" style="color: #d97706">
+              Winner
+            </p>
             <p class="text-xl font-bold" style="color: #fcd34d">{@riddle.first_solver.username}</p>
             <p :if={@riddle.first_solve_time} class="text-sm mt-1" style="color: #fbbf24">
               Solved in {format_time(@riddle.first_solve_time)}
@@ -480,7 +487,10 @@ defmodule RiddlrWeb.GameLive.Play do
             class="rounded-2xl p-6"
             style="background: var(--surface); border: 1px solid var(--surface-border)"
           >
-            <h3 class="text-xs font-semibold uppercase tracking-wide mb-3" style="color: var(--text-muted)">
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide mb-3"
+              style="color: var(--text-muted)"
+            >
               The Answer{if length(@riddle.answers) > 1, do: "s", else: ""}
             </h3>
             <ul class="space-y-1">
@@ -497,7 +507,10 @@ defmodule RiddlrWeb.GameLive.Play do
             class="rounded-2xl p-6"
             style="background: var(--surface); border: 1px solid var(--surface-border)"
           >
-            <h3 class="text-xs font-semibold uppercase tracking-wide mb-3" style="color: var(--text-muted)">
+            <h3
+              class="text-xs font-semibold uppercase tracking-wide mb-3"
+              style="color: var(--text-muted)"
+            >
               Top Solvers
             </h3>
             <ol class="space-y-2">
@@ -517,7 +530,9 @@ defmodule RiddlrWeb.GameLive.Play do
                   </span>
                   <span class="font-medium" style="color: var(--text)">{solver.username}</span>
                 </div>
-                <span class="text-sm" style="color: var(--text-muted)">{solver.solve_time_display || "—"}</span>
+                <span class="text-sm" style="color: var(--text-muted)">
+                  {solver.solve_time_display || "—"}
+                </span>
               </li>
             </ol>
           </div>
@@ -525,7 +540,10 @@ defmodule RiddlrWeb.GameLive.Play do
 
         <%!-- Answer feed --%>
         <div id="answer-feed" class="mt-8">
-          <h2 class="text-xs font-semibold uppercase tracking-wide mb-3" style="color: var(--text-muted)">
+          <h2
+            class="text-xs font-semibold uppercase tracking-wide mb-3"
+            style="color: var(--text-muted)"
+          >
             Answer Feed
           </h2>
           <div id="answers" phx-update="stream" class="space-y-0">
@@ -536,9 +554,14 @@ defmodule RiddlrWeb.GameLive.Play do
               style={[
                 "border-bottom: 1px solid rgba(255,255,255,0.03);",
                 cond do
-                  answer.show_highlight -> "border-left: 3px solid var(--accent); padding-left: 10px"
-                  Map.get(answer, :chat, false) -> "border-left: 3px solid #4338ca; padding-left: 10px"
-                  true -> ""
+                  answer.show_highlight ->
+                    "border-left: 3px solid var(--accent); padding-left: 10px"
+
+                  Map.get(answer, :chat, false) ->
+                    "border-left: 3px solid #4338ca; padding-left: 10px"
+
+                  true ->
+                    ""
                 end
               ]}
             >
@@ -550,7 +573,6 @@ defmodule RiddlrWeb.GameLive.Play do
             </div>
           </div>
         </div>
-
       </div>
     </div>
 
