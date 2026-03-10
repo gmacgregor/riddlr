@@ -286,7 +286,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       # user1 solves first (direct ETS insert with past timestamp)
       past_ts = System.monotonic_time(:microsecond) - 1000
-      :ets.insert(:riddle_answers, {{riddle.id, user.id}, "keyboard", past_ts, true})
+      :ets.insert(:riddle_answers, {{riddle.id, user.id}, "keyboard", past_ts, true, nil})
 
       conn2 = log_in_user(build_conn(), user2)
       {:ok, live2, _html} = live(conn2, ~p"/game/#{riddle.id}/play")
@@ -307,8 +307,8 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       past1 = System.monotonic_time(:microsecond) - 2000
       past2 = System.monotonic_time(:microsecond) - 1000
-      :ets.insert(:riddle_answers, {{riddle.id, user.id}, "keyboard", past1, true})
-      :ets.insert(:riddle_answers, {{riddle.id, user2.id}, "keyboard", past2, true})
+      :ets.insert(:riddle_answers, {{riddle.id, user.id}, "keyboard", past1, true, nil})
+      :ets.insert(:riddle_answers, {{riddle.id, user2.id}, "keyboard", past2, true, nil})
 
       conn3 = log_in_user(build_conn(), user3)
       {:ok, live3, _html} = live(conn3, ~p"/game/#{riddle.id}/play")
@@ -348,7 +348,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert has_element?(live, "#answer-form-container")
     end
 
-    test "redirects home when :riddle_archived received", %{conn: conn, user: user} do
+    test "stays on play page when :riddle_archived received", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       conn = log_in_user(conn, user)
 
@@ -356,30 +356,23 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       send(live.pid, {:riddle_archived, riddle})
 
-      assert_redirect(live, "/")
+      # Page stays live — no redirect on archive
+      assert render(live) =~ riddle.name
     end
   end
 
   describe "ban enforcement" do
-    test "banned user is redirected when submitting", %{conn: conn, user: user} do
+    test "banned user is redirected immediately when ban PubSub message arrives", %{
+      conn: conn,
+      user: user
+    } do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       conn = log_in_user(conn, user)
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      # Ban the user directly in DB
-      import Ecto.Query
-
-      user_id = user.id
-
-      Riddlr.Repo.update_all(
-        from(u in Riddlr.Accounts.User, where: u.id == ^user_id),
-        set: [account_status: "banned"]
-      )
-
-      live
-      |> form("#answer-form", %{answer: "keyboard"})
-      |> render_submit()
+      # Simulate the ban broadcast that Accounts.set_user_status/2 would emit
+      send(live.pid, {:user_status_changed, :banned})
 
       assert_redirect(live, "/")
     end

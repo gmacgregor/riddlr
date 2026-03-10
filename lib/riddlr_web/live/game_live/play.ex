@@ -9,11 +9,11 @@ defmodule RiddlrWeb.GameLive.Play do
 
   @answer_max_length 500
   @try_again_messages [
-    "Uuuh… no! Try again.",
-    "Ooopsie whoopise, not quite. Try again!",
-    "Good guess, but no!",
-    "Nooooope!",
-    "Not so, I'm afraid. Try again!"
+    "Uuuh… no! Think harder.",
+    "Ooopsie whoopise, not quite. Go on, guess again!",
+    "Good guess, but no! So close… or not.",
+    "Nooooope! Wrack that brain.",
+    "Not so, unfortunately. Back to the drawing board!"
   ]
 
   @impl true
@@ -53,6 +53,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_submitted")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_flagged")
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
                 answers = build_initial_feed(riddle.id, game_completed)
                 solvers = if game_completed, do: load_top_solvers(riddle.id), else: []
                 {answers, solvers}
@@ -85,6 +86,7 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:game_start_time, riddle.live_date)
              |> assign(:game_completed, game_completed)
              |> assign(:already_solved, already_solved)
+             |> assign(:banned, user.account_status == :banned)
              |> assign(:submission_state, nil)
              |> assign(:time_remaining, time_remaining)
              |> assign(:correct_answers, correct_answers)
@@ -93,9 +95,6 @@ defmodule RiddlrWeb.GameLive.Play do
         end
 
       {:error, :not_found} ->
-        {:ok, socket |> push_navigate(to: ~p"/")}
-
-      {_, _} ->
         {:ok, socket |> push_navigate(to: ~p"/")}
     end
   end
@@ -106,18 +105,14 @@ defmodule RiddlrWeb.GameLive.Play do
     user = socket.assigns.current_user
     riddle = socket.assigns.riddle
 
-    # Re-fetch user to check current ban status
-    fresh_user = Accounts.get_user!(user.id)
-
-    with :ok <- check_not_banned(fresh_user),
+    with :ok <- check_not_banned(socket.assigns),
          :ok <- check_game_live(riddle),
          :ok <- Gameplay.check_already_solved(riddle.id, user.id),
          :ok <- Gameplay.check_cooldown(riddle.id, user.id),
          :ok <- validate_input(text) do
       correct? = Gameplay.validate_answer(riddle, text)
-      timestamp = Gameplay.store_answer(riddle.id, user.id, text, correct?)
-
-      offset_ms = compute_offset_ms(socket.assigns.game_start_time)
+      solve_time_ms = compute_offset_ms(socket.assigns.game_start_time)
+      timestamp = Gameplay.store_answer(riddle.id, user.id, text, correct?, solve_time_ms)
 
       answer_data = %{
         id: "#{riddle.id}-#{user.id}-#{timestamp}",
@@ -126,9 +121,10 @@ defmodule RiddlrWeb.GameLive.Play do
         text: text,
         correct: correct?,
         timestamp: timestamp,
-        offset_ms: offset_ms,
+        offset_ms: solve_time_ms,
         show_highlight: false,
-        flagged: false
+        flagged: false,
+        chat: false
       }
 
       Gameplay.broadcast_answer(riddle.id, answer_data)
@@ -139,26 +135,66 @@ defmodule RiddlrWeb.GameLive.Play do
         {:ok, points} = Accounts.award_game_points(user.id, placement)
 
         if placement == 1 do
-          first_solve_time =
-            if riddle.live_date,
-              do: DateTime.diff(DateTime.utc_now(), riddle.live_date, :second),
-              else: nil
+          first_solve_time_seconds = solve_time_ms && div(solve_time_ms, 1000)
 
-          stats =
-            Gameplay.get_completion_stats(riddle.id)
-            |> Map.put(:first_solve_time, first_solve_time)
+          if riddle.live_until_solved do
+            # live_until_solved games complete immediately on first solve
+            stats =
+              Gameplay.get_completion_stats(riddle.id)
+              |> Map.put(:first_solve_time, first_solve_time_seconds)
 
-          Games.complete_riddle_on_first_solve(riddle.id, user.id, stats)
+            Games.complete_riddle_on_first_solve(riddle.id, user.id, stats)
+          else
+            # Timed games: record first solver; Oban CompleteRiddleWorker fires at solve_time
+            Games.record_first_solver(riddle.id, user.id, first_solve_time_seconds)
+          end
         end
 
         {:noreply,
          socket
+         |> push_event("answer-correct", %{})
          |> assign(:already_solved, true)
          |> assign(:submission_state, {:correct, placement, points})}
       else
         socket = assign(socket, :try_again_message, try_again())
         {:noreply, assign(socket, :submission_state, :incorrect)}
       end
+    else
+      {:error, :banned} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Your account has been suspended.")
+         |> push_navigate(to: ~p"/")}
+
+      {:error, reason} ->
+        {:noreply, assign(socket, :submission_state, {:error, format_error(reason)})}
+    end
+  end
+
+  @impl true
+  def handle_event("send_chat", %{"message" => text}, socket) do
+    text = String.trim(text)
+    user = socket.assigns.current_user
+    riddle = socket.assigns.riddle
+
+    with :ok <- check_not_banned(socket.assigns),
+         :ok <- check_game_completed(riddle),
+         :ok <- validate_input(text) do
+      chat_data = %{
+        id: "chat-#{riddle.id}-#{user.id}-#{System.monotonic_time(:microsecond)}",
+        user_id: user.id,
+        username: user.username,
+        text: text,
+        correct: false,
+        timestamp: System.monotonic_time(:microsecond),
+        offset_ms: nil,
+        show_highlight: false,
+        flagged: false,
+        chat: true
+      }
+
+      Gameplay.broadcast_chat(riddle.id, chat_data)
+      {:noreply, socket}
     else
       {:error, :banned} ->
         {:noreply,
@@ -214,10 +250,12 @@ defmodule RiddlrWeb.GameLive.Play do
 
   def handle_info({:riddle_archived, riddle}, socket) do
     if riddle.id == socket.assigns.riddle.id do
-      {:noreply,
-       socket
-       |> put_flash(:info, "This game has been archived.")
-       |> push_navigate(to: ~p"/")}
+      {
+        :noreply,
+        socket
+        |> put_flash(:info, "This game has been archived.")
+        #  |> push_navigate(to: ~p"/")
+      }
     else
       {:noreply, socket}
     end
@@ -234,8 +272,23 @@ defmodule RiddlrWeb.GameLive.Play do
         Process.send_after(self(), :tick, 1000)
       end
 
-      {:noreply, assign(socket, :time_remaining, time_remaining)}
+      {:noreply,
+       socket
+       |> assign(:time_remaining, time_remaining)
+       |> push_event("countdown-tick", %{seconds: time_remaining})}
     end
+  end
+
+  def handle_info({:user_status_changed, :banned}, socket) do
+    {:noreply,
+     socket
+     |> assign(:banned, true)
+     |> put_flash(:error, "Your account has been suspended.")
+     |> push_navigate(to: ~p"/")}
+  end
+
+  def handle_info({:user_status_changed, _status}, socket) do
+    {:noreply, assign(socket, :banned, false)}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
@@ -266,13 +319,29 @@ defmodule RiddlrWeb.GameLive.Play do
           </span>
         </div>
         <h1 id="riddle-name" class="text-3xl font-bold text-gray-900">{@riddle.name}</h1>
-        <div :if={not @game_completed} id="countdown-timer" class="mt-3">
-          <span class={[
-            "text-2xl font-mono font-bold tabular-nums",
-            if(@time_remaining <= 30, do: "text-red-600", else: "text-gray-700")
-          ]}>
-            {format_time(@time_remaining)}
-          </span>
+        <div :if={not @game_completed} class="mt-4 flex justify-center">
+          <div
+            id="solve-timer-card"
+            style="view-transition-name: game-timer"
+            class="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-3 text-center"
+          >
+            <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
+              Solve time
+            </p>
+            <div
+              id="countdown-timer"
+              phx-hook=".SolveTimer"
+              data-seconds={@time_remaining}
+              class="leading-none"
+            >
+              <span
+                data-timer-display
+                class="text-3xl font-mono font-bold tabular-nums text-gray-700"
+              >
+                {format_time(@time_remaining)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -337,6 +406,26 @@ defmodule RiddlrWeb.GameLive.Play do
         <p class="text-gray-500 mt-1">Better luck next time.</p>
       </div>
 
+      <%!-- Chat during cooldown (visible to all users once game is completed) --%>
+      <div :if={@game_completed} id="chat-form-container" class="mt-6">
+        <form id="chat-form" phx-submit="send_chat" class="flex gap-3">
+          <input
+            id="chat-input"
+            type="text"
+            name="message"
+            placeholder="Chat with other players..."
+            autocomplete="off"
+            class="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            class="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            Send
+          </button>
+        </form>
+      </div>
+
       <%!-- Post-game results (shown when game is completed) --%>
       <div :if={@game_completed} id="post-game-results" class="mt-6 space-y-6">
         <%!-- Winner announcement --%>
@@ -393,7 +482,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 </span>
                 <span class="text-gray-800 font-medium">{solver.username}</span>
               </div>
-              <span class="text-sm text-gray-500">+{solver.points} pts</span>
+              <span class="text-sm text-gray-500">{solver.solve_time_display || "—"}</span>
             </li>
           </ol>
         </div>
@@ -410,10 +499,11 @@ defmodule RiddlrWeb.GameLive.Play do
             id={dom_id}
             class={[
               "flex items-center gap-3 px-4 py-2 rounded-lg border text-sm",
-              if(answer.show_highlight,
-                do: "bg-green-50 border-green-200",
-                else: "bg-gray-50 border-gray-100"
-              )
+              cond do
+                answer.show_highlight -> "bg-green-50 border-green-200"
+                Map.get(answer, :chat, false) -> "bg-indigo-50 border-indigo-100"
+                true -> "bg-gray-50 border-gray-100"
+              end
             ]}
           >
             <span class="font-medium text-gray-800 shrink-0">{answer.username}</span>
@@ -425,14 +515,54 @@ defmodule RiddlrWeb.GameLive.Play do
         </div>
       </div>
     </div>
+
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".SolveTimer">
+      export default {
+        mounted() {
+          this.displayEl = this.el.querySelector("[data-timer-display]")
+          this.render(parseInt(this.el.dataset.seconds, 10) || 0)
+          this.handleEvent("countdown-tick", ({ seconds }) => {
+            this.render(seconds)
+          })
+        },
+        render(secs) {
+          const m = Math.floor(secs / 60).toString().padStart(2, "0")
+          const s = (secs % 60).toString().padStart(2, "0")
+          if (this.displayEl) this.displayEl.textContent = `${m}:${s}`
+
+          // Urgency states drive CSS animation and color
+          const urgency = secs <= 10 ? "critical" : secs <= 30 ? "warning" : "normal"
+          const card = this.el.closest("[id='solve-timer-card']") || this.el
+          if (card.dataset.urgency !== urgency) {
+            card.dataset.urgency = urgency
+          }
+
+          // Progressive color interpolation (gray-700 → orange-600 → red-600)
+          if (this.displayEl) {
+            if (secs > 30 || secs <= 10) {
+              this.displayEl.style.color = ""
+            } else {
+              const t = (30 - secs) / 20 // 0.0 at 30s → 1.0 at 10s
+              const r = Math.round(55 + t * (234 - 55))
+              const g = Math.round(65 + t * (88 - 65))
+              const b = Math.round(81 + t * (12 - 81))
+              this.displayEl.style.color = `rgb(${r},${g},${b})`
+            }
+          }
+        }
+      }
+    </script>
     """
   end
 
-  defp check_not_banned(%{account_status: :banned}), do: {:error, :banned}
-  defp check_not_banned(_user), do: :ok
+  defp check_not_banned(%{banned: true}), do: {:error, :banned}
+  defp check_not_banned(_assigns), do: :ok
 
   defp check_game_live(%{play_status: "live"}), do: :ok
   defp check_game_live(%{play_status: status}), do: {:error, {:not_live, status}}
+
+  defp check_game_completed(%{play_status: "completed"}), do: :ok
+  defp check_game_completed(%{play_status: status}), do: {:error, {:not_completed, status}}
 
   defp validate_input(text) do
     cond do
@@ -487,7 +617,8 @@ defmodule RiddlrWeb.GameLive.Play do
         correct: a.correct,
         offset_ms: nil,
         show_highlight: game_completed and a.correct,
-        flagged: false
+        flagged: false,
+        chat: false
       }
     end)
   end
@@ -505,7 +636,13 @@ defmodule RiddlrWeb.GameLive.Play do
           nil -> "Player"
         end
 
-      Map.put(entry, :username, username)
+      solve_time_display =
+        case entry.solve_time_ms do
+          nil -> nil
+          ms -> format_time(div(ms, 1000))
+        end
+
+      entry |> Map.put(:username, username) |> Map.put(:solve_time_display, solve_time_display)
     end)
   end
 

@@ -132,7 +132,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
       assert has_element?(live, "#countdown[phx-hook][data-seconds]")
-      assert has_element?(live, "p", "Game starts in")
+      assert has_element?(live, "p", "Riddle starts in…")
     end
 
     test "shows player count element", %{conn: conn, riddle: riddle, user: user} do
