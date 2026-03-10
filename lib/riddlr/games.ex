@@ -4,9 +4,9 @@ defmodule Riddlr.Games do
   """
 
   import Ecto.Query, warn: false
+
   alias Ecto.Multi
   alias Riddlr.Repo
-
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
 
@@ -49,13 +49,16 @@ defmodule Riddlr.Games do
     |> Repo.get!(id)
   end
 
+  @doc """
+  Fetches a riddle by ID, returning `{:ok, riddle}` or `{:error, :not_found}`. Rescues i.e Ecto.NoResultsError, Ecto.Query.CastError
+  """
+  @spec fetch_riddle(term()) :: {:ok, Riddle.t()} | {:error, :not_found}
   def fetch_riddle(id) do
     case get_riddle!(id) do
       %Riddle{} = riddle -> {:ok, riddle}
       _ -> {:error, :not_found}
     end
   rescue
-    # i.e Ecto.NoResultsError, Ecto.Query.CastError
     _ -> {:error, :not_found}
   end
 
@@ -398,13 +401,19 @@ defmodule Riddlr.Games do
   @doc """
   Records the first solver of a riddle (no-op if already set).
   Uses atomic update to avoid race conditions.
+  Optionally stores `first_solve_time` (seconds from live_date) in the same operation.
   """
-  def record_first_solver(riddle_id, user_id) do
+  def record_first_solver(riddle_id, user_id, first_solve_time \\ nil) do
+    updates =
+      if first_solve_time,
+        do: [first_solver_id: user_id, first_solve_time: first_solve_time],
+        else: [first_solver_id: user_id]
+
     {count, _} =
       from(r in Riddle,
         where: r.id == ^riddle_id and is_nil(r.first_solver_id)
       )
-      |> Repo.update_all(set: [first_solver_id: user_id])
+      |> Repo.update_all(set: updates)
 
     if count > 0, do: {:ok, :recorded}, else: {:ok, :already_set}
   end

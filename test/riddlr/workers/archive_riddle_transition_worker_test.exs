@@ -77,7 +77,7 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
       # Manually insert ETS entries for this riddle
       :ets.insert(
         :riddle_answers,
-        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true}
+        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true, nil}
       )
 
       :ets.insert(:answer_cooldowns, {{riddle.id, user_id}, System.monotonic_time(:microsecond)})

@@ -53,7 +53,7 @@ defmodule Riddlr.Gameplay do
   def check_already_solved(riddle_id, user_id) do
     entries = :ets.lookup(@answers_table, {riddle_id, user_id})
 
-    if Enum.any?(entries, fn {_key, _text, _ts, correct?} -> correct? end) do
+    if Enum.any?(entries, fn {_key, _text, _ts, correct?, _} -> correct? end) do
       {:error, :already_solved}
     else
       :ok
@@ -63,10 +63,11 @@ defmodule Riddlr.Gameplay do
   @doc """
   Stores an answer submission in ETS.
   Returns the microsecond timestamp of the submission.
+  `solve_time_ms` is the wall-clock milliseconds elapsed since game start (for leaderboard display).
   """
-  def store_answer(riddle_id, user_id, text, correct?) do
+  def store_answer(riddle_id, user_id, text, correct?, solve_time_ms \\ nil) do
     timestamp = System.monotonic_time(:microsecond)
-    :ets.insert(@answers_table, {{riddle_id, user_id}, text, timestamp, correct?})
+    :ets.insert(@answers_table, {{riddle_id, user_id}, text, timestamp, correct?, solve_time_ms})
     timestamp
   end
 
@@ -76,8 +77,8 @@ defmodule Riddlr.Gameplay do
   """
   def calculate_placement(riddle_id, solve_timestamp) do
     @answers_table
-    |> :ets.match_object({{riddle_id, :_}, :_, :_, true})
-    |> Enum.count(fn {_key, _text, ts, _} -> ts <= solve_timestamp end)
+    |> :ets.match_object({{riddle_id, :_}, :_, :_, true, :_})
+    |> Enum.count(fn {_key, _text, ts, _, _} -> ts <= solve_timestamp end)
   end
 
   @doc """
@@ -101,8 +102,8 @@ defmodule Riddlr.Gameplay do
   """
   def get_answers(riddle_id) do
     @answers_table
-    |> :ets.match_object({{riddle_id, :_}, :_, :_, :_})
-    |> Enum.map(fn {{_rid, user_id}, text, timestamp, correct?} ->
+    |> :ets.match_object({{riddle_id, :_}, :_, :_, :_, :_})
+    |> Enum.map(fn {{_rid, user_id}, text, timestamp, correct?, _solve_time_ms} ->
       %{user_id: user_id, text: text, timestamp: timestamp, correct: correct?}
     end)
     |> Enum.sort_by(& &1.timestamp)
@@ -116,6 +117,18 @@ defmodule Riddlr.Gameplay do
       Riddlr.PubSub,
       "gameplay:#{riddle_id}:answer_submitted",
       {:answer_submitted, answer_data}
+    )
+  end
+
+  @doc """
+  Broadcasts a chat message during the cooldown period.
+  Reuses the answer_submitted topic so existing subscribers receive it automatically.
+  """
+  def broadcast_chat(riddle_id, chat_data) do
+    Phoenix.PubSub.broadcast(
+      Riddlr.PubSub,
+      "gameplay:#{riddle_id}:answer_submitted",
+      {:answer_submitted, chat_data}
     )
   end
 
@@ -171,13 +184,20 @@ defmodule Riddlr.Gameplay do
   """
   def get_top_solvers(riddle_id, limit \\ 10) do
     @answers_table
-    |> :ets.match_object({{riddle_id, :_}, :_, :_, true})
-    |> Enum.map(fn {{_rid, user_id}, _text, ts, _} -> {user_id, ts} end)
+    |> :ets.match_object({{riddle_id, :_}, :_, :_, true, :_})
+    |> Enum.map(fn {{_rid, user_id}, _text, ts, _, solve_time_ms} ->
+      {user_id, ts, solve_time_ms}
+    end)
     |> Enum.sort_by(&elem(&1, 1))
     |> Enum.take(limit)
     |> Enum.with_index(1)
-    |> Enum.map(fn {{user_id, _ts}, placement} ->
-      %{user_id: user_id, placement: placement, points: points_for_placement(placement)}
+    |> Enum.map(fn {{user_id, _ts, solve_time_ms}, placement} ->
+      %{
+        user_id: user_id,
+        placement: placement,
+        points: points_for_placement(placement),
+        solve_time_ms: solve_time_ms
+      }
     end)
   end
 
@@ -185,7 +205,7 @@ defmodule Riddlr.Gameplay do
   Removes all ETS entries for a riddle (call on archive).
   """
   def cleanup_riddle(riddle_id) do
-    :ets.match_delete(@answers_table, {{riddle_id, :_}, :_, :_, :_})
+    :ets.match_delete(@answers_table, {{riddle_id, :_}, :_, :_, :_, :_})
     :ets.match_delete(@cooldowns_table, {{riddle_id, :_}, :_})
     :ok
   end

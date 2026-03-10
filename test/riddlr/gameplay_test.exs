@@ -122,7 +122,7 @@ defmodule Riddlr.GameplayTest do
       uid2 = unique_user_id()
       # Insert uid1's answer directly with a past timestamp to guarantee uid2 is later
       past_ts = System.monotonic_time(:microsecond) - 1000
-      :ets.insert(:riddle_answers, {{rid, uid1}, "answer", past_ts, true})
+      :ets.insert(:riddle_answers, {{rid, uid1}, "answer", past_ts, true, nil})
       ts2 = Gameplay.store_answer(rid, uid2, "answer", true)
       assert Gameplay.calculate_placement(rid, ts2) == 2
     end
@@ -167,7 +167,7 @@ defmodule Riddlr.GameplayTest do
       uid1 = unique_user_id()
       uid2 = unique_user_id()
       past_ts = System.monotonic_time(:microsecond) - 1000
-      :ets.insert(:riddle_answers, {{rid, uid1}, "first", past_ts, false})
+      :ets.insert(:riddle_answers, {{rid, uid1}, "first", past_ts, false, nil})
       ts2 = Gameplay.store_answer(rid, uid2, "second", true)
       answers = Gameplay.get_answers(rid)
       assert length(answers) == 2
@@ -297,7 +297,7 @@ defmodule Riddlr.GameplayTest do
 
       # uid1 answered first (past timestamp)
       past_ts = System.monotonic_time(:microsecond) - 1000
-      :ets.insert(:riddle_answers, {{rid, uid1}, "correct", past_ts, true})
+      :ets.insert(:riddle_answers, {{rid, uid1}, "correct", past_ts, true, nil})
       Gameplay.store_answer(rid, uid2, "correct", true)
 
       [first, second] = Gameplay.get_top_solvers(rid)

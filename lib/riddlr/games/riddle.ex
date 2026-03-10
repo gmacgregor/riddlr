@@ -57,6 +57,7 @@ defmodule Riddlr.Games.Riddle do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
   @play_statuses ~w(closed scheduled ready live completed archived)
   @publish_statuses ~w(draft published)
   @difficulties ~w(easy medium hard expert)
