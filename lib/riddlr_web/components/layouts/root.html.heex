@@ -33,6 +33,24 @@
   <body>
     <div id="reconnect-bar"></div>
     <ul class="menu menu-horizontal w-full relative z-10 flex items-center gap-4 px-4 sm:px-6 lg:px-8 justify-end">
+      <li>
+        <button
+          id="theme-toggle"
+          class="font-mono text-xs rounded-full px-3 py-1 transition-colors duration-150 border"
+          style="border-color: var(--accent); color: var(--accent); background: transparent; cursor: pointer; letter-spacing: 0.05em;"
+          onclick="
+            var html = document.documentElement;
+            var cur = html.dataset.theme || (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+            var next = cur === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('phx:theme', next);
+            html.setAttribute('data-theme', next);
+          "
+          title="Toggle light/dark theme"
+        >
+          <span class="theme-icon-dark">🌙 DARK</span>
+          <span class="theme-icon-light">☀ LIGHT</span>
+        </button>
+      </li>
       <%= if @current_scope do %>
         <li>
           {@current_scope.user.email}
