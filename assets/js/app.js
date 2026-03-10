@@ -40,6 +40,75 @@ window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
+// ─── CSS View Transitions for LiveView navigation ────────────────────────────
+// Wraps LiveView page loads in document.startViewTransition so that elements
+// sharing a view-transition-name morph between pages (e.g. the game timer card).
+if (document.startViewTransition) {
+  let resolveTransition = null
+  let transitionTimeout = null
+
+  window.addEventListener("phx:page-loading-start", ({ detail }) => {
+    // Skip form submits — only animate navigations
+    if (detail.kind === "submit") return
+    clearTimeout(transitionTimeout)
+    document.startViewTransition(() => {
+      return new Promise(resolve => {
+        resolveTransition = resolve
+        // Safety valve: resolve after 5s if stop event never fires
+        transitionTimeout = setTimeout(() => {
+          resolve()
+          resolveTransition = null
+        }, 5000)
+      })
+    })
+  })
+
+  window.addEventListener("phx:page-loading-stop", () => {
+    if (resolveTransition) {
+      clearTimeout(transitionTimeout)
+      resolveTransition()
+      resolveTransition = null
+    }
+  })
+}
+
+// ─── Correct answer: confetti + ring pulse ────────────────────────────────────
+function spawnConfetti(cx, cy) {
+  const colors = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb7185", "#4ade80"]
+  for (let i = 0; i < 28; i++) {
+    const p = document.createElement("div")
+    p.className = "confetti-particle"
+    const angle = (i / 28) * Math.PI * 2 + (Math.random() - 0.5) * 0.8
+    const dist = 70 + Math.random() * 110
+    const size = 5 + Math.floor(Math.random() * 7)
+    p.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      width:${size}px; height:${size}px;
+      background:${colors[i % colors.length]};
+      --vx:${(Math.cos(angle) * dist).toFixed(1)}px;
+      --vy:${(Math.sin(angle) * dist - 50).toFixed(1)}px;
+      --rot:${Math.round(Math.random() * 720 - 360)}deg;
+      animation-delay:${(Math.random() * 0.08).toFixed(3)}s;
+    `
+    document.body.appendChild(p)
+    p.addEventListener("animationend", () => p.remove(), { once: true })
+  }
+}
+
+window.addEventListener("phx:answer-correct", () => {
+  const result = document.getElementById("correct-result")
+  if (!result) return
+
+  // Ring pulse animation
+  result.style.animation = "none"
+  void result.offsetHeight // force reflow
+  result.style.animation = "correct-ring-pulse 0.75s ease-out"
+
+  // Confetti burst from center of the result panel
+  const r = result.getBoundingClientRect()
+  spawnConfetti(r.left + r.width / 2, r.top + r.height / 2)
+})
+
 // expose liveSocket on window for web console debug logs and latency simulation:
 // >> liveSocket.enableDebug()
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session

@@ -104,8 +104,14 @@ defmodule RiddlrWeb.GameLive.Lobby do
         <h1 id="riddle-name" class="text-3xl font-bold text-gray-900">{@riddle.name}</h1>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mb-6">
-        <p class="text-sm text-gray-500 mb-2">Game starts in</p>
+      <div
+        id="lobby-timer-card"
+        style="view-transition-name: game-timer"
+        class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center mb-6"
+      >
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+          Riddle starts in…
+        </p>
         <div
           id="countdown"
           phx-hook=".Countdown"
@@ -125,25 +131,18 @@ defmodule RiddlrWeb.GameLive.Lobby do
     <script :type={Phoenix.LiveView.ColocatedHook} name=".Countdown">
       export default {
         mounted() {
-          this.seconds = parseInt(this.el.dataset.seconds, 10)
           this.tick()
-          this.interval = setInterval(() => this.tick(), 100)
+          this.interval = setInterval(() => this.tick(), 1000)
           this.handleEvent("countdown-tick", ({ seconds }) => {
-            this.seconds = seconds
+            this.el.dataset.seconds = seconds
+            this.tick()
           })
-        },
-        updated() {
-          // Server update — reset to server-authoritative value
-          this.seconds = parseInt(this.el.dataset.seconds, 10)
         },
         destroyed() {
           clearInterval(this.interval)
         },
         tick() {
-          if (this.seconds > 0) {
-            this.seconds = Math.max(0, this.seconds - 0.1)
-          }
-          const secs = Math.ceil(this.seconds)
+          const secs = parseInt(this.el.dataset.seconds, 10) || 0
           const m = Math.floor(secs / 60).toString().padStart(2, "0")
           const s = (secs % 60).toString().padStart(2, "0")
           this.el.textContent = `${m}:${s}`

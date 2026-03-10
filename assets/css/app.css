@@ -103,3 +103,89 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* ─── View Transitions ─────────────────────────────────────────────────────── */
+
+/* The game timer card morphs between lobby (large) and play (small) pages.
+   The browser auto-animates size/position; we just tune easing + cross-fade. */
+::view-transition-group(game-timer) {
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-duration: 0.55s;
+}
+
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+
+::view-transition-old(game-timer) {
+  animation: 0.2s ease-in vt-fade-out both;
+}
+
+::view-transition-new(game-timer) {
+  animation: 0.3s 0.15s ease-out vt-fade-in both;
+}
+
+/* ─── Solve Timer urgency styles ────────────────────────────────────────────── */
+
+/* Double-pump heartbeat (lub-dub) — fires at ≤10s remaining */
+@keyframes timer-heartbeat {
+  0%   { transform: scale(1); }
+  12%  { transform: scale(1.07); }
+  22%  { transform: scale(1); }
+  34%  { transform: scale(1.04); }
+  44%  { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+[data-urgency="critical"] {
+  animation: timer-heartbeat 0.8s ease-in-out infinite;
+}
+
+[data-urgency="critical"] [data-timer-display] {
+  color: rgb(220, 38, 38) !important; /* red-600 */
+}
+
+/* ─── Correct answer celebration ─────────────────────────────────────────────── */
+
+/* Green ring radiates outward from the success panel when it first appears */
+@starting-style {
+  #correct-result {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+}
+
+#correct-result {
+  transition: box-shadow 0.6s ease-out;
+}
+
+/* Driven by JS — ring pulse on demand (also works in older browsers) */
+@keyframes correct-ring-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.65); }
+  70%  { box-shadow: 0 0 0 20px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+/* ─── Confetti particles ─────────────────────────────────────────────────────── */
+
+.confetti-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: 2px;
+  animation: confetti-fly 0.9s ease-out forwards;
+}
+
+@keyframes confetti-fly {
+  from {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--vx), var(--vy)) rotate(var(--rot)) scale(0.4);
+    opacity: 0;
+  }
+}
