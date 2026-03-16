@@ -225,7 +225,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
              socket
              |> put_flash(
                :info,
-               "#{riddle.name} saved.\nLobby opens: #{ready_time}\nRiddle goes live: #{live_time}"
+               "Riddle: \"#{riddle.name}\" saved.\nLobby opens: #{ready_time}. Riddle goes live: #{live_time}"
              )
              |> push_patch(to: socket.assigns.patch)}
 

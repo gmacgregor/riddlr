@@ -37,7 +37,7 @@
     </div>
     <div>
       <h4 class="font-semibold">Play status</h4>
-      <p>{@riddle.play_status}</p>
+      <p>{play_status_text(@riddle.play_status)}</p>
     </div>
     <div>
       <h4 class="font-semibold">Category</h4>
@@ -87,7 +87,7 @@
       "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
       play_status_color(riddle.play_status)
     ]}>
-      {riddle.play_status}
+      {play_status_text(riddle.play_status)}
     </span>
   </:col>
   <:col :let={{_id, riddle}} label="Live Date">{format_live_date(riddle.live_date)}</:col>

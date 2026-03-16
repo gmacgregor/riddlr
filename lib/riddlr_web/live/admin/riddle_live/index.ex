@@ -90,6 +90,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
   defp format_live_date(nil), do: nil
 
+  defp play_status_text("closed"), do: "unscheduled"
+  defp play_status_text("scheduled"), do: "scheduled"
+  defp play_status_text("ready"), do: "lobby open"
+  defp play_status_text("live"), do: "live"
+  defp play_status_text("completed"), do: "cooldown"
+  defp play_status_text("archived"), do: "archived"
+
   defp play_status_color("closed"), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
   defp play_status_color("scheduled"), do: "bg-blue-50 text-blue-700 ring-blue-700/10"
   defp play_status_color("ready"), do: "bg-yellow-50 text-yellow-800 ring-yellow-600/20"
