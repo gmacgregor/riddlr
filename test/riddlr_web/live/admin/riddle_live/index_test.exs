@@ -70,7 +70,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       conn = log_in_user(conn, admin)
       {:ok, _view, html} = live(conn, ~p"/admin/riddles")
 
-      assert html =~ "closed"
+      assert html =~ "unscheduled"
       assert html =~ "live"
     end
 
