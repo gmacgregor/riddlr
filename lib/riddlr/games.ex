@@ -179,7 +179,8 @@ defmodule Riddlr.Games do
   Enqueues ReadyRiddleTransitionWorker (5 min before live) and LiveRiddleTransitionWorker (at live_date).
   """
   def schedule_riddle(%Riddle{} = riddle, live_date, attrs \\ %{}) do
-    effective_publish_status = Map.get(attrs, "publish_status", riddle.publish_status)
+    effective_publish_status =
+      Map.get(attrs, :publish_status) || Map.get(attrs, "publish_status", riddle.publish_status)
 
     cond do
       effective_publish_status != "published" ->
@@ -195,31 +196,38 @@ defmodule Riddlr.Games do
         schedule_attrs =
           Map.merge(attrs, %{"play_status" => "scheduled", "live_date" => live_date})
 
-        Multi.new()
-        |> Multi.update(
-          :riddle,
-          Riddle.changeset(riddle, schedule_attrs)
-        )
-        |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
-          %{"riddle_id" => updated_riddle.id}
-          |> Riddlr.Workers.ReadyRiddleTransitionWorker.new(
-            scheduled_at: DateTime.add(live_date, -@seconds_before_live, :second)
+        multi =
+          Multi.new()
+          |> Multi.update(
+            :riddle,
+            Riddle.changeset(riddle, schedule_attrs)
           )
-        end)
-        |> Multi.insert(:live_job, fn %{riddle: updated_riddle} ->
-          %{"riddle_id" => updated_riddle.id}
-          |> Riddlr.Workers.LiveRiddleTransitionWorker.new(scheduled_at: live_date)
-        end)
-        |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
-          Phoenix.PubSub.broadcast(
-            Riddlr.PubSub,
-            "games:riddle:scheduled",
-            {:riddle_scheduled, updated_riddle}
-          )
+          |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
+            %{"riddle_id" => updated_riddle.id}
+            |> Riddlr.Workers.ReadyRiddleTransitionWorker.new(
+              scheduled_at: DateTime.add(live_date, -@seconds_before_live, :second)
+            )
+          end)
+          |> Multi.insert(:live_job, fn %{riddle: updated_riddle} ->
+            %{"riddle_id" => updated_riddle.id}
+            |> Riddlr.Workers.LiveRiddleTransitionWorker.new(scheduled_at: live_date)
+          end)
 
-          {:ok, :broadcasted}
-        end)
-        |> Repo.transaction()
+        case Repo.transaction(multi) do
+          {:ok, %{riddle: updated_riddle} = result} ->
+            broadcast_riddle = preload_assoc(updated_riddle)
+
+            Phoenix.PubSub.broadcast(
+              Riddlr.PubSub,
+              "games:riddle:scheduled",
+              {:riddle_scheduled, broadcast_riddle}
+            )
+
+            {:ok, Map.put(result, :broadcast, :broadcasted)}
+
+          {:error, _failed_operation, _failed_value, _changes} = error ->
+            error
+        end
     end
   end
 
