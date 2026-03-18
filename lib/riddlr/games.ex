@@ -244,24 +244,24 @@ defmodule Riddlr.Games do
         if riddle.play_status != "scheduled" do
           {:error, "cannot transition from #{riddle.play_status} to ready"}
         else
-          Multi.new()
-          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "ready"}))
-          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
-            # Preload category for LiveView rendering
-            updated_riddle = preload_assoc(updated_riddle)
-
-            Phoenix.PubSub.broadcast(
-              Riddlr.PubSub,
-              "games:riddle:ready",
-              {:riddle_ready, updated_riddle}
-            )
-
-            {:ok, :broadcasted}
-          end)
-          |> Repo.transaction()
+          riddle
+          |> Riddle.changeset(%{play_status: "ready"})
+          |> Repo.update()
           |> case do
-            {:ok, %{riddle: riddle}} -> {:ok, riddle}
-            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
+            {:ok, updated_riddle} ->
+              # Preload category for LiveView rendering
+              broadcast_riddle = preload_assoc(updated_riddle)
+
+              Phoenix.PubSub.broadcast(
+                Riddlr.PubSub,
+                "games:riddle:ready",
+                {:riddle_ready, broadcast_riddle}
+              )
+
+              {:ok, updated_riddle}
+
+            {:error, changeset} ->
+              {:error, changeset}
           end
         end
     end
