@@ -11,6 +11,7 @@ defmodule Riddlr.Games.RiddleScheduler do
   alias Riddlr.Repo
   alias Riddlr.Workers.{ReadyRiddleTransitionWorker, LiveRiddleTransitionWorker}
 
+  @ready_lead_time_seconds 3600
   @transition_workers [
     "Riddlr.Workers.ReadyRiddleTransitionWorker",
     "Riddlr.Workers.LiveRiddleTransitionWorker",
@@ -54,7 +55,7 @@ defmodule Riddlr.Games.RiddleScheduler do
 
   Used when a riddle's live_date changes. This will:
   1. Cancel all pending jobs for the riddle
-  2. Schedule new ReadyRiddleTransitionWorker (5 min before live_date)
+  2. Schedule new ReadyRiddleTransitionWorker (@ready_lead_time_seconds before live_date)
   3. Schedule new LiveRiddleTransitionWorker (at live_date)
 
   Returns `{:ok, count}` where count is the number of new jobs scheduled.
@@ -65,7 +66,8 @@ defmodule Riddlr.Games.RiddleScheduler do
       {:ok, 2}
   """
   def reschedule_jobs(riddle_id, %DateTime{} = new_live_date) when is_integer(riddle_id) do
-    ready_time = DateTime.add(new_live_date, -300, :second)
+    riddle_ready_time = ready_time(new_live_date)
+
     riddle_id_string = Integer.to_string(riddle_id)
     now = DateTime.utc_now()
 
@@ -84,7 +86,9 @@ defmodule Riddlr.Games.RiddleScheduler do
          end)
          |> Oban.insert(
            :ready_job,
-           ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle_id}, scheduled_at: ready_time)
+           ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle_id},
+             scheduled_at: riddle_ready_time
+           )
          )
          |> Oban.insert(
            :live_job,
@@ -105,4 +109,7 @@ defmodule Riddlr.Games.RiddleScheduler do
   end
 
   def reschedule_jobs(_riddle_id, _new_live_date), do: {:error, :invalid_live_date}
+
+  defp ready_time(live_date),
+    do: DateTime.add(live_date, -@ready_lead_time_seconds, :second)
 end
