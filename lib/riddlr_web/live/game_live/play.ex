@@ -7,6 +7,8 @@ defmodule RiddlrWeb.GameLive.Play do
 
   alias Riddlr.{Accounts, Games, Gameplay}
 
+  import Riddlr.Utils.User
+
   @answer_max_length 500
   @try_again_messages [
     "Uuuh… no! Think harder.",
@@ -20,6 +22,7 @@ defmodule RiddlrWeb.GameLive.Play do
   def mount(%{"id" => id}, _session, socket) do
     # DB query in both connected and disconnected mount is intentional: we need
     # play_status to decide the redirect destination before the socket connects.
+
     case Games.fetch_riddle(id) do
       {:ok, riddle} ->
         case riddle.play_status do
@@ -37,15 +40,15 @@ defmodule RiddlrWeb.GameLive.Play do
 
           status when status in ["live", "completed"] ->
             user = socket.assigns.current_user
+            game_completed = status == "completed"
+            game_live = status == "live"
 
             already_solved =
-              status == "live" and
+              game_live and
                 match?(
                   {:error, :already_solved},
                   Gameplay.check_already_solved(riddle.id, user.id)
                 )
-
-            game_completed = status == "completed"
 
             {initial_answers, top_solvers} =
               if connected?(socket) do
@@ -81,17 +84,19 @@ defmodule RiddlrWeb.GameLive.Play do
 
             {:ok,
              socket
+             |> assign_user_banned(user)
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:game_start_time, riddle.live_date)
              |> assign(:game_completed, game_completed)
              |> assign(:already_solved, already_solved)
-             |> assign(:banned, user.account_status == :banned)
              |> assign(:submission_state, nil)
              |> assign(:time_remaining, time_remaining)
              |> assign(:cooldown_remaining, 0)
              |> assign(:correct_answers, correct_answers)
              |> assign(:top_solvers, top_solvers)
+             |> assign(:active_tab, :leaderboard)
+             |> assign(:try_again_message, nil)
              |> stream(:answers, initial_answers, limit: 100)}
         end
 
@@ -174,6 +179,11 @@ defmodule RiddlrWeb.GameLive.Play do
       {:error, reason} ->
         {:noreply, assign(socket, :submission_state, {:error, format_error(reason)})}
     end
+  end
+
+  @impl true
+  def handle_event("switch_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :active_tab, String.to_existing_atom(tab))}
   end
 
   @impl true
@@ -314,6 +324,10 @@ defmodule RiddlrWeb.GameLive.Play do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
+  defp assign_user_banned(socket, user) do
+    assign(socket, :user_banned, is_banned?(user))
+  end
+
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
 
@@ -412,7 +426,7 @@ defmodule RiddlrWeb.GameLive.Play do
     max(solve_time - elapsed, 0)
   end
 
-  defp format_time(seconds) do
+  def format_time(seconds) do
     minutes = div(seconds, 60)
     secs = rem(seconds, 60)
     :io_lib.format("~2..0B:~2..0B", [minutes, secs]) |> IO.iodata_to_binary()
@@ -426,21 +440,4 @@ defmodule RiddlrWeb.GameLive.Play do
 
   defp format_offset(ms) when ms < 1000, do: "#{ms}ms"
   defp format_offset(ms), do: "#{div(ms, 1000)}s"
-
-  defp top_answer([head | _]), do: head
-  defp remaining_answers([_ | tail]), do: tail
-
-  defp has_many_answers?(answers) do
-    length(answers) > 1
-  end
-
-  defp chat_status("live") do
-    "Answer feed"
-  end
-
-  defp chat_status("completed") do
-    "Post game chat"
-  end
-
-  defp chat_status(_), do: ""
 end

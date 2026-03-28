@@ -87,6 +87,9 @@ defmodule RiddlrWeb do
       # Core UI components
       import RiddlrWeb.CoreComponents
 
+      # Custom components
+      import RiddlrWeb.CustomComponents
+
       # Common modules used in templates
       alias Phoenix.LiveView.JS
       alias RiddlrWeb.Layouts

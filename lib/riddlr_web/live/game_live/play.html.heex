@@ -1,352 +1,223 @@
-<div
-  class="min-h-screen px-4 py-10"
-  style="background: var(--bg); color: var(--text)"
->
-  <div class="max-w-lg mx-auto">
-    <%!-- Header: badges + riddle name --%>
-    <div class="text-center mb-6">
-      <div class="flex items-center justify-center gap-2 mb-3">
-        <span
-          :if={@riddle.category}
-          class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
-          style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
-        >
-          <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block">
-          </span>
-          {@riddle.category.name}
-        </span>
-        <span
-          :if={@riddle.difficulty}
-          class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
-          style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
-        >
-          <span style="width:6px;height:6px;border-radius:50%;background:#d97706;display:inline-block">
-          </span>
-          {@riddle.difficulty}
-        </span>
-        <span
-          :if={@game_completed}
-          class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-          style="background: rgba(255,255,255,0.06); color: var(--text-muted)"
-        >
-          Game Over
-        </span>
-      </div>
-      <h1 id="riddle-name" class="text-2xl font-bold" style="color: var(--text)">
-        {@riddle.name}
-      </h1>
-
-      <%!-- Solve timer --%>
-      <div :if={not @game_completed} class="mt-4 flex justify-center">
-        <div
-          id="solve-timer-card"
-          style="view-transition-name: game-timer; background: var(--surface); border: 1px solid var(--surface-border)"
-          class="rounded-xl px-6 py-3 text-center"
-        >
-          <p
-            class="text-[10px] font-semibold uppercase tracking-widest mb-1"
-            style="color: var(--text-muted)"
-          >
-            Solve time
-          </p>
-          <div
-            id="countdown-timer"
-            phx-hook=".SolveTimer"
-            data-seconds={@time_remaining}
-            class="leading-none"
-          >
-            <span
-              data-timer-display
-              class="text-2xl font-mono font-bold tabular-nums"
-              style="color: var(--text)"
-            >
-              {format_time(@time_remaining)}
-            </span>
-          </div>
-        </div>
-      </div>
+<%!-- ═══════════════════════════════════════════════════════════════
+     TIMER + RIDDLE SECTION — active game only
+     ═══════════════════════════════════════════════════════════════ --%>
+<section :if={not @game_completed} class="rg-timer-section" aria-label="Timer and riddle">
+  <div class="rg-active-game" id="state-active">
+    <%!-- <.game_time_remaining time_remaining={@time_remaining} /> --%>
+    <div class="rg-time-bar">
+      <span class="rg-time-bar__label">⏱ Time left</span>
+      <time
+        class="rg-time-bar__value leading-none"
+        aria-live="polite"
+        aria-atomic="true"
+        id="countdown-timer"
+        phx-hook=".SolveTimer"
+        data-seconds={@time_remaining}
+      >
+        <span data-timer-display>{format_time(@time_remaining)}</span>
+      </time>
     </div>
-
-    <%!-- Riddle description (word-by-word reveal via JS hook) --%>
-    <div
+    <%!-- <.game_riddle_text riddle={@riddle} /> --%>
+    <p
       id="riddle-description"
-      class="rounded-2xl p-6 mb-6 text-center"
-      style="background: var(--surface); border: 1px solid var(--surface-border)"
+      class="rg-riddle-text"
       phx-hook=".RiddleReveal"
       data-text={@riddle.description}
     >
-      <p class="text-base leading-relaxed" style="color: var(--text)">
-        {@riddle.description}
-      </p>
-    </div>
+      {@riddle.description}
+    </p>
+  </div>
+</section>
 
-    <%!-- Correct answer result --%>
-    <div
-      :if={match?({:correct, _, _}, @submission_state)}
-      id="correct-result"
-      class="rounded-2xl p-6 mb-6 text-center"
-      style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25)"
-    >
-      <p class="text-xl font-bold mb-1" style="color: #4ade80">Correct!</p>
-      <p style="color: #86efac">
-        {placement_text(elem(@submission_state, 1))} place! +{elem(@submission_state, 2)} points
-      </p>
-    </div>
+<%!-- ═══════════════════════════════════════════════════════════════
+     ROUND COMPLETE HEADER — completed game only
+     ═══════════════════════════════════════════════════════════════ --%>
+<.game_round_header
+  :if={@game_completed}
+  riddle={@riddle}
+  outcome={if @riddle.first_solver, do: :solved, else: :expired}
+  solver_username={@riddle.first_solver && @riddle.first_solver.username}
+  solve_time={@riddle.first_solve_time}
+/>
 
-    <%!-- The answer(s) revealed --%>
-    <%!-- <div
-          id="correct-answers-revealed"
-          class="rounded-2xl p-6"
-          style="background: var(--surface); border: 1px solid var(--surface-border)"
-        >
-          <h3
-            class="text-xs font-semibold uppercase tracking-wide mb-3"
-            style="color: var(--text-muted)"
-          >
-            The Answer{if length(@riddle.answers) > 1, do: "s", else: ""}
-          </h3>
-          <ul class="space-y-1">
-            <li :for={answer <- @riddle.answers} class="font-medium" style="color: var(--text)">
-              {answer}
-            </li>
-          </ul>
-        </div> --%>
-    <div
-      :if={@game_completed}
-      id="correct-answers-revealed"
-      class="p-6"
-    >
-      <h3
-        class="text-xs font-semibold uppercase tracking-wide mb-3"
-        style="color: var(--text-muted)"
-      >
-        {top_answer(@riddle.answers)}
-      </h3>
-      <p :if={has_many_answers?(@riddle.answers)} style="color: var(--text)">
-        also accepted:
-        <span
-          :for={answer <- remaining_answers(@riddle.answers)}
-          class="font-medium"
-          style="color: var(--text)"
-        >
-          {answer}
-        </span>
-      </p>
-    </div>
+<div :if={@game_completed} class="rg-divider"></div>
 
-    <%!-- Answer form --%>
+<%!-- ═══════════════════════════════════════════════════════════════
+     CHAT SECTION — live game: answer feed + guess input
+     ═══════════════════════════════════════════════════════════════ --%>
+<section :if={not @game_completed} class="rg-chat-section" aria-label="Live answers">
+  <div class="rg-chat-header">
+    <span class="rg-chat-header__label">💬 Live Answers</span>
+    <span class="rg-chat-header__count" aria-live="polite">Live</span>
+  </div>
+
+  <%!-- Answer stream --%>
+  <div
+    id="answer-feed"
+    phx-update="stream"
+    class="rg-messages"
+    aria-live="polite"
+    aria-relevant="additions"
+    aria-label="Answer feed"
+  >
     <div
-      :if={not @already_solved and not @game_completed}
-      id="answer-form-container"
-      phx-hook=".AnswerForm"
-      class="mb-6"
+      :for={{dom_id, answer} <- @streams.answers}
+      id={dom_id}
+      class={["rg-msg", answer.show_highlight && "rg-msg--correct"]}
     >
-      <form id="answer-form" phx-submit="submit_answer" class="flex flex-col gap-3">
+      <.rg_avatar
+        letter={String.first(answer.username) |> String.upcase()}
+        username={answer.username}
+      />
+      <span class="rg-msg__user">{answer.username}</span>
+      <span class="rg-msg__text">{answer.text}</span>
+      <span :if={answer.offset_ms} class="rg-msg__time">+{format_offset(answer.offset_ms)}</span>
+    </div>
+  </div>
+
+  <%!-- Guess input — hidden once solved --%>
+  <div
+    :if={not @already_solved}
+    id="answer-form-container"
+    phx-hook=".AnswerForm"
+    class="rg-input-bar"
+  >
+    <form id="answer-form" phx-submit="submit_answer" class="contents">
+      <div class={[
+        "rg-input-field",
+        @submission_state == :incorrect && "rg-input-field--error"
+      ]}>
         <input
           id="answer-input"
           type="text"
           name="answer"
-          placeholder="Your answer…"
+          placeholder="Take a guess..."
           autocomplete="off"
-          class="w-full rounded-xl px-4 py-3 text-base focus-ring"
-          style="background: var(--surface); border: 1px solid var(--surface-border); color: var(--text); outline: none"
+          aria-label="Type your answer"
+          aria-describedby={if @submission_state == :incorrect, do: "answer-feedback-incorrect"}
+          aria-invalid={to_string(@submission_state == :incorrect)}
         />
-        <button
-          id="submit-btn"
-          type="submit"
-          class="w-full rounded-xl py-3 text-sm font-semibold pressable focus-ring"
-          style="background: var(--accent); color: #fff; min-height: 52px; border: none"
-        >
-          Submit
-        </button>
-      </form>
-
-      <div :if={@submission_state == :incorrect} id="incorrect-feedback" class="mt-3">
-        <p class="text-sm" style="color: var(--text-muted)">{@try_again_message}</p>
       </div>
-      <div :if={match?({:error, _}, @submission_state)} id="error-feedback" class="mt-3">
-        <p class="text-sm" style="color: #a78bfa">{elem(@submission_state, 1)}</p>
-      </div>
-    </div>
-
-    <%!-- Game over --%>
-    <div
-      :if={@game_completed}
-      id="game-over"
-      class="rounded-2xl p-8 text-center mb-6"
-      style="background: var(--surface); border: 1px solid var(--surface-border)"
+      <button class="rg-guess-btn" type="submit">Guess!</button>
+    </form>
+    <p
+      :if={@submission_state == :incorrect}
+      id="answer-feedback-incorrect"
+      class="rg-answer-feedback"
+      role="alert"
     >
-      <div :if={not @already_solved}>
-        <p class="text-lg font-semibold" style="color: var(--text)">Time's up!</p>
-        <p class="mt-1" style="color: var(--text-muted)">Better luck next time.</p>
-      </div>
+      {@try_again_message}
+    </p>
+    <p
+      :if={match?({:error, _}, @submission_state)}
+      id="answer-feedback-error"
+      class="rg-answer-feedback rg-answer-feedback--system"
+      role="alert"
+    >
+      {elem(@submission_state, 1)}
+    </p>
+  </div>
+
+  <%!-- Already solved banner --%>
+  <div :if={@already_solved} class="rg-input-bar rg-input-bar--solved" role="status">
+    <p class="rg-input-bar__solved-msg">
+      {case @submission_state do
+        {:correct, placement, points} -> "#{placement_text(placement)} place! +#{points} pts"
+        _ -> "You already solved this one."
+      end}
+    </p>
+  </div>
+</section>
+
+<%!-- ═══════════════════════════════════════════════════════════════
+     POST-GAME SECTION — leaderboard / chat tabs
+     ═══════════════════════════════════════════════════════════════ --%>
+<section :if={@game_completed} class="rg-round-content" aria-label="Post-game content">
+  <.game_tab_bar active_tab={@active_tab} />
+
+  <%!-- Leaderboard panel --%>
+  <div
+    id="panel-leaderboard"
+    role="tabpanel"
+    aria-label="Game leaderboard"
+    hidden={@active_tab != :leaderboard}
+  >
+    <.game_leaderboard top_solvers={@top_solvers} />
+  </div>
+
+  <%!-- Chat panel --%>
+  <div
+    id="panel-chat"
+    role="tabpanel"
+    aria-label="Post-game chat"
+    hidden={@active_tab != :chat}
+  >
+    <div class="rg-post-chat">
       <div
-        :if={@cooldown_remaining > 0}
-        class="mt-5 pt-4"
-        style="border-top: 1px solid var(--surface-border)"
+        id="chat-feed"
+        phx-update="stream"
+        class="rg-post-chat-messages"
+        aria-live="polite"
+        aria-relevant="additions"
       >
-        <p class="text-xs" style="color: var(--text-muted)">
-          This game will auto-archive in:
-        </p>
         <div
-          class="text-2xl font-mono font-bold tabular-nums mb-1"
-          style="color: var(--text)"
-        >
-          {format_time(@cooldown_remaining)}
-        </div>
-        <p class="text-xs" style="color: var(--text-muted)">
-          Until then, you can chat with other players below.
-        </p>
-      </div>
-    </div>
-
-    <%!-- Post-game chat --%>
-    <div :if={@game_completed} id="chat-form-container" class="mb-6">
-      <form id="chat-form" phx-submit="send_chat" class="flex flex-col gap-3">
-        <input
-          id="chat-input"
-          type="text"
-          name="message"
-          placeholder="Chat with other players…"
-          autocomplete="off"
-          class="w-full rounded-xl px-4 py-3 text-base focus-ring"
-          style="background: var(--surface); border: 1px solid var(--surface-border); color: var(--text); outline: none"
-        />
-        <button
-          type="submit"
-          class="w-full rounded-xl py-3 text-sm font-semibold pressable focus-ring"
-          style="background: #4338ca; color: #fff; min-height: 52px; border: none"
-        >
-          Send
-        </button>
-      </form>
-    </div>
-
-    <%!-- Post-game results --%>
-    <div :if={@game_completed} id="post-game-results" class="space-y-4">
-      <%!-- Winner --%>
-      <div
-        :if={@riddle.first_solver}
-        id="winner-announcement"
-        class="rounded-2xl p-6 text-center"
-        style="background: rgba(217,119,6,0.08); border: 1px solid rgba(217,119,6,0.25)"
-      >
-        <p class="text-xs font-semibold uppercase tracking-wide mb-1" style="color: #d97706">
-          Winner
-        </p>
-        <p class="text-xl font-bold" style="color: #fcd34d">{@riddle.first_solver.username}</p>
-        <p :if={@riddle.first_solve_time} class="text-sm mt-1" style="color: #fbbf24">
-          Solved in {format_time(@riddle.first_solve_time)}
-        </p>
-      </div>
-
-      <%!-- Top solvers leaderboard --%>
-      <div
-        :if={@top_solvers != []}
-        id="game-leaderboard"
-        class="rounded-2xl p-6"
-        style="background: var(--surface); border: 1px solid var(--surface-border)"
-      >
-        <h3
-          class="text-xs font-semibold uppercase tracking-wide mb-3"
-          style="color: var(--text-muted)"
-        >
-          Top Solvers
-        </h3>
-        <ol class="space-y-2">
-          <li
-            :for={solver <- @top_solvers}
-            class="flex items-center justify-between py-1"
-          >
-            <div class="flex items-center gap-3">
-              <span class={[
-                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                solver.placement == 1 && "bg-amber-500/20 text-amber-400",
-                solver.placement == 2 && "bg-zinc-700 text-zinc-400",
-                solver.placement == 3 && "bg-orange-500/20 text-orange-400",
-                solver.placement > 3 && "bg-zinc-800 text-zinc-500"
-              ]}>
-                {solver.placement}
-              </span>
-              <span class="font-medium" style="color: var(--text)">{solver.username}</span>
-            </div>
-            <span class="text-sm" style="color: var(--text-muted)">
-              {solver.solve_time_display || "—"}
-            </span>
-          </li>
-        </ol>
-      </div>
-    </div>
-
-    <%!-- Answer feed --%>
-    <div id="answer-feed" class="mt-8">
-      <h2
-        class="text-xs font-semibold uppercase tracking-wide mb-3"
-        style="color: var(--text-muted)"
-      >
-        {chat_status(@riddle.play_status)}
-      </h2>
-      <div id="answers" phx-update="stream" class="space-y-0">
-        <div
-          :for={{dom_id, answer} <- @streams.answers}
+          :for={{dom_id, msg} <- @streams.answers}
           id={dom_id}
-          class="feed-entry flex items-center gap-3 px-3 py-2.5 text-sm"
-          style={[
-            "border-bottom: 1px solid rgba(255,255,255,0.03);",
-            cond do
-              answer.show_highlight ->
-                "border-left: 3px solid var(--accent); padding-left: 10px"
-
-              Map.get(answer, :chat, false) ->
-                "border-left: 3px solid #4338ca; padding-left: 10px"
-
-              true ->
-                ""
-            end
-          ]}
+          class="rg-post-chat-msg"
         >
-          <span class="font-medium shrink-0" style="color: var(--text)">{answer.username}</span>
-          <span class="flex-1 truncate" style="color: var(--text-muted)">{answer.text}</span>
-          <span :if={answer.offset_ms} class="text-xs shrink-0" style="color: #52525b">
-            +{format_offset(answer.offset_ms)}
-          </span>
+          <div
+            class={"rg-post-chat-avatar rg-post-chat-avatar--#{avatar_color(msg.username)}"}
+            aria-hidden="true"
+          >
+            {String.first(msg.username) |> String.upcase()}
+          </div>
+          <div class="rg-post-chat-body">
+            <span class="rg-post-chat-name rg-post-chat-name--cyan">{msg.username}</span>
+            <p class="rg-post-chat-text">{msg.text}</p>
+          </div>
         </div>
+      </div>
+
+      <div class="rg-post-chat-input">
+        <form id="chat-form" phx-submit="send_chat" class="contents">
+          <input
+            id="chat-input"
+            type="text"
+            name="message"
+            placeholder="Say something..."
+            autocomplete="off"
+            class="rg-post-chat-field"
+            aria-label="Chat message"
+          />
+          <button class="rg-post-chat-send" type="submit" aria-label="Send message">↑</button>
+        </form>
       </div>
     </div>
   </div>
-</div>
+</section>
 
+<%!-- ═══════════════════════════════════════════════════════════════
+     NAV BAR
+     ═══════════════════════════════════════════════════════════════ --%>
+<.game_nav active={:riddle} game_id={to_string(@riddle.id)} />
+
+<%!-- ═══════════════════════════════════════════════════════════════
+     JS HOOKS
+     ═══════════════════════════════════════════════════════════════ --%>
 <script :type={Phoenix.LiveView.ColocatedHook} name=".SolveTimer">
   export default {
     mounted() {
       this.displayEl = this.el.querySelector("[data-timer-display]")
       this.render(parseInt(this.el.dataset.seconds, 10) || 0)
-      this.handleEvent("countdown-tick", ({ seconds }) => {
-        this.render(seconds)
-      })
+      this.handleEvent("countdown-tick", ({ seconds }) => { this.render(seconds) })
     },
     render(secs) {
       const m = Math.floor(secs / 60).toString().padStart(2, "0")
       const s = (secs % 60).toString().padStart(2, "0")
       if (this.displayEl) this.displayEl.textContent = `${m}:${s}`
-
       const urgency = secs <= 10 ? "critical" : secs <= 30 ? "warning" : "normal"
       const card = this.el.closest("[id='solve-timer-card']") || this.el
-      if (card.dataset.urgency !== urgency) {
-        card.dataset.urgency = urgency
-      }
-
-      if (this.displayEl) {
-        if (secs > 30 || secs <= 10) {
-          this.displayEl.style.color = ""
-        } else {
-          const t = (30 - secs) / 20
-          const r = Math.round(55 + t * (234 - 55))
-          const g = Math.round(65 + t * (88 - 65))
-          const b = Math.round(81 + t * (12 - 81))
-          this.displayEl.style.color = `rgb(${r},${g},${b})`
-        }
-      }
+      if (card.dataset.urgency !== urgency) card.dataset.urgency = urgency
     }
   }
 </script>
@@ -354,21 +225,45 @@
 <script :type={Phoenix.LiveView.ColocatedHook} name=".RiddleReveal">
   export default {
     mounted() {
-      const para = this.el.querySelector("p")
+      const para = this.el
       if (!para) return
-
       const escape = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       const words = para.textContent.trim().split(/\s+/)
-      para.innerHTML = words
-        .map(w => `<span class="riddle-word">${escape(w)} </span>`)
-        .join("")
-
+      para.innerHTML = words.map(w => `<span class="riddle-word">${escape(w)} </span>`).join("")
       setTimeout(() => {
-        const spans = para.querySelectorAll(".riddle-word")
-        spans.forEach((span, i) => {
+        para.querySelectorAll(".riddle-word").forEach((span, i) => {
           setTimeout(() => span.classList.add("revealed"), i * 60)
         })
       }, 300)
+    }
+  }
+</script>
+
+<script :type={Phoenix.LiveView.ColocatedHook} name=".TabBar">
+  export default {
+    mounted() {
+      this._resolveTransition = null
+      this.el.addEventListener("click", e => {
+        const btn = e.target.closest("[data-tab]")
+        if (!btn) return
+        const tab = btn.dataset.tab
+        if (!document.startViewTransition) {
+          this.pushEvent("switch_tab", { tab })
+          return
+        }
+        document.startViewTransition(() =>
+          new Promise(resolve => {
+            this._resolveTransition = resolve
+            this.pushEvent("switch_tab", { tab })
+          })
+        )
+      })
+    },
+    updated() {
+      if (this._resolveTransition) {
+        this._resolveTransition()
+        this._resolveTransition = null
+      }
     }
   }
 </script>
@@ -378,13 +273,21 @@
     mounted() {
       this.handleEvent("answer-shake", () => {
         const input = this.el.querySelector("#answer-input")
+        const field = this.el.querySelector(".rg-input-field")
         if (!input) return
-        input.classList.remove("shake", "input-error")
+        input.classList.remove("shake")
         void input.offsetWidth
-        input.classList.add("shake", "input-error")
-        setTimeout(() => input.classList.remove("shake", "input-error"), 700)
+        input.classList.add("shake")
+        if (field) {
+          field.classList.remove("rg-input-field--error-animate")
+          void field.offsetWidth
+          field.classList.add("rg-input-field--error-animate")
+        }
+        setTimeout(() => {
+          input.classList.remove("shake")
+          if (field) field.classList.remove("rg-input-field--error-animate")
+        }, 700)
       })
-
       this.handleEvent("answer-correct", () => {
         this.el.style.transition = "opacity 400ms ease"
         this.el.style.opacity = "0"

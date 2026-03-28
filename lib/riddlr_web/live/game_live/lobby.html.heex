@@ -1,0 +1,54 @@
+<%!-- ═══════════════════════════════════════════════════════════════
+     TIMER SECTION — pre-game countdown
+     ═══════════════════════════════════════════════════════════════ --%>
+<section class="rg-timer-section" aria-label="Countdown to game start">
+  <.scheduled_game_countdown riddle={@riddle} time_remaining={@time_remaining} />
+
+  <div class="rg-pre-game__waiting" aria-live="polite" aria-atomic="true">
+    <span class="rg-pre-game__label">
+      {@player_count} {if @player_count == 1, do: "player waiting", else: "players waiting"}
+    </span>
+  </div>
+</section>
+
+<%!-- ═══════════════════════════════════════════════════════════════
+     NAV BAR
+     ═══════════════════════════════════════════════════════════════ --%>
+<.game_nav active={:riddle} game_id={to_string(@riddle.id)} />
+
+<%!-- ═══════════════════════════════════════════════════════════════
+     JS HOOKS
+     ═══════════════════════════════════════════════════════════════ --%>
+<script :type={Phoenix.LiveView.ColocatedHook} name=".Countdown">
+  export default {
+    mounted() {
+      this.tick()
+      this.interval = setInterval(() => this.tick(), 1000)
+      this.handleEvent("countdown-tick", ({ seconds }) => {
+        this.el.dataset.seconds = seconds
+        this.tick()
+      })
+    },
+    destroyed() {
+      clearInterval(this.interval)
+    },
+    tick() {
+      const secs = parseInt(this.el.dataset.seconds, 10) || 0
+      const m = Math.floor(secs / 60).toString().padStart(2, "0")
+      const s = (secs % 60).toString().padStart(2, "0")
+      this.el.textContent = `${m}:${s}`
+
+      if (secs <= 10) {
+        this.el.style.color = "var(--error)"
+      } else if (secs <= 60) {
+        this.el.style.color = "var(--text-emphasis)"
+      } else {
+        this.el.style.color = "var(--accent-gold)"
+      }
+
+      this.el.classList.remove("countdown-tick")
+      void this.el.offsetWidth
+      this.el.classList.add("countdown-tick")
+    }
+  }
+</script>
