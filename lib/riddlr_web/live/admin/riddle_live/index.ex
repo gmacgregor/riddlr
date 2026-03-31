@@ -28,12 +28,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   end
 
   defp apply_action(socket, :new, _params) do
-    socket |> assign(:riddle, %Riddle{}) |> assign(:page_title, "New Riddle")
+    socket |> assign(:riddle, %Riddle{}) |> assign(:page_title, "New riddle")
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
     riddle = Games.get_riddle!(id)
-    socket |> assign(:riddle, riddle) |> assign(:page_title, "Edit #{riddle.name}")
+    socket |> assign(:riddle, riddle) |> assign(:page_title, "Edit riddle")
   end
 
   defp apply_action(socket, :show, %{"id" => id}) do
@@ -97,11 +97,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   defp play_status_text("completed"), do: "cooldown"
   defp play_status_text("archived"), do: "archived"
 
-  defp play_status_color("closed"), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
-  defp play_status_color("scheduled"), do: "bg-blue-50 text-blue-700 ring-blue-700/10"
-  defp play_status_color("ready"), do: "bg-yellow-50 text-yellow-800 ring-yellow-600/20"
-  defp play_status_color("live"), do: "bg-green-50 text-green-700 ring-green-600/20"
-  defp play_status_color("completed"), do: "bg-purple-50 text-purple-700 ring-purple-700/10"
-  defp play_status_color("archived"), do: "bg-gray-50 text-gray-500 ring-gray-500/10"
-  defp play_status_color(_), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
+  defp play_status_color("closed"), do: "adm-badge--closed"
+  defp play_status_color("scheduled"), do: "adm-badge--scheduled"
+  defp play_status_color("ready"), do: "adm-badge--ready"
+  defp play_status_color("live"), do: "adm-badge--live"
+  defp play_status_color("completed"), do: "adm-badge--completed"
+  defp play_status_color("archived"), do: "adm-badge--archived"
+  defp play_status_color(_), do: "adm-badge--closed"
 end

@@ -18,98 +18,121 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     ~H"""
     <div>
       <%!-- <.header>{@title}</.header> --%>
+      <p>
+        Play status
+        <span class={["adm-badge", play_status_color(@riddle.play_status)]}>
+          {@riddle.play_status}
+        </span>
+      </p>
       <.form
         :let={f}
+        class="form"
         for={@form}
         id="riddle-form"
         phx-target={@myself}
         phx-change="validate"
         phx-submit="save"
       >
-        <.input field={f[:name]} type="text" label="Name" required />
         <.input
-          field={f[:category_id]}
-          type="select"
-          label="Category"
-          prompt="Choose a category"
-          options={@categories}
+          field={f[:name]}
+          type="text"
+          label="Name"
           required
+          placeholder="…"
         />
+        <div class="adm-form-row adm-form-row--2-1-1-1">
+          <div>
+            <.input
+              field={f[:category_id]}
+              type="select"
+              label="Category"
+              prompt="Choose a category"
+              options={@categories}
+              required
+            />
+          </div>
+          <div>
+            <.input
+              field={f[:difficulty]}
+              type="select"
+              label="Difficulty"
+              prompt="Choose"
+              options={Riddlr.Games.Riddle.difficulties()}
+            />
+          </div>
+          <div>
+            <.input
+              field={f[:solve_time]}
+              type="number"
+              label="Solve time (sec)"
+              min="1"
+              required
+              placeholder={solve_time()}
+            />
+          </div>
+          <div>
+            <.input
+              field={f[:hint_delay]}
+              type="number"
+              label="Hint delay (sec)"
+              min="0"
+              placeholder={hint_delay()}
+            />
+          </div>
+        </div>
         <.input
-          field={f[:difficulty]}
-          type="select"
-          label="Difficulty"
-          prompt="Choose"
-          options={Riddlr.Games.Riddle.difficulties()}
+          field={f[:description]}
+          type="textarea"
+          label="Riddle"
+          rows="4"
+          required
+          placeholder="What disappears as soon as you say its name?"
         />
-        <.input field={f[:description]} type="textarea" label="Riddle" rows="4" required />
         <.input
           field={f[:answers]}
           type="textarea"
           label="Answers (one per line, most acceptable first)"
           rows="3"
           required
-          placeholder=""
+          placeholder="silence"
         />
-        <.input
-          field={f[:solve_time]}
-          type="number"
-          label="Solve Time (seconds)"
-          min="1"
-          required
-          placeholder={solve_time()}
-        />
-        <.input field={f[:hint]} type="textarea" label="Hint" rows="2" />
-        <.input
-          field={f[:hint_delay]}
-          type="number"
-          label="Hint Delay (seconds)"
-          min="0"
-          placeholder={hint_delay()}
-        />
-        <.input
-          field={f[:publish_status]}
-          type="select"
-          label="Publish Status"
-          options={Riddlr.Games.Riddle.publish_statuses()}
-        />
-        <div class="space-y-2">
-          <label class="block text-sm font-medium leading-6 text-gray-900">
-            Play Status
-          </label>
+        <.input field={f[:hint]} type="text" label="Hint" rows="2" placeholder="Optional hint…" />
+        <div class="adm-form-row adm-form-row--equal">
           <div>
-            <span class={[
-              "inline-flex items-center rounded-md px-2 py-1 text-sm font-medium ring-1 ring-inset",
-              play_status_color(@riddle.play_status)
-            ]}>
-              {@riddle.play_status}
-            </span>
-            <p class="mt-2 text-sm text-gray-500">
-              Play status is managed automatically by the system based on publish status and scheduling.
-            </p>
-          </div>
-        </div>
-        <%= if @riddle.play_status in ["completed", "archived"] do %>
-          <div class="space-y-2">
             <.input
-              field={f[:archive_cooldown_minutes]}
+              field={f[:ready_before_seconds]}
               type="number"
-              label="Archive Cooldown (minutes)"
+              label="Lobby opens (sec before live)"
+              min="1"
+            />
+          </div>
+          <div>
+            <.input
+              field={f[:archive_after_seconds]}
+              type="number"
+              label="Archive cool off (sec)"
               min="0"
             />
-            <p class="text-sm text-gray-500">
-              Minutes to wait before archiving after completion. Set to 0 to skip cooldown.
-            </p>
           </div>
-        <% end %>
-        <.input
-          field={f[:live_date]}
-          type="datetime-local"
-          label="Live Date (EST/EDT - when riddle goes live)"
-        />
-        <div class="mt-4 flex gap-2">
+          <div>
+            <.input
+              field={f[:publish_status]}
+              type="select"
+              label="Publish status"
+              options={Riddlr.Games.Riddle.publish_statuses()}
+            />
+          </div>
+          <div>
+            <.input
+              field={f[:live_date]}
+              type="datetime-local"
+              label="Live date (EST/EDT)"
+            />
+          </div>
+        </div>
+        <div class="adm-form-controls">
           <.button phx-disable-with="Saving...">Save</.button>
-          <.link patch={@patch} class="btn">
+          <.link patch={@patch}>
             Cancel
           </.link>
         </div>
@@ -195,7 +218,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       {:ok, riddle} ->
         # Check if we need to reschedule due to live_date change
         if should_reschedule?(current_riddle, riddle, old_live_date) do
-          RiddleScheduler.reschedule_jobs(riddle.id, riddle.live_date)
+          RiddleScheduler.reschedule_jobs(riddle, riddle.live_date)
         end
 
         # Regular update
@@ -216,25 +239,23 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     with {:ok, riddle} <- Games.create_riddle(params) do
       if should_auto_schedule?(riddle, params, effective_live_date) do
         case Games.schedule_riddle(riddle, effective_live_date) do
-          {:ok, %{riddle: scheduled_riddle, ready_job: ready_job, live_job: live_job}} ->
+          {:ok, %{riddle: scheduled_riddle}} ->
             send(self(), {:riddle_saved, scheduled_riddle})
-            ready_time = ready_time_display(to_est_datetime(ready_job.scheduled_at))
-            live_time = live_time_display(to_est_datetime(live_job.scheduled_at))
 
             {:noreply,
              socket
              |> put_flash(
                :info,
-               "Riddle: \"#{riddle.name}\" saved.\nLobby opens: #{ready_time}. Riddle goes live: #{live_time}"
+               "Riddle: \"#{riddle.name}\" saved."
              )
              |> push_patch(to: socket.assigns.patch)}
 
-          {:error, reason} ->
+          {:error, _reason} ->
             send(self(), {:riddle_saved, riddle})
 
             {:noreply,
              socket
-             |> put_flash(:warning, "Riddle created but scheduling failed: #{inspect(reason)}")
+             |> put_flash(:warning, "Riddle created but scheduling failed.")
              |> push_patch(to: socket.assigns.patch)}
         end
       else
@@ -357,12 +378,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     end
   end
 
-  # Helper function to assign color classes based on play_status
-  defp play_status_color("closed"), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
-  defp play_status_color("scheduled"), do: "bg-blue-50 text-blue-700 ring-blue-700/10"
-  defp play_status_color("ready"), do: "bg-yellow-50 text-yellow-800 ring-yellow-600/20"
-  defp play_status_color("live"), do: "bg-green-50 text-green-700 ring-green-600/20"
-  defp play_status_color("completed"), do: "bg-purple-50 text-purple-700 ring-purple-700/10"
-  defp play_status_color("archived"), do: "bg-gray-50 text-gray-500 ring-gray-500/10"
-  defp play_status_color(_), do: "bg-gray-50 text-gray-600 ring-gray-500/10"
+  defp play_status_color("closed"), do: "adm-badge--closed"
+  defp play_status_color("scheduled"), do: "adm-badge--scheduled"
+  defp play_status_color("ready"), do: "adm-badge--ready"
+  defp play_status_color("live"), do: "adm-badge--live"
+  defp play_status_color("completed"), do: "adm-badge--completed"
+  defp play_status_color("archived"), do: "adm-badge--archived"
+  defp play_status_color(_), do: "adm-badge--closed"
 end

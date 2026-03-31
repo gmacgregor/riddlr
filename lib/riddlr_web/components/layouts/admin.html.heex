@@ -1,17 +1,17 @@
-<header class="navbar bg-base-200">
-  <div class="flex-1">
-    <.link navigate={~p"/"} class="btn btn-ghost text-xl">Riddlr</.link>
-    <span class="badge badge-primary ml-2">Admin</span>
-  </div>
-  <div class="flex-none">
-    <ul class="menu menu-horizontal px-1">
-      <li><.link navigate={~p"/admin/riddles"}>Riddles</.link></li>
-      <li><.link navigate={~p"/admin/categories"}>Categories</.link></li>
-      <li><.link navigate={~p"/"}>Back to Site</.link></li>
-    </ul>
-  </div>
-</header>
-<main class="container mx-auto px-4 py-8">
-  <.flash_group flash={@flash} />
-  {@inner_content}
-</main>
+<div class="adm-page">
+  <header class="adm-header">
+    <div class="adm-header__inner">
+      <.link navigate={~p"/"} class="adm-header__brand">Riddlr</.link>
+      <span class="adm-header__badge">Admin</span>
+    </div>
+    <nav class="adm-header__nav">
+      <.link navigate={~p"/admin/riddles"} class="adm-header__link">Riddles</.link>
+      <.link navigate={~p"/admin/categories"} class="adm-header__link">Categories</.link>
+      <.link navigate={~p"/"} class="adm-header__link">Back to Site</.link>
+    </nav>
+  </header>
+  <main class={["adm-main", "adm-main-#{@live_action}"]}>
+    <.flash_group flash={@flash} />
+    {@inner_content}
+  </main>
+</div>

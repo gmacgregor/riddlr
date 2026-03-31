@@ -7,7 +7,7 @@
   </:actions>
 </.header>
 
-<div :if={@live_action in [:new, :edit]} class="mb-8">
+<div :if={@live_action in [:new, :edit]} class="adm-form-section mb-8">
   <.live_component
     module={RiddlrWeb.Admin.CategoryLive.FormComponent}
     id={@category.id || :new}

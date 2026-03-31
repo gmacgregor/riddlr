@@ -229,7 +229,10 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
         Oban.Job
         |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
         |> where([j], j.state in ["scheduled", "available"])
-        |> where([j], j.scheduled_at == ^DateTime.add(old_live_date, -300))
+        |> where(
+          [j],
+          j.scheduled_at == ^DateTime.add(old_live_date, -riddle.ready_before_seconds)
+        )
         |> Riddlr.Repo.all()
 
       assert length(old_jobs) == 0
@@ -251,7 +254,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
         Enum.find(new_jobs, &(&1.worker == "Riddlr.Workers.LiveRiddleTransitionWorker"))
 
       assert DateTime.truncate(ready_job.scheduled_at, :second) ==
-               DateTime.add(new_live_date, -300)
+               DateTime.add(new_live_date, -riddle.ready_before_seconds)
 
       assert DateTime.truncate(live_job.scheduled_at, :second) == new_live_date
     end
@@ -345,7 +348,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
     test "shows archive cooldown field when riddle is completed", %{conn: conn, admin: admin} do
       riddle =
-        GamesFixtures.riddle_fixture(%{play_status: "completed", archive_cooldown_minutes: 5})
+        GamesFixtures.riddle_fixture(%{play_status: "completed", archive_after_seconds: 5})
 
       conn = log_in_user(conn, admin)
 
@@ -357,7 +360,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
     test "shows archive cooldown field when riddle is archived", %{conn: conn, admin: admin} do
       riddle =
-        GamesFixtures.riddle_fixture(%{play_status: "archived", archive_cooldown_minutes: 10})
+        GamesFixtures.riddle_fixture(%{play_status: "archived", archive_after_seconds: 10})
 
       conn = log_in_user(conn, admin)
 
