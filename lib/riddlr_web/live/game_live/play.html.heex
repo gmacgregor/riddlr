@@ -239,35 +239,6 @@
   }
 </script>
 
-<script :type={Phoenix.LiveView.ColocatedHook} name=".TabBar">
-  export default {
-    mounted() {
-      this._resolveTransition = null
-      this.el.addEventListener("click", e => {
-        const btn = e.target.closest("[data-tab]")
-        if (!btn) return
-        const tab = btn.dataset.tab
-        if (!document.startViewTransition) {
-          this.pushEvent("switch_tab", { tab })
-          return
-        }
-        document.startViewTransition(() =>
-          new Promise(resolve => {
-            this._resolveTransition = resolve
-            this.pushEvent("switch_tab", { tab })
-          })
-        )
-      })
-    },
-    updated() {
-      if (this._resolveTransition) {
-        this._resolveTransition()
-        this._resolveTransition = null
-      }
-    }
-  }
-</script>
-
 <script :type={Phoenix.LiveView.ColocatedHook} name=".AnswerForm">
   export default {
     mounted() {

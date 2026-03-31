@@ -182,6 +182,10 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       |> form("#answer-form", %{answer: "keyboard"})
       |> render_submit()
 
+      # Trigger the delayed :mark_solved message that Process.send_after enqueues
+      send(live.pid, {:mark_solved, riddle.id})
+      render(live)
+
       refute has_element?(live, "#answer-form-container")
     end
 

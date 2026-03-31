@@ -8,6 +8,7 @@ defmodule RiddlrWeb.CustomComponents do
     statics: RiddlrWeb.static_paths()
 
   import Riddlr.Utils.User
+  import Phoenix.LiveView.JS
 
   # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -331,20 +332,14 @@ defmodule RiddlrWeb.CustomComponents do
 
   def game_tab_bar(assigns) do
     ~H"""
-    <div
-      id="tab-bar"
-      class="rg-tab-bar"
-      role="tablist"
-      aria-label="Post-game content tabs"
-      phx-hook=".TabBar"
-    >
+    <div id="tab-bar" class="rg-tab-bar" role="tablist" aria-label="Post-game content tabs">
       <button
         class={["rg-tab", @active_tab == :leaderboard && "rg-tab--active"]}
         role="tab"
         aria-selected={to_string(@active_tab == :leaderboard)}
         aria-controls="panel-leaderboard"
-        data-tab="leaderboard"
         type="button"
+        phx-click={switch_tab("leaderboard")}
       >
         🏆 Leaderboard
         <span :if={@active_tab == :leaderboard} class="rg-tab__indicator" aria-hidden="true"></span>
@@ -354,8 +349,8 @@ defmodule RiddlrWeb.CustomComponents do
         role="tab"
         aria-selected={to_string(@active_tab == :chat)}
         aria-controls="panel-chat"
-        data-tab="chat"
         type="button"
+        phx-click={switch_tab("chat")}
       >
         <span class="rg-tab__row">
           💬 Chat
@@ -371,5 +366,13 @@ defmodule RiddlrWeb.CustomComponents do
       </button>
     </div>
     """
+  end
+
+  defp switch_tab(tab) do
+    other = if tab == "leaderboard", do: "chat", else: "leaderboard"
+
+    remove_attribute("hidden", to: "#panel-#{tab}")
+    |> set_attribute({"hidden", ""}, to: "#panel-#{other}")
+    |> push("switch_tab", value: %{tab: tab})
   end
 end

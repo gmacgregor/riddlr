@@ -156,10 +156,13 @@ defmodule RiddlrWeb.GameLive.Play do
           end
         end
 
+        # Delay already_solved assign by 450ms so the .AnswerForm fade animation (400ms)
+        # completes before LiveView removes the form container from the DOM.
+        Process.send_after(self(), {:mark_solved, riddle.id}, 450)
+
         {:noreply,
          socket
          |> push_event("answer-correct", %{})
-         |> assign(:already_solved, true)
          |> assign(:submission_state, {:correct, placement, points})}
       else
         socket = assign(socket, :try_again_message, try_again())
@@ -251,7 +254,7 @@ defmodule RiddlrWeb.GameLive.Play do
         end)
 
       top_solvers = load_top_solvers(riddle.id)
-      cooldown_remaining = riddle.archive_cooldown_minutes * 60
+      cooldown_remaining = riddle.archive_after_seconds
 
       if cooldown_remaining > 0 do
         Process.send_after(self(), :cooldown_tick, 1000)
@@ -320,6 +323,14 @@ defmodule RiddlrWeb.GameLive.Play do
 
   def handle_info({:user_status_changed, _status}, socket) do
     {:noreply, assign(socket, :banned, false)}
+  end
+
+  def handle_info({:mark_solved, riddle_id}, socket) do
+    if socket.assigns.riddle.id == riddle_id do
+      {:noreply, assign(socket, :already_solved, true)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
