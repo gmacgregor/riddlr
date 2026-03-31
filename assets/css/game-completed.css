@@ -1,0 +1,729 @@
+/* =============================================================================
+   game-completed.css — Riddlr Round Complete & Post-Game Chat
+   Covers: round-complete header, accepted answers, round stats,
+           leaderboard, podium, tab bar, post-game chat.
+   All class names use rg- prefix. All values use the fluid scale
+   defined in riddlr.css.
+   ============================================================================= */
+
+/* =============================================================================
+   ROUND HEADER — Round Complete / Time's Up
+   ============================================================================= */
+.rg-round-header {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-l) var(--space-xl);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+.rg-round-header__emoji {
+  font-size: var(--step-3);
+  line-height: 1;
+}
+
+.rg-round-header__title {
+  font-family: "DM Sans", sans-serif;
+  font-size: var(--step-2);
+  font-weight: 800;
+  color: var(--text-emphasis);
+  text-align: center;
+}
+
+.rg-round-header__subtitle {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Time's Up state overrides */
+.rg-round-header--expired .rg-round-header__title {
+  color: var(--accent-pink);
+}
+
+/* Riddle text recap within header */
+.rg-round-riddle-text {
+  font-family: "DM Serif Display", Georgia, serif;
+  font-style: italic;
+  font-size: var(--step-0);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+  text-align: center;
+  width: 100%;
+}
+
+/* =============================================================================
+   ACCEPTED ANSWERS
+   ============================================================================= */
+.rg-answers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+}
+
+.rg-answers__label {
+  font-size: var(--step--2);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.rg-answers__pills {
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.rg-pill {
+  padding: var(--space-3xs) var(--space-s);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-gold);
+  border-radius: var(--radius-pill);
+  font-family: "DM Serif Display", Georgia, serif;
+  font-style: italic;
+  font-size: var(--step-0);
+  color: var(--accent-gold);
+}
+
+/* =============================================================================
+   ROUND STATS — Time's Up only
+   ============================================================================= */
+.rg-round-stats {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-xs) var(--space-m);
+  background: var(--bg-surface);
+  border-radius: var(--radius-m);
+}
+
+.rg-round-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3xs);
+}
+
+.rg-round-stat__value {
+  font-size: var(--step-1);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.rg-round-stat__value--green {
+  color: var(--accent-green);
+}
+.rg-round-stat__value--pink {
+  color: var(--accent-pink);
+}
+.rg-round-stat__value--gold {
+  color: var(--accent-gold);
+}
+
+.rg-round-stat__label {
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+/* =============================================================================
+   DIVIDER
+   ============================================================================= */
+.rg-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* =============================================================================
+   ROUND CONTENT AREA
+   ============================================================================= */
+.rg-round-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* =============================================================================
+   TAB BAR — Leaderboard | Chat
+   ============================================================================= */
+.rg-tab-bar {
+  display: flex;
+  background: var(--bg-elevated);
+  padding: 0 var(--space-m);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rg-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3xs);
+  padding: var(--space-s) 0 var(--space-xs) 0;
+  font-family: "Inter", sans-serif;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  transition: color 150ms ease;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+.rg-tab--active {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rg-tab:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-s);
+}
+
+/* Active tab gradient indicator */
+.rg-tab__indicator {
+  width: clamp(1.75rem, 1.663rem + 0.4348vw, 2rem);
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gradient-cta);
+}
+
+/* Chat unread badge */
+.rg-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3xs) var(--space-2xs);
+  background: var(--accent-pink);
+  border-radius: var(--radius-s);
+  font-size: var(--step--2);
+  font-weight: 700;
+  color: var(--text-emphasis);
+  line-height: 1;
+}
+
+.rg-tab__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3xs);
+  justify-content: center;
+}
+
+/* =============================================================================
+   LEADERBOARD
+   ============================================================================= */
+.rg-leaderboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  padding: var(--space-m) var(--space-l);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-glow) transparent;
+}
+
+.rg-leaderboard::-webkit-scrollbar {
+  width: 3px;
+}
+.rg-leaderboard::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rg-leaderboard::-webkit-scrollbar-thumb {
+  background: var(--bg-glow);
+  border-radius: 2px;
+}
+
+/* ─── Podium Top 3 ─────────────────────────────────────────────────────────── */
+.rg-podium {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-s);
+  justify-content: center;
+  width: 100%;
+}
+
+.rg-podium__card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3xs);
+  padding: var(--space-s) var(--space-xs);
+  border-radius: var(--radius-xl);
+}
+
+.rg-podium__card--gold {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--medal-gold);
+}
+
+.rg-podium__card--silver {
+  background: var(--bg-elevated);
+  border: 1px solid var(--medal-silver);
+}
+
+.rg-podium__card--bronze {
+  background: var(--bg-elevated);
+  border: 1px solid var(--medal-bronze);
+}
+
+.rg-podium__badge {
+  font-size: var(--step-1);
+  line-height: 1;
+}
+
+.rg-podium__avatar {
+  width: clamp(1.75rem, 1.663rem + 0.4348vw, 2rem);
+  height: clamp(1.75rem, 1.663rem + 0.4348vw, 2rem);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--step--1);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.rg-podium__avatar--gold {
+  background: var(--medal-gold);
+  color: #1a1035;
+}
+.rg-podium__avatar--silver {
+  background: var(--medal-silver);
+  color: var(--text-emphasis);
+}
+.rg-podium__avatar--bronze {
+  background: var(--medal-bronze);
+  color: #1a1035;
+}
+
+.rg-podium__name {
+  font-size: var(--step--2);
+  font-weight: 700;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.rg-podium__name--gold {
+  color: var(--medal-gold);
+}
+.rg-podium__name--silver {
+  color: var(--medal-silver);
+  font-weight: 600;
+}
+.rg-podium__name--bronze {
+  color: var(--medal-bronze);
+  font-weight: 600;
+}
+
+.rg-podium__time {
+  font-size: var(--step--2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rg-podium__card--gold .rg-podium__time {
+  color: var(--accent-green);
+}
+.rg-podium__card--silver .rg-podium__time,
+.rg-podium__card--bronze .rg-podium__time {
+  color: var(--text-secondary);
+}
+
+/* ─── Ranked List 4th+ ────────────────────────────────────────────────────── */
+.rg-ranks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.rg-rank {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-xs) var(--space-m);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-s);
+}
+
+.rg-rank__number {
+  font-size: var(--step--2);
+  font-weight: 700;
+  color: var(--text-tertiary);
+  width: var(--space-m);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.rg-rank__avatar {
+  width: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  height: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--step--2);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rg-rank__avatar--gold {
+  background: var(--avatar-gold);
+  color: #1a1035;
+}
+.rg-rank__avatar--purple {
+  background: var(--avatar-purple);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--pink {
+  background: var(--avatar-pink);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--cyan {
+  background: var(--avatar-cyan);
+  color: #1a1035;
+}
+.rg-rank__avatar--indigo {
+  background: var(--avatar-indigo);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--green {
+  background: var(--avatar-green);
+  color: #1a1035;
+}
+.rg-rank__avatar--hotpink {
+  background: var(--avatar-hotpink);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--orange {
+  background: var(--avatar-orange);
+  color: #1a1035;
+}
+.rg-rank__avatar--teal {
+  background: var(--avatar-teal);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--violet {
+  background: var(--avatar-violet);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--lime {
+  background: var(--avatar-lime);
+  color: #1a1035;
+}
+.rg-rank__avatar--amber {
+  background: var(--avatar-amber);
+  color: #1a1035;
+}
+.rg-rank__avatar--sky {
+  background: var(--avatar-sky);
+  color: #1a1035;
+}
+.rg-rank__avatar--rose {
+  background: var(--avatar-rose);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--emerald {
+  background: var(--avatar-emerald);
+  color: #1a1035;
+}
+.rg-rank__avatar--slate {
+  background: var(--avatar-slate);
+  color: var(--text-emphasis);
+}
+.rg-rank__avatar--magenta {
+  background: var(--avatar-magenta);
+  color: var(--text-emphasis);
+}
+
+.rg-rank__name {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rg-rank__time {
+  font-size: var(--step--2);
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Show All Button ────────────────────────────────────────────────────── */
+.rg-show-all {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-s) var(--space-m);
+  background: var(--bg-surface);
+  border-radius: var(--radius-m);
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: background 150ms ease;
+  cursor: pointer;
+  border: none;
+}
+
+.rg-show-all:hover {
+  background: var(--bg-glow);
+}
+
+.rg-show-all:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* =============================================================================
+   POST-GAME CHAT
+   ============================================================================= */
+.rg-post-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.rg-post-chat-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  padding: var(--space-xs) var(--space-m);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-glow) transparent;
+}
+
+.rg-post-chat-messages::-webkit-scrollbar {
+  width: 3px;
+}
+.rg-post-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rg-post-chat-messages::-webkit-scrollbar-thumb {
+  background: var(--bg-glow);
+  border-radius: 2px;
+}
+
+.rg-post-chat-msg {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-s);
+  border-radius: var(--radius-s);
+}
+
+.rg-post-chat-msg--alt {
+  background: var(--bg-elevated);
+}
+
+/* ─── Chat Avatars ────────────────────────────────────────────────────────── */
+.rg-post-chat-avatar {
+  width: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  height: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--step--2);
+  font-weight: 700;
+  color: var(--text-emphasis);
+  flex-shrink: 0;
+}
+
+.rg-post-chat-avatar--pink {
+  background: var(--avatar-pink);
+}
+.rg-post-chat-avatar--primary {
+  background: var(--accent-primary);
+}
+.rg-post-chat-avatar--gold {
+  background: var(--avatar-gold);
+  color: #1a1035;
+}
+.rg-post-chat-avatar--cyan {
+  background: var(--avatar-cyan);
+  color: #1a1035;
+}
+.rg-post-chat-avatar--indigo {
+  background: var(--avatar-indigo);
+}
+.rg-post-chat-avatar--hotpink {
+  background: var(--avatar-hotpink);
+}
+
+/* ─── Chat Body ──────────────────────────────────────────────────────────── */
+.rg-post-chat-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  flex: 1;
+  min-width: 0;
+}
+
+.rg-post-chat-name {
+  font-size: var(--step--2);
+  font-weight: 600;
+}
+
+.rg-post-chat-name--gold {
+  color: var(--accent-gold);
+}
+.rg-post-chat-name--silver {
+  color: var(--medal-silver);
+}
+.rg-post-chat-name--cyan {
+  color: var(--accent-cyan);
+}
+.rg-post-chat-name--bronze {
+  color: var(--medal-bronze);
+}
+
+.rg-post-chat-text {
+  font-size: var(--step--1);
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+/* ─── Chat Input Bar ──────────────────────────────────────────────────────── */
+.rg-post-chat-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rg-post-chat-field {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: var(--space-xs) var(--space-m);
+  font-family: "Inter", sans-serif;
+  font-size: var(--step-0);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.rg-post-chat-field::placeholder {
+  color: var(--text-tertiary);
+}
+
+.rg-post-chat-field:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+}
+
+.rg-post-chat-send {
+  width: clamp(2rem, 1.8696rem + 0.6522vw, 2.25rem);
+  height: clamp(2rem, 1.8696rem + 0.6522vw, 2.25rem);
+  border-radius: 50%;
+  background: var(--gradient-cta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--step-0);
+  font-weight: 700;
+  color: var(--text-emphasis);
+  flex-shrink: 0;
+  cursor: pointer;
+  border: none;
+  transition: opacity 150ms ease;
+}
+
+.rg-post-chat-send:hover {
+  opacity: 0.88;
+}
+
+.rg-post-chat-send:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* =============================================================================
+   VIEW TRANSITIONS — Tab panel switch (leaderboard ↔ chat)
+   Uses the View Transitions API. Panels are assigned stable transition names
+   so the browser can capture before/after snapshots and animate between them.
+   Only the visible panel (no `hidden` attr) gets captured per snapshot.
+   ============================================================================= */
+
+#panel-leaderboard {
+  view-transition-name: panel-leaderboard;
+}
+
+#panel-chat {
+  view-transition-name: panel-chat;
+}
+
+@keyframes rg-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rg-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+::view-transition-old(panel-leaderboard),
+::view-transition-old(panel-chat) {
+  animation: rg-panel-out 180ms ease-in forwards;
+}
+
+::view-transition-new(panel-leaderboard),
+::view-transition-new(panel-chat) {
+  animation: rg-panel-in 220ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(panel-leaderboard),
+  ::view-transition-old(panel-chat),
+  ::view-transition-new(panel-leaderboard),
+  ::view-transition-new(panel-chat) {
+    animation: none;
+  }
+}

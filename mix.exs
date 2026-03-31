@@ -85,10 +85,11 @@ defmodule Riddlr.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind riddlr", "esbuild riddlr"],
+      "assets.build": ["compile", "tailwind riddlr", "esbuild riddlr", "esbuild css"],
       "assets.deploy": [
         "tailwind riddlr --minify",
         "esbuild riddlr --minify",
+        "esbuild css --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

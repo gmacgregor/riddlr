@@ -26,6 +26,7 @@ config :riddlr, RiddlrWeb.Endpoint,
   secret_key_base: "j2Y1jR9YYMwMFZlowmusgz8YG4m9LRUTFt9cwCVCOq792XmAFo0cnwFaiy/7Y4Y7",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:riddlr, ~w(--sourcemap=inline --watch)]},
+    esbuild: {Esbuild, :install_and_run, [:css, ~w(--watch)]},
     tailwind: {Tailwind, :install_and_run, [:riddlr, ~w(--watch)]}
   ]
 

@@ -1,0 +1,797 @@
+/* reset */
+/* Box sizing rules */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Prevent font size inflation */
+html {
+  -moz-text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+/* Remove default margin in favour of better control in authored CSS */
+body,
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote,
+dl,
+dd {
+  margin-block-end: 0;
+}
+
+/* Remove list styles on ul, ol elements with a list role, which suggests default styling will be removed */
+ul[role="list"],
+ol[role="list"] {
+  list-style: none;
+}
+
+/* Set core body defaults */
+body {
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* Set shorter line heights on headings and interactive elements */
+h1,
+h2,
+h3,
+h4,
+button,
+input,
+label {
+  line-height: 1.1;
+}
+
+/* Balance text wrapping on headings */
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+/* A elements that don't have a class get default styles */
+a:not([class]) {
+  text-decoration-skip-ink: auto;
+  color: currentColor;
+}
+
+/* Make images easier to work with */
+img,
+picture {
+  max-width: 100%;
+  display: block;
+}
+
+/* Inherit fonts for inputs and buttons */
+input,
+button,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Make sure textareas without a rows attribute are not tiny */
+textarea:not([rows]) {
+  min-height: 10em;
+}
+
+/* Anything that has been anchored to should have extra scroll margin */
+:target {
+  scroll-margin-block: 5ex;
+}
+
+/* Allow form wrappers to participate in flex/grid layout without introducing a box */
+.contents {
+  display: contents;
+}
+
+/* =============================================================================
+   riddle-game.css — Riddlr Game Frame
+   Matches the riddle_game .pen design (frame 3e32x)
+   
+   Fluid Design System
+   -------------------
+   Uses Utopia-style fluid scales for typography and spacing.
+   All values interpolate smoothly between 320px and 1240px viewports.
+   
+   Type scale: 1.2 (minor third)
+   Space scale: Custom fluid scale with consistent ratios
+   ============================================================================= */
+
+/* ─── Design Tokens ──────────────────────────────────────────────────────────── */
+:root {
+  /* ─── Fluid Type Scale ─────────────────────────────────────────────────────── 
+     Generated using Utopia methodology
+     Min viewport: 320px  | Max viewport: 1240px
+     Min base: 14px       | Max base: 16px
+     Scale ratio: 1.2 (minor third)
+  */
+  --step--2: clamp(0.6076rem, 0.5765rem + 0.1554vw, 0.6944rem);
+  --step--1: clamp(0.7292rem, 0.6918rem + 0.1869vw, 0.8333rem);
+  --step-0: clamp(0.875rem, 0.8302rem + 0.2242vw, 1rem);
+  --step-1: clamp(1.05rem, 0.9962rem + 0.2691vw, 1.2rem);
+  --step-2: clamp(1.26rem, 1.1955rem + 0.3229vw, 1.44rem);
+  --step-3: clamp(1.512rem, 1.4346rem + 0.3874vw, 1.728rem);
+  --step-4: clamp(1.8144rem, 1.7215rem + 0.4649vw, 2.0736rem);
+  --step-5: clamp(2.1773rem, 2.0658rem + 0.5579vw, 2.4883rem);
+
+  /* ─── Fluid Space Scale ────────────────────────────────────────────────────── 
+     T-shirt sizes with fluid interpolation
+     Based on --step-0 as the foundation
+  */
+  --space-3xs: clamp(0.25rem, 0.2283rem + 0.1087vw, 0.3125rem);
+  --space-2xs: clamp(0.4375rem, 0.4158rem + 0.1087vw, 0.5rem);
+  --space-xs: clamp(0.6875rem, 0.6441rem + 0.2174vw, 0.8125rem);
+  --space-s: clamp(0.875rem, 0.8315rem + 0.2174vw, 1rem);
+  --space-m: clamp(1.3125rem, 1.2473rem + 0.3261vw, 1.5rem);
+  --space-l: clamp(1.75rem, 1.663rem + 0.4348vw, 2rem);
+  --space-xl: clamp(2.625rem, 2.4946rem + 0.6522vw, 3rem);
+  --space-2xl: clamp(3.5rem, 3.3261rem + 0.8696vw, 4rem);
+  --space-3xl: clamp(5.25rem, 4.9891rem + 1.3043vw, 6rem);
+
+  /* One-up pairs (e.g., space-s-m = small at min viewport, medium at max) */
+  --space-3xs-2xs: clamp(0.25rem, 0.1413rem + 0.5435vw, 0.5rem);
+  --space-2xs-xs: clamp(0.4375rem, 0.3288rem + 0.5435vw, 0.8125rem);
+  --space-xs-s: clamp(0.6875rem, 0.5571rem + 0.6522vw, 1rem);
+  --space-s-m: clamp(0.875rem, 0.6576rem + 1.087vw, 1.5rem);
+  --space-m-l: clamp(1.3125rem, 1.0734rem + 1.1957vw, 2rem);
+  --space-l-xl: clamp(1.75rem, 1.3152rem + 2.1739vw, 3rem);
+  --space-xl-2xl: clamp(2.625rem, 2.1467rem + 2.3913vw, 4rem);
+  --space-2xl-3xl: clamp(3.5rem, 2.6304rem + 4.3478vw, 6rem);
+
+  /* ─── Palette — from Pencil design variables ───────────────────────────────── */
+  --bg-primary: #1a1035;
+  --bg-elevated: #241548;
+  --bg-surface: #2e1d5b;
+  --bg-glow: #3d2878;
+  --border: #3d287844;
+
+  --text-emphasis: #ffffff;
+  --text-primary: #f0eaff;
+  --text-secondary: #a893d6;
+  --text-tertiary: #6b5a8e;
+
+  --accent-primary: #8b5cf6;
+  --accent-primary-light: #8b5cf620;
+  --accent-gold: #fbbf24;
+  --accent-green: #34d399;
+  --accent-pink: #f472b6;
+  --accent-cyan: #67e8f9;
+
+  /* Gradient — submit button */
+  --gradient-cta: linear-gradient(180deg, #8b5cf6 0%, #ec4899 100%);
+
+  /* Correct answer row */
+  --correct-bg: #34d39918;
+  --correct-border: #34d399;
+
+  /* Avatar palette */
+  --avatar-pink: #f472b6;
+  --avatar-purple: #8b5cf6;
+  --avatar-gold: #fbbf24;
+  --avatar-cyan: #67e8f9;
+  --avatar-indigo: #6366f1;
+  --avatar-green: #34d399;
+  --avatar-hotpink: #ec4899;
+  --avatar-orange: #fb923c;
+  --avatar-teal: #14b8a6;
+  --avatar-violet: #a78bfa;
+  --avatar-lime: #84cc16;
+  --avatar-amber: #f59e0b;
+  --avatar-sky: #38bdf8;
+  --avatar-rose: #fb7185;
+  --avatar-emerald: #10b981;
+  --avatar-slate: #64748b;
+  --avatar-magenta: #d946ef;
+
+  /* ─── Medal colors ─────────────────────────────────────────────────────────── */
+  --medal-gold: #ffd700;
+  --medal-silver: #c0c0c0;
+  --medal-bronze: #cd7f32;
+
+  /* ─── Error (color-blind safe: warm orange, distinguishable by deuteranopes/protanopes) */
+  --error: #fb923c;
+  --error-glow: rgba(251, 146, 60, 0.35);
+
+  /* ─── Fluid Radius ─────────────────────────────────────────────────────────── */
+  --radius-s: clamp(0.5rem, 0.4565rem + 0.2174vw, 0.625rem);
+  --radius-m: clamp(0.625rem, 0.5598rem + 0.3261vw, 0.8125rem);
+  --radius-l: clamp(0.75rem, 0.663rem + 0.4348vw, 1rem);
+  --radius-xl: clamp(0.875rem, 0.7663rem + 0.5435vw, 1.1875rem);
+  --radius-2xl: clamp(1rem, 0.8696rem + 0.6522vw, 1.375rem);
+  --radius-pill: clamp(1.125rem, 1.0598rem + 0.3261vw, 1.3125rem);
+
+  /* ─── Avatar size (fluid) ──────────────────────────────────────────────────── */
+  --avatar-size: clamp(1.5rem, 1.3696rem + 0.6522vw, 1.875rem);
+}
+
+/* ─── Reset ──────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+input {
+  border: none;
+  outline: none;
+  background: none;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────────── */
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background: #0d0821;
+  color: var(--text-primary);
+  min-height: 100dvh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Viewport — centers frame on desktop ────────────────────────────────────── */
+.rg-viewport {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100dvh;
+  background:
+    radial-gradient(
+      ellipse 140% 55% at 50% -5%,
+      rgba(61, 40, 120, 0.55) 0%,
+      transparent 68%
+    ),
+    #0d0821;
+}
+
+/* ─── Game Frame ─────────────────────────────────────────────────────────────── */
+.rg-frame {
+  width: 100%;
+  max-width: 440px;
+  height: 844px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+@media (min-width: 441px) {
+  .rg-frame {
+    border-radius: 20px;
+    margin-top: 24px;
+    box-shadow:
+      0 0 0 1px rgba(139, 92, 246, 0.14),
+      0 40px 80px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* =============================================================================
+   TIMER SECTION
+   ============================================================================= */
+.rg-timer-section {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Pre-game State ─────────────────────────────────────────────────────────── */
+.rg-pre-game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-m);
+  padding: var(--space-xs);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.rg-pre-game__label {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.rg-countdown {
+  display: block;
+  font-family: "DM Sans", sans-serif;
+  font-size: clamp(3rem, 2.5rem + 2.5vw, 4rem);
+  font-weight: 800;
+  color: var(--accent-gold);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 40px rgba(251, 191, 36, 0.45);
+}
+
+.rg-pre-game__prompt {
+  font-size: var(--step-0);
+  font-weight: 600;
+  color: var(--accent-pink);
+}
+
+.rg-pre-game__waiting {
+  padding: var(--space-xs) 0 var(--space-s) 0;
+  text-align: center;
+}
+
+/* ─── Active Game State ──────────────────────────────────────────────────────── */
+.rg-active-game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-l);
+  padding: var(--space-xs) var(--space-s);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Time bar */
+.rg-time-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-xs) var(--space-s);
+  background: var(--bg-surface);
+  border-radius: var(--radius-m);
+}
+
+.rg-time-bar__label {
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rg-time-bar__value {
+  font-family: "DM Sans", sans-serif;
+  font-size: var(--step-2);
+  font-weight: 800;
+  color: var(--accent-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Riddle text */
+.rg-riddle-text {
+  font-family: "DM Serif Display", Georgia, serif;
+  font-style: italic;
+  font-size: var(--step-1);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+  text-align: center;
+  width: 100%;
+}
+
+/* =============================================================================
+   CHAT SECTION
+   ============================================================================= */
+.rg-chat-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ─── Chat Header ────────────────────────────────────────────────────────────── */
+.rg-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-s) var(--space-l);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rg-chat-header__label {
+  font-size: var(--step--1);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rg-chat-header__count {
+  font-size: var(--step--2);
+  font-weight: 500;
+  color: var(--accent-pink);
+}
+
+/* ─── Messages List ──────────────────────────────────────────────────────────── */
+.rg-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-s) var(--space-m);
+  background: var(--bg-primary);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-glow) transparent;
+}
+
+.rg-messages::-webkit-scrollbar {
+  width: 3px;
+}
+.rg-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rg-messages::-webkit-scrollbar-thumb {
+  background: var(--bg-glow);
+  border-radius: 2px;
+}
+
+/* ─── Message Row ────────────────────────────────────────────────────────────── */
+.rg-msg {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-s);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-m);
+  animation: rg-msg-in 200ms ease-out both;
+}
+
+.rg-msg--correct {
+  background: var(--correct-bg);
+  border: 1.5px solid var(--correct-border);
+}
+
+.rg-msg--correct .rg-msg__user,
+.rg-msg--correct .rg-msg__text,
+.rg-msg--correct .rg-msg__time {
+  color: var(--accent-green);
+}
+
+.rg-msg--correct .rg-msg__user,
+.rg-msg--correct .rg-msg__text {
+  font-weight: 700;
+}
+
+/* ─── Avatar ─────────────────────────────────────────────────────────────────── */
+.rg-avatar {
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--step--2);
+  font-weight: 700;
+  color: var(--text-emphasis);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.rg-avatar--pink {
+  background: var(--avatar-pink);
+}
+.rg-avatar--purple {
+  background: var(--avatar-purple);
+}
+.rg-avatar--gold {
+  background: var(--avatar-gold);
+  color: #1a1035;
+}
+.rg-avatar--cyan {
+  background: var(--avatar-cyan);
+  color: #1a1035;
+}
+.rg-avatar--indigo {
+  background: var(--avatar-indigo);
+}
+.rg-avatar--green {
+  background: var(--avatar-green);
+}
+.rg-avatar--hotpink {
+  background: var(--avatar-hotpink);
+}
+.rg-avatar--orange {
+  background: var(--avatar-orange);
+  color: #1a1035;
+}
+.rg-avatar--teal {
+  background: var(--avatar-teal);
+}
+.rg-avatar--violet {
+  background: var(--avatar-violet);
+}
+.rg-avatar--lime {
+  background: var(--avatar-lime);
+  color: #1a1035;
+}
+.rg-avatar--amber {
+  background: var(--avatar-amber);
+  color: #1a1035;
+}
+.rg-avatar--sky {
+  background: var(--avatar-sky);
+  color: #1a1035;
+}
+.rg-avatar--rose {
+  background: var(--avatar-rose);
+}
+.rg-avatar--emerald {
+  background: var(--avatar-emerald);
+  color: #1a1035;
+}
+.rg-avatar--slate {
+  background: var(--avatar-slate);
+}
+.rg-avatar--magenta {
+  background: var(--avatar-magenta);
+}
+
+/* ─── Message Content ────────────────────────────────────────────────────────── */
+.rg-msg__user {
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--accent-cyan);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.rg-msg__text {
+  font-size: var(--step--1);
+  font-weight: 400;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rg-msg__time {
+  font-size: var(--step--2);
+  font-weight: 700;
+  color: var(--accent-gold);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Input Bar ──────────────────────────────────────────────────────────────── */
+.rg-input-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rg-input-field {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  padding: var(--space-xs) var(--space-m);
+}
+
+.rg-input-field input {
+  width: 100%;
+  font-family: "Inter", sans-serif;
+  font-size: var(--step-0);
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+.rg-input-field input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.rg-input-field:focus-within {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+}
+
+.rg-guess-btn {
+  padding: var(--space-xs) var(--space-l);
+  background: var(--gradient-cta);
+  border-radius: var(--radius-l);
+  font-family: "Inter", sans-serif;
+  font-size: var(--step--1);
+  font-weight: 700;
+  color: var(--text-emphasis);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    transform 75ms ease,
+    box-shadow 150ms ease;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);
+}
+
+.rg-guess-btn:hover {
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+.rg-guess-btn:active {
+  transform: scale(0.97);
+}
+
+.rg-guess-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* =============================================================================
+   NAV BAR
+   ============================================================================= */
+.rg-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: var(--space-xs) 0 var(--space-m) 0;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.rg-nav__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3xs);
+  padding: var(--space-xs) var(--space-m);
+  color: var(--text-tertiary);
+  font-family: "Inter", sans-serif;
+  transition: color 150ms ease;
+}
+
+.rg-nav__tab:hover {
+  color: var(--text-secondary);
+}
+
+.rg-nav__tab--active {
+  color: var(--accent-gold);
+}
+
+.rg-nav__icon {
+  width: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  height: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+}
+
+.rg-nav__label {
+  font-size: var(--step--2);
+  font-weight: 500;
+}
+
+.rg-nav__tab--active .rg-nav__label {
+  font-weight: 700;
+}
+
+/* Active tab dot indicator */
+.rg-nav__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent-gold);
+}
+
+.rg-nav__tab:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.rg-nav__tab--disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ─── Answer feedback ────────────────────────────────────────────────────────── */
+/* Color-blind safe: uses warm orange (#fb923c) for error state,
+   not pure red, with both color AND border style for accessibility. */
+.rg-input-field--error {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 3px var(--error-glow) !important;
+}
+
+@keyframes rg-input-error-glow {
+  0% {
+    box-shadow: 0 0 0 0 var(--error-glow);
+    border-color: var(--border);
+  }
+  15% {
+    box-shadow: 0 0 0 4px var(--error-glow);
+    border-color: var(--error);
+  }
+  85% {
+    box-shadow: 0 0 0 4px var(--error-glow);
+    border-color: var(--error);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    border-color: var(--border);
+  }
+}
+
+.rg-input-field--error-animate {
+  animation: rg-input-error-glow 600ms ease-out forwards;
+}
+
+.rg-answer-feedback {
+  width: 100%;
+  padding: var(--space-xs) var(--space-m);
+  font-size: var(--step--1);
+  color: var(--error);
+  font-weight: 500;
+}
+
+.rg-answer-feedback--system {
+  color: var(--text-secondary);
+}
+
+/* ─── Already solved bar ─────────────────────────────────────────────────────── */
+.rg-input-bar--solved {
+  justify-content: center;
+}
+
+.rg-input-bar__solved-msg {
+  font-size: var(--step-0);
+  font-weight: 600;
+  color: var(--accent-green);
+  text-align: center;
+}
+
+/* =============================================================================
+   ANIMATIONS
+   ============================================================================= */
+@keyframes rg-msg-in {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* =============================================================================
+   UTILITY
+   ============================================================================= */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* =============================================================================
+   phoenix core_components overrides
+   ============================================================================= */
+.alert {
+  padding-left: 0.8rem;
+}

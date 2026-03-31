@@ -1,0 +1,375 @@
+/* =============================================================================
+   admin.css — Riddlr Admin Dashboard
+   Uses the same design system tokens from riddlr.css.
+   All classes use the adm- prefix. Scoped under .adm-page.
+   ============================================================================= */
+
+/* ─── Admin variables ─────────────────────────────────────────────────────── */
+:root {
+  --adm-header-height: 3.5rem;
+}
+
+/* =============================================================================
+   PAGE WRAPPER
+   ============================================================================= */
+.adm-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+/* =============================================================================
+   HEADER / NAV
+   ============================================================================= */
+.adm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--adm-header-height);
+  padding: 0 var(--space-l);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.adm-header__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.adm-header__brand {
+  font-family: "DM Sans", sans-serif;
+  font-size: var(--step-1);
+  font-weight: 800;
+  color: var(--text-emphasis);
+  text-decoration: none;
+}
+
+.adm-header__brand:hover {
+  color: var(--text-emphasis);
+}
+
+.adm-header__badge {
+  padding: var(--space-3xs) var(--space-xs);
+  background: var(--accent-primary);
+  border-radius: var(--radius-s);
+  font-family: "Inter", sans-serif;
+  font-size: var(--step--2);
+  font-weight: 700;
+  color: var(--text-emphasis);
+  letter-spacing: 0.03em;
+}
+
+.adm-header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+}
+
+.adm-header__link {
+  font-family: "Inter", sans-serif;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.adm-header__link:hover {
+  color: var(--text-primary);
+}
+
+.adm-header__link--active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* =============================================================================
+   MAIN CONTENT AREA
+   ============================================================================= */
+.adm-main {
+  padding: var(--space-l) var(--space-m);
+  margin: 0 auto;
+  width: 100%;
+  max-width: 60rem;
+}
+
+/* =============================================================================
+   FORM SECTION WRAPPER — improves contrast on dark background
+   ============================================================================= */
+.adm-form-section {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  padding: var(--space-s);
+  margin-bottom: var(--space-m);
+}
+
+/* =============================================================================
+   DAISYUI COMPONENT OVERRIDES — scoped to .adm-page
+   Inputs, selects, and textareas render dark-on-dark without these overrides.
+   ============================================================================= */
+
+.adm-page button {
+  font-size: var(--step-0);
+  padding: 0.8rem;
+}
+
+.adm-page label,
+.adm-page input,
+.adm-page textarea,
+.adm-page select {
+  font-size: var(--step-0);
+}
+
+.adm-page form input,
+.adm-page form textarea {
+  padding: 0.8rem;
+}
+.adm-page form select {
+  padding-inline: 0.8rem;
+}
+
+/* Label text */
+.adm-page .label {
+  color: var(--text-primary);
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  margin-block: 2rem 0.2rem;
+}
+
+/* Text input, number, datetime-local, etc. */
+.adm-page .input {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+  border-width: 1px;
+  border-style: solid;
+  color: var(--text-primary);
+}
+
+.adm-page .input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  outline: none;
+}
+
+.adm-page .input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Select */
+.adm-page .select {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+  border-width: 1px;
+  border-style: solid;
+  color: var(--text-primary);
+}
+
+.adm-page .select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  outline: none;
+}
+
+.adm-page .select option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Textarea */
+.adm-page .textarea {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+  border-width: 1px;
+  border-style: solid;
+  color: var(--text-primary);
+}
+
+.adm-page .textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  outline: none;
+}
+
+.adm-page .textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Buttons */
+.adm-page .btn-primary {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: var(--text-emphasis);
+}
+
+.adm-page .btn-primary:hover {
+  opacity: 0.88;
+}
+
+/* Table */
+.adm-page .table th {
+  font-family: "Inter", sans-serif;
+  font-size: var(--step--2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  background: var(--bg-surface);
+  padding: var(--space-xs) var(--space-m);
+  border-bottom: 1px solid var(--border);
+}
+
+.adm-page .table td {
+  font-family: "Inter", sans-serif;
+  font-size: var(--step--1);
+  color: var(--text-primary);
+  padding: var(--space-xs) var(--space-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.adm-page .table tr:last-child td {
+  border-bottom: none;
+}
+
+.adm-page .table tr:hover td {
+  background: var(--bg-surface);
+}
+
+/* Header component */
+.adm-page header h1 {
+  font-family: "DM Sans", sans-serif;
+  font-size: var(--step-1);
+  font-weight: 800;
+  color: var(--text-emphasis);
+  margin-bottom: var(--step-1);
+}
+
+/* =============================================================================
+   PLAY STATUS BADGES
+   ============================================================================= */
+.adm-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-3xs) var(--space-xs);
+  border-radius: var(--radius-s);
+  font-family: "Inter", sans-serif;
+  font-size: var(--step--2);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.adm-badge--closed {
+  background: var(--bg-glow);
+  color: var(--text-secondary);
+}
+
+.adm-badge--scheduled {
+  background: rgba(103, 232, 249, 0.15);
+  color: var(--accent-cyan);
+}
+
+.adm-badge--ready {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--accent-gold);
+}
+
+.adm-badge--live {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--accent-green);
+}
+
+.adm-badge--completed {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-primary);
+}
+
+.adm-badge--archived {
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border);
+}
+
+/* =============================================================================
+   FORM ROW — inline field grouping
+   ============================================================================= */
+.adm-form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.adm-form-row--2-1-1-1 > :nth-child(1) {
+  flex: 2;
+}
+.adm-form-row--2-1-1-1 > :nth-child(2) {
+  flex: 1;
+}
+.adm-form-row--2-1-1-1 > :nth-child(3) {
+  flex: 1;
+}
+.adm-form-row--2-1-1-1 > :nth-child(4) {
+  flex: 1;
+}
+
+.adm-form-row--equal > * {
+  flex: 1;
+}
+
+/* =============================================================================
+   VIEW TRANSITIONS
+   ============================================================================= */
+@media (prefers-reduced-motion: no-preference) {
+  .adm-header {
+    view-transition-name: adm-header;
+  }
+
+  .adm-main {
+    view-transition-name: adm-main;
+  }
+
+  ::view-transition-old(adm-header),
+  ::view-transition-new(adm-header) {
+    animation: none;
+  }
+
+  ::view-transition-old(adm-main) {
+    animation: adm-slide-out 180ms ease forwards;
+  }
+
+  ::view-transition-new(adm-main) {
+    animation: adm-slide-in 220ms ease forwards;
+  }
+
+  @keyframes adm-slide-out {
+    from {
+      opacity: 1;
+      translate: 0 0;
+    }
+    to {
+      opacity: 0;
+      translate: 0 -10px;
+    }
+  }
+
+  @keyframes adm-slide-in {
+    from {
+      opacity: 0;
+      translate: 0 12px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+}
+
+.adm-form-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 2rem;
+}
