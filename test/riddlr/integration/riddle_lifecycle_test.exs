@@ -55,7 +55,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       updated_live_job =
         Enum.find(updated_jobs, &(&1.worker == "Riddlr.Workers.LiveRiddleTransitionWorker"))
 
-      expected_ready_time = DateTime.add(new_live_date, -300, :second)
+      expected_ready_time = DateTime.add(new_live_date, -riddle.ready_before_seconds, :second)
 
       assert DateTime.diff(updated_ready_job.scheduled_at, expected_ready_time, :second) <= 1
       assert DateTime.diff(updated_live_job.scheduled_at, new_live_date, :second) <= 1
@@ -75,7 +75,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       {:ok, riddle} =
         Games.update_riddle(riddle, %{
           publish_status: "published",
-          archive_cooldown_minutes: 10
+          archive_after_seconds: 600
         })
 
       # Schedule the riddle first (closed -> scheduled)
@@ -95,7 +95,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
         |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
         |> Repo.one()
 
-      # Verify 10-minute delay (600 seconds)
+      # Verify 600-second delay
       expected_time = DateTime.add(DateTime.utc_now(), 600)
       assert DateTime.diff(archive_job.scheduled_at, expected_time, :second) < 5
     end
@@ -105,7 +105,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
         riddle_fixture(%{
           play_status: "closed",
           publish_status: "published",
-          archive_cooldown_minutes: 0
+          archive_after_seconds: 0
         })
 
       # Move through lifecycle: closed -> scheduled -> ready -> live
@@ -127,7 +127,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       assert DateTime.compare(archive_job.scheduled_at, DateTime.utc_now()) in [:lt, :eq]
     end
 
-    test "default cooldown is 3 minutes" do
+    test "default cooldown is 180 seconds" do
       riddle =
         riddle_fixture(%{
           play_status: "closed",
@@ -135,7 +135,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
         })
 
       # Verify default cooldown
-      assert riddle.archive_cooldown_minutes == 3
+      assert riddle.archive_after_seconds == 180
 
       # Move through lifecycle: closed -> scheduled -> ready -> live
       future_live_date = DateTime.add(DateTime.utc_now(), 3600)

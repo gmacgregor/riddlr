@@ -10,9 +10,6 @@ defmodule Riddlr.Games do
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
 
-  @minutes_before_live 5
-  @seconds_before_live @minutes_before_live * 60
-
   @doc """
   Returns the list of riddles.
 
@@ -176,7 +173,7 @@ defmodule Riddlr.Games do
   @doc """
   Schedules a riddle to go live at the specified date.
   Transitions: closed → scheduled
-  Enqueues ReadyRiddleTransitionWorker (5 min before live) and LiveRiddleTransitionWorker (at live_date).
+  Enqueues ReadyRiddleTransitionWorker (ready_before_seconds before live) and LiveRiddleTransitionWorker (at live_date).
   """
   def schedule_riddle(%Riddle{} = riddle, live_date, attrs \\ %{}) do
     effective_publish_status =
@@ -205,7 +202,7 @@ defmodule Riddlr.Games do
           |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
             %{"riddle_id" => updated_riddle.id}
             |> Riddlr.Workers.ReadyRiddleTransitionWorker.new(
-              scheduled_at: DateTime.add(live_date, -@seconds_before_live, :second)
+              scheduled_at: DateTime.add(live_date, -updated_riddle.ready_before_seconds, :second)
             )
           end)
           |> Multi.insert(:live_job, fn %{riddle: updated_riddle} ->
@@ -232,7 +229,7 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Transitions a riddle to ready state (@minutes_before_live minutes before live).
+  Transitions a riddle to ready state (ready_before_seconds before live).
   Transitions: scheduled → ready
   """
   def ready_riddle(riddle_id) do
@@ -344,7 +341,7 @@ defmodule Riddlr.Games do
             |> Multi.update(:riddle, Riddle.changeset(riddle, attrs))
             |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
               # Use the riddle's configured cooldown (in seconds)
-              cooldown_seconds = updated_riddle.archive_cooldown_minutes * 60
+              cooldown_seconds = updated_riddle.archive_after_seconds
 
               %{"riddle_id" => updated_riddle.id}
               |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: cooldown_seconds)

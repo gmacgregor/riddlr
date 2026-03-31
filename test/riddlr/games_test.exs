@@ -181,7 +181,7 @@ defmodule Riddlr.GamesTest do
 
       assert DateTime.compare(
                result.ready_job.scheduled_at,
-               DateTime.add(live_date, -300, :second)
+               DateTime.add(live_date, -result.riddle.ready_before_seconds, :second)
              ) == :eq
 
       assert DateTime.compare(result.live_job.scheduled_at, live_date) == :eq
@@ -209,10 +209,13 @@ defmodule Riddlr.GamesTest do
 
       {:ok, result} = Games.schedule_riddle(riddle, live_date)
 
-      # Verify ready job scheduled 5 min before live
+      # Verify ready job scheduled ready_before_seconds before live
       assert result.ready_job.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker"
       assert result.ready_job.args == %{"riddle_id" => riddle.id}
-      assert DateTime.diff(result.ready_job.scheduled_at, live_date, :second) == -300
+      expected_lead_seconds = -result.riddle.ready_before_seconds
+
+      assert DateTime.diff(result.ready_job.scheduled_at, live_date, :second) ==
+               expected_lead_seconds
 
       # Verify live job scheduled at live_date
       assert result.live_job.worker == "Riddlr.Workers.LiveRiddleTransitionWorker"
@@ -287,31 +290,31 @@ defmodule Riddlr.GamesTest do
       )
     end
 
-    test "complete_riddle uses custom archive_cooldown_minutes" do
-      riddle = riddle_fixture(%{play_status: "live", archive_cooldown_minutes: 5})
+    test "complete_riddle uses custom archive_after_seconds" do
+      riddle = riddle_fixture(%{play_status: "live", archive_after_seconds: 300})
 
       {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
 
       assert updated_riddle.play_status == "completed"
 
-      # Verify archive job was enqueued with custom delay (5 minutes = 300 seconds)
+      # Verify archive job was enqueued with custom delay (300 seconds)
       assert_enqueued(
         worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,
         args: %{riddle_id: riddle.id}
       )
 
-      # Verify the job is scheduled in the future (approximately 5 minutes)
+      # Verify the job is scheduled in the future (approximately 300 seconds)
       [job] = all_enqueued(worker: Riddlr.Workers.ArchiveRiddleTransitionWorker)
       scheduled_at = job.scheduled_at
       now = DateTime.utc_now()
 
-      # Should be scheduled approximately 5 minutes in the future (allowing 5 second tolerance)
+      # Should be scheduled approximately 300 seconds in the future (allowing 5 second tolerance)
       scheduled_diff = DateTime.diff(scheduled_at, now)
       assert scheduled_diff >= 295 and scheduled_diff <= 305
     end
 
     test "complete_riddle supports zero cooldown for immediate archiving" do
-      riddle = riddle_fixture(%{play_status: "live", archive_cooldown_minutes: 0})
+      riddle = riddle_fixture(%{play_status: "live", archive_after_seconds: 0})
 
       {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
 
@@ -520,12 +523,12 @@ defmodule Riddlr.GamesTest do
     end
   end
 
-  describe "archive_cooldown_minutes" do
+  describe "archive_after_seconds" do
     import Riddlr.GamesFixtures
 
-    test "defaults to 3 minutes" do
+    test "defaults to 180 seconds" do
       riddle = riddle_fixture()
-      assert riddle.archive_cooldown_minutes == 3
+      assert riddle.archive_after_seconds == 180
     end
 
     test "accepts valid cooldown values" do
@@ -537,11 +540,11 @@ defmodule Riddlr.GamesTest do
         answers: ["answer"],
         solve_time: 60,
         category_id: category.id,
-        archive_cooldown_minutes: 5
+        archive_after_seconds: 300
       }
 
       assert {:ok, riddle} = Games.create_riddle(attrs)
-      assert riddle.archive_cooldown_minutes == 5
+      assert riddle.archive_after_seconds == 300
     end
 
     test "rejects negative cooldown values" do
@@ -553,12 +556,12 @@ defmodule Riddlr.GamesTest do
         answers: ["answer"],
         solve_time: 60,
         category_id: category.id,
-        archive_cooldown_minutes: -1
+        archive_after_seconds: -1
       }
 
       assert {:error, changeset} = Games.create_riddle(attrs)
 
-      assert %{archive_cooldown_minutes: ["must be greater than or equal to 0"]} =
+      assert %{archive_after_seconds: ["must be greater than or equal to 0"]} =
                errors_on(changeset)
     end
 
@@ -571,11 +574,67 @@ defmodule Riddlr.GamesTest do
         answers: ["answer"],
         solve_time: 60,
         category_id: category.id,
-        archive_cooldown_minutes: 0
+        archive_after_seconds: 0
       }
 
       assert {:ok, riddle} = Games.create_riddle(attrs)
-      assert riddle.archive_cooldown_minutes == 0
+      assert riddle.archive_after_seconds == 0
+    end
+  end
+
+  describe "ready_before_seconds" do
+    import Riddlr.GamesFixtures
+
+    test "defaults to 600 seconds" do
+      riddle = riddle_fixture()
+      assert riddle.ready_before_seconds == 600
+    end
+
+    test "is saved and persists via changeset" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        ready_before_seconds: 15
+      }
+
+      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert riddle.ready_before_seconds == 15
+    end
+
+    test "rejects zero or negative values" do
+      category = get_test_category()
+
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: category.id,
+        ready_before_seconds: 0
+      }
+
+      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert %{ready_before_seconds: ["must be greater than 0"]} = errors_on(changeset)
+    end
+
+    test "schedule_riddle uses per-riddle ready_before_seconds" do
+      riddle =
+        riddle_fixture(%{
+          play_status: "closed",
+          publish_status: "published",
+          ready_before_seconds: 20
+        })
+
+      live_date = DateTime.add(DateTime.utc_now(), 7200, :second)
+      {:ok, result} = Games.schedule_riddle(riddle, live_date)
+
+      expected_offset = -riddle.ready_before_seconds
+      assert DateTime.diff(result.ready_job.scheduled_at, live_date, :second) == expected_offset
     end
   end
 

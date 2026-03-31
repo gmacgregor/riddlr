@@ -91,12 +91,12 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
   end
 
   describe "custom archive cooldown" do
-    test "respects riddle's archive_cooldown_minutes setting" do
+    test "respects riddle's archive_after_seconds setting" do
       riddle =
         riddle_fixture(%{
           play_status: "completed",
           publish_status: "published",
-          archive_cooldown_minutes: 5
+          archive_after_seconds: 5
         })
 
       assert :ok = perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
@@ -110,7 +110,7 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
         riddle_fixture(%{
           play_status: "completed",
           publish_status: "published",
-          archive_cooldown_minutes: 0
+          archive_after_seconds: 0
         })
 
       assert :ok = perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})

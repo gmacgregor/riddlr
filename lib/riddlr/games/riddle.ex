@@ -12,7 +12,7 @@ defmodule Riddlr.Games.Riddle do
 
   - **closed**: Initial state, not scheduled for play
   - **scheduled**: Published with live_date set, workers scheduled
-  - **ready**: 5 minutes before live_date, ready to go live
+  - **ready**: `ready_before_seconds` before live_date, ready to go live
   - **live**: Currently accepting answers from players
   - **completed**: First correct answer received, cooldown period starts
   - **archived**: Cooldown complete, riddle moved to archive
@@ -30,7 +30,7 @@ defmodule Riddlr.Games.Riddle do
 
   - **Rescheduling**: Changing live_date cancels old jobs and schedules new ones
   - **Draft rollback**: Moving to draft status cancels all pending workers
-  - **Archive cooldown**: Configurable via `archive_cooldown_minutes` (default: 3)
+  - **Archive cooldown**: Configurable via `archive_after_seconds` (default: 180)
     - Set to 0 to skip cooldown and archive immediately
 
   ### Example Flow
@@ -44,10 +44,10 @@ defmodule Riddlr.Games.Riddle do
       # => play_status: "scheduled", 2 jobs scheduled
 
       # System automatically transitions:
-      # - 13:55:00 => play_status: "ready"
+      # - 13:50:00 => play_status: "ready"
       # - 14:00:00 => play_status: "live"
       # - [first correct answer] => play_status: "completed"
-      # - [+3 minutes] => play_status: "archived"
+      # - [+archive_after_seconds] => play_status: "archived"
 
   ## Fields
 
@@ -64,6 +64,8 @@ defmodule Riddlr.Games.Riddle do
 
   @solve_time 120
   @hint_delay 60
+
+  @ready_before_seconds 600
 
   @valid_transitions %{
     "closed" => ["scheduled"],
@@ -88,7 +90,8 @@ defmodule Riddlr.Games.Riddle do
     field :first_solve_time, :integer
     field :completion_rate, :float
     field :average_solve_time, :float
-    field :archive_cooldown_minutes, :integer, default: 3
+    field :archive_after_seconds, :integer, default: 180
+    field :ready_before_seconds, :integer, default: @ready_before_seconds
     field :live_until_solved, :boolean, default: false
 
     belongs_to :category, Riddlr.Games.Category
@@ -115,7 +118,8 @@ defmodule Riddlr.Games.Riddle do
       :first_solve_time,
       :completion_rate,
       :average_solve_time,
-      :archive_cooldown_minutes,
+      :archive_after_seconds,
+      :ready_before_seconds,
       :live_until_solved
     ])
     |> cast_answers(attrs)
@@ -133,7 +137,8 @@ defmodule Riddlr.Games.Riddle do
       less_than_or_equal_to: 100.0
     )
     |> validate_number(:average_solve_time, greater_than_or_equal_to: 0.0)
-    |> validate_number(:archive_cooldown_minutes, greater_than_or_equal_to: 0)
+    |> validate_number(:archive_after_seconds, greater_than_or_equal_to: 0)
+    |> validate_number(:ready_before_seconds, greater_than: 0)
     |> foreign_key_constraint(:first_solver_id)
   end
 
@@ -209,4 +214,5 @@ defmodule Riddlr.Games.Riddle do
   def difficulties, do: @difficulties
   def default_solve_time, do: @solve_time
   def default_hint_delay, do: @hint_delay
+  def default_ready_before_seconds, do: @ready_before_seconds
 end

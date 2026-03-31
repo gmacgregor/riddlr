@@ -132,7 +132,7 @@ Each transition is either manual (admin-initiated) or automatic (worker/event-tr
 
 #### completed → archived
 - Triggered by: `ArchiveTransitionWorker`
-- When: After `archive_cooldown_minutes` (default: 3)
+- When: After `archive_after_seconds` (default: 3)
 - Action: Updates `play_status` to "archived"
 
 ## Advanced Features
@@ -191,13 +191,13 @@ riddle = %Riddle{
 
 ### Archive Cooldown
 
-The `archive_cooldown_minutes` field controls how long a riddle remains in "completed" status before archiving.
+The `archive_after_seconds` field controls how long a riddle remains in "completed" status before archiving.
 
 **Default behavior** (3 minutes):
 ```elixir
 riddle = %Riddle{
   play_status: "completed",
-  archive_cooldown_minutes: 3  # default
+  archive_after_seconds: 3  # default
 }
 # => Archives 3 minutes after completion
 ```
@@ -205,7 +205,7 @@ riddle = %Riddle{
 **Immediate archival** (0 minutes):
 ```elixir
 riddle = %Riddle{
-  archive_cooldown_minutes: 0
+  archive_after_seconds: 0
 }
 # => Archives immediately after completion
 ```
@@ -213,7 +213,7 @@ riddle = %Riddle{
 **Custom cooldown**:
 ```elixir
 riddle = %Riddle{
-  archive_cooldown_minutes: 10
+  archive_after_seconds: 10
 }
 # => Archives 10 minutes after completion
 ```
@@ -236,7 +236,7 @@ riddle = %Riddle{
 
 ### ArchiveTransitionWorker
 - **Queue**: `default`
-- **Trigger**: Scheduled `archive_cooldown_minutes` after completion
+- **Trigger**: Scheduled `archive_after_seconds` after completion
 - **Action**: Transitions riddle from `completed` to `archived`
 - **Idempotent**: Safe to retry
 - **No publish_status check**: Archives regardless of publish status
@@ -257,7 +257,7 @@ Full lifecycle integration test:
 ```elixir
 test "full riddle lifecycle from scheduled to archived" do
   # Create riddle
-  riddle = insert(:riddle, archive_cooldown_minutes: 0)
+  riddle = insert(:riddle, archive_after_seconds: 0)
 
   # Schedule it
   {:ok, riddle} = Games.schedule_riddle(riddle, live_date)
@@ -345,7 +345,7 @@ Each worker has dedicated tests verifying:
 4. Riddle can be rescheduled later
 
 ### Immediate Archive (Skip Cooldown)
-1. Admin sets `archive_cooldown_minutes: 0` before scheduling
+1. Admin sets `archive_after_seconds: 0` before scheduling
 2. When riddle completes, it archives immediately
 
 ## Database Schema
@@ -356,7 +356,7 @@ Relevant fields in `riddles` table:
 field :play_status, :string, default: "closed"
 field :publish_status, :string, default: "draft"
 field :live_date, :utc_datetime
-field :archive_cooldown_minutes, :integer, default: 3
+field :archive_after_seconds, :integer, default: 3
 field :first_solver_id, :bigint
 field :first_solve_time, :integer
 ```
@@ -432,6 +432,6 @@ This ensures riddles moved to draft don't auto-transition even if workers weren'
 - Check for validation errors on `live_date` update
 
 ### Archive not happening
-- Verify `archive_cooldown_minutes` is set
+- Verify `archive_after_seconds` is set
 - Check for pending `ArchiveTransitionWorker` job
 - Ensure riddle is in `completed` status

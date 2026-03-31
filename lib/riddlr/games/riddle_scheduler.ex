@@ -8,10 +8,10 @@ defmodule Riddlr.Games.RiddleScheduler do
   """
   import Ecto.Query
   alias Ecto.Multi
+  alias Riddlr.Games.Riddle
   alias Riddlr.Repo
   alias Riddlr.Workers.{ReadyRiddleTransitionWorker, LiveRiddleTransitionWorker}
 
-  @ready_lead_time_seconds 3600
   @transition_workers [
     "Riddlr.Workers.ReadyRiddleTransitionWorker",
     "Riddlr.Workers.LiveRiddleTransitionWorker",
@@ -55,20 +55,20 @@ defmodule Riddlr.Games.RiddleScheduler do
 
   Used when a riddle's live_date changes. This will:
   1. Cancel all pending jobs for the riddle
-  2. Schedule new ReadyRiddleTransitionWorker (@ready_lead_time_seconds before live_date)
+  2. Schedule new ReadyRiddleTransitionWorker (ready_before_seconds before live_date)
   3. Schedule new LiveRiddleTransitionWorker (at live_date)
 
   Returns `{:ok, count}` where count is the number of new jobs scheduled.
 
   ## Examples
 
-      iex> reschedule_jobs(123, ~U[2026-04-01 14:00:00Z])
+      iex> reschedule_jobs(riddle, ~U[2026-04-01 14:00:00Z])
       {:ok, 2}
   """
-  def reschedule_jobs(riddle_id, %DateTime{} = new_live_date) when is_integer(riddle_id) do
-    riddle_ready_time = ready_time(new_live_date)
+  def reschedule_jobs(%Riddle{} = riddle, %DateTime{} = new_live_date) do
+    riddle_ready_time = ready_time(new_live_date, riddle.ready_before_seconds)
 
-    riddle_id_string = Integer.to_string(riddle_id)
+    riddle_id_string = Integer.to_string(riddle.id)
     now = DateTime.utc_now()
 
     cancel_query =
@@ -86,13 +86,13 @@ defmodule Riddlr.Games.RiddleScheduler do
          end)
          |> Oban.insert(
            :ready_job,
-           ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle_id},
+           ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle.id},
              scheduled_at: riddle_ready_time
            )
          )
          |> Oban.insert(
            :live_job,
-           LiveRiddleTransitionWorker.new(%{"riddle_id" => riddle_id},
+           LiveRiddleTransitionWorker.new(%{"riddle_id" => riddle.id},
              scheduled_at: new_live_date
            )
          )
@@ -108,8 +108,8 @@ defmodule Riddlr.Games.RiddleScheduler do
     end
   end
 
-  def reschedule_jobs(_riddle_id, _new_live_date), do: {:error, :invalid_live_date}
+  def reschedule_jobs(_riddle, _new_live_date), do: {:error, :invalid_live_date}
 
-  defp ready_time(live_date),
-    do: DateTime.add(live_date, -@ready_lead_time_seconds, :second)
+  defp ready_time(live_date, ready_before_seconds),
+    do: DateTime.add(live_date, -ready_before_seconds, :second)
 end

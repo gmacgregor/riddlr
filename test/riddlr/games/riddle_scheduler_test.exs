@@ -54,14 +54,16 @@ defmodule Riddlr.Games.RiddleSchedulerTest do
       # Change live_date
       new_live_date = DateTime.add(DateTime.utc_now(), 7200, :second)
 
-      assert {:ok, _count} = RiddleScheduler.reschedule_jobs(riddle.id, new_live_date)
+      assert {:ok, _count} = RiddleScheduler.reschedule_jobs(riddle, new_live_date)
+
+      lead_seconds = riddle.ready_before_seconds
 
       # Verify old jobs are cancelled
       old_jobs =
         Oban.Job
         |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
         |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.scheduled_at == ^DateTime.add(original_live_date, -300, :second))
+        |> where([j], j.scheduled_at == ^DateTime.add(original_live_date, -lead_seconds, :second))
         |> where([j], j.state in ["scheduled", "available"])
         |> Repo.all()
 
@@ -75,7 +77,7 @@ defmodule Riddlr.Games.RiddleSchedulerTest do
         |> where([j], j.state in ["scheduled", "available"])
         |> Repo.one()
 
-      assert ready_job.scheduled_at == DateTime.add(new_live_date, -300, :second)
+      assert ready_job.scheduled_at == DateTime.add(new_live_date, -lead_seconds, :second)
 
       live_job =
         Oban.Job
@@ -85,6 +87,30 @@ defmodule Riddlr.Games.RiddleSchedulerTest do
         |> Repo.one()
 
       assert live_job.scheduled_at == new_live_date
+    end
+
+    test "uses per-riddle ready_before_seconds" do
+      riddle =
+        riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed",
+          ready_before_seconds: 30
+        })
+
+      original_live_date = DateTime.add(DateTime.utc_now(), 7200, :second)
+      assert {:ok, _} = Games.schedule_riddle(riddle, original_live_date)
+
+      new_live_date = DateTime.add(DateTime.utc_now(), 10800, :second)
+      assert {:ok, _count} = RiddleScheduler.reschedule_jobs(riddle, new_live_date)
+
+      ready_job =
+        Oban.Job
+        |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Repo.one()
+
+      assert DateTime.diff(ready_job.scheduled_at, new_live_date, :second) == -30
     end
   end
 end
