@@ -333,6 +333,103 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     end
   end
 
+  describe "handle_event save with ready_before_seconds change" do
+    test "reschedules when ready_before_seconds increases such that ready time moves to past", %{
+      conn: conn,
+      admin: admin
+    } do
+      # live_date = 30 min from now
+      # initial ready_before_seconds = 600 (10 min) → ready_time = 20 min from now
+      # new ready_before_seconds = 3600 (1h)       → ready_time = now - 30 min (past)
+      live_date = DateTime.add(DateTime.utc_now(), 1800, :second)
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed",
+          ready_before_seconds: 600
+        })
+
+      {:ok, _} = Riddlr.Games.schedule_riddle(riddle, live_date)
+      riddle = Riddlr.Games.get_riddle!(riddle.id)
+      assert riddle.play_status == "scheduled"
+
+      conn = log_in_user(conn, admin)
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+
+      view
+      |> form("#riddle-form", riddle: %{ready_before_seconds: 3600})
+      |> render_submit()
+
+      # ready_before_seconds should be persisted
+      updated_riddle = Riddlr.Games.get_riddle!(riddle.id)
+      assert updated_riddle.ready_before_seconds == 3600
+
+      # Ready job rescheduled — new scheduled_at is in the past so Oban marks it available
+      ready_job =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
+        |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
+        |> where([j], j.state in ["available", "scheduled"])
+        |> Riddlr.Repo.one()
+
+      assert ready_job != nil
+      assert DateTime.compare(ready_job.scheduled_at, DateTime.utc_now()) == :lt
+    end
+
+    test "reschedules when ready_before_seconds changes and new ready time remains future", %{
+      conn: conn,
+      admin: admin
+    } do
+      # live_date = 3h from now
+      # initial ready_before_seconds = 7200 (2h) → ready_time = 1h from now
+      # new ready_before_seconds = 3600 (1h)     → ready_time = 2h from now (still future)
+      live_date = DateTime.add(DateTime.utc_now(), 10_800, :second)
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{
+          publish_status: "published",
+          play_status: "closed",
+          ready_before_seconds: 7200
+        })
+
+      {:ok, _} = Riddlr.Games.schedule_riddle(riddle, live_date)
+      riddle = Riddlr.Games.get_riddle!(riddle.id)
+      assert riddle.play_status == "scheduled"
+
+      initial_ready_job =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
+        |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.one()
+
+      assert initial_ready_job != nil
+      initial_ready_id = initial_ready_job.id
+
+      conn = log_in_user(conn, admin)
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+
+      view
+      |> form("#riddle-form", riddle: %{ready_before_seconds: 3600})
+      |> render_submit()
+
+      new_ready_job =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
+        |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
+        |> where([j], j.state in ["scheduled", "available"])
+        |> Riddlr.Repo.one()
+
+      # Old job cancelled, new job created at updated time
+      assert new_ready_job != nil
+      assert new_ready_job.id != initial_ready_id
+
+      expected_ready_at = live_date |> DateTime.add(-3600, :second) |> DateTime.truncate(:second)
+      assert DateTime.truncate(new_ready_job.scheduled_at, :second) == expected_ready_at
+    end
+  end
+
   describe "edit form play_status display" do
     test "shows current play status as read-only badge", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture(%{play_status: "scheduled"})

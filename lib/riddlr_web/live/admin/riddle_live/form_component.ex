@@ -319,13 +319,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   # Reschedule jobs if:
   # - Riddle is published
   # - Play status is scheduled or ready (jobs are pending)
-  # - live_date actually changed
+  # - live_date changed OR (status is scheduled and ready_before_seconds changed)
   # - new live_date is not nil
-  defp should_reschedule?(_old_riddle, new_riddle, old_live_date) do
+  defp should_reschedule?(old_riddle, new_riddle, old_live_date) do
     new_riddle.publish_status == "published" and
       new_riddle.play_status in ["scheduled", "ready"] and
-      old_live_date != new_riddle.live_date and
-      not is_nil(new_riddle.live_date)
+      not is_nil(new_riddle.live_date) and
+      (old_live_date != new_riddle.live_date or
+         (new_riddle.play_status == "scheduled" and
+            old_riddle.ready_before_seconds != new_riddle.ready_before_seconds))
   end
 
   defp title(:new), do: "New Riddle"
