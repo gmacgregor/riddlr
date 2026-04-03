@@ -576,6 +576,7 @@ body {
 /* ─── Input Bar ──────────────────────────────────────────────────────────────── */
 .rg-input-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-s);
   padding: var(--space-s) var(--space-m);
