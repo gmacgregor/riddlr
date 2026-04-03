@@ -33,14 +33,14 @@ defmodule RiddlrWeb.GameLive.Lobby do
             end
 
             player_count = lobby_topic(id) |> Presence.list() |> map_size()
-            time_remaining = time_remaining(riddle.live_date)
+            time_until_game_starts = time_remaining(riddle.live_date)
 
             {:ok,
              socket
              |> assign(:page_title, "Lobby — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:player_count, player_count)
-             |> assign(:time_remaining, time_remaining)}
+             |> assign(:time_remaining, time_until_game_starts)}
         end
 
       {:error, :not_found} ->

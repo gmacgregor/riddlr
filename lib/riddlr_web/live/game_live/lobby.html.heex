@@ -2,7 +2,7 @@
      TIMER SECTION — pre-game countdown
      ═══════════════════════════════════════════════════════════════ --%>
 <section class="rg-timer-section" aria-label="Countdown to game start">
-  <.scheduled_game_countdown riddle={@riddle} time_remaining={@time_remaining} />
+  <.game_countdown riddle={@riddle} time_remaining={@time_remaining} format={:long} />
 
   <div class="rg-pre-game__waiting" aria-live="polite" aria-atomic="true">
     <span class="rg-pre-game__label">
@@ -34,9 +34,22 @@
     },
     tick() {
       const secs = parseInt(this.el.dataset.seconds, 10) || 0
-      const m = Math.floor(secs / 60).toString().padStart(2, "0")
-      const s = (secs % 60).toString().padStart(2, "0")
-      this.el.textContent = `${m}:${s}`
+      const formatMode = this.el.dataset.format || "long"
+
+      // Mirror format_countdown/1 in custom_components.ex — edit there to change format.
+      const days = Math.floor(secs / 86400)
+      const rem1 = secs % 86400
+      const h = Math.floor(rem1 / 3600).toString().padStart(2, "0")
+      const m = Math.floor((rem1 % 3600) / 60).toString().padStart(2, "0")
+      const s = (rem1 % 60).toString().padStart(2, "0")
+      const hms = `${h}:${m}:${s}`
+
+      if (formatMode === "short") {
+        const totalHours = Math.floor(secs / 3600).toString().padStart(2, "0")
+        this.el.textContent = `${totalHours}:${m}:${s}`
+      } else {
+        this.el.textContent = days > 0 ? `${days} ${days === 1 ? "day" : "days"}, ${hms}` : hms
+      }
 
       if (secs <= 10) {
         this.el.style.color = "var(--error)"

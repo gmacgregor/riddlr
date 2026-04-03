@@ -18,25 +18,60 @@ defmodule RiddlrWeb.CustomComponents do
     :io_lib.format("~2..0B:~2..0B", [minutes, secs]) |> IO.iodata_to_binary()
   end
 
+  defp format_countdown(seconds, :long) do
+    days = div(seconds, 86_400)
+    rem_day = rem(seconds, 86_400)
+    hours = div(rem_day, 3600)
+    minutes = div(rem(rem_day, 3600), 60)
+    secs = rem(rem_day, 60)
+
+    hms =
+      :io_lib.format("~2..0B:~2..0B:~2..0B", [hours, minutes, secs])
+      |> IO.iodata_to_binary()
+
+    if days > 0 do
+      day_label = if days == 1, do: "day", else: "days"
+      "#{days} #{day_label}, #{hms}"
+    else
+      hms
+    end
+  end
+
+  defp format_countdown(seconds, :short) do
+    rem_day = rem(seconds, 86_400)
+    minutes = div(rem(rem_day, 3600), 60)
+    secs = rem(rem_day, 60)
+    total_hours = div(seconds, 3600)
+
+    :io_lib.format("~2..0B:~2..0B:~2..0B", [total_hours, minutes, secs])
+    |> IO.iodata_to_binary()
+  end
+
   # ─── Lobby / Pre-game ─────────────────────────────────────────────────────────
 
   @doc "Pre-game countdown shown in the lobby while waiting for a riddle to go live."
   attr :riddle, :map, required: true
   attr :time_remaining, :integer, required: true
+  attr :format, :atom, values: [:long, :short], default: :long
 
-  def scheduled_game_countdown(assigns) do
+  def game_countdown(assigns) do
     ~H"""
-    <div :if={@riddle.play_status == "scheduled"} class="rg-pre-game" id="state-pregame">
+    <div
+      :if={@riddle.play_status == "scheduled" || @riddle.play_status == "ready"}
+      class="rg-pre-game"
+      id="state-pregame"
+    >
       <p class="rg-pre-game__label">🧩 Riddle drops in</p>
       <time
         id="countdown"
         phx-hook=".Countdown"
         data-seconds={@time_remaining}
+        data-format={Atom.to_string(@format)}
         class="rg-countdown"
         aria-live="polite"
         aria-atomic="true"
       >
-        {format_time(@time_remaining)}
+        {format_countdown(@time_remaining, @format)}
       </time>
       <p class="rg-pre-game__prompt">⚡ Get ready to guess!</p>
     </div>
