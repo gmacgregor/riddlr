@@ -35,7 +35,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
       assert index_live |> element("a", "New Riddle") |> render_click() =~
-               "New Riddle"
+               "New riddle"
 
       assert_patch(index_live, ~p"/admin/riddles/new")
     end

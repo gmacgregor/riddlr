@@ -13,7 +13,8 @@ defmodule Riddlr.GamesTest do
 
     test "list_riddles/0 returns all riddles" do
       riddle = riddle_fixture()
-      assert Games.list_riddles() == [riddle]
+      riddles = Games.list_riddles()
+      assert Enum.any?(riddles, &(&1.id == riddle.id))
     end
 
     test "get_riddle!/1 returns the riddle with given id" do

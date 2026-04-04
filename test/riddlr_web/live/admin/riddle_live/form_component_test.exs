@@ -18,7 +18,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       assert index_live
              |> element("a", "New Riddle")
-             |> render_click() =~ "New Riddle"
+             |> render_click() =~ "New riddle"
 
       # Submit empty form
       assert index_live
@@ -153,7 +153,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       assert index_live
              |> element("#riddles-#{riddle.id} a", "Edit")
-             |> render_click() =~ "Edit Riddle"
+             |> render_click() =~ "Edit riddle"
 
       assert_patch(index_live, ~p"/admin/riddles/#{riddle.id}/edit")
 
@@ -191,7 +191,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       conn: conn,
       admin: admin
     } do
-      old_live_date = ~U[2026-04-01 10:00:00Z]
+      old_live_date = DateTime.add(DateTime.utc_now(), 86_400, :second)
 
       riddle =
         GamesFixtures.riddle_fixture(%{
@@ -216,7 +216,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       assert length(initial_jobs) == 2
 
       # Change live_date through form
-      new_live_date = ~U[2026-04-01 14:00:00Z]
+      new_live_date = DateTime.add(DateTime.utc_now(), 172_800, :second)
       conn = log_in_user(conn, admin)
       {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
@@ -255,12 +255,14 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       assert DateTime.truncate(ready_job.scheduled_at, :second) ==
                DateTime.add(new_live_date, -riddle.ready_before_seconds)
+               |> DateTime.truncate(:second)
 
-      assert DateTime.truncate(live_job.scheduled_at, :second) == new_live_date
+      assert DateTime.truncate(live_job.scheduled_at, :second) ==
+               DateTime.truncate(new_live_date, :second)
     end
 
     test "does not reschedule when live_date unchanged", %{conn: conn, admin: admin} do
-      live_date = ~U[2026-04-01 10:00:00Z]
+      live_date = DateTime.add(DateTime.utc_now(), 86_400, :second)
 
       riddle =
         GamesFixtures.riddle_fixture(%{
@@ -437,7 +439,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Play Status"
+      assert html =~ "Play status"
       assert html =~ "scheduled"
       # Should NOT have a select input for play_status
       refute html =~ ~r/<select[^>]*name="riddle\[play_status\]"/
@@ -451,7 +453,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Archive Cooldown"
+      assert html =~ "Archive cool off"
       assert html =~ "5"
     end
 
@@ -463,11 +465,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Archive Cooldown"
+      assert html =~ "Archive cool off"
       assert html =~ "10"
     end
 
-    test "does not show archive cooldown field for non-completed riddles", %{
+    test "archive cooldown field is always visible", %{
       conn: conn,
       admin: admin
     } do
@@ -476,7 +478,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      refute html =~ "Archive Cooldown"
+      assert html =~ "Archive cool off"
     end
   end
 

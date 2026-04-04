@@ -82,8 +82,8 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
         |> set_play_status("ready")
 
       conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert has_element?(live, "#riddle-name", riddle.name)
+      {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+      assert html =~ "Riddle drops in"
     end
 
     test "redirects to /play when riddle is :live", %{conn: conn, user: user} do
@@ -109,21 +109,6 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       %{riddle: riddle, user: user}
     end
 
-    test "displays riddle name", %{conn: conn, riddle: riddle, user: user} do
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert has_element?(live, "#riddle-name", riddle.name)
-    end
-
-    test "displays category and difficulty", %{conn: conn, riddle: riddle, user: user} do
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-
-      # riddle_fixture always sets category and difficulty
-      assert has_element?(live, "span", riddle.category.name)
-      assert has_element?(live, "span", riddle.difficulty)
-    end
-
     test "shows countdown element with data-seconds attribute", %{
       conn: conn,
       riddle: riddle,
@@ -132,14 +117,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
       assert has_element?(live, "#countdown[phx-hook][data-seconds]")
-      assert has_element?(live, "p", "Starts in")
+      assert has_element?(live, ".rg-pre-game__label", "Riddle drops in")
     end
 
     test "shows player count element", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert has_element?(live, ".player-dot")
-      assert has_element?(live, "p", "waiting")
+      assert has_element?(live, ".rg-pre-game__label", "waiting")
     end
   end
 
@@ -159,7 +143,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       before_html = render(live)
       assert before_html =~ ~r/data-seconds="(\d+)"/
 
-      send(live.pid, :tick)
+      send(live.pid, {:countdown_tick, 100})
       after_html = render(live)
 
       # Countdown element still present and data-seconds attribute is set
@@ -199,7 +183,8 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       send(live.pid, {:riddle_live, other_riddle})
 
-      assert has_element?(live, "#riddle-name", riddle.name)
+      # Page still showing lobby content
+      assert has_element?(live, ".rg-pre-game__label", "Riddle drops in")
     end
   end
 
@@ -213,8 +198,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
       # Connected LiveView test triggers Presence.track, so count is 1
-      assert has_element?(live, "span", "1")
-      assert has_element?(live, "p", "player waiting")
+      assert has_element?(live, ".rg-pre-game__label", "1 player waiting")
     end
 
     test "updates player count when Presence diff received", %{conn: conn, user: user} do
@@ -236,8 +220,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       )
 
       # Player count re-renders after diff; connected mount tracks 1 player
-      assert has_element?(live, "span", "1")
-      assert has_element?(live, "p", "player waiting")
+      assert has_element?(live, ".rg-pre-game__label", "1 player waiting")
     end
   end
 

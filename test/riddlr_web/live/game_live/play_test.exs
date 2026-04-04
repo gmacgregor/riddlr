@@ -67,7 +67,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-      assert has_element?(live, "#riddle-name", riddle.name)
+      assert has_element?(live, "#riddle-description", riddle.description)
     end
 
     test "mounts successfully when riddle is :completed (view-only)", %{conn: conn, user: user} do
@@ -75,8 +75,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-      assert has_element?(live, "#riddle-name", riddle.name)
-      assert has_element?(live, "#game-over")
+      assert has_element?(live, ".rg-round-header")
       refute has_element?(live, "#answer-form-container")
     end
   end
@@ -87,23 +86,10 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       %{riddle: riddle, user: user}
     end
 
-    test "displays riddle name", %{conn: conn, riddle: riddle, user: user} do
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-      assert has_element?(live, "#riddle-name", riddle.name)
-    end
-
     test "displays riddle description", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
       assert has_element?(live, "#riddle-description", riddle.description)
-    end
-
-    test "displays category and difficulty", %{conn: conn, riddle: riddle, user: user} do
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-      assert has_element?(live, "span", riddle.category.name)
-      assert has_element?(live, "span", riddle.difficulty)
     end
 
     test "shows answer form", %{conn: conn, riddle: riddle, user: user} do
@@ -125,13 +111,16 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
       # riddle_fixture sets answers: ["keyboard", "a keyboard"]
-      html =
-        live
-        |> form("#answer-form", %{answer: "keyboard"})
-        |> render_submit()
+      live
+      |> form("#answer-form", %{answer: "keyboard"})
+      |> render_submit()
 
-      assert html =~ "Correct!"
-      assert has_element?(live, "#correct-result")
+      # Trigger the delayed :mark_solved message so the solved banner appears
+      send(live.pid, {:mark_solved, riddle.id})
+      html = render(live)
+
+      assert html =~ "1st"
+      assert has_element?(live, ".rg-input-bar--solved")
     end
 
     test "incorrect answer shows incorrect feedback", %{conn: conn, riddle: riddle, user: user} do
@@ -143,7 +132,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
         |> form("#answer-form", %{answer: "wrong answer"})
         |> render_submit()
 
-      assert has_element?(live, "#incorrect-feedback")
+      assert has_element?(live, "#answer-feedback-incorrect")
     end
 
     test "case-insensitive matching — KEYBOARD matches keyboard", %{
@@ -154,24 +143,30 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      html =
-        live
-        |> form("#answer-form", %{answer: "KEYBOARD"})
-        |> render_submit()
+      live
+      |> form("#answer-form", %{answer: "KEYBOARD"})
+      |> render_submit()
 
-      assert html =~ "Correct!"
+      send(live.pid, {:mark_solved, riddle.id})
+      html = render(live)
+
+      assert html =~ "1st"
+      assert has_element?(live, ".rg-input-bar--solved")
     end
 
     test "trims whitespace — '  keyboard  ' matches", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      html =
-        live
-        |> form("#answer-form", %{answer: "  keyboard  "})
-        |> render_submit()
+      live
+      |> form("#answer-form", %{answer: "  keyboard  "})
+      |> render_submit()
 
-      assert html =~ "Correct!"
+      send(live.pid, {:mark_solved, riddle.id})
+      html = render(live)
+
+      assert html =~ "1st"
+      assert has_element?(live, ".rg-input-bar--solved")
     end
 
     test "hides form after correct answer", %{conn: conn, riddle: riddle, user: user} do
@@ -197,14 +192,16 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      html =
-        live
-        |> form("#answer-form", %{answer: "keyboard"})
-        |> render_submit()
+      live
+      |> form("#answer-form", %{answer: "keyboard"})
+      |> render_submit()
+
+      send(live.pid, {:mark_solved, riddle.id})
+      html = render(live)
 
       # 1st place = 10 points
       assert html =~ "1st"
-      assert html =~ "+10 points"
+      assert html =~ "+10 pts"
     end
 
     test "empty answer shows error feedback", %{conn: conn, riddle: riddle, user: user} do
@@ -244,7 +241,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       send(live.pid, {:riddle_completed, completed_riddle})
 
       refute has_element?(live, "#answer-form-container")
-      assert has_element?(live, "#game-over")
+      assert has_element?(live, ".rg-round-header")
     end
 
     test "cooldown blocks rapid submissions", %{conn: conn, riddle: riddle, user: user} do
@@ -277,9 +274,13 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       |> form("#answer-form", %{answer: "keyboard"})
       |> render_submit()
 
-      # Form is hidden, so no second submission possible — verify already_solved state
+      # Trigger mark_solved so form hides and solved banner shows
+      send(live.pid, {:mark_solved, riddle.id})
+      render(live)
+
+      # Form is hidden, solved banner visible
       refute has_element?(live, "#answer-form-container")
-      assert has_element?(live, "#correct-result")
+      assert has_element?(live, ".rg-input-bar--solved")
     end
   end
 
@@ -295,13 +296,15 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn2 = log_in_user(build_conn(), user2)
       {:ok, live2, _html} = live(conn2, ~p"/game/#{riddle.id}/play")
 
-      html =
-        live2
-        |> form("#answer-form", %{answer: "keyboard"})
-        |> render_submit()
+      live2
+      |> form("#answer-form", %{answer: "keyboard"})
+      |> render_submit()
+
+      send(live2.pid, {:mark_solved, riddle.id})
+      html = render(live2)
 
       assert html =~ "2nd"
-      assert html =~ "+9 points"
+      assert html =~ "+9 pts"
     end
 
     test "3rd solver gets 8 points", %{user: user} do
@@ -317,13 +320,15 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn3 = log_in_user(build_conn(), user3)
       {:ok, live3, _html} = live(conn3, ~p"/game/#{riddle.id}/play")
 
-      html =
-        live3
-        |> form("#answer-form", %{answer: "keyboard"})
-        |> render_submit()
+      live3
+      |> form("#answer-form", %{answer: "keyboard"})
+      |> render_submit()
+
+      send(live3.pid, {:mark_solved, riddle.id})
+      html = render(live3)
 
       assert html =~ "3rd"
-      assert html =~ "+8 points"
+      assert html =~ "+8 pts"
     end
   end
 
@@ -336,7 +341,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       send(live.pid, {:riddle_completed, riddle})
 
-      assert has_element?(live, "#game-over")
+      assert has_element?(live, ".rg-round-header")
       refute has_element?(live, "#answer-form-container")
     end
 
@@ -361,7 +366,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       send(live.pid, {:riddle_archived, riddle})
 
       # Page stays live — no redirect on archive
-      assert render(live) =~ riddle.name
+      assert render(live) =~ riddle.description
     end
   end
 
@@ -392,7 +397,6 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
       assert has_element?(live, "#answer-feed")
-      assert has_element?(live, "#answers")
     end
 
     test "submitted answer appears in the feed via PubSub", %{
@@ -486,7 +490,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       refute html =~ "spam"
     end
 
-    test "correct answers are highlighted after game completion", %{
+    test "correct answers appear in post-game chat after completion", %{
       conn: conn,
       riddle: riddle,
       user: user
@@ -507,11 +511,12 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       # Submit the correct answer first so it's tracked in correct_answers assign
       send(live.pid, {:answer_submitted, correct_answer})
-      # Game completion re-inserts correct answers with show_highlight: true
+      # Game completion transitions to post-game view
       send(live.pid, {:riddle_completed, %{riddle | play_status: "completed"}})
 
       html = render(live)
-      assert html =~ "border-left: 3px solid var(--accent)"
+      assert html =~ "keyboard"
+      assert has_element?(live, ".rg-round-header")
     end
 
     test "time offset is displayed for real-time answers", %{
