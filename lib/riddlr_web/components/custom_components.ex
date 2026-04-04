@@ -38,13 +38,15 @@ defmodule RiddlrWeb.CustomComponents do
   end
 
   defp format_countdown(seconds, :short) do
-    rem_day = rem(seconds, 86_400)
-    minutes = div(rem(rem_day, 3600), 60)
-    secs = rem(rem_day, 60)
     total_hours = div(seconds, 3600)
+    minutes = div(rem(seconds, 3600), 60)
+    secs = rem(seconds, 60)
 
-    :io_lib.format("~2..0B:~2..0B:~2..0B", [total_hours, minutes, secs])
-    |> IO.iodata_to_binary()
+    total_hours_str = Integer.to_string(total_hours) |> String.pad_leading(2, "0")
+    minutes_str = Integer.to_string(minutes) |> String.pad_leading(2, "0")
+    secs_str = Integer.to_string(secs) |> String.pad_leading(2, "0")
+
+    "#{total_hours_str}:#{minutes_str}:#{secs_str}"
   end
 
   # ─── Lobby / Pre-game ─────────────────────────────────────────────────────────
