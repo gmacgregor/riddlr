@@ -23,10 +23,12 @@ placement live in ETS (`:riddle_answers` bag, `:answer_cooldowns` set) owned by
 
 - `Riddlr.Games` (`lib/riddlr/games.ex`) — riddle/category CRUD + all lifecycle
   transitions, broadcasts on `games:riddle:*`
-- `Riddlr.Gameplay` (`lib/riddlr/gameplay.ex`) — ephemeral round state: answer
-  validation, cooldown, placement, points, answer feed broadcasts, completion stats,
-  ETS cleanup
-- `Riddlr.Accounts` — registration, magic-link/password auth, `award_game_points/2`
+- `Riddlr.Gameplay` (`lib/riddlr/gameplay.ex`) — the Answer race. `submit_answer/3`
+  owns the guard chain, cooldown, placement, points, first solver and the
+  live-until-solved decision; the ETS primitives behind it are private. Also exposes
+  read-side state (`solved?/2`, `get_answers/1`, `get_top_solvers/2`,
+  `get_completion_stats/1`), the chat broadcast and ETS cleanup
+- `Riddlr.Accounts` — registration, magic-link/password auth, `award_game_points/3`
 - `Riddlr.Authorization` — hierarchical roles `super_admin > moderator > editor >
   viewer > player`; permissions `:manage_riddles`, `:manage_users`,
   `:moderate_content`, `:ban_players`, `:view_analytics`
@@ -76,16 +78,17 @@ Scheduling/cancellation goes through `Riddlr.Games.RiddleScheduler`.
 4. **Race** — `GameLive.Play` subscribes to completed/archived/answer_submitted/
    answer_flagged/user-ban topics. Feed rebuilt from ETS, usernames batch-loaded
    (`Accounts.get_users_by_ids/1`), streamed with `limit: 100`.
-   `submit_answer` guard chain: not banned → game live → not already solved →
-   1s per-user cooldown → non-empty and ≤500 chars. Matching is case-insensitive and
+   `Gameplay.submit_answer/3` guard chain: not banned → game live → not already
+   solved → non-empty and ≤500 chars → 1s per-user cooldown (checked last, since
+   the check mutates). Matching is case-insensitive and
    trimmed against `riddle.answers`. Answers store a monotonic timestamp +
    `solve_time_ms` offset from `live_date` and broadcast to every player's feed.
    Moderation runs async; flagged answers are `stream_delete`d for everyone.
    Wrong answers get a random taunt + shake animation.
 5. **Scoring** — placement = count of correct ETS entries with timestamp ≤ yours.
-   `Accounts.award_game_points/2` atomically increments `total_points` by
-   `points_for_placement/1` (**1st=10, 2nd=9 … 10th=1, 0 after**), plus `podium_count`
-   for top-3 and `wins_count` for 1st.
+   Gameplay owns the points table (**1st=10, 2nd=9 … 10th=1, 0 after**) and passes the
+   value to `Accounts.award_game_points/3`, which atomically increments `total_points`,
+   plus `podium_count` for top-3 and `wins_count` for 1st.
    On placement 1: if `live_until_solved`, the winner cancels the pending
    `CompleteRiddleWorker` and completes the riddle immediately — the conditional
    `update_all ... where is_nil(first_solver_id)` in `record_first_solver/3` is the
@@ -118,6 +121,4 @@ Design direction: `docs/superpowers/specs/2026-03-10-lobby-play-redesign.md` and
   answer (only true with `live_until_solved`), 5-min ready window (actually
   `ready_before_seconds`, default 600s), `default` queue (actually `game_lifecycle`),
   and `archive_after_seconds: 3` (schema default 180).
-- The `@doc` on `award_game_points/2` says "1st=10, 2nd=7, 3rd=3" — stale vs
-  `points_for_placement/1`.
 - Play LiveView's redirect on archive is commented out, so players stay on the page.

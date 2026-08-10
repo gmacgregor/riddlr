@@ -7,7 +7,6 @@ defmodule Riddlr.Accounts do
   alias Riddlr.Repo
 
   alias Riddlr.Accounts.{User, UserToken, UserNotifier}
-  import Riddlr.Gameplay, only: [points_for_placement: 1]
 
   ## Database getters
 
@@ -317,12 +316,13 @@ defmodule Riddlr.Accounts do
   end
 
   @doc """
-  Awards points to a user based on game placement (1st=10, 2nd=7, 3rd=3, 4th+=0).
-  Updates total_points, podium_count (top 3), and wins_count (1st place) atomically.
-  """
-  def award_game_points(user_id, placement) do
-    points = points_for_placement(placement)
+  Awards `points` to a user for a game placement.
 
+  The points table is a Gameplay rule, so the caller supplies the value;
+  this function only records it. Updates total_points, podium_count (top 3)
+  and wins_count (1st place) atomically. Returns `:ok`.
+  """
+  def award_game_points(user_id, placement, points) do
     updates =
       [total_points: points] ++
         if(placement <= 3, do: [podium_count: 1], else: []) ++
@@ -336,7 +336,7 @@ defmodule Riddlr.Accounts do
       Phoenix.PubSub.broadcast(Riddlr.PubSub, "accounts:leaderboard:updated", :stats_changed)
     end
 
-    {:ok, points}
+    :ok
   end
 
   ## Moderation

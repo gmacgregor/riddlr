@@ -43,12 +43,7 @@ defmodule RiddlrWeb.GameLive.Play do
             game_completed = status == "completed"
             game_live = status == "live"
 
-            already_solved =
-              game_live and
-                match?(
-                  {:error, :already_solved},
-                  Gameplay.check_already_solved(riddle.id, user.id)
-                )
+            already_solved = game_live and Gameplay.solved?(riddle.id, user.id)
 
             {initial_answers, top_solvers} =
               if connected?(socket) do
@@ -107,55 +102,16 @@ defmodule RiddlrWeb.GameLive.Play do
 
   @impl true
   def handle_event("submit_answer", %{"answer" => text}, socket) do
-    text = String.trim(text)
-    user = socket.assigns.current_user
     riddle = socket.assigns.riddle
 
-    with :ok <- check_not_banned(socket.assigns),
-         :ok <- check_game_live(riddle),
-         :ok <- Gameplay.check_already_solved(riddle.id, user.id),
-         :ok <- Gameplay.check_cooldown(riddle.id, user.id),
-         :ok <- validate_input(text) do
-      correct? = Gameplay.validate_answer(riddle, text)
-      solve_time_ms = compute_offset_ms(socket.assigns.game_start_time)
-      timestamp = Gameplay.store_answer(riddle.id, user.id, text, correct?, solve_time_ms)
+    result =
+      case check_not_banned(socket.assigns) do
+        :ok -> Gameplay.submit_answer(riddle, socket.assigns.current_user, text)
+        {:error, :banned} = error -> error
+      end
 
-      answer_data = %{
-        id: "#{riddle.id}-#{user.id}-#{timestamp}",
-        user_id: user.id,
-        username: user.username,
-        text: text,
-        correct: correct?,
-        timestamp: timestamp,
-        offset_ms: solve_time_ms,
-        show_highlight: false,
-        flagged: false,
-        chat: false
-      }
-
-      Gameplay.broadcast_answer(riddle.id, answer_data)
-      Gameplay.moderate_answer_async(riddle.id, answer_data.id, text)
-
-      if correct? do
-        placement = Gameplay.calculate_placement(riddle.id, timestamp)
-        {:ok, points} = Accounts.award_game_points(user.id, placement)
-
-        if placement == 1 do
-          first_solve_time_seconds = solve_time_ms && div(solve_time_ms, 1000)
-
-          if riddle.live_until_solved do
-            # live_until_solved games complete immediately on first solve
-            stats =
-              Gameplay.get_completion_stats(riddle.id)
-              |> Map.put(:first_solve_time, first_solve_time_seconds)
-
-            Games.complete_riddle_on_first_solve(riddle.id, user.id, stats)
-          else
-            # Timed games: record first solver; Oban CompleteRiddleWorker fires at solve_time
-            Games.record_first_solver(riddle.id, user.id, first_solve_time_seconds)
-          end
-        end
-
+    case result do
+      {:correct, placement, points} ->
         # Delay already_solved assign by 450ms so the .AnswerForm fade animation (400ms)
         # completes before LiveView removes the form container from the DOM.
         Process.send_after(self(), {:mark_solved, riddle.id}, 450)
@@ -164,15 +120,14 @@ defmodule RiddlrWeb.GameLive.Play do
          socket
          |> push_event("answer-correct", %{})
          |> assign(:submission_state, {:correct, placement, points})}
-      else
-        socket = assign(socket, :try_again_message, try_again())
 
+      :incorrect ->
         {:noreply,
          socket
+         |> assign(:try_again_message, try_again())
          |> assign(:submission_state, :incorrect)
          |> push_event("answer-shake", %{})}
-      end
-    else
+
       {:error, :banned} ->
         {:noreply,
          socket
@@ -342,9 +297,6 @@ defmodule RiddlrWeb.GameLive.Play do
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
 
-  defp check_game_live(%{play_status: "live"}), do: :ok
-  defp check_game_live(%{play_status: status}), do: {:error, {:not_live, status}}
-
   defp check_game_completed(%{play_status: "completed"}), do: :ok
   defp check_game_completed(%{play_status: status}), do: {:error, {:not_completed, status}}
 
@@ -441,12 +393,6 @@ defmodule RiddlrWeb.GameLive.Play do
     minutes = div(seconds, 60)
     secs = rem(seconds, 60)
     :io_lib.format("~2..0B:~2..0B", [minutes, secs]) |> IO.iodata_to_binary()
-  end
-
-  defp compute_offset_ms(nil), do: nil
-
-  defp compute_offset_ms(game_start) do
-    max(DateTime.diff(DateTime.utc_now(), game_start, :millisecond), 0)
   end
 
   defp format_offset(ms) when ms < 1000, do: "#{ms}ms"
