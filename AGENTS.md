@@ -5,12 +5,14 @@
 - Do not develop large horizontal layers that must be completed before the next layer can be tackled.
 - If a TDD or Test-Driven-Development skill is in your context, load it and follow its guidance.
 - Commit code changes when directly instructed by the user to do so or when a skill in your context instructs you to do so.
+
 </important>
 
 <important if="git commiting code changes">
 - Use conventional commits and include both a commit summary and description.
 - If commits relate to a specific issue, include the issue number in the summary message, i.e `fix(#123): ...`.
 - If the current branch is a feature branch, include the feature name in the summary message, i.e `fix(feature-name): ...`. If you don't know what `feature-name` to use, supply a suggestion and ask the user.
+
 </important>
 
 ## Agent skills
