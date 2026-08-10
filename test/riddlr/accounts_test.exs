@@ -4,6 +4,7 @@ defmodule Riddlr.AccountsTest do
   alias Riddlr.Accounts
 
   import Riddlr.AccountsFixtures
+  alias Riddlr.Clock.Frozen
   alias Riddlr.Accounts.{User, UserToken}
 
   describe "get_user_by_email/1" do
@@ -88,6 +89,18 @@ defmodule Riddlr.AccountsTest do
   end
 
   describe "sudo_mode?/2" do
+    test "expires as the clock moves past the sudo window" do
+      now = ~U[2026-08-01 12:00:00.000000Z]
+      Frozen.freeze(now)
+      user = %User{authenticated_at: now}
+
+      Frozen.advance(19, :minute)
+      assert Accounts.sudo_mode?(user)
+
+      Frozen.advance(2, :minute)
+      refute Accounts.sudo_mode?(user)
+    end
+
     test "validates the authenticated_at time" do
       now = DateTime.utc_now()
 

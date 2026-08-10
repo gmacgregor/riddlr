@@ -5,7 +5,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.{Accounts, Games, Gameplay}
+  alias Riddlr.{Accounts, Clock, Games, Gameplay}
 
   import Riddlr.Utils.User
 
@@ -154,12 +154,12 @@ defmodule RiddlrWeb.GameLive.Play do
          :ok <- check_not_banned(socket.assigns),
          :ok <- check_game_completed(riddle) do
       chat_data = %{
-        id: "chat-#{riddle.id}-#{user.id}-#{System.monotonic_time(:microsecond)}",
+        id: "chat-#{riddle.id}-#{user.id}-#{Clock.monotonic_us()}",
         user_id: user.id,
         username: user.username,
         text: text,
         correct: false,
-        timestamp: System.monotonic_time(:microsecond),
+        timestamp: Clock.monotonic_us(),
         offset_ms: nil,
         show_highlight: false,
         flagged: false,
@@ -385,7 +385,7 @@ defmodule RiddlrWeb.GameLive.Play do
   defp compute_time_remaining(nil, solve_time), do: solve_time
 
   defp compute_time_remaining(live_date, solve_time) do
-    elapsed = DateTime.diff(DateTime.utc_now(), live_date, :second)
+    elapsed = DateTime.diff(Clock.utc_now(), live_date, :second)
     max(solve_time - elapsed, 0)
   end
 

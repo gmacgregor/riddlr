@@ -1,6 +1,7 @@
 defmodule Riddlr.Gameplay.SubmitAnswerTest do
   use Riddlr.DataCase, async: false
 
+  alias Riddlr.Clock.Frozen
   alias Riddlr.Gameplay
   alias Riddlr.{AccountsFixtures, GamesFixtures}
 
@@ -34,6 +35,29 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
   end
 
   describe "submit_answer/3 — correct answers" do
+    test "stamps the answer with the clock, not the runtime", %{riddle: riddle, user: user} do
+      Frozen.freeze()
+      Frozen.advance(5, :second)
+      stamped_at = Riddlr.Clock.monotonic_us()
+
+      assert Gameplay.submit_answer(riddle, user, "mouse") == :incorrect
+
+      assert [%{timestamp: ^stamped_at}] = Gameplay.get_answers(riddle.id)
+    end
+
+    test "records solve time as the offset from the riddle going live", %{user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+      riddle = live_riddle(%{live_date: live_date})
+
+      Frozen.freeze(live_date)
+      Frozen.advance(4500, :millisecond)
+
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
+
+      assert [%{user_id: solver_id, solve_time_ms: 4500}] = Gameplay.get_top_solvers(riddle.id)
+      assert solver_id == user.id
+    end
+
     test "first solver gets placement 1, points and is recorded on the riddle", %{
       riddle: riddle,
       user: user
@@ -74,6 +98,22 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
       assert Gameplay.submit_answer(riddle, user, "mouse") == :incorrect
 
       assert Gameplay.submit_answer(riddle, user, "monitor") == {:error, :cooldown}
+    end
+
+    test "lets the user answer again once the cooldown second is up", %{
+      riddle: riddle,
+      user: user
+    } do
+      Frozen.freeze()
+
+      assert Gameplay.submit_answer(riddle, user, "mouse") == :incorrect
+      assert Gameplay.submit_answer(riddle, user, "monitor") == {:error, :cooldown}
+
+      Frozen.advance(999, :millisecond)
+      assert Gameplay.submit_answer(riddle, user, "monitor") == {:error, :cooldown}
+
+      Frozen.advance(1, :millisecond)
+      assert Gameplay.submit_answer(riddle, user, "monitor") == :incorrect
     end
 
     test "rejects submissions when the riddle is not live", %{user: user} do

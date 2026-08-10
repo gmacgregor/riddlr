@@ -3,7 +3,8 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
   import Phoenix.LiveViewTest
 
-  alias Riddlr.{Games, AccountsFixtures, GamesFixtures}
+  alias Riddlr.Clock.Frozen
+  alias Riddlr.{Games, Gameplay, AccountsFixtures, GamesFixtures}
 
   setup do
     user = AccountsFixtures.user_fixture()
@@ -245,6 +246,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
     end
 
     test "cooldown blocks rapid submissions", %{conn: conn, riddle: riddle, user: user} do
+      # Frozen: without it this test passes only when both submissions land
+      # inside the same real second.
+      Frozen.freeze()
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
@@ -289,9 +293,10 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       user2 = AccountsFixtures.user_fixture()
 
-      # user1 solves first (direct ETS insert with past timestamp)
-      past_ts = System.monotonic_time(:microsecond) - 1000
-      :ets.insert(:riddle_answers, {{riddle.id, user.id}, "keyboard", past_ts, true, nil})
+      # user1 solves first, a second earlier on the frozen clock
+      Frozen.freeze()
+      {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
+      Frozen.advance(1, :second)
 
       conn2 = log_in_user(build_conn(), user2)
       {:ok, live2, _html} = live(conn2, ~p"/game/#{riddle.id}/play")
@@ -312,10 +317,11 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       user2 = AccountsFixtures.user_fixture()
       user3 = AccountsFixtures.user_fixture()
 
-      past1 = System.monotonic_time(:microsecond) - 2000
-      past2 = System.monotonic_time(:microsecond) - 1000
-      :ets.insert(:riddle_answers, {{riddle.id, user.id}, "keyboard", past1, true, nil})
-      :ets.insert(:riddle_answers, {{riddle.id, user2.id}, "keyboard", past2, true, nil})
+      Frozen.freeze()
+      {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
+      Frozen.advance(1, :second)
+      {:correct, 2, 9} = Gameplay.submit_answer(riddle, user2, "keyboard")
+      Frozen.advance(1, :second)
 
       conn3 = log_in_user(build_conn(), user3)
       {:ok, live3, _html} = live(conn3, ~p"/game/#{riddle.id}/play")
@@ -329,6 +335,42 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       assert html =~ "3rd"
       assert html =~ "+8 pts"
+    end
+  end
+
+  describe "solve countdown" do
+    test "shows the time left on the riddle's solve clock", %{conn: conn, user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{solve_time: 300, live_date: live_date})
+        |> set_play_status_direct("live")
+
+      Frozen.freeze(live_date)
+      Frozen.advance(30, :second)
+
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert has_element?(live, "#countdown-timer[data-seconds='270']")
+      assert render(live) =~ "04:30"
+    end
+
+    test "a tick past the solve time leaves no time on the clock", %{conn: conn, user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{solve_time: 60, live_date: live_date})
+        |> set_play_status_direct("live")
+
+      Frozen.freeze(live_date)
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      Frozen.advance(90, :second)
+      send(live.pid, :tick)
+
+      assert has_element?(live, "#countdown-timer[data-seconds='0']")
     end
   end
 

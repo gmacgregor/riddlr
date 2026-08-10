@@ -3,6 +3,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
   import Phoenix.LiveViewTest
 
+  alias Riddlr.Clock.Frozen
   alias Riddlr.{Games, GamesFixtures, AccountsFixtures}
 
   setup do
@@ -128,6 +129,24 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
   end
 
   describe "countdown tick" do
+    test "shows the seconds until the riddle drops", %{conn: conn, user: user} do
+      now = ~U[2026-08-01 12:00:00.000000Z]
+      Frozen.freeze(now)
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(now, 90, :second)})
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      conn = log_in_user(conn, user)
+
+      # Static render: the seconds come from the LiveView's own clock read,
+      # before any tick from the lobby timer can land.
+      html = conn |> get(~p"/game/#{riddle.id}/lobby") |> html_response(200)
+
+      assert html =~ ~s(data-seconds="90")
+    end
+
     test "handles :tick and updates time_remaining and data-seconds", %{conn: conn, user: user} do
       live_date = DateTime.add(DateTime.utc_now(), 120, :second)
 

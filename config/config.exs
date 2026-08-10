@@ -22,7 +22,8 @@ config :riddlr, :scopes,
 
 config :riddlr,
   ecto_repos: [Riddlr.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  clock: Riddlr.Clock.System
 
 # Configure Oban
 config :riddlr, Oban,

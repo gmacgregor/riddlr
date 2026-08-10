@@ -6,6 +6,7 @@ defmodule Riddlr.Games do
   import Ecto.Query, warn: false
 
   alias Ecto.Multi
+  alias Riddlr.Clock
   alias Riddlr.Repo
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
@@ -175,7 +176,7 @@ defmodule Riddlr.Games do
         :none
 
       riddle.play_status == "closed" ->
-        if DateTime.compare(live_date, DateTime.utc_now()) == :lt, do: :none, else: :schedule
+        if DateTime.compare(live_date, Clock.utc_now()) == :lt, do: :none, else: :schedule
 
       riddle.play_status in ["scheduled", "ready"] and schedule_moved?(changeset) ->
         :reschedule
@@ -276,7 +277,7 @@ defmodule Riddlr.Games do
       |> where([j], j.state in @cancellable_states)
       |> where([j], j.worker in ^workers)
       |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
-      |> repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
+      |> repo.update_all(set: [state: "cancelled", cancelled_at: Clock.utc_now()])
 
     {:ok, count}
   end

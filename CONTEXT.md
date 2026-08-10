@@ -23,6 +23,7 @@ Deep dive: `docs/DOMAIN.md`. Lifecycle detail: `docs/RIDDLE_LIFECYCLE.md`.
 | **Podium** | Placements 1–3. |
 | **Cooldown** | 1s per-user submit rate limit (UX only, non-atomic). Also the post-completion window before archive. |
 | **Archive** | Terminal state. Drops the riddle's ETS rows. |
+| **Clock** | The port every time read goes through (`Riddlr.Clock`). Frozen in tests; nothing else reads the runtime clock. |
 
 Avoid: "round"/"turn" (there are none — one riddle is one simultaneous race),
 "question" (say **riddle**), "score" as a verb for placement (say **award points**).

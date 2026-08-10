@@ -1,6 +1,7 @@
 defmodule RiddlrWeb.GameLive.Lobby do
   use RiddlrWeb, :live_view
 
+  alias Riddlr.Clock
   alias Riddlr.Games
   alias Riddlr.Gameplay.Presence
 
@@ -77,5 +78,5 @@ defmodule RiddlrWeb.GameLive.Lobby do
   defp time_remaining(nil), do: 0
 
   defp time_remaining(live_date),
-    do: max(0, DateTime.diff(live_date, DateTime.utc_now()))
+    do: max(0, DateTime.diff(live_date, Clock.utc_now()))
 end

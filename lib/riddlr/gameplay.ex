@@ -34,6 +34,8 @@ defmodule Riddlr.Gameplay do
   either writes. It is a rate-limiting UX affordance, not a security boundary.
   """
 
+  alias Riddlr.Clock
+
   @answers_table :riddle_answers
   @cooldowns_table :answer_cooldowns
   # 1 second in microseconds
@@ -129,7 +131,7 @@ defmodule Riddlr.Gameplay do
   defp compute_offset_ms(nil), do: nil
 
   defp compute_offset_ms(live_date) do
-    max(DateTime.diff(DateTime.utc_now(), live_date, :millisecond), 0)
+    max(DateTime.diff(Clock.utc_now(), live_date, :millisecond), 0)
   end
 
   defp validate_answer(%{answers: answers}, text) do
@@ -138,7 +140,7 @@ defmodule Riddlr.Gameplay do
   end
 
   defp check_cooldown(riddle_id, user_id) do
-    now = System.monotonic_time(:microsecond)
+    now = Clock.monotonic_us()
     key = {riddle_id, user_id}
 
     case :ets.lookup(@cooldowns_table, key) do
@@ -167,7 +169,7 @@ defmodule Riddlr.Gameplay do
   # `solve_time_ms` is stored for leaderboard display only; placement ordering
   # uses the monotonic timestamp, which wall-clock adjustments can't distort.
   defp store_answer(riddle_id, user_id, text, correct?, solve_time_ms) do
-    timestamp = System.monotonic_time(:microsecond)
+    timestamp = Clock.monotonic_us()
     :ets.insert(@answers_table, {{riddle_id, user_id}, text, timestamp, correct?, solve_time_ms})
     timestamp
   end

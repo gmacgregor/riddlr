@@ -43,7 +43,7 @@ defmodule Riddlr.Accounts.UserToken do
   """
   def build_session_token(user) do
     token = :crypto.strong_rand_bytes(@rand_size)
-    dt = user.authenticated_at || DateTime.utc_now(:second)
+    dt = user.authenticated_at || Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
     {token, %UserToken{token: token, context: "session", user_id: user.id, authenticated_at: dt}}
   end
 

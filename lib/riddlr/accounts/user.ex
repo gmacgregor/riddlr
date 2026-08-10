@@ -177,7 +177,7 @@ defmodule Riddlr.Accounts.User do
   Confirms the account by setting `confirmed_at`.
   """
   def confirm_changeset(user) do
-    now = DateTime.utc_now(:second)
+    now = Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
     change(user, confirmed_at: now)
   end
 

@@ -14,6 +14,8 @@ defmodule Riddlr.LobbyTimer do
 
   use GenServer
 
+  alias Riddlr.Clock
+
   @registry Riddlr.LobbyTimerRegistry
   @supervisor Riddlr.LobbyTimerSupervisor
 
@@ -67,7 +69,7 @@ defmodule Riddlr.LobbyTimer do
   # ── Helpers ──────────────────────────────────────────────────────────────────
 
   defp broadcast(riddle_id, live_date) do
-    seconds = max(0, DateTime.diff(live_date, DateTime.utc_now()))
+    seconds = max(0, DateTime.diff(live_date, Clock.utc_now()))
 
     Phoenix.PubSub.broadcast(
       Riddlr.PubSub,
@@ -80,7 +82,7 @@ defmodule Riddlr.LobbyTimer do
 
   # Align to the next wall-clock second boundary to prevent timer drift.
   defp schedule_tick do
-    ms = 1000 - rem(System.system_time(:millisecond), 1000)
+    ms = 1000 - rem(DateTime.to_unix(Clock.utc_now(), :millisecond), 1000)
     Process.send_after(self(), :tick, ms)
   end
 end
