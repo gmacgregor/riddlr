@@ -8,7 +8,8 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
+      # Every admin write — create, edit, schedule, delete — arrives on one topic.
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:changed")
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:ready")
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
@@ -63,11 +64,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
     {:noreply, stream_insert(socket, :riddles, riddle, at: 0)}
   end
 
-  # Handle Oban worker state transitions
-  def handle_info({:riddle_scheduled, riddle}, socket) do
-    {:noreply, stream_insert(socket, :riddles, riddle)}
+  def handle_info({:riddle_deleted, riddle}, socket) do
+    {:noreply, stream_delete(socket, :riddles, riddle)}
   end
 
+  # Handle Oban worker state transitions
   def handle_info({:riddle_ready, riddle}, socket) do
     {:noreply, stream_insert(socket, :riddles, riddle)}
   end

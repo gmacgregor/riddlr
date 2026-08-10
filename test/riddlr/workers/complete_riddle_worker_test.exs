@@ -40,8 +40,7 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
     user = user_fixture()
     riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
 
-    {:ok, riddle} =
-      Riddlr.Games.update_riddle(riddle, %{first_solver_id: user.id, play_status: "live"})
+    {:ok, :recorded} = Riddlr.Games.record_first_solver(riddle.id, user.id)
 
     assert :ok = perform_job(CompleteRiddleWorker, %{riddle_id: riddle.id})
     assert Riddlr.Repo.reload(riddle).play_status == "completed"

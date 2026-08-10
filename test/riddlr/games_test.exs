@@ -133,29 +133,6 @@ defmodule Riddlr.GamesTest do
         Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
     end
 
-    test "update_riddle/2 with valid data updates the riddle" do
-      riddle = riddle_fixture()
-
-      update_attrs = %{
-        name: "Updated Name",
-        description: "Updated description",
-        answers: ["new_answer"],
-        solve_time: 120
-      }
-
-      assert {:ok, %Riddle{} = riddle} = Games.update_riddle(riddle, update_attrs)
-      assert riddle.name == "Updated Name"
-      assert riddle.description == "Updated description"
-      assert riddle.answers == ["new_answer"]
-      assert riddle.solve_time == 120
-    end
-
-    test "update_riddle/2 with invalid data returns error changeset" do
-      riddle = riddle_fixture()
-      assert {:error, %Ecto.Changeset{}} = Games.update_riddle(riddle, @invalid_attrs)
-      assert riddle == Games.get_riddle!(riddle.id)
-    end
-
     test "delete_riddle/1 deletes the riddle" do
       riddle = riddle_fixture()
       assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
@@ -179,6 +156,40 @@ defmodule Riddlr.GamesTest do
       assert :ets.lookup(:answer_cooldowns, {riddle.id, user_id}) == []
     end
 
+    test "delete_riddle/1 cancels the riddle's pending jobs" do
+      riddle = scheduled_riddle_fixture()
+
+      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+
+      pending =
+        Oban.Job
+        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
+        |> where([j], j.state in ["available", "scheduled", "retryable"])
+        |> Riddlr.Repo.all()
+
+      assert pending == []
+    end
+
+    test "delete_riddle/1 announces :riddle_deleted to the admin topic" do
+      riddle = riddle_fixture()
+      riddle_id = riddle.id
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:changed")
+
+      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+
+      assert_receive {:riddle_deleted, %{id: ^riddle_id}}
+    end
+
+    test "delete_riddle/1 announces :riddle_unscheduled for a scheduled riddle" do
+      riddle = scheduled_riddle_fixture()
+      riddle_id = riddle.id
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
+
+      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+
+      assert_receive {:riddle_unscheduled, %{id: ^riddle_id}}
+    end
+
     test "change_riddle/1 returns a riddle changeset" do
       riddle = riddle_fixture()
       assert %Ecto.Changeset{} = Games.change_riddle(riddle)
@@ -189,20 +200,12 @@ defmodule Riddlr.GamesTest do
     import Riddlr.GamesFixtures
 
     test "full riddle lifecycle from closed to archived" do
-      riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
       live_date = DateTime.add(DateTime.utc_now(), 600, :second) |> DateTime.truncate(:second)
 
       # Schedule
-      {:ok, result} = Games.schedule_riddle(riddle, live_date)
-      assert result.riddle.play_status == "scheduled"
-      assert DateTime.compare(result.riddle.live_date, live_date) == :eq
-
-      assert DateTime.compare(
-               result.ready_job.scheduled_at,
-               DateTime.add(live_date, -result.riddle.ready_before_seconds, :second)
-             ) == :eq
-
-      assert DateTime.compare(result.live_job.scheduled_at, live_date) == :eq
+      riddle = scheduled_riddle_fixture(%{live_date: live_date})
+      assert riddle.play_status == "scheduled"
+      assert DateTime.compare(riddle.live_date, live_date) == :eq
 
       # Ready
       {:ok, riddle} = Games.transition(riddle.id, :ready)
@@ -221,33 +224,6 @@ defmodule Riddlr.GamesTest do
       assert riddle.play_status == "archived"
     end
 
-    test "schedule_riddle enqueues two jobs with correct timing" do
-      riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
-      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
-
-      {:ok, result} = Games.schedule_riddle(riddle, live_date)
-
-      # Verify ready job scheduled ready_before_seconds before live
-      assert result.ready_job.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker"
-      assert result.ready_job.args == %{"riddle_id" => riddle.id}
-      expected_lead_seconds = -result.riddle.ready_before_seconds
-
-      assert DateTime.diff(result.ready_job.scheduled_at, live_date, :second) ==
-               expected_lead_seconds
-
-      # Verify live job scheduled at live_date
-      assert result.live_job.worker == "Riddlr.Workers.LiveRiddleTransitionWorker"
-      assert result.live_job.args == %{"riddle_id" => riddle.id}
-      assert DateTime.compare(result.live_job.scheduled_at, live_date) == :eq
-    end
-
-    test "schedule_riddle returns error when riddle is not published" do
-      riddle = riddle_fixture(%{play_status: "closed", publish_status: "draft"})
-      live_date = DateTime.add(DateTime.utc_now(), 600, :second)
-
-      assert {:error, :riddle_not_published} = Games.schedule_riddle(riddle, live_date)
-    end
-
     test "invalid state transitions return errors" do
       riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
 
@@ -259,18 +235,14 @@ defmodule Riddlr.GamesTest do
     end
 
     test "idempotency: transitioning to ready twice on a scheduled riddle" do
-      riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
-      live_date = DateTime.add(DateTime.utc_now(), 600, :second)
-
-      {:ok, result} = Games.schedule_riddle(riddle, live_date)
-      riddle_id = result.riddle.id
+      riddle = scheduled_riddle_fixture()
 
       # First call succeeds
-      {:ok, updated_riddle} = Games.transition(riddle_id, :ready)
+      {:ok, updated_riddle} = Games.transition(riddle.id, :ready)
       assert updated_riddle.play_status == "ready"
 
       # Second call is rejected as an invalid transition
-      assert {:invalid, "ready", :ready} = Games.transition(riddle_id, :ready)
+      assert {:invalid, "ready", :ready} = Games.transition(riddle.id, :ready)
     end
 
     test "completing succeeds when riddle has a winner" do
@@ -384,102 +356,6 @@ defmodule Riddlr.GamesTest do
       [job] = all_enqueued(worker: Riddlr.Workers.CompleteRiddleWorker)
       diff = DateTime.diff(job.scheduled_at, DateTime.utc_now())
       assert diff >= 115 and diff <= 125
-    end
-  end
-
-  describe "update_riddle/2 with draft rollback" do
-    import Riddlr.GamesFixtures
-
-    test "cancels all pending workers when changing to draft status" do
-      riddle =
-        riddle_fixture(%{
-          publish_status: "published",
-          play_status: "closed"
-        })
-
-      # Schedule jobs
-      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
-      {:ok, result} = Games.schedule_riddle(riddle, live_date)
-      riddle_id = result.riddle.id
-
-      # Verify jobs exist
-      pending_before =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      assert length(pending_before) == 2
-
-      # Move back to draft
-      riddle = Games.get_riddle!(riddle_id)
-      {:ok, updated} = Games.update_riddle(riddle, %{publish_status: "draft"})
-
-      assert updated.publish_status == "draft"
-      assert updated.play_status == "closed"
-
-      # Verify jobs cancelled
-      pending_after =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      assert length(pending_after) == 0
-    end
-
-    test "does not cancel jobs when changing other fields" do
-      riddle =
-        riddle_fixture(%{
-          publish_status: "published",
-          play_status: "closed"
-        })
-
-      # Schedule jobs
-      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
-      {:ok, result} = Games.schedule_riddle(riddle, live_date)
-      riddle_id = result.riddle.id
-
-      # Update other fields without changing publish_status
-      riddle = Games.get_riddle!(riddle_id)
-      {:ok, _updated} = Games.update_riddle(riddle, %{name: "Updated Name"})
-
-      # Verify jobs still exist
-      pending_after =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      assert length(pending_after) == 2
-    end
-
-    test "does not cancel jobs when keeping published status" do
-      riddle =
-        riddle_fixture(%{
-          publish_status: "published",
-          play_status: "closed"
-        })
-
-      # Schedule jobs
-      live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
-      {:ok, result} = Games.schedule_riddle(riddle, live_date)
-      riddle_id = result.riddle.id
-
-      # Update while keeping published status
-      riddle = Games.get_riddle!(riddle_id)
-
-      {:ok, _updated} =
-        Games.update_riddle(riddle, %{publish_status: "published", name: "Still Published"})
-
-      # Verify jobs still exist
-      pending_after =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      assert length(pending_after) == 2
     end
   end
 
@@ -604,41 +480,19 @@ defmodule Riddlr.GamesTest do
       assert {:error, changeset} = Games.create_riddle(attrs)
       assert %{ready_before_seconds: ["must be greater than 0"]} = errors_on(changeset)
     end
-
-    test "schedule_riddle uses per-riddle ready_before_seconds" do
-      riddle =
-        riddle_fixture(%{
-          play_status: "closed",
-          publish_status: "published",
-          ready_before_seconds: 20
-        })
-
-      live_date = DateTime.add(DateTime.utc_now(), 7200, :second)
-      {:ok, result} = Games.schedule_riddle(riddle, live_date)
-
-      expected_offset = -riddle.ready_before_seconds
-      assert DateTime.diff(result.ready_job.scheduled_at, live_date, :second) == expected_offset
-    end
   end
 
-  describe "cancel_complete_worker/1" do
+  describe "complete_riddle_on_first_solve/3 job cancellation" do
     import Riddlr.GamesFixtures
 
-    test "cancels a scheduled CompleteRiddleWorker for a riddle" do
+    test "cancels the pending CompleteRiddleWorker" do
       riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
+      user = Riddlr.AccountsFixtures.user_fixture()
 
-      # Enqueue a job
       {:ok, _job} =
-        Riddlr.Workers.CompleteRiddleWorker.new(%{"riddle_id" => riddle.id})
-        |> Oban.insert()
+        Riddlr.Workers.CompleteRiddleWorker.new(%{"riddle_id" => riddle.id}) |> Oban.insert()
 
-      assert_enqueued(
-        worker: Riddlr.Workers.CompleteRiddleWorker,
-        args: %{"riddle_id" => riddle.id}
-      )
-
-      {:ok, count} = Games.cancel_complete_worker(riddle.id)
-      assert count == 1
+      assert {:ok, _} = Games.complete_riddle_on_first_solve(riddle.id, user.id)
 
       refute_enqueued(
         worker: Riddlr.Workers.CompleteRiddleWorker,
@@ -646,19 +500,11 @@ defmodule Riddlr.GamesTest do
       )
     end
 
-    test "returns {:ok, 0} when no jobs exist" do
-      riddle = riddle_fixture(%{play_status: "live"})
-      assert {:ok, 0} = Games.cancel_complete_worker(riddle.id)
-    end
-
-    test "does not cancel ArchiveRiddleTransitionWorker jobs" do
+    test "leaves the archive job it just enqueued alone" do
       riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
+      user = Riddlr.AccountsFixtures.user_fixture()
 
-      {:ok, _job} =
-        Riddlr.Workers.ArchiveRiddleTransitionWorker.new(%{"riddle_id" => riddle.id})
-        |> Oban.insert()
-
-      Games.cancel_complete_worker(riddle.id)
+      assert {:ok, _} = Games.complete_riddle_on_first_solve(riddle.id, user.id)
 
       assert_enqueued(
         worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,

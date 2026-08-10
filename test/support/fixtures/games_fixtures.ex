@@ -26,6 +26,29 @@ defmodule Riddlr.GamesFixtures do
     Riddlr.Games.get_riddle!(riddle.id)
   end
 
+  @doc """
+  A published riddle already in `scheduled` state, with its ready/live jobs
+  enqueued. Pass `:live_date` to control when it goes live.
+  """
+  def scheduled_riddle_fixture(attrs \\ %{}) do
+    {live_date, attrs} =
+      Map.pop_lazy(attrs, :live_date, fn ->
+        DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second)
+      end)
+
+    riddle = riddle_fixture(Map.put(attrs, :publish_status, "published"))
+
+    {:ok, scheduled} = Riddlr.Games.save_riddle(riddle, %{"live_date" => live_date})
+    scheduled
+  end
+
+  @doc """
+  The shared "logic" category every riddle fixture hangs off.
+  """
+  def category_fixture do
+    Riddlr.Repo.get!(Riddlr.Games.Category, get_or_create_default_category())
+  end
+
   defp get_or_create_default_category do
     case Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") do
       nil ->

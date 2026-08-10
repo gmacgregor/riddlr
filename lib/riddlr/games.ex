@@ -10,6 +10,36 @@ defmodule Riddlr.Games do
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
 
+  alias Riddlr.Workers.{
+    ArchiveRiddleTransitionWorker,
+    CompleteRiddleWorker,
+    LiveRiddleTransitionWorker,
+    ReadyRiddleTransitionWorker
+  }
+
+  # The four workers that take a riddle_id argument. Cancelling a riddle's
+  # pending work means cancelling jobs from this list, which is why it exists as
+  # one list rather than a filter written out at each call site.
+  #
+  # Stored as strings because Oban's `worker` column holds the module name
+  # without the `Elixir.` prefix — which is what `inspect/1` produces and
+  # `to_string/1` does not.
+  @riddle_workers Enum.map(
+                    [
+                      ReadyRiddleTransitionWorker,
+                      LiveRiddleTransitionWorker,
+                      ArchiveRiddleTransitionWorker,
+                      CompleteRiddleWorker
+                    ],
+                    &inspect/1
+                  )
+
+  @complete_worker inspect(CompleteRiddleWorker)
+
+  # A job in any other state has already run, been cancelled or been discarded,
+  # so there is nothing left to cancel.
+  @cancellable_states ["available", "scheduled", "retryable"]
+
   @doc """
   Returns the list of riddles.
 
@@ -60,7 +90,8 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Creates a riddle.
+  Creates a riddle. A thin alias over `save_riddle/2` for seeds and fixtures —
+  it schedules too, if the attrs say so.
 
   ## Examples
 
@@ -71,72 +102,181 @@ defmodule Riddlr.Games do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_riddle(attrs \\ %{}) do
-    %Riddle{}
-    |> Riddle.changeset(attrs)
-    |> Repo.insert()
-    |> case do
-      # preload category so that it's name can be referenced in display
-      {:ok, riddle} -> {:ok, preload_assoc(riddle)}
-      {:error, changeset} -> {:error, changeset}
-    end
-  end
+  def create_riddle(attrs \\ %{}), do: save_riddle(%Riddle{}, attrs)
 
   @doc """
-  Updates a riddle.
-  If publish_status changes from "published" to "draft", cancels all pending jobs.
+  The one way to write a Riddle from the admin.
 
-  ## Examples
+  Takes the row the admin edited (a bare `%Riddle{}` for a create) and the form
+  attrs, and writes the row *and* its Oban jobs in a single transaction. The
+  caller says nothing about scheduling: `save_riddle/2` reads the persisted
+  state and the changeset and decides between four intents.
 
-      iex> update_riddle(riddle, %{field: new_value})
-      {:ok, %Riddle{}}
+    * `:schedule` — a closed, published riddle with a future Live date
+    * `:reschedule` — a scheduled/ready riddle whose Live date or lead time moved
+    * `:unschedule` — a scheduled/ready riddle rolled back to draft
+    * `:none` — a plain write
 
-      iex> update_riddle(riddle, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
+  A riddle that cannot be scheduled (draft, past Live date, already live) is not
+  an error: it is simply not a schedule, and the row is written anyway.
 
+  Returns `{:ok, riddle}` or `{:error, changeset}` — no other shape.
   """
-  def update_riddle(%Riddle{} = riddle, attrs) do
+  def save_riddle(%Riddle{} = riddle, attrs) do
     changeset = Riddle.changeset(riddle, attrs)
 
-    publish_status_changing_to_draft? =
-      riddle.publish_status == "published" &&
-        Ecto.Changeset.get_change(changeset, :publish_status) == "draft"
-
-    # If rolling back to draft from a scheduled/ready state, also reset play_status to closed
-    changeset =
-      if publish_status_changing_to_draft? && riddle.play_status in ["scheduled", "ready"] do
-        Ecto.Changeset.put_change(changeset, :play_status, "closed")
-      else
-        changeset
-      end
+    # An invalid changeset gets `:none`: the transaction will roll back anyway,
+    # and skipping the intent avoids running the validations twice and doubling
+    # every error message in the form.
+    intent = if changeset.valid?, do: intent(riddle, changeset), else: :none
 
     Multi.new()
-    |> Multi.update(:riddle, changeset)
-    |> Multi.run(:cancel_jobs, fn _repo, %{riddle: updated_riddle} ->
-      if publish_status_changing_to_draft? do
-        cancel_riddle_jobs(updated_riddle.id)
-      else
-        {:ok, :skipped}
-      end
-    end)
+    |> Multi.insert_or_update(:riddle, apply_intent(changeset, intent))
+    |> write_jobs(intent)
     |> Repo.transaction()
     |> case do
-      {:ok, %{riddle: riddle}} -> {:ok, preload_assoc_force(riddle)}
-      {:error, :riddle, changeset, _} -> {:error, changeset}
-      {:error, _failed_operation, reason, _} -> {:error, reason}
+      {:ok, %{riddle: saved}} -> {:ok, saved |> preload_assoc_force() |> announce(intent)}
+      {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
     end
   end
 
-  @doc """
-  Cancels all pending Oban jobs for a riddle.
-  Returns {:ok, count} where count is the number of cancelled jobs.
-  """
-  def cancel_riddle_jobs(riddle_id) do
+  # Decides whether a save also changes the schedule: given the riddle as it is
+  # stored and the changes the admin just submitted, which of the four intents
+  # applies?
+  #
+  # Clause order is part of the rule, not an implementation detail:
+  #
+  #   1. Un-publishing wins over everything. A draft riddle with pending jobs is
+  #      the one state that must never survive a save.
+  #   2. A draft riddle is never scheduled, so nothing else can apply.
+  #   3. No Live date, no schedule — the jobs have nothing to hang off.
+  #   4. From `closed` this is a first schedule, and only a *future* Live date
+  #      earns one. A past date is the admin filling in a form, not asking for a
+  #      game that already started.
+  #   5. From `scheduled`/`ready` the jobs already exist, so the question is only
+  #      whether they still match the row. A past date *does* reschedule here:
+  #      the admin is moving a game they already scheduled, and Oban running the
+  #      job immediately is the honest result.
+  #
+  # Anything that falls through is `:none` — a riddle that cannot be scheduled is
+  # not an error, it is simply not a schedule, and the row is written regardless.
+  # That is what lets `save_riddle/2` return one error shape.
+  defp intent(%Riddle{} = riddle, changeset) do
+    live_date = Ecto.Changeset.get_field(changeset, :live_date)
+
+    cond do
+      unscheduling?(riddle, changeset) ->
+        :unschedule
+
+      Ecto.Changeset.get_field(changeset, :publish_status) != "published" ->
+        :none
+
+      is_nil(live_date) ->
+        :none
+
+      riddle.play_status == "closed" ->
+        if DateTime.compare(live_date, DateTime.utc_now()) == :lt, do: :none, else: :schedule
+
+      riddle.play_status in ["scheduled", "ready"] and schedule_moved?(changeset) ->
+        :reschedule
+
+      true ->
+        :none
+    end
+  end
+
+  # Rolling back to draft is the only way to un-schedule: the pending jobs would
+  # otherwise take an unpublished riddle live.
+  defp unscheduling?(%Riddle{play_status: play_status}, changeset)
+       when play_status in ["scheduled", "ready"],
+       do: Ecto.Changeset.get_field(changeset, :publish_status) != "published"
+
+  defp unscheduling?(_riddle, _changeset), do: false
+
+  # The two fields the pending jobs are derived from — `live_date` sets the live
+  # job and, minus the lead time, the ready job. Either one moving means the jobs
+  # on disk no longer match the row, so both are rewritten.
+  defp schedule_moved?(changeset) do
+    Enum.any?([:live_date, :ready_before_seconds], fn field ->
+      not is_nil(Ecto.Changeset.get_change(changeset, field))
+    end)
+  end
+
+  # The intent is also a Play status change. Re-running `Riddle.changeset/2` over
+  # the changeset (rather than `put_change/3`) keeps the transition table in
+  # `Riddle` the only judge of whether the move is legal.
+  defp apply_intent(changeset, :schedule),
+    do: Riddle.changeset(changeset, %{play_status: "scheduled"})
+
+  defp apply_intent(changeset, :unschedule),
+    do: Riddle.changeset(changeset, %{play_status: "closed"})
+
+  defp apply_intent(changeset, _intent), do: changeset
+
+  defp write_jobs(multi, intent) when intent in [:schedule, :reschedule] do
+    multi
+    |> Multi.run(:cancel_jobs, fn repo, %{riddle: riddle} ->
+      cancel_jobs(repo, riddle.id, @riddle_workers)
+    end)
+    |> Multi.insert(:ready_job, fn %{riddle: riddle} ->
+      ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle.id},
+        scheduled_at: DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
+      )
+    end)
+    |> Multi.insert(:live_job, fn %{riddle: riddle} ->
+      LiveRiddleTransitionWorker.new(%{"riddle_id" => riddle.id},
+        scheduled_at: riddle.live_date
+      )
+    end)
+  end
+
+  defp write_jobs(multi, :unschedule) do
+    Multi.run(multi, :cancel_jobs, fn repo, %{riddle: riddle} ->
+      cancel_jobs(repo, riddle.id, @riddle_workers)
+    end)
+  end
+
+  defp write_jobs(multi, :none), do: multi
+
+  # Broadcasts run after COMMIT, never inside the transaction: announcing a
+  # schedule that then rolled back would leave every subscriber with a riddle
+  # that is not actually scheduled.
+  #
+  # Two topics, two audiences. `games:riddle:changed` says a riddle row was
+  # written or removed, whatever the reason — that is what the admin index needs
+  # to re-render. `games:riddle:scheduled` reports what happened to the schedule
+  # itself — a riddle is now upcoming, its start time moved, or it is no longer
+  # upcoming — which is what a homepage listing or a player notification needs.
+  defp announce(riddle, intent) do
+    Phoenix.PubSub.broadcast(Riddlr.PubSub, "games:riddle:changed", {:riddle_saved, riddle})
+
+    case schedule_event(intent) do
+      nil -> :ok
+      message -> broadcast_schedule_event(message, riddle)
+    end
+
+    riddle
+  end
+
+  defp broadcast_schedule_event(message, riddle) do
+    Phoenix.PubSub.broadcast(Riddlr.PubSub, "games:riddle:scheduled", {message, riddle})
+  end
+
+  defp schedule_event(:schedule), do: :riddle_scheduled
+  defp schedule_event(:reschedule), do: :riddle_rescheduled
+  defp schedule_event(:unschedule), do: :riddle_unscheduled
+  defp schedule_event(_intent), do: nil
+
+  # The one place that cancels a riddle's jobs. Callers pass the worker list they
+  # want cancelled, and the repo, so this can run inside the same transaction as
+  # the write that made the cancellation necessary.
+  defp cancel_jobs(repo, riddle_id, workers) do
     {count, _} =
       Oban.Job
-      |> where([j], j.state in ["available", "scheduled", "retryable"])
+      |> where([j], j.state in @cancellable_states)
+      |> where([j], j.worker in ^workers)
       |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
-      |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
+      |> repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
 
     {:ok, count}
   end
@@ -154,12 +294,29 @@ defmodule Riddlr.Games do
 
   """
   def delete_riddle(%Riddle{} = riddle) do
-    case Repo.delete(riddle) do
-      {:ok, deleted} ->
+    Multi.new()
+    |> Multi.run(:cancel_jobs, fn repo, _changes ->
+      cancel_jobs(repo, riddle.id, @riddle_workers)
+    end)
+    |> Multi.delete(:riddle, riddle)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{riddle: deleted}} ->
         Riddlr.Gameplay.cleanup_riddle(deleted.id)
+
+        Phoenix.PubSub.broadcast(
+          Riddlr.PubSub,
+          "games:riddle:changed",
+          {:riddle_deleted, deleted}
+        )
+
+        if deleted.play_status in ["scheduled", "ready"] do
+          broadcast_schedule_event(:riddle_unscheduled, deleted)
+        end
+
         {:ok, deleted}
 
-      {:error, changeset} ->
+      {:error, _failed_operation, changeset, _changes} ->
         {:error, changeset}
     end
   end
@@ -175,64 +332,6 @@ defmodule Riddlr.Games do
   """
   def change_riddle(%Riddle{} = riddle, attrs \\ %{}) do
     Riddle.changeset(riddle, attrs)
-  end
-
-  @doc """
-  Schedules a riddle to go live at the specified date.
-  Transitions: closed → scheduled
-  Enqueues ReadyRiddleTransitionWorker (ready_before_seconds before live) and LiveRiddleTransitionWorker (at live_date).
-  """
-  def schedule_riddle(%Riddle{} = riddle, live_date, attrs \\ %{}) do
-    effective_publish_status =
-      Map.get(attrs, :publish_status) || Map.get(attrs, "publish_status", riddle.publish_status)
-
-    cond do
-      effective_publish_status != "published" ->
-        {:error, :riddle_not_published}
-
-      DateTime.compare(live_date, DateTime.utc_now()) == :lt ->
-        {:error, :live_date_in_past}
-
-      riddle.play_status != "closed" ->
-        {:error, "cannot schedule riddle in #{riddle.play_status} state"}
-
-      true ->
-        schedule_attrs =
-          Map.merge(attrs, %{"play_status" => "scheduled", "live_date" => live_date})
-
-        multi =
-          Multi.new()
-          |> Multi.update(
-            :riddle,
-            Riddle.changeset(riddle, schedule_attrs)
-          )
-          |> Multi.insert(:ready_job, fn %{riddle: updated_riddle} ->
-            %{"riddle_id" => updated_riddle.id}
-            |> Riddlr.Workers.ReadyRiddleTransitionWorker.new(
-              scheduled_at: DateTime.add(live_date, -updated_riddle.ready_before_seconds, :second)
-            )
-          end)
-          |> Multi.insert(:live_job, fn %{riddle: updated_riddle} ->
-            %{"riddle_id" => updated_riddle.id}
-            |> Riddlr.Workers.LiveRiddleTransitionWorker.new(scheduled_at: live_date)
-          end)
-
-        case Repo.transaction(multi) do
-          {:ok, %{riddle: updated_riddle} = result} ->
-            broadcast_riddle = preload_assoc(updated_riddle)
-
-            Phoenix.PubSub.broadcast(
-              Riddlr.PubSub,
-              "games:riddle:scheduled",
-              {:riddle_scheduled, broadcast_riddle}
-            )
-
-            {:ok, Map.put(result, :broadcast, :broadcasted)}
-
-          {:error, _failed_operation, _failed_value, _changes} = error ->
-            error
-        end
-    end
   end
 
   @doc """
@@ -390,28 +489,13 @@ defmodule Riddlr.Games do
   def complete_riddle_on_first_solve(riddle_id, user_id, stats \\ %{}) do
     case record_first_solver(riddle_id, user_id) do
       {:ok, :recorded} ->
-        cancel_complete_worker(riddle_id)
+        # The timer that would have completed this riddle is now moot.
+        cancel_jobs(Repo, riddle_id, [@complete_worker])
         transition(riddle_id, :completed, Map.put(stats, :first_solver_id, user_id))
 
       {:ok, :already_set} ->
         {:ok, :skipped}
     end
-  end
-
-  @doc """
-  Cancels any pending CompleteRiddleWorker jobs for a riddle.
-  Called when the first correct answer triggers immediate completion.
-  Returns {:ok, count} where count is the number of cancelled jobs.
-  """
-  def cancel_complete_worker(riddle_id) do
-    {count, _} =
-      Oban.Job
-      |> where([j], j.state in ["available", "scheduled", "retryable"])
-      |> where([j], j.worker == ^"Riddlr.Workers.CompleteRiddleWorker")
-      |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
-      |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
-
-    {:ok, count}
   end
 
   defp preload_assoc(%Riddle{} = riddle) do

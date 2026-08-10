@@ -33,14 +33,15 @@ defmodule Riddlr.Games.Riddle do
   - **Archive cooldown**: Configurable via `archive_after_seconds` (default: 180)
     - Set to 0 to skip cooldown and archive immediately
 
+  All of the above happen inside `Games.save_riddle/2`, which owns the schedule.
+
   ### Example Flow
 
-      # Publish riddle with live date
-      {:ok, riddle} = Games.update_riddle(riddle, %{
+      # Publishing with a future live date schedules the riddle
+      {:ok, riddle} = Games.save_riddle(riddle, %{
         publish_status: "published",
         live_date: ~U[2026-04-01 14:00:00Z]
       })
-      {:ok, riddle} = Games.schedule_riddle(riddle)
       # => play_status: "scheduled", 2 jobs scheduled
 
       # System automatically transitions:

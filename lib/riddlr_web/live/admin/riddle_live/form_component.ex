@@ -1,7 +1,6 @@
 defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   use RiddlrWeb, :live_component
   alias Riddlr.Games
-  alias Riddlr.Games.RiddleScheduler
   alias Riddlr.Authorization
   import Riddlr.Utils.Datetime
 
@@ -185,90 +184,30 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     end
   end
 
-  defp save(socket, :edit, params) do
-    current_riddle = socket.assigns.riddle
-    old_live_date = current_riddle.live_date
-    # live_date already converted by convert_live_date_param
-    effective_live_date = params["live_date"] || current_riddle.live_date
-
-    result =
-      if should_auto_schedule?(current_riddle, params, effective_live_date) do
-        Games.schedule_riddle(current_riddle, effective_live_date, params)
-      else
-        Games.update_riddle(current_riddle, params)
-      end
-
-    case result do
-      {:ok, %{riddle: updated_riddle, ready_job: ready_job, live_job: live_job}} ->
-        # Scheduled with jobs
-        send(self(), {:riddle_saved, updated_riddle})
-        ready_time_est = to_est_datetime(ready_job.scheduled_at)
-        live_time_est = to_est_datetime(live_job.scheduled_at)
-        ready_time = ready_time_display(ready_time_est)
-        live_time = live_time_display(live_time_est)
-
+  defp save(socket, action, params) do
+    case Games.save_riddle(socket.assigns.riddle, params) do
+      {:ok, riddle} ->
         {:noreply,
          socket
-         |> put_flash(
-           :info,
-           "Riddle scheduled. The lobby will open #{ready_time}, and the game will be live #{live_time}"
-         )
+         |> put_flash(:info, saved_message(riddle, action))
          |> push_patch(to: socket.assigns.patch)}
 
-      {:ok, riddle} ->
-        # Check if we need to reschedule due to live_date change
-        if should_reschedule?(current_riddle, riddle, old_live_date) do
-          RiddleScheduler.reschedule_jobs(riddle, riddle.live_date)
-        end
-
-        # Regular update
-        send(self(), {:riddle_saved, riddle})
-
-        {:noreply,
-         socket |> put_flash(:info, "Riddle updated") |> push_patch(to: socket.assigns.patch)}
-
       {:error, changeset} ->
         {:noreply, assign_form(socket, changeset)}
     end
   end
 
-  defp save(socket, :new, params) do
-    # live_date already converted by convert_live_date_param
-    effective_live_date = params["live_date"]
+  # `save_riddle/2` decides whether a save is also a schedule; the flash just
+  # reports what came back.
+  defp saved_message(%{play_status: "scheduled"} = riddle, _action) do
+    ready_at = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
 
-    with {:ok, riddle} <- Games.create_riddle(params) do
-      if should_auto_schedule?(riddle, params, effective_live_date) do
-        case Games.schedule_riddle(riddle, effective_live_date) do
-          {:ok, %{riddle: scheduled_riddle}} ->
-            send(self(), {:riddle_saved, scheduled_riddle})
-
-            {:noreply,
-             socket
-             |> put_flash(
-               :info,
-               "Riddle: \"#{riddle.name}\" saved."
-             )
-             |> push_patch(to: socket.assigns.patch)}
-
-          {:error, _reason} ->
-            send(self(), {:riddle_saved, riddle})
-
-            {:noreply,
-             socket
-             |> put_flash(:warning, "Riddle created but scheduling failed.")
-             |> push_patch(to: socket.assigns.patch)}
-        end
-      else
-        send(self(), {:riddle_saved, riddle})
-
-        {:noreply,
-         socket |> put_flash(:info, "Riddle created") |> push_patch(to: socket.assigns.patch)}
-      end
-    else
-      {:error, changeset} ->
-        {:noreply, assign_form(socket, changeset)}
-    end
+    "Riddle scheduled. The lobby will open #{ready_time_display(to_est_datetime(ready_at))}, " <>
+      "and the game will be live #{live_time_display(to_est_datetime(riddle.live_date))}"
   end
+
+  defp saved_message(_riddle, :new), do: "Riddle created"
+  defp saved_message(_riddle, :edit), do: "Riddle updated"
 
   defp assign_form(socket, changeset) do
     changeset =
@@ -299,35 +238,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       _ ->
         changeset
     end
-  end
-
-  # Auto-schedule only if:
-  # - Riddle is (or will be) published
-  # - Riddle is currently closed
-  # - Live date is set and in the future
-  defp should_auto_schedule?(_riddle, _params, nil), do: false
-
-  defp should_auto_schedule?(riddle, params, live_date) do
-    # Check if riddle is or will be published
-    publish_status = Map.get(params, "publish_status", riddle.publish_status)
-
-    riddle.play_status == "closed" &&
-      publish_status == "published" &&
-      DateTime.compare(live_date, DateTime.utc_now()) != :lt
-  end
-
-  # Reschedule jobs if:
-  # - Riddle is published
-  # - Play status is scheduled or ready (jobs are pending)
-  # - live_date changed OR (status is scheduled and ready_before_seconds changed)
-  # - new live_date is not nil
-  defp should_reschedule?(old_riddle, new_riddle, old_live_date) do
-    new_riddle.publish_status == "published" and
-      new_riddle.play_status in ["scheduled", "ready"] and
-      not is_nil(new_riddle.live_date) and
-      (old_live_date != new_riddle.live_date or
-         (new_riddle.play_status == "scheduled" and
-            old_riddle.ready_before_seconds != new_riddle.ready_before_seconds))
   end
 
   defp title(:new), do: "New Riddle"

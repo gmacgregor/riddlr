@@ -91,14 +91,12 @@ Each transition is either manual (admin-initiated) or automatic (worker/event-tr
 
 #### Publishing and Scheduling
 ```elixir
-# Set publish_status and live_date
-{:ok, riddle} = Games.update_riddle(riddle, %{
+# Publishing a closed riddle with a future live_date schedules it: one save
+# writes the row and the jobs.
+{:ok, riddle} = Games.save_riddle(riddle, %{
   publish_status: "published",
   live_date: ~U[2026-04-01 14:00:00Z]
 })
-
-# Schedule workers
-{:ok, riddle} = Games.schedule_riddle(riddle)
 # => play_status: "scheduled"
 # => 2 Oban jobs scheduled
 ```
@@ -106,7 +104,7 @@ Each transition is either manual (admin-initiated) or automatic (worker/event-tr
 #### Draft Rollback
 ```elixir
 # Moving to draft cancels all pending workers
-{:ok, riddle} = Games.update_riddle(riddle, %{
+{:ok, riddle} = Games.save_riddle(riddle, %{
   publish_status: "draft"
 })
 # => play_status: "closed" (if was scheduled/ready)
@@ -154,7 +152,7 @@ riddle = %Riddle{
 }
 
 # Admin reschedules to April 5 at 3 PM
-{:ok, riddle} = Games.update_riddle(riddle, %{
+{:ok, riddle} = Games.save_riddle(riddle, %{
   live_date: ~U[2026-04-05 15:00:00Z]
 })
 # => Old jobs cancelled
@@ -180,7 +178,7 @@ riddle = %Riddle{
 }
 
 # Admin moves to draft
-{:ok, riddle} = Games.update_riddle(riddle, %{
+{:ok, riddle} = Games.save_riddle(riddle, %{
   publish_status: "draft"
 })
 # => play_status: "closed"
@@ -260,7 +258,7 @@ test "full riddle lifecycle from scheduled to archived" do
   riddle = insert(:riddle, archive_after_seconds: 0)
 
   # Schedule it
-  {:ok, riddle} = Games.schedule_riddle(riddle, live_date)
+  {:ok, riddle} = Games.save_riddle(riddle, %{"live_date" => live_date})
   assert riddle.play_status == "scheduled"
 
   # Transition to ready (worker)

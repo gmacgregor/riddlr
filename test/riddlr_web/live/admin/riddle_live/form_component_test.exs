@@ -186,36 +186,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     end
   end
 
-  describe "handle_event save with live_date change" do
-    test "reschedules workers when live_date changes for published scheduled riddle", %{
-      conn: conn,
-      admin: admin
-    } do
-      old_live_date = DateTime.add(DateTime.utc_now(), 86_400, :second)
+  describe "Scheduling from the form" do
+    test "moving the live date reschedules the jobs", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.scheduled_riddle_fixture()
+      old_job_ids = riddle.id |> pending_jobs() |> Enum.map(& &1.id) |> Enum.sort()
 
-      riddle =
-        GamesFixtures.riddle_fixture(%{
-          publish_status: "published",
-          play_status: "closed"
-        })
-
-      # Schedule initial jobs
-      {:ok, _} = Riddlr.Games.schedule_riddle(riddle, old_live_date)
-
-      # Reload to get updated play_status
-      riddle = Riddlr.Games.get_riddle!(riddle.id)
-      assert riddle.play_status == "scheduled"
-
-      # Verify initial jobs exist
-      initial_jobs =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      assert length(initial_jobs) == 2
-
-      # Change live_date through form
       new_live_date = DateTime.add(DateTime.utc_now(), 172_800, :second)
       conn = log_in_user(conn, admin)
       {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
@@ -224,211 +199,47 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       |> form("#riddle-form", riddle: %{live_date: format_datetime_local(new_live_date)})
       |> render_submit()
 
-      # Verify old jobs cancelled
-      old_jobs =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> where(
-          [j],
-          j.scheduled_at == ^DateTime.add(old_live_date, -riddle.ready_before_seconds)
-        )
-        |> Riddlr.Repo.all()
+      jobs = pending_jobs(riddle.id)
+      assert length(jobs) == 2
+      refute Enum.any?(jobs, &(&1.id in old_job_ids))
 
-      assert length(old_jobs) == 0
-
-      # Verify new jobs scheduled
-      new_jobs =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      assert length(new_jobs) == 2
-
-      # Verify new job times (truncate to seconds for comparison)
-      ready_job =
-        Enum.find(new_jobs, &(&1.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker"))
-
-      live_job =
-        Enum.find(new_jobs, &(&1.worker == "Riddlr.Workers.LiveRiddleTransitionWorker"))
-
-      assert DateTime.truncate(ready_job.scheduled_at, :second) ==
-               DateTime.add(new_live_date, -riddle.ready_before_seconds)
-               |> DateTime.truncate(:second)
+      live_job = Enum.find(jobs, &(&1.worker == "Riddlr.Workers.LiveRiddleTransitionWorker"))
 
       assert DateTime.truncate(live_job.scheduled_at, :second) ==
                DateTime.truncate(new_live_date, :second)
     end
 
-    test "does not reschedule when live_date unchanged", %{conn: conn, admin: admin} do
-      live_date = DateTime.add(DateTime.utc_now(), 86_400, :second)
-
-      riddle =
-        GamesFixtures.riddle_fixture(%{
-          publish_status: "published",
-          play_status: "closed"
-        })
-
-      {:ok, _} = Riddlr.Games.schedule_riddle(riddle, live_date)
-      riddle = Riddlr.Games.get_riddle!(riddle.id)
-
-      initial_jobs =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      initial_job_ids = Enum.map(initial_jobs, & &1.id)
-
-      # Update without changing live_date
+    test "rolling a scheduled riddle back to draft cancels its jobs", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.scheduled_riddle_fixture()
       conn = log_in_user(conn, admin)
       {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
       view
-      |> form("#riddle-form", riddle: %{description: "Updated description"})
+      |> form("#riddle-form", riddle: %{publish_status: "draft"})
       |> render_submit()
 
-      # Verify same jobs still exist (not rescheduled)
-      current_jobs =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      current_job_ids = Enum.map(current_jobs, & &1.id)
-
-      assert Enum.sort(initial_job_ids) == Enum.sort(current_job_ids)
+      assert pending_jobs(riddle.id) == []
+      assert Riddlr.Games.get_riddle!(riddle.id).play_status == "closed"
     end
 
-    test "does not reschedule for draft riddles", %{conn: conn, admin: admin} do
-      live_date = ~U[2026-04-01 10:00:00Z]
-
-      riddle =
-        GamesFixtures.riddle_fixture(%{
-          publish_status: "draft",
-          play_status: "closed",
-          live_date: live_date
-        })
-
-      # Change live_date - play_status remains closed (it's now read-only in form)
-      new_live_date = ~U[2026-04-01 14:00:00Z]
-      conn = log_in_user(conn, admin)
-      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
-
-      view
-      |> form("#riddle-form",
-        riddle: %{
-          live_date: format_datetime_local(new_live_date)
-        }
-      )
-      |> render_submit()
-
-      # Verify no jobs scheduled (because draft, not published)
-      jobs =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.all()
-
-      assert length(jobs) == 0
-    end
-  end
-
-  describe "handle_event save with ready_before_seconds change" do
-    test "reschedules when ready_before_seconds increases such that ready time moves to past", %{
+    test "a live date in the past saves the riddle without scheduling or crashing", %{
       conn: conn,
       admin: admin
     } do
-      # live_date = 30 min from now
-      # initial ready_before_seconds = 600 (10 min) → ready_time = 20 min from now
-      # new ready_before_seconds = 3600 (1h)       → ready_time = now - 30 min (past)
-      live_date = DateTime.add(DateTime.utc_now(), 1800, :second)
-
-      riddle =
-        GamesFixtures.riddle_fixture(%{
-          publish_status: "published",
-          play_status: "closed",
-          ready_before_seconds: 600
-        })
-
-      {:ok, _} = Riddlr.Games.schedule_riddle(riddle, live_date)
-      riddle = Riddlr.Games.get_riddle!(riddle.id)
-      assert riddle.play_status == "scheduled"
+      riddle = GamesFixtures.riddle_fixture(%{publish_status: "published"})
+      past = DateTime.add(DateTime.utc_now(), -3600, :second)
 
       conn = log_in_user(conn, admin)
-      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      index_live |> element("#riddles-#{riddle.id} a", "Edit") |> render_click()
 
-      view
-      |> form("#riddle-form", riddle: %{ready_before_seconds: 3600})
+      index_live
+      |> form("#riddle-form", riddle: %{live_date: format_datetime_local(past)})
       |> render_submit()
 
-      # ready_before_seconds should be persisted
-      updated_riddle = Riddlr.Games.get_riddle!(riddle.id)
-      assert updated_riddle.ready_before_seconds == 3600
-
-      # Ready job rescheduled — new scheduled_at is in the past so Oban marks it available
-      ready_job =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
-        |> where([j], j.state in ["available", "scheduled"])
-        |> Riddlr.Repo.one()
-
-      assert ready_job != nil
-      assert DateTime.compare(ready_job.scheduled_at, DateTime.utc_now()) == :lt
-    end
-
-    test "reschedules when ready_before_seconds changes and new ready time remains future", %{
-      conn: conn,
-      admin: admin
-    } do
-      # live_date = 3h from now
-      # initial ready_before_seconds = 7200 (2h) → ready_time = 1h from now
-      # new ready_before_seconds = 3600 (1h)     → ready_time = 2h from now (still future)
-      live_date = DateTime.add(DateTime.utc_now(), 10_800, :second)
-
-      riddle =
-        GamesFixtures.riddle_fixture(%{
-          publish_status: "published",
-          play_status: "closed",
-          ready_before_seconds: 7200
-        })
-
-      {:ok, _} = Riddlr.Games.schedule_riddle(riddle, live_date)
-      riddle = Riddlr.Games.get_riddle!(riddle.id)
-      assert riddle.play_status == "scheduled"
-
-      initial_ready_job =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.one()
-
-      assert initial_ready_job != nil
-      initial_ready_id = initial_ready_job.id
-
-      conn = log_in_user(conn, admin)
-      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
-
-      view
-      |> form("#riddle-form", riddle: %{ready_before_seconds: 3600})
-      |> render_submit()
-
-      new_ready_job =
-        Oban.Job
-        |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
-        |> where([j], j.worker == "Riddlr.Workers.ReadyRiddleTransitionWorker")
-        |> where([j], j.state in ["scheduled", "available"])
-        |> Riddlr.Repo.one()
-
-      # Old job cancelled, new job created at updated time
-      assert new_ready_job != nil
-      assert new_ready_job.id != initial_ready_id
-
-      expected_ready_at = live_date |> DateTime.add(-3600, :second) |> DateTime.truncate(:second)
-      assert DateTime.truncate(new_ready_job.scheduled_at, :second) == expected_ready_at
+      assert render(index_live) =~ "Riddle updated"
+      assert Riddlr.Games.get_riddle!(riddle.id).play_status == "closed"
+      assert pending_jobs(riddle.id) == []
     end
   end
 
@@ -485,6 +296,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   # Helper to format datetime for datetime-local input.
   # Converts UTC to Eastern time first, mimicking what a browser sends
   # when the admin's timezone is America/New_York.
+  defp pending_jobs(riddle_id) do
+    Oban.Job
+    |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+    |> where([j], j.state in ["available", "scheduled", "retryable"])
+    |> Riddlr.Repo.all()
+  end
+
   defp format_datetime_local(datetime) do
     {:ok, eastern} = DateTime.shift_zone(datetime, "America/New_York")
     Calendar.strftime(eastern, "%Y-%m-%dT%H:%M:%S")

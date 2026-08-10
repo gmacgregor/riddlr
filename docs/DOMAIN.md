@@ -57,7 +57,8 @@ via `{:cancel, ...}` state guards:
 | `CompleteRiddleWorker` | `solve_time` after live (default 120s), skipped if `live_until_solved` |
 | `ArchiveRiddleTransitionWorker` | `archive_after_seconds` after completion (default 180s) |
 
-Scheduling/cancellation goes through `Riddlr.Games.RiddleScheduler`.
+Scheduling/cancellation goes through `Riddlr.Games.save_riddle/2` — one write for the
+row and its jobs.
 
 ## Gameplay Flow
 
@@ -65,8 +66,8 @@ Scheduling/cancellation goes through `Riddlr.Games.RiddleScheduler`.
 
 0. **Author/schedule** (`lib/riddlr_web/live/admin/riddle_live/form_component.ex`) —
    admin creates riddle (`closed`/`draft`), publishes with a `live_date`.
-   `Games.schedule_riddle/3` runs an `Ecto.Multi`: sets `scheduled`, inserts the ready
-   + live jobs, broadcasts `{:riddle_scheduled, riddle}`.
+   `Games.save_riddle/2` runs an `Ecto.Multi`: sets `scheduled`, cancels any stale
+   jobs, inserts the ready + live jobs, broadcasts `{:riddle_scheduled, riddle}`.
 1. **Ready** — worker flips to `ready`, broadcasts on `games:riddle:ready`.
 2. **Lobby** — `GET /game/:id/lobby` → `GameLive.Lobby`. On connect: `Presence.track/4`
    on `game:lobby:{id}`, subscribe to that topic + `games:riddle:live`, and
@@ -107,6 +108,23 @@ job and the post-commit broadcast. It returns `{:ok, riddle}`, `{:error, :not_fo
 `{:unpublished, status}`, `{:invalid, from, to}` or `{:error, changeset}`; the workers
 are pure Oban plumbing over it (`Riddlr.Workers.Transition`) and cancel — rather than
 retry — on the three permanent failures.
+
+Every admin write goes through one interface, `Games.save_riddle/2`, which reads the
+persisted state plus the changeset and decides between `:schedule`, `:reschedule`,
+`:unschedule` and a plain write, then writes the row and the jobs in one transaction.
+It returns `{:ok, riddle}` or `{:error, changeset}` — nothing else. A riddle that
+*cannot* be scheduled (draft, past `live_date`, not `closed`) is not an error; it is
+simply not a schedule.
+
+Two topics carry the result:
+
+| Topic | Message | Meaning |
+|---|---|---|
+| `games:riddle:changed` | `{:riddle_saved, riddle}` | any successful admin write (admin index) |
+| `games:riddle:changed` | `{:riddle_deleted, riddle}` | riddle removed |
+| `games:riddle:scheduled` | `{:riddle_scheduled, riddle}` | a riddle became upcoming |
+| `games:riddle:scheduled` | `{:riddle_rescheduled, riddle}` | an upcoming riddle moved |
+| `games:riddle:scheduled` | `{:riddle_unscheduled, riddle}` | an upcoming riddle is no longer upcoming |
 
 ## Surfaces (`lib/riddlr_web/router.ex`)
 
