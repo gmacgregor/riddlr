@@ -3,6 +3,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
 
   alias Riddlr.Clock.Frozen
   alias Riddlr.Gameplay
+  alias Riddlr.Gameplay.Answer
   alias Riddlr.{AccountsFixtures, GamesFixtures}
 
   setup do
@@ -23,6 +24,29 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
       assert_receive {:answer_submitted, %{text: "mouse", correct: false} = answer}
       assert answer.username == user.username
       assert [%{text: "mouse", correct: false}] = Gameplay.get_answers(riddle.id)
+    end
+
+    test "the broadcast answer and the stored one share an id", %{riddle: riddle, user: user} do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle.id))
+
+      assert Gameplay.submit_answer(riddle, user, "mouse") == :incorrect
+
+      assert_receive {:answer_submitted, %Answer{} = broadcast}
+      assert [%Answer{} = stored] = Gameplay.get_answers(riddle.id)
+      assert stored.id == broadcast.id
+    end
+
+    test "moderation flags the answer by the id it was broadcast under", %{
+      riddle: riddle,
+      user: user
+    } do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle.id))
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(riddle.id))
+
+      Gameplay.submit_answer(riddle, user, "this is spam")
+
+      assert_receive {:answer_submitted, %Answer{id: id}}
+      assert_receive {:answer_flagged, ^id}, 500
     end
 
     test "flags an answer that trips moderation", %{riddle: riddle, user: user} do

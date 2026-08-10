@@ -4,6 +4,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   import Phoenix.LiveViewTest
 
   alias Riddlr.Clock.Frozen
+  alias Riddlr.Gameplay.Answer
   alias Riddlr.{Games, Gameplay, AccountsFixtures, GamesFixtures}
 
   setup do
@@ -449,18 +450,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      answer_data = %{
-        id: "#{riddle.id}-#{user.id}-123456",
-        user_id: user.id,
-        username: user.username,
-        text: "keyboard",
-        correct: false,
-        offset_ms: 1500,
-        show_highlight: false,
-        flagged: false
-      }
+      answer = Answer.new(riddle.id, user, "keyboard", offset_ms: 1_500)
 
-      send(live.pid, {:answer_submitted, answer_data})
+      send(live.pid, {:answer_submitted, answer})
 
       html = render(live)
       assert html =~ user.username
@@ -471,24 +463,13 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      answer_id = "#{riddle.id}-#{user.id}-999"
+      answer = Answer.new(riddle.id, user, "spam content", offset_ms: 500)
 
-      answer_data = %{
-        id: answer_id,
-        user_id: user.id,
-        username: user.username,
-        text: "spam content",
-        correct: false,
-        offset_ms: 500,
-        show_highlight: false,
-        flagged: false
-      }
-
-      send(live.pid, {:answer_submitted, answer_data})
+      send(live.pid, {:answer_submitted, answer})
       html = render(live)
       assert html =~ "spam content"
 
-      send(live.pid, {:answer_flagged, answer_id})
+      send(live.pid, {:answer_flagged, answer.id})
       html = render(live)
       refute html =~ "spam content"
     end
@@ -501,33 +482,19 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      # Use a stable answer_id so we can reference it for the flagged event
-      answer_id = "moderation-test-#{riddle.id}"
-
       # Inject the answer directly into the feed (simulates the PubSub broadcast
       # that handle_event sends). This is reliable in tests — the E2E PubSub
       # round-trip from form submit → PubSub → handle_info is async and would
       # require sleep() to stabilise.
-      send(
-        live.pid,
-        {:answer_submitted,
-         %{
-           id: answer_id,
-           user_id: user.id,
-           username: user.username,
-           text: "spam",
-           correct: false,
-           offset_ms: 100,
-           show_highlight: false,
-           flagged: false
-         }}
-      )
+      answer = Answer.new(riddle.id, user, "spam", offset_ms: 100)
+
+      send(live.pid, {:answer_submitted, answer})
 
       html = render(live)
       assert html =~ "spam"
 
       # Async moderation flags it — verify it disappears from feed
-      send(live.pid, {:answer_flagged, answer_id})
+      send(live.pid, {:answer_flagged, answer.id})
       html = render(live)
       refute html =~ "spam"
     end
@@ -540,16 +507,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      correct_answer = %{
-        id: "#{riddle.id}-#{user.id}-777",
-        user_id: user.id,
-        username: user.username,
-        text: "keyboard",
-        correct: true,
-        offset_ms: 2000,
-        show_highlight: false,
-        flagged: false
-      }
+      correct_answer = Answer.new(riddle.id, user, "keyboard", correct: true, offset_ms: 2_000)
 
       # Submit the correct answer first so it's tracked in correct_answers assign
       send(live.pid, {:answer_submitted, correct_answer})
@@ -569,18 +527,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      answer_data = %{
-        id: "#{riddle.id}-#{user.id}-500",
-        user_id: user.id,
-        username: user.username,
-        text: "keyboard",
-        correct: false,
-        offset_ms: 2500,
-        show_highlight: false,
-        flagged: false
-      }
+      answer = Answer.new(riddle.id, user, "keyboard", offset_ms: 2_500)
 
-      send(live.pid, {:answer_submitted, answer_data})
+      send(live.pid, {:answer_submitted, answer})
 
       html = render(live)
       assert html =~ "+2s"

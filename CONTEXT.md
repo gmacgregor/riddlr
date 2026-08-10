@@ -11,7 +11,7 @@ Deep dive: `docs/DOMAIN.md`. Lifecycle detail: `docs/RIDDLE_LIFECYCLE.md`.
 |---|---|
 | **Riddle** | The central aggregate and the unit of play. One riddle = one game. |
 | **Category** | Taxonomy a riddle belongs to. |
-| **Answer** | A player submission. Ephemeral — lives in ETS, never persisted. |
+| **Answer** | A player submission (`Riddlr.Gameplay.Answer`). Ephemeral — lives in ETS, never persisted. |
 | **Play status** | Riddle's lifecycle state: `closed → scheduled → ready → live → completed → archived`. |
 | **Publish status** | Orthogonal `draft`/`published`. Unpublished riddles never transition. |
 | **Live date** | Wall-clock instant a riddle goes `live`. |

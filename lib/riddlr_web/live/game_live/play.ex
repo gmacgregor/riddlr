@@ -6,6 +6,7 @@ defmodule RiddlrWeb.GameLive.Play do
   use RiddlrWeb, :live_view
 
   alias Riddlr.{Accounts, Clock, Games, Gameplay}
+  alias Riddlr.Gameplay.Answer
 
   import Riddlr.Utils.User
 
@@ -49,8 +50,8 @@ defmodule RiddlrWeb.GameLive.Play do
               if connected?(socket) do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_submitted")
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{id}:answer_flagged")
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(id))
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
                 answers = build_initial_feed(riddle.id, game_completed)
                 solvers = if game_completed, do: load_top_solvers(riddle.id), else: []
@@ -153,20 +154,7 @@ defmodule RiddlrWeb.GameLive.Play do
     with :ok <- validate_input(text),
          :ok <- check_not_banned(socket.assigns),
          :ok <- check_game_completed(riddle) do
-      chat_data = %{
-        id: "chat-#{riddle.id}-#{user.id}-#{Clock.monotonic_us()}",
-        user_id: user.id,
-        username: user.username,
-        text: text,
-        correct: false,
-        timestamp: Clock.monotonic_us(),
-        offset_ms: nil,
-        show_highlight: false,
-        flagged: false,
-        chat: true
-      }
-
-      Gameplay.broadcast_chat(riddle.id, chat_data)
+      Gameplay.broadcast_answer(Answer.new(riddle.id, user, text, chat: true))
       {:noreply, socket}
     else
       {:error, :banned} ->
@@ -330,31 +318,26 @@ defmodule RiddlrWeb.GameLive.Play do
   # Builds feed items for answers already in ETS when the LiveView mounts.
   # Batch-loads usernames from the DB to avoid N+1 queries.
   # When game_completed is true, correct answers are immediately highlighted.
+  # ETS doesn't store usernames, so the feed is joined against Accounts here.
+  # Offsets are dropped: they're only meaningful live, next to a running timer.
   defp build_initial_feed(riddle_id, game_completed) do
-    ets_answers = Gameplay.get_answers(riddle_id)
+    answers = Gameplay.get_answers(riddle_id) |> Enum.take(100)
 
-    user_ids = ets_answers |> Enum.map(& &1.user_id) |> Enum.uniq()
-    users_by_id = Accounts.get_users_by_ids(user_ids)
+    users_by_id =
+      answers |> Enum.map(& &1.user_id) |> Enum.uniq() |> Accounts.get_users_by_ids()
 
-    ets_answers
-    |> Enum.take(100)
-    |> Enum.map(fn a ->
+    Enum.map(answers, fn answer ->
       username =
-        case Map.get(users_by_id, a.user_id) do
+        case Map.get(users_by_id, answer.user_id) do
           %{username: u} -> u
           nil -> "Player"
         end
 
       %{
-        id: "#{riddle_id}-#{a.user_id}-#{a.timestamp}",
-        user_id: a.user_id,
-        username: username,
-        text: a.text,
-        correct: a.correct,
-        offset_ms: nil,
-        show_highlight: game_completed and a.correct,
-        flagged: false,
-        chat: false
+        answer
+        | username: username,
+          offset_ms: nil,
+          show_highlight: game_completed and answer.correct
       }
     end)
   end

@@ -35,6 +35,7 @@ defmodule Riddlr.Gameplay do
   """
 
   alias Riddlr.Clock
+  alias Riddlr.Gameplay.Answer
 
   @answers_table :riddle_answers
   @cooldowns_table :answer_cooldowns
@@ -79,33 +80,26 @@ defmodule Riddlr.Gameplay do
 
   defp race(riddle, user, text) do
     correct? = validate_answer(riddle, text)
-    solve_time_ms = compute_offset_ms(riddle.live_date)
-    timestamp = store_answer(riddle.id, user.id, text, correct?, solve_time_ms)
 
-    answer_data = %{
-      id: "#{riddle.id}-#{user.id}-#{timestamp}",
-      user_id: user.id,
-      username: user.username,
-      text: text,
-      correct: correct?,
-      timestamp: timestamp,
-      offset_ms: solve_time_ms,
-      show_highlight: false,
-      flagged: false,
-      chat: false
-    }
+    answer =
+      Answer.new(riddle.id, user, text,
+        correct: correct?,
+        offset_ms: compute_offset_ms(riddle.live_date)
+      )
 
-    broadcast_answer(riddle.id, answer_data)
-    moderate_answer_async(riddle.id, answer_data.id, text)
+    store_answer(answer)
+
+    broadcast_answer(answer)
+    moderate_answer_async(answer)
 
     if correct? do
-      # Must follow store_answer/5 — the count includes this submission's row.
-      placement = calculate_placement(riddle.id, timestamp)
+      # Must follow store_answer/1 — the count includes this submission's row.
+      placement = calculate_placement(riddle.id, answer.timestamp)
       points = points_for_placement(placement)
       :ok = Riddlr.Accounts.award_game_points(user.id, placement, points)
 
       if placement == 1 do
-        claim_first_solve(riddle, user, solve_time_ms && div(solve_time_ms, 1000))
+        claim_first_solve(riddle, user, answer.offset_ms && div(answer.offset_ms, 1000))
       end
 
       {:correct, placement, points}
@@ -159,25 +153,23 @@ defmodule Riddlr.Gameplay do
   def solved?(riddle_id, user_id) do
     @answers_table
     |> :ets.lookup({riddle_id, user_id})
-    |> Enum.any?(fn {_key, _text, _ts, correct?, _} -> correct? end)
+    |> Enum.any?(&Answer.from_ets(&1).correct)
   end
 
   defp check_already_solved(riddle_id, user_id) do
     if solved?(riddle_id, user_id), do: {:error, :already_solved}, else: :ok
   end
 
-  # `solve_time_ms` is stored for leaderboard display only; placement ordering
-  # uses the monotonic timestamp, which wall-clock adjustments can't distort.
-  defp store_answer(riddle_id, user_id, text, correct?, solve_time_ms) do
-    timestamp = Clock.monotonic_us()
-    :ets.insert(@answers_table, {{riddle_id, user_id}, text, timestamp, correct?, solve_time_ms})
-    timestamp
+  # `offset_ms` is stored for leaderboard display only; placement ordering uses
+  # the monotonic timestamp, which wall-clock adjustments can't distort.
+  defp store_answer(%Answer{} = answer) do
+    :ets.insert(@answers_table, Answer.to_ets(answer))
   end
 
   defp calculate_placement(riddle_id, solve_timestamp) do
     @answers_table
-    |> :ets.match_object({{riddle_id, :_}, :_, :_, true, :_})
-    |> Enum.count(fn {_key, _text, ts, _, _} -> ts <= solve_timestamp end)
+    |> :ets.match_object(Answer.ets_pattern(riddle_id, true))
+    |> Enum.count(&(Answer.from_ets(&1).timestamp <= solve_timestamp))
   end
 
   defp points_for_placement(1), do: 10
@@ -193,52 +185,46 @@ defmodule Riddlr.Gameplay do
   defp points_for_placement(_), do: 0
 
   @doc """
-  Returns all answers for a riddle, sorted by timestamp (newest first).
-  Each entry is a map with user_id, text, timestamp, correct fields.
+  Returns every stored `Answer` for a riddle, newest first.
+
+  `username` is nil — ETS doesn't store it. Callers that display answers join
+  against `Accounts` themselves.
   """
   def get_answers(riddle_id) do
     @answers_table
-    |> :ets.match_object({{riddle_id, :_}, :_, :_, :_, :_})
-    |> Enum.map(fn {{_rid, user_id}, text, timestamp, correct?, _solve_time_ms} ->
-      %{user_id: user_id, text: text, timestamp: timestamp, correct: correct?}
-    end)
+    |> :ets.match_object(Answer.ets_pattern(riddle_id))
+    |> Enum.map(&Answer.from_ets/1)
     |> Enum.sort_by(& &1.timestamp, :desc)
   end
 
-  defp broadcast_answer(riddle_id, answer_data) do
-    Phoenix.PubSub.broadcast(
-      Riddlr.PubSub,
-      "gameplay:#{riddle_id}:answer_submitted",
-      {:answer_submitted, answer_data}
-    )
-  end
-
   @doc """
-  Broadcasts a chat message during the cooldown period.
-  Reuses the answer_submitted topic so existing subscribers receive it automatically.
+  Puts an answer — or a post-game chat message — on the riddle's feed.
+
+  Chat rides the same topic and the same message tag so every subscriber picks
+  it up without knowing there are two kinds.
   """
-  def broadcast_chat(riddle_id, chat_data) do
+  def broadcast_answer(%Answer{} = answer) do
     Phoenix.PubSub.broadcast(
       Riddlr.PubSub,
-      "gameplay:#{riddle_id}:answer_submitted",
-      {:answer_submitted, chat_data}
+      Answer.topic(answer.riddle_id),
+      {:answer_submitted, answer}
     )
   end
 
-  defp broadcast_answer_flagged(riddle_id, answer_id) do
+  defp broadcast_answer_flagged(%Answer{} = answer) do
     Phoenix.PubSub.broadcast(
       Riddlr.PubSub,
-      "gameplay:#{riddle_id}:answer_flagged",
-      {:answer_flagged, answer_id}
+      Answer.flagged_topic(answer.riddle_id),
+      {:answer_flagged, answer.id}
     )
   end
 
   # Fails open, off the submission path — moderation must never block or slow
   # the race, so a flagged answer is retracted from feeds after the fact.
-  defp moderate_answer_async(riddle_id, answer_id, text) do
+  defp moderate_answer_async(%Answer{} = answer) do
     Task.Supervisor.start_child(Riddlr.TaskSupervisor, fn ->
-      case Riddlr.Moderation.check(text) do
-        {:flagged, _reason} -> broadcast_answer_flagged(riddle_id, answer_id)
+      case Riddlr.Moderation.check(answer.text) do
+        {:flagged, _reason} -> broadcast_answer_flagged(answer)
         :ok -> :noop
       end
     end)
@@ -270,19 +256,17 @@ defmodule Riddlr.Gameplay do
   """
   def get_top_solvers(riddle_id, limit \\ 10) do
     @answers_table
-    |> :ets.match_object({{riddle_id, :_}, :_, :_, true, :_})
-    |> Enum.map(fn {{_rid, user_id}, _text, ts, _, solve_time_ms} ->
-      {user_id, ts, solve_time_ms}
-    end)
-    |> Enum.sort_by(&elem(&1, 1))
+    |> :ets.match_object(Answer.ets_pattern(riddle_id, true))
+    |> Enum.map(&Answer.from_ets/1)
+    |> Enum.sort_by(& &1.timestamp)
     |> Enum.take(limit)
     |> Enum.with_index(1)
-    |> Enum.map(fn {{user_id, _ts, solve_time_ms}, placement} ->
+    |> Enum.map(fn {answer, placement} ->
       %{
-        user_id: user_id,
+        user_id: answer.user_id,
         placement: placement,
         points: points_for_placement(placement),
-        solve_time_ms: solve_time_ms
+        solve_time_ms: answer.offset_ms
       }
     end)
   end
@@ -291,7 +275,7 @@ defmodule Riddlr.Gameplay do
   Removes all ETS entries for a riddle (call on archive).
   """
   def cleanup_riddle(riddle_id) do
-    :ets.match_delete(@answers_table, {{riddle_id, :_}, :_, :_, :_, :_})
+    :ets.match_delete(@answers_table, Answer.ets_pattern(riddle_id))
     :ets.match_delete(@cooldowns_table, {{riddle_id, :_}, :_})
     :ok
   end
