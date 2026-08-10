@@ -83,11 +83,11 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       {:ok, %{riddle: riddle}} = Games.schedule_riddle(riddle, future_live_date)
 
       # Move through the lifecycle using proper functions
-      {:ok, riddle} = Games.ready_riddle(riddle.id)
-      {:ok, riddle} = Games.start_riddle(riddle.id)
+      {:ok, riddle} = Games.transition(riddle.id, :ready)
+      {:ok, riddle} = Games.transition(riddle.id, :live)
 
       # Now complete the riddle
-      {:ok, _} = Games.complete_riddle(riddle.id)
+      {:ok, _} = Games.transition(riddle.id, :completed)
 
       archive_job =
         Oban.Job
@@ -111,11 +111,11 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       # Move through lifecycle: closed -> scheduled -> ready -> live
       future_live_date = DateTime.add(DateTime.utc_now(), 3600)
       {:ok, %{riddle: riddle}} = Games.schedule_riddle(riddle, future_live_date)
-      {:ok, riddle} = Games.ready_riddle(riddle.id)
-      {:ok, riddle} = Games.start_riddle(riddle.id)
+      {:ok, riddle} = Games.transition(riddle.id, :ready)
+      {:ok, riddle} = Games.transition(riddle.id, :live)
 
       # Now complete the riddle
-      {:ok, _} = Games.complete_riddle(riddle.id)
+      {:ok, _} = Games.transition(riddle.id, :completed)
 
       archive_job =
         Oban.Job
@@ -140,11 +140,11 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       # Move through lifecycle: closed -> scheduled -> ready -> live
       future_live_date = DateTime.add(DateTime.utc_now(), 3600)
       {:ok, %{riddle: riddle}} = Games.schedule_riddle(riddle, future_live_date)
-      {:ok, riddle} = Games.ready_riddle(riddle.id)
-      {:ok, riddle} = Games.start_riddle(riddle.id)
+      {:ok, riddle} = Games.transition(riddle.id, :ready)
+      {:ok, riddle} = Games.transition(riddle.id, :live)
 
       # Complete the riddle
-      {:ok, _} = Games.complete_riddle(riddle.id)
+      {:ok, _} = Games.transition(riddle.id, :completed)
 
       archive_job =
         Oban.Job

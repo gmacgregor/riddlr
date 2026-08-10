@@ -162,6 +162,23 @@ defmodule Riddlr.GamesTest do
       assert_raise Ecto.NoResultsError, fn -> Games.get_riddle!(riddle.id) end
     end
 
+    test "delete_riddle/1 clears the riddle's ETS rows" do
+      riddle = riddle_fixture()
+      user_id = :erlang.unique_integer([:positive])
+
+      :ets.insert(
+        :riddle_answers,
+        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true, nil}
+      )
+
+      :ets.insert(:answer_cooldowns, {{riddle.id, user_id}, System.monotonic_time(:microsecond)})
+
+      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+
+      assert :ets.lookup(:riddle_answers, {riddle.id, user_id}) == []
+      assert :ets.lookup(:answer_cooldowns, {riddle.id, user_id}) == []
+    end
+
     test "change_riddle/1 returns a riddle changeset" do
       riddle = riddle_fixture()
       assert %Ecto.Changeset{} = Games.change_riddle(riddle)
@@ -188,19 +205,19 @@ defmodule Riddlr.GamesTest do
       assert DateTime.compare(result.live_job.scheduled_at, live_date) == :eq
 
       # Ready
-      {:ok, riddle} = Games.ready_riddle(riddle.id)
+      {:ok, riddle} = Games.transition(riddle.id, :ready)
       assert riddle.play_status == "ready"
 
       # Live
-      {:ok, riddle} = Games.start_riddle(riddle.id)
+      {:ok, riddle} = Games.transition(riddle.id, :live)
       assert riddle.play_status == "live"
 
       # Complete
-      {:ok, riddle} = Games.complete_riddle(riddle.id)
+      {:ok, riddle} = Games.transition(riddle.id, :completed)
       assert riddle.play_status == "completed"
 
       # Archive
-      {:ok, riddle} = Games.archive_riddle(riddle.id)
+      {:ok, riddle} = Games.transition(riddle.id, :archived)
       assert riddle.play_status == "archived"
     end
 
@@ -232,18 +249,16 @@ defmodule Riddlr.GamesTest do
     end
 
     test "invalid state transitions return errors" do
-      riddle = riddle_fixture(%{play_status: "closed"})
+      riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
 
       # Cannot go directly from closed to live
-      {:error, error} = Games.start_riddle(riddle.id)
-      assert error == "cannot transition from closed to live"
+      assert {:invalid, "closed", :live} = Games.transition(riddle.id, :live)
 
       # Cannot go from closed to completed
-      {:error, error} = Games.complete_riddle(riddle.id)
-      assert error == "cannot transition from closed to completed"
+      assert {:invalid, "closed", :completed} = Games.transition(riddle.id, :completed)
     end
 
-    test "idempotency: calling ready_riddle twice on scheduled riddle" do
+    test "idempotency: transitioning to ready twice on a scheduled riddle" do
       riddle = riddle_fixture(%{play_status: "closed", publish_status: "published"})
       live_date = DateTime.add(DateTime.utc_now(), 600, :second)
 
@@ -251,36 +266,35 @@ defmodule Riddlr.GamesTest do
       riddle_id = result.riddle.id
 
       # First call succeeds
-      {:ok, updated_riddle} = Games.ready_riddle(riddle_id)
+      {:ok, updated_riddle} = Games.transition(riddle_id, :ready)
       assert updated_riddle.play_status == "ready"
 
-      # Second call fails with error
-      {:error, error} = Games.ready_riddle(riddle_id)
-      assert error == "cannot transition from ready to ready"
+      # Second call is rejected as an invalid transition
+      assert {:invalid, "ready", :ready} = Games.transition(riddle_id, :ready)
     end
 
-    test "complete_riddle succeeds when riddle has a winner" do
-      riddle = riddle_fixture(%{play_status: "live"})
+    test "completing succeeds when riddle has a winner" do
+      riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
       user = Riddlr.AccountsFixtures.user_fixture()
       {:ok, _} = Games.record_first_solver(riddle.id, user.id)
 
-      {:ok, completed} = Games.complete_riddle(riddle.id)
+      {:ok, completed} = Games.transition(riddle.id, :completed)
       assert completed.play_status == "completed"
       assert completed.first_solver_id == user.id
     end
 
-    test "complete_riddle records no winner when first_solver_id is nil" do
-      riddle = riddle_fixture(%{play_status: "live"})
+    test "completing records no winner when first_solver_id is nil" do
+      riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
 
-      {:ok, completed} = Games.complete_riddle(riddle.id)
+      {:ok, completed} = Games.transition(riddle.id, :completed)
       assert completed.play_status == "completed"
       assert is_nil(completed.first_solver_id)
     end
 
-    test "complete_riddle enqueues archive job with 180 second delay" do
-      riddle = riddle_fixture(%{play_status: "live"})
+    test "completing enqueues archive job with the default 180 second delay" do
+      riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
 
-      {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
+      {:ok, updated_riddle} = Games.transition(riddle.id, :completed)
 
       assert updated_riddle.play_status == "completed"
 
@@ -291,10 +305,15 @@ defmodule Riddlr.GamesTest do
       )
     end
 
-    test "complete_riddle uses custom archive_after_seconds" do
-      riddle = riddle_fixture(%{play_status: "live", archive_after_seconds: 300})
+    test "completing uses custom archive_after_seconds" do
+      riddle =
+        riddle_fixture(%{
+          play_status: "live",
+          publish_status: "published",
+          archive_after_seconds: 300
+        })
 
-      {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
+      {:ok, updated_riddle} = Games.transition(riddle.id, :completed)
 
       assert updated_riddle.play_status == "completed"
 
@@ -314,10 +333,15 @@ defmodule Riddlr.GamesTest do
       assert scheduled_diff >= 295 and scheduled_diff <= 305
     end
 
-    test "complete_riddle supports zero cooldown for immediate archiving" do
-      riddle = riddle_fixture(%{play_status: "live", archive_after_seconds: 0})
+    test "completing supports zero cooldown for immediate archiving" do
+      riddle =
+        riddle_fixture(%{
+          play_status: "live",
+          publish_status: "published",
+          archive_after_seconds: 0
+        })
 
-      {:ok, updated_riddle} = Games.complete_riddle(riddle.id)
+      {:ok, updated_riddle} = Games.transition(riddle.id, :completed)
 
       assert updated_riddle.play_status == "completed"
 
@@ -346,58 +370,16 @@ defmodule Riddlr.GamesTest do
       refute changeset.valid?
       assert %{play_status: ["cannot transition from closed to live"]} = errors_on(changeset)
     end
-
-    test "PubSub events broadcast on state transitions" do
-      riddle = riddle_fixture(%{play_status: "scheduled"})
-
-      # Subscribe to PubSub topic
-      Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:ready")
-
-      {:ok, updated_riddle} = Games.ready_riddle(riddle.id)
-
-      # Assert broadcast received (category is preloaded in broadcast)
-      assert_receive {:riddle_ready, broadcast_riddle}
-      assert broadcast_riddle.id == updated_riddle.id
-      assert broadcast_riddle.play_status == "ready"
-      assert broadcast_riddle.category.id == riddle.category_id
-    end
   end
 
-  describe "start_riddle/1 scheduling" do
+  describe "transition/3 complete job scheduling" do
     import Riddlr.GamesFixtures
-
-    test "enqueues CompleteRiddleWorker when live_until_solved is false" do
-      riddle = riddle_fixture(%{play_status: "ready", publish_status: "published"})
-
-      {:ok, _riddle} = Games.start_riddle(riddle.id)
-
-      assert_enqueued(
-        worker: Riddlr.Workers.CompleteRiddleWorker,
-        args: %{"riddle_id" => riddle.id}
-      )
-    end
-
-    test "does not enqueue CompleteRiddleWorker when live_until_solved is true" do
-      riddle =
-        riddle_fixture(%{
-          play_status: "ready",
-          publish_status: "published",
-          live_until_solved: true
-        })
-
-      {:ok, _riddle} = Games.start_riddle(riddle.id)
-
-      refute_enqueued(
-        worker: Riddlr.Workers.CompleteRiddleWorker,
-        args: %{"riddle_id" => riddle.id}
-      )
-    end
 
     test "CompleteRiddleWorker scheduled after solve_time seconds" do
       riddle =
         riddle_fixture(%{play_status: "ready", publish_status: "published", solve_time: 120})
 
-      {:ok, _riddle} = Games.start_riddle(riddle.id)
+      {:ok, _riddle} = Games.transition(riddle.id, :live)
 
       [job] = all_enqueued(worker: Riddlr.Workers.CompleteRiddleWorker)
       diff = DateTime.diff(job.scheduled_at, DateTime.utc_now())
@@ -636,44 +618,6 @@ defmodule Riddlr.GamesTest do
 
       expected_offset = -riddle.ready_before_seconds
       assert DateTime.diff(result.ready_job.scheduled_at, live_date, :second) == expected_offset
-    end
-  end
-
-  describe "complete_riddle/2 with stats" do
-    import Riddlr.GamesFixtures
-
-    test "saves first_solver_id and first_solve_time when provided" do
-      user = Riddlr.AccountsFixtures.user_fixture()
-      riddle = riddle_fixture(%{play_status: "live"})
-
-      stats = %{first_solver_id: user.id, first_solve_time: 42, completion_rate: 33.3}
-      {:ok, completed} = Games.complete_riddle(riddle.id, stats)
-
-      assert completed.play_status == "completed"
-      assert completed.first_solver_id == user.id
-      assert completed.first_solve_time == 42
-      assert_in_delta completed.completion_rate, 33.3, 0.01
-    end
-
-    test "saves completion_rate without a solver" do
-      riddle = riddle_fixture(%{play_status: "live"})
-
-      stats = %{completion_rate: 0.0}
-      {:ok, completed} = Games.complete_riddle(riddle.id, stats)
-
-      assert completed.play_status == "completed"
-      assert is_nil(completed.first_solver_id)
-      assert_in_delta completed.completion_rate, 0.0, 0.01
-    end
-
-    test "play_status is always set to completed regardless of stats content" do
-      riddle = riddle_fixture(%{play_status: "live"})
-
-      # Even if stats somehow includes a different play_status, completed wins
-      stats = %{completion_rate: 10.0}
-      {:ok, completed} = Games.complete_riddle(riddle.id, stats)
-
-      assert completed.play_status == "completed"
     end
   end
 

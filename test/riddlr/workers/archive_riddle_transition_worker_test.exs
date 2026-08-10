@@ -30,7 +30,7 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
     assert {:cancel, message} =
              perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
 
-    assert message =~ "Already transitioned"
+    assert message =~ "cannot transition"
     assert message =~ "archived"
   end
 
@@ -40,7 +40,7 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
     assert {:cancel, message} =
              perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
 
-    assert message =~ "Already transitioned"
+    assert message =~ "cannot transition"
     assert message =~ "live"
   end
 

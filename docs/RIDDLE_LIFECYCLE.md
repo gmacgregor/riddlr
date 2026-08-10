@@ -274,7 +274,7 @@ test "full riddle lifecycle from scheduled to archived" do
   assert riddle.play_status == "live"
 
   # Complete (player action)
-  {:ok, riddle} = Games.complete_riddle(riddle, user)
+  {:ok, riddle} = Games.transition(riddle.id, :completed, %{first_solver_id: user.id})
   assert riddle.play_status == "completed"
 
   # Archive (worker, immediate with cooldown: 0)

@@ -154,7 +154,14 @@ defmodule Riddlr.Games do
 
   """
   def delete_riddle(%Riddle{} = riddle) do
-    Repo.delete(riddle)
+    case Repo.delete(riddle) do
+      {:ok, deleted} ->
+        Riddlr.Gameplay.cleanup_riddle(deleted.id)
+        {:ok, deleted}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   @doc """
@@ -229,179 +236,125 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Transitions a riddle to ready state (ready_before_seconds before live).
-  Transitions: scheduled → ready
+  Transitions a riddle's play status.
+
+  One interface for every Play status transition: it owns the guards, the write,
+  the follow-on job, the broadcast and any cleanup. Callers (Oban workers,
+  Gameplay) supply only the target status and, for `:completed`, stats.
+
+  Returns:
+
+    * `{:ok, riddle}` — transitioned and committed
+    * `{:error, :not_found}` — no such riddle
+    * `{:unpublished, publish_status}` — riddle is not published
+    * `{:invalid, from, to}` — forbidden by `Riddle.valid_transitions/0`, or a
+      `live_until_solved` riddle asked to complete without a solver
+    * `{:error, changeset}` — the write failed
+
+  The three non-changeset failures are permanent: callers should not retry.
   """
-  def ready_riddle(riddle_id) do
+  def transition(riddle_id, to, stats \\ %{}) do
+    with {:ok, riddle} <- fetch_transitionable(riddle_id, to, stats) do
+      riddle
+      |> run_transition(to, stats)
+      |> after_commit(to)
+    end
+  end
+
+  defp fetch_transitionable(riddle_id, to, stats) do
     case Repo.get(Riddle, riddle_id) do
       nil ->
         {:error, :not_found}
 
+      %Riddle{publish_status: publish_status} when publish_status != "published" ->
+        {:unpublished, publish_status}
+
       riddle ->
-        if riddle.play_status != "scheduled" do
-          {:error, "cannot transition from #{riddle.play_status} to ready"}
+        if allowed?(riddle, to, stats) do
+          {:ok, riddle}
         else
-          riddle
-          |> Riddle.changeset(%{play_status: "ready"})
-          |> Repo.update()
-          |> case do
-            {:ok, updated_riddle} ->
-              # Preload category for LiveView rendering
-              broadcast_riddle = preload_assoc(updated_riddle)
-
-              Phoenix.PubSub.broadcast(
-                Riddlr.PubSub,
-                "games:riddle:ready",
-                {:riddle_ready, broadcast_riddle}
-              )
-
-              {:ok, updated_riddle}
-
-            {:error, changeset} ->
-              {:error, changeset}
-          end
+          {:invalid, riddle.play_status, to}
         end
     end
   end
 
-  @doc """
-  Starts a riddle (transitions to live state).
-  Transitions: ready → live
-  Enqueues CompleteRiddleWorker after solve_time seconds unless live_until_solved is true.
-  """
-  def start_riddle(riddle_id) do
-    case Repo.get(Riddle, riddle_id) do
-      nil ->
-        {:error, :not_found}
+  defp allowed?(riddle, to, stats) do
+    Riddle.can_transition?(riddle.play_status, to) and solve_satisfied?(riddle, to, stats)
+  end
 
-      riddle ->
-        if riddle.play_status != "ready" do
-          {:error, "cannot transition from #{riddle.play_status} to live"}
-        else
-          multi =
-            Multi.new()
-            |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "live"}))
-            |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
-              # Preload category for LiveView rendering
-              updated_riddle = preload_assoc(updated_riddle)
+  # A live_until_solved riddle has no timer: it completes only on a solve, and a
+  # solve is what puts :first_solver_id in the stats.
+  defp solve_satisfied?(%Riddle{live_until_solved: true}, :completed, stats),
+    do: Map.has_key?(stats, :first_solver_id)
 
-              Phoenix.PubSub.broadcast(
-                Riddlr.PubSub,
-                "games:riddle:live",
-                {:riddle_live, updated_riddle}
-              )
+  defp solve_satisfied?(_riddle, _to, _stats), do: true
 
-              {:ok, :broadcasted}
-            end)
-
-          multi =
-            if riddle.live_until_solved do
-              multi
-            else
-              Multi.insert(multi, :complete_job, fn %{riddle: updated_riddle} ->
-                %{"riddle_id" => updated_riddle.id}
-                |> Riddlr.Workers.CompleteRiddleWorker.new(schedule_in: updated_riddle.solve_time)
-              end)
-            end
-
-          multi
-          |> Repo.transaction()
-          |> case do
-            {:ok, %{riddle: riddle}} -> {:ok, riddle}
-            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
-          end
-        end
+  defp run_transition(riddle, to, stats) do
+    Multi.new()
+    |> Multi.update(:riddle, Riddle.changeset(riddle, transition_attrs(to, stats)))
+    |> enqueue_next_job(to)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{riddle: riddle}} -> {:ok, riddle}
+      {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
     end
   end
 
-  @doc """
-  Completes a riddle (marks as completed after solve_time expires).
-  Transitions: live → completed
-  Enqueues ArchiveRiddleTransitionWorker (3 min delay).
-
-  Optional `stats` map may include: first_solver_id, first_solve_time, completion_rate.
-  """
-  def complete_riddle(riddle_id, stats \\ %{}) do
-    case Repo.get(Riddle, riddle_id) do
-      nil ->
-        {:error, :not_found}
-
-      riddle ->
-        cond do
-          riddle.play_status != "live" ->
-            {:error, "cannot transition from #{riddle.play_status} to completed"}
-
-          true ->
-            allowed_stats =
-              Map.take(stats, [:first_solver_id, :first_solve_time, :completion_rate])
-
-            attrs = Map.put(allowed_stats, :play_status, "completed")
-
-            Multi.new()
-            |> Multi.update(:riddle, Riddle.changeset(riddle, attrs))
-            |> Multi.insert(:archive_job, fn %{riddle: updated_riddle} ->
-              # Use the riddle's configured cooldown (in seconds)
-              cooldown_seconds = updated_riddle.archive_after_seconds
-
-              %{"riddle_id" => updated_riddle.id}
-              |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(schedule_in: cooldown_seconds)
-            end)
-            |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
-              # Preload category for LiveView rendering
-              updated_riddle = preload_assoc(updated_riddle)
-
-              Phoenix.PubSub.broadcast(
-                Riddlr.PubSub,
-                "games:riddle:completed",
-                {:riddle_completed, updated_riddle}
-              )
-
-              {:ok, :broadcasted}
-            end)
-            |> Repo.transaction()
-            |> case do
-              {:ok, %{riddle: riddle}} -> {:ok, riddle}
-              {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
-            end
-        end
-    end
+  defp enqueue_next_job(multi, :live) do
+    Multi.run(multi, :complete_job, fn _repo, %{riddle: riddle} ->
+      if riddle.live_until_solved do
+        {:ok, :skipped}
+      else
+        %{"riddle_id" => riddle.id}
+        |> Riddlr.Workers.CompleteRiddleWorker.new(schedule_in: riddle.solve_time)
+        |> Oban.insert()
+      end
+    end)
   end
 
-  @doc """
-  Archives a riddle (final state after 3 min cooling period).
-  Transitions: completed → archived
-  """
-  def archive_riddle(riddle_id) do
-    case Repo.get(Riddle, riddle_id) do
-      nil ->
-        {:error, :not_found}
-
-      riddle ->
-        if riddle.play_status != "completed" do
-          {:error, "cannot transition from #{riddle.play_status} to archived"}
-        else
-          Multi.new()
-          |> Multi.update(:riddle, Riddle.changeset(riddle, %{play_status: "archived"}))
-          |> Multi.run(:broadcast, fn _, %{riddle: updated_riddle} ->
-            # Preload category for LiveView rendering
-            updated_riddle = preload_assoc(updated_riddle)
-
-            Phoenix.PubSub.broadcast(
-              Riddlr.PubSub,
-              "games:riddle:archived",
-              {:riddle_archived, updated_riddle}
-            )
-
-            {:ok, :broadcasted}
-          end)
-          |> Repo.transaction()
-          |> case do
-            {:ok, %{riddle: riddle}} -> {:ok, riddle}
-            {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
-          end
-        end
-    end
+  defp enqueue_next_job(multi, :completed) do
+    Multi.insert(multi, :archive_job, fn %{riddle: riddle} ->
+      %{"riddle_id" => riddle.id}
+      |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(
+        schedule_in: riddle.archive_after_seconds
+      )
+    end)
   end
+
+  defp enqueue_next_job(multi, _to), do: multi
+
+  defp transition_attrs(:completed, stats) do
+    stats
+    |> Map.take([:first_solver_id, :first_solve_time, :completion_rate])
+    |> Map.put(:play_status, "completed")
+  end
+
+  defp transition_attrs(to, _stats), do: %{play_status: to_string(to)}
+
+  # Everything that must not happen until the transaction has committed:
+  # broadcasting a rolled-back transition would move every Lobby to a riddle
+  # that never went live.
+  defp after_commit({:ok, riddle}, to) do
+    cleanup(to, riddle)
+
+    broadcast_riddle = preload_assoc(riddle)
+    {topic, message} = broadcast_for(to)
+
+    Phoenix.PubSub.broadcast(Riddlr.PubSub, topic, {message, broadcast_riddle})
+
+    {:ok, riddle}
+  end
+
+  defp after_commit(other, _to), do: other
+
+  # An archived riddle takes no more answers, so its ETS rows are dead weight.
+  defp cleanup(:archived, riddle), do: Riddlr.Gameplay.cleanup_riddle(riddle.id)
+  defp cleanup(_to, _riddle), do: :ok
+
+  defp broadcast_for(:ready), do: {"games:riddle:ready", :riddle_ready}
+  defp broadcast_for(:live), do: {"games:riddle:live", :riddle_live}
+  defp broadcast_for(:completed), do: {"games:riddle:completed", :riddle_completed}
+  defp broadcast_for(:archived), do: {"games:riddle:archived", :riddle_archived}
 
   @doc """
   Records the first solver of a riddle (no-op if already set).
@@ -438,7 +391,7 @@ defmodule Riddlr.Games do
     case record_first_solver(riddle_id, user_id) do
       {:ok, :recorded} ->
         cancel_complete_worker(riddle_id)
-        complete_riddle(riddle_id, Map.put(stats, :first_solver_id, user_id))
+        transition(riddle_id, :completed, Map.put(stats, :first_solver_id, user_id))
 
       {:ok, :already_set} ->
         {:ok, :skipped}

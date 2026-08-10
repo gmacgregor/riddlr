@@ -115,6 +115,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
 
   defp live_riddle(attrs \\ %{}) do
     attrs
+    |> Map.put(:publish_status, "published")
     |> GamesFixtures.riddle_fixture()
     |> Ecto.Changeset.change(play_status: "live")
     |> Repo.update!()

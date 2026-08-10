@@ -26,7 +26,7 @@ defmodule Riddlr.Workers.ReadyRiddleTransitionWorkerTest do
     riddle = riddle_fixture(%{play_status: "ready", publish_status: "published"})
 
     assert {:cancel, message} = perform_job(ReadyRiddleTransitionWorker, %{riddle_id: riddle.id})
-    assert message =~ "Already transitioned"
+    assert message =~ "cannot transition"
     assert message =~ "ready"
   end
 
@@ -34,7 +34,7 @@ defmodule Riddlr.Workers.ReadyRiddleTransitionWorkerTest do
     riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
 
     assert {:cancel, message} = perform_job(ReadyRiddleTransitionWorker, %{riddle_id: riddle.id})
-    assert message =~ "Already transitioned"
+    assert message =~ "cannot transition"
     assert message =~ "live"
   end
 

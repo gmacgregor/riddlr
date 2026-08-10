@@ -202,11 +202,26 @@ defmodule Riddlr.Games.Riddle do
   defp validate_transition(changeset, nil, _new), do: changeset
 
   defp validate_transition(changeset, current, new) do
-    if new in Map.get(@valid_transitions, current, []) do
+    if can_transition?(current, new) do
       changeset
     else
       add_error(changeset, :play_status, "cannot transition from #{current} to #{new}")
     end
+  end
+
+  @doc """
+  The play status transition table: `%{from_status => [allowed_to_status]}`.
+
+  Single source of truth for the Play state machine — used both by the
+  changeset validation here and by `Riddlr.Games.transition/3`.
+  """
+  def valid_transitions, do: @valid_transitions
+
+  @doc """
+  Whether `from` may transition to `to`. Both accept strings or atoms.
+  """
+  def can_transition?(from, to) do
+    to_string(to) in Map.get(@valid_transitions, to_string(from), [])
   end
 
   def play_statuses, do: @play_statuses

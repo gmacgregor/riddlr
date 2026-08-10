@@ -32,7 +32,7 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
     riddle = riddle_fixture(%{play_status: "completed", publish_status: "published"})
 
     assert {:cancel, message} = perform_job(CompleteRiddleWorker, %{riddle_id: riddle.id})
-    assert message =~ "Already transitioned"
+    assert message =~ "cannot transition"
     assert message =~ "completed"
   end
 
@@ -56,7 +56,7 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
       })
 
     assert {:cancel, message} = perform_job(CompleteRiddleWorker, %{riddle_id: riddle.id})
-    assert message =~ "live_until_solved"
+    assert message =~ "cannot transition from live to completed"
   end
 
   test "unique constraint prevents duplicate jobs within 1 hour" do

@@ -73,7 +73,7 @@ Scheduling/cancellation goes through `Riddlr.Games.RiddleScheduler`.
    `LobbyTimer.ensure_started/2`. `Riddlr.LobbyTimer` is a per-riddle GenServer under
    `LobbyTimerSupervisor`/`LobbyTimerRegistry` broadcasting `{:countdown_tick, seconds}`
    once per wall-clock second, then stopping at 0. Player count = `Presence.list |> map_size`.
-3. **Live** — `Games.start_riddle/1` sets `live`, broadcasts `{:riddle_live, riddle}`;
+3. **Live** — `Games.transition(id, :live)` sets `live`, broadcasts `{:riddle_live, riddle}`;
    every lobby LiveView `push_navigate`s to `/game/:id/play` simultaneously.
 4. **Race** — `GameLive.Play` subscribes to completed/archived/answer_submitted/
    answer_flagged/user-ban topics. Feed rebuilt from ETS, usernames batch-loaded
@@ -93,12 +93,20 @@ Scheduling/cancellation goes through `Riddlr.Games.RiddleScheduler`.
    `CompleteRiddleWorker` and completes the riddle immediately — the conditional
    `update_all ... where is_nil(first_solver_id)` in `record_first_solver/3` is the
    concurrency gate. Otherwise the timed game keeps running.
-6. **Complete** — `Games.complete_riddle/2` writes `completed`, `first_solver_id`,
+6. **Complete** — `Games.transition(id, :completed, stats)` writes `completed`, `first_solver_id`,
    `first_solve_time`, `completion_rate` (unique solvers / unique answerers), enqueues
    archive. Play LiveView highlights correct answers, loads `get_top_solvers/2`
    (fastest 10) and switches to a tabbed Leaderboard / post-game Chat panel with a
    cooldown countdown. Chat reuses the `answer_submitted` topic with `chat: true`.
-7. **Archive** — `archived` + `Gameplay.cleanup_riddle/1` drops that riddle's ETS rows.
+7. **Archive** — `Games.transition(id, :archived)` writes `archived` and drops that riddle's
+   ETS rows via `Gameplay.cleanup_riddle/1` (as does `Games.delete_riddle/1`).
+
+Every Play status transition goes through one interface, `Games.transition/3`, which
+owns the guards (published + `Riddle.valid_transitions/0`), the write, the follow-on
+job and the post-commit broadcast. It returns `{:ok, riddle}`, `{:error, :not_found}`,
+`{:unpublished, status}`, `{:invalid, from, to}` or `{:error, changeset}`; the workers
+are pure Oban plumbing over it (`Riddlr.Workers.Transition`) and cancel — rather than
+retry — on the three permanent failures.
 
 ## Surfaces (`lib/riddlr_web/router.ex`)
 
