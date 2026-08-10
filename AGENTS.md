@@ -1,6 +1,7 @@
 ## Conventions & Boundaries
 
 <important if="architecting features, creating plans, refactoring, triaging bugs">
+
 - Split development tasks into thin vertical slices of functionality that provide incremental value with each iteration and allow you to validate solution effectiveness more immediately.
 - Do not develop large horizontal layers that must be completed before the next layer can be tackled.
 - If a TDD or Test-Driven-Development skill is in your context, load it and follow its guidance.
@@ -9,6 +10,7 @@
 </important>
 
 <important if="git commiting code changes">
+
 - Use conventional commits and include both a commit summary and description.
 - If commits relate to a specific issue, include the issue number in the summary message, i.e `fix(#123): ...`.
 - If the current branch is a feature branch, include the feature name in the summary message, i.e `fix(feature-name): ...`. If you don't know what `feature-name` to use, supply a suggestion and ask the user.
