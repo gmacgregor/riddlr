@@ -10,7 +10,8 @@ defmodule Riddlr.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      usage_rules: usage_rules()
     ]
   end
 
@@ -46,7 +47,7 @@ defmodule Riddlr.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.1.0"},
+      {:phoenix_live_view, "~> 1.2"},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
@@ -68,6 +69,7 @@ defmodule Riddlr.MixProject do
       {:bandit, "~> 1.5"},
       {:oban, "~> 2.18"},
       {:tidewave, "~> 0.5", only: :dev},
+      {:usage_rules, "~> 1.2", only: [:dev]},
       {:tzdata, "~> 1.1"}
     ]
   end
@@ -93,6 +95,13 @@ defmodule Riddlr.MixProject do
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+    ]
+  end
+
+  defp usage_rules do
+    [
+      file: "AGENTS.md",
+      usage_rules: {:all, link: :at}
     ]
   end
 end

@@ -1,18 +1,5 @@
 # Riddlr
 
-To start your Phoenix server:
+Riddlr is a real-time multiplayer riddle game. Admins author riddles and schedule them to go live at a specific wall-clock time. Players gather in a lobby, watch a shared countdown, then race to be first to submit the correct answer.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
-
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
-
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
-
-## Learn more
-
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+Tech stack: Phoenix 1.8 / LiveView 1.2, plain Ecto + Postgres, Oban for lifecycle jobs, PubSub + Presence for realtime, ETS for ephemeral round state.

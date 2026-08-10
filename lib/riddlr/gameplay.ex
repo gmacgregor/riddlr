@@ -97,7 +97,7 @@ defmodule Riddlr.Gameplay do
   def points_for_placement(_), do: 0
 
   @doc """
-  Returns all answers for a riddle, sorted by timestamp (oldest first).
+  Returns all answers for a riddle, sorted by timestamp (newest first).
   Each entry is a map with user_id, text, timestamp, correct fields.
   """
   def get_answers(riddle_id) do
@@ -106,7 +106,7 @@ defmodule Riddlr.Gameplay do
     |> Enum.map(fn {{_rid, user_id}, text, timestamp, correct?, _solve_time_ms} ->
       %{user_id: user_id, text: text, timestamp: timestamp, correct: correct?}
     end)
-    |> Enum.sort_by(& &1.timestamp)
+    |> Enum.sort_by(& &1.timestamp, :desc)
   end
 
   @doc """

@@ -14,7 +14,7 @@
    curl -sLO https://github.com/saadeghi/daisyui/releases/latest/download/daisyui.js
    Make sure to look at the daisyUI changelog: https://daisyui.com/docs/changelog/ */
 @plugin "../vendor/daisyui" {
-  themes: false;
+    themes: false;
 }
 
 /* daisyUI theme plugin. You can update this file by fetching the latest version with:
@@ -22,73 +22,73 @@
   We ship with two themes, a light one inspired on Phoenix colors and a dark one inspired
   on Elixir colors. Build your own at: https://daisyui.com/theme-generator/ */
 @plugin "../vendor/daisyui-theme" {
-  name: "dark";
-  default: false;
-  prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(30.33% 0.016 252.42);
-  --color-base-200: oklch(25.26% 0.014 253.1);
-  --color-base-300: oklch(20.15% 0.012 254.09);
-  --color-base-content: oklch(97.807% 0.029 256.847);
-  --color-primary: oklch(58% 0.233 277.117);
-  --color-primary-content: oklch(96% 0.018 272.314);
-  --color-secondary: oklch(58% 0.233 277.117);
-  --color-secondary-content: oklch(96% 0.018 272.314);
-  --color-accent: oklch(60% 0.25 292.717);
-  --color-accent-content: oklch(96% 0.016 293.756);
-  --color-neutral: oklch(37% 0.044 257.287);
-  --color-neutral-content: oklch(98% 0.003 247.858);
-  --color-info: oklch(58% 0.158 241.966);
-  --color-info-content: oklch(97% 0.013 236.62);
-  --color-success: oklch(60% 0.118 184.704);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
+    name: "dark";
+    default: false;
+    prefersdark: true;
+    color-scheme: "dark";
+    --color-base-100: oklch(30.33% 0.016 252.42);
+    --color-base-200: oklch(25.26% 0.014 253.1);
+    --color-base-300: oklch(20.15% 0.012 254.09);
+    --color-base-content: oklch(97.807% 0.029 256.847);
+    --color-primary: oklch(58% 0.233 277.117);
+    --color-primary-content: oklch(96% 0.018 272.314);
+    --color-secondary: oklch(58% 0.233 277.117);
+    --color-secondary-content: oklch(96% 0.018 272.314);
+    --color-accent: oklch(60% 0.25 292.717);
+    --color-accent-content: oklch(96% 0.016 293.756);
+    --color-neutral: oklch(37% 0.044 257.287);
+    --color-neutral-content: oklch(98% 0.003 247.858);
+    --color-info: oklch(58% 0.158 241.966);
+    --color-info-content: oklch(97% 0.013 236.62);
+    --color-success: oklch(60% 0.118 184.704);
+    --color-success-content: oklch(98% 0.014 180.72);
+    --color-warning: oklch(66% 0.179 58.318);
+    --color-warning-content: oklch(98% 0.022 95.277);
+    --color-error: oklch(58% 0.253 17.585);
+    --color-error-content: oklch(96% 0.015 12.422);
+    --radius-selector: 0.25rem;
+    --radius-field: 0.25rem;
+    --radius-box: 0.5rem;
+    --size-selector: 0.21875rem;
+    --size-field: 0.21875rem;
+    --border: 1.5px;
+    --depth: 1;
+    --noise: 0;
 }
 
 @plugin "../vendor/daisyui-theme" {
-  name: "light";
-  default: true;
-  prefersdark: false;
-  color-scheme: "light";
-  --color-base-100: oklch(98% 0 0);
-  --color-base-200: oklch(96% 0.001 286.375);
-  --color-base-300: oklch(92% 0.004 286.32);
-  --color-base-content: oklch(21% 0.006 285.885);
-  --color-primary: oklch(70% 0.213 47.604);
-  --color-primary-content: oklch(98% 0.016 73.684);
-  --color-secondary: oklch(55% 0.027 264.364);
-  --color-secondary-content: oklch(98% 0.002 247.839);
-  --color-accent: oklch(0% 0 0);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(44% 0.017 285.786);
-  --color-neutral-content: oklch(98% 0 0);
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(70% 0.14 182.503);
-  --color-success-content: oklch(98% 0.014 180.72);
-  --color-warning: oklch(66% 0.179 58.318);
-  --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
-  --radius-selector: 0.25rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.21875rem;
-  --size-field: 0.21875rem;
-  --border: 1.5px;
-  --depth: 1;
-  --noise: 0;
+    name: "light";
+    default: true;
+    prefersdark: false;
+    color-scheme: "light";
+    --color-base-100: oklch(98% 0 0);
+    --color-base-200: oklch(96% 0.001 286.375);
+    --color-base-300: oklch(92% 0.004 286.32);
+    --color-base-content: oklch(21% 0.006 285.885);
+    --color-primary: oklch(70% 0.213 47.604);
+    --color-primary-content: oklch(98% 0.016 73.684);
+    --color-secondary: oklch(55% 0.027 264.364);
+    --color-secondary-content: oklch(98% 0.002 247.839);
+    --color-accent: oklch(0% 0 0);
+    --color-accent-content: oklch(100% 0 0);
+    --color-neutral: oklch(44% 0.017 285.786);
+    --color-neutral-content: oklch(98% 0 0);
+    --color-info: oklch(62% 0.214 259.815);
+    --color-info-content: oklch(97% 0.014 254.604);
+    --color-success: oklch(70% 0.14 182.503);
+    --color-success-content: oklch(98% 0.014 180.72);
+    --color-warning: oklch(66% 0.179 58.318);
+    --color-warning-content: oklch(98% 0.022 95.277);
+    --color-error: oklch(58% 0.253 17.585);
+    --color-error-content: oklch(96% 0.015 12.422);
+    --radius-selector: 0.25rem;
+    --radius-field: 0.25rem;
+    --radius-box: 0.5rem;
+    --size-selector: 0.21875rem;
+    --size-field: 0.21875rem;
+    --border: 1.5px;
+    --depth: 1;
+    --noise: 0;
 }
 
 /* Add variants based on LiveView classes */
@@ -100,7 +100,10 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 /* Make LiveView wrapper divs transparent for layout */
-[data-phx-session], [data-phx-teleported-src] { display: contents }
+[data-phx-session],
+[data-phx-teleported-src] {
+    display: contents;
+}
 
 /* This file is for your main application CSS */
 
@@ -109,256 +112,343 @@
 /* The game timer card morphs between lobby (large) and play (small) pages.
    The browser auto-animates size/position; we just tune easing + cross-fade. */
 ::view-transition-group(game-timer) {
-  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation-duration: 0.55s;
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation-duration: 0.55s;
 }
 
 @keyframes vt-fade-out {
-  to { opacity: 0; }
+    to {
+        opacity: 0;
+    }
 }
 
 @keyframes vt-fade-in {
-  from { opacity: 0; }
+    from {
+        opacity: 0;
+    }
 }
 
 ::view-transition-old(game-timer) {
-  animation: 0.2s ease-in vt-fade-out both;
+    animation: 0.2s ease-in vt-fade-out both;
 }
 
 ::view-transition-new(game-timer) {
-  animation: 0.3s 0.15s ease-out vt-fade-in both;
+    animation: 0.3s 0.15s ease-out vt-fade-in both;
 }
 
 /* ─── Solve Timer urgency styles ────────────────────────────────────────────── */
 
 /* Double-pump heartbeat (lub-dub) — fires at ≤10s remaining */
 @keyframes timer-heartbeat {
-  0%   { transform: scale(1); }
-  12%  { transform: scale(1.07); }
-  22%  { transform: scale(1); }
-  34%  { transform: scale(1.04); }
-  44%  { transform: scale(1); }
-  100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+    12% {
+        transform: scale(1.07);
+    }
+    22% {
+        transform: scale(1);
+    }
+    34% {
+        transform: scale(1.04);
+    }
+    44% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 [data-urgency="critical"] {
-  animation: timer-heartbeat 0.8s ease-in-out infinite;
+    animation: timer-heartbeat 0.8s ease-in-out infinite;
 }
 
 [data-urgency="critical"] [data-timer-display] {
-  color: rgb(220, 38, 38) !important; /* red-600 */
+    color: rgb(220, 38, 38) !important; /* red-600 */
 }
 
 /* ─── Correct answer celebration ─────────────────────────────────────────────── */
 
 /* Green ring radiates outward from the success panel when it first appears */
 @starting-style {
-  #correct-result {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
-  }
+    #correct-result {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+    }
 }
 
 #correct-result {
-  transition: box-shadow 0.6s ease-out;
+    transition: box-shadow 0.6s ease-out;
 }
 
 /* Driven by JS — ring pulse on demand (also works in older browsers) */
 @keyframes correct-ring-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.65); }
-  70%  { box-shadow: 0 0 0 20px rgba(34, 197, 94, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.65);
+    }
+    70% {
+        box-shadow: 0 0 0 20px rgba(34, 197, 94, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
 }
 
 /* ─── Confetti particles ─────────────────────────────────────────────────────── */
 
 .confetti-particle {
-  position: fixed;
-  pointer-events: none;
-  z-index: 9999;
-  border-radius: 2px;
-  animation: confetti-fly 0.9s ease-out forwards;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    border-radius: 2px;
+    animation: confetti-fly 0.9s ease-out forwards;
 }
 
 @keyframes confetti-fly {
-  from {
-    transform: translate(0, 0) rotate(0deg) scale(1);
-    opacity: 1;
-  }
-  to {
-    transform: translate(var(--vx), var(--vy)) rotate(var(--rot)) scale(0.4);
-    opacity: 0;
-  }
+    from {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+        opacity: 1;
+    }
+    to {
+        transform: translate(var(--vx), var(--vy)) rotate(var(--rot)) scale(0.4);
+        opacity: 0;
+    }
 }
 
 /* ─── Design tokens ─────────────────────────────────────────────────────────── */
 :root {
-  --bg:           #0d0d0f;
-  --surface:      #16161a;
-  --surface-border: rgba(255, 255, 255, 0.06);
-  --accent:       #7c3aed;
-  --accent-glow:  rgba(124, 58, 237, 0.35);
-  --text:         #f4f4f5;
-  --text-muted:   #71717a;
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface-border: rgba(255, 255, 255, 0.06);
+    --accent: #7c3aed;
+    --accent-glow: rgba(124, 58, 237, 0.35);
+    --text: #f4f4f5;
+    --text-muted: #71717a;
 }
 
 /* ─── Light theme (Miami Vice — warm sand + teal) ────────────────────────────── */
 html[data-theme="light"] {
-  --bg:             #f4f1e8;
-  --surface:        #fffdf7;
-  --surface-border: rgba(0, 166, 147, 0.15);
-  --accent:         #00a693;
-  --accent-glow:    rgba(0, 166, 147, 0.3);
-  --text:           #1a1a2e;
-  --text-muted:     #5a7a72;
+    --bg: #f4f1e8;
+    --surface: #fffdf7;
+    --surface-border: rgba(0, 166, 147, 0.15);
+    --accent: #00a693;
+    --accent-glow: rgba(0, 166, 147, 0.3);
+    --text: #1a1a2e;
+    --text-muted: #5a7a72;
 }
 
 @media (prefers-color-scheme: light) {
-  html:not([data-theme]) {
-    --bg:             #f4f1e8;
-    --surface:        #fffdf7;
-    --surface-border: rgba(0, 166, 147, 0.15);
-    --accent:         #00a693;
-    --accent-glow:    rgba(0, 166, 147, 0.3);
-    --text:           #1a1a2e;
-    --text-muted:     #5a7a72;
-  }
+    html:not([data-theme]) {
+        --bg: #f4f1e8;
+        --surface: #fffdf7;
+        --surface-border: rgba(0, 166, 147, 0.15);
+        --accent: #00a693;
+        --accent-glow: rgba(0, 166, 147, 0.3);
+        --text: #1a1a2e;
+        --text-muted: #5a7a72;
+    }
 }
 
 /* ─── Theme toggle icons ─────────────────────────────────────────────────────── */
-.theme-icon-light { display: none; }
-.theme-icon-dark  { display: inline; }
+.theme-icon-light {
+    display: none;
+}
+.theme-icon-dark {
+    display: inline;
+}
 
-html[data-theme="light"] .theme-icon-light { display: inline; }
-html[data-theme="light"] .theme-icon-dark  { display: none; }
+html[data-theme="light"] .theme-icon-light {
+    display: inline;
+}
+html[data-theme="light"] .theme-icon-dark {
+    display: none;
+}
 
 @media (prefers-color-scheme: light) {
-  html:not([data-theme]) .theme-icon-light { display: inline; }
-  html:not([data-theme]) .theme-icon-dark  { display: none; }
+    html:not([data-theme]) .theme-icon-light {
+        display: inline;
+    }
+    html:not([data-theme]) .theme-icon-dark {
+        display: none;
+    }
 }
 
 /* ─── Focus ring ─────────────────────────────────────────────────────────────── */
 .focus-ring:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent-glow);
+    outline: none;
+    box-shadow:
+        0 0 0 2px var(--accent),
+        0 0 0 4px var(--accent-glow);
 }
 
 /* ─── Press feel ─────────────────────────────────────────────────────────────── */
 .pressable {
-  transition: transform 75ms ease;
-  cursor: pointer;
+    transition: transform 75ms ease;
+    cursor: pointer;
 }
 .pressable:active {
-  transform: scale(0.97);
+    transform: scale(0.97);
 }
 
 /* ─── Reconnection indicator ─────────────────────────────────────────────────── */
 @keyframes reconnect-pulse {
-  0%, 100% { opacity: 0.4; }
-  50%       { opacity: 1; }
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 1;
+    }
 }
 
 #reconnect-bar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent);
-  animation: reconnect-pulse 1.2s ease-in-out infinite;
-  z-index: 10000;
-  display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    animation: reconnect-pulse 1.2s ease-in-out infinite;
+    z-index: 10000;
+    display: none;
 }
 
 body.phx-connecting #reconnect-bar {
-  display: block;
+    display: block;
 }
 
 /* ─── Player dots ────────────────────────────────────────────────────────────── */
 @keyframes dot-pulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50%       { opacity: 1;   transform: scale(1.15); }
+    0%,
+    100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
 }
 
 .player-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: dot-pulse 2s ease-in-out infinite;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: dot-pulse 2s ease-in-out infinite;
 }
 
 /* ─── Countdown tick pulse ───────────────────────────────────────────────────── */
 @keyframes countdown-tick {
-  0%   { transform: scale(1); }
-  30%  { transform: scale(1.03); }
-  100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+    30% {
+        transform: scale(1.03);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 .countdown-tick {
-  animation: countdown-tick 150ms ease-out;
+    animation: countdown-tick 150ms ease-out;
 }
 
 /* ─── Lobby timer border glow (intensifies near zero) ────────────────────────── */
 .timer-card-urgent {
-  box-shadow: 0 0 0 1px var(--accent), 0 0 16px var(--accent-glow);
-  transition: box-shadow 0.5s ease;
+    box-shadow:
+        0 0 0 1px var(--accent),
+        0 0 16px var(--accent-glow);
+    transition: box-shadow 0.5s ease;
 }
 
 /* ─── Input shake (incorrect answer) ────────────────────────────────────────── */
 @keyframes input-shake {
-  0%, 100% { transform: translateX(0); }
-  20%      { transform: translateX(-6px); }
-  40%      { transform: translateX(6px); }
-  60%      { transform: translateX(-4px); }
-  80%      { transform: translateX(4px); }
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    20% {
+        transform: translateX(-6px);
+    }
+    40% {
+        transform: translateX(6px);
+    }
+    60% {
+        transform: translateX(-4px);
+    }
+    80% {
+        transform: translateX(4px);
+    }
 }
 
 .shake {
-  animation: input-shake 300ms ease-in-out;
+    animation: input-shake 300ms ease-in-out;
 }
 
 /* ─── Input error flash (red glow on incorrect answer) ──────────────────────── */
 @keyframes input-error-flash {
-  0%   { box-shadow: none; }
-  15%  { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 10px rgba(239, 68, 68, 0.2); }
-  85%  { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.8), 0 0 10px rgba(239, 68, 68, 0.2); }
-  100% { box-shadow: none; }
+    0% {
+        box-shadow: none;
+    }
+    15% {
+        box-shadow:
+            0 0 0 2px rgba(239, 68, 68, 0.8),
+            0 0 10px rgba(239, 68, 68, 0.2);
+    }
+    85% {
+        box-shadow:
+            0 0 0 2px rgba(239, 68, 68, 0.8),
+            0 0 10px rgba(239, 68, 68, 0.2);
+    }
+    100% {
+        box-shadow: none;
+    }
 }
 
 .input-error {
-  animation: input-error-flash 600ms ease-out forwards;
+    animation: input-error-flash 600ms ease-out forwards;
 }
 
 /* ─── Feed entry slide-in ────────────────────────────────────────────────────── */
 @keyframes feed-in {
-  from { transform: translateY(-8px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
+    from {
+        transform: translateY(-8px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .feed-entry {
-  animation: feed-in 200ms ease-out;
+    animation: feed-in 200ms ease-out;
 }
 
 /* ─── Riddle reveal (word fade-in handled by JS) ─────────────────────────────── */
 .riddle-word {
-  opacity: 0;
-  transition: opacity 150ms ease;
+    opacity: 0;
+    transition: opacity 150ms ease;
 }
 .riddle-word.revealed {
-  opacity: 1;
+    opacity: 1;
 }
 
 /* ─── Cooldown progress bar ──────────────────────────────────────────────────── */
 .btn-cooldown {
-  position: relative;
-  overflow: hidden;
+    position: relative;
+    overflow: hidden;
 }
 
 .btn-cooldown::after {
-  content: "";
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  background: rgba(255, 255, 255, 0.15);
-  width: var(--cooldown-pct, 100%);
-  transition: width 0.1s linear;
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.15);
+    width: var(--cooldown-pct, 100%);
+    transition: width 0.1s linear;
 }

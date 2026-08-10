@@ -39,3 +39,5 @@ npm-debug.log
 
 /.claude
 /.claude/settings.local.json
+
+/design
