@@ -16,8 +16,8 @@ defmodule Riddlr.Application do
       {Phoenix.PubSub, name: Riddlr.PubSub},
       Riddlr.Gameplay.Presence,
       {Task.Supervisor, name: Riddlr.TaskSupervisor},
-      {Registry, keys: :unique, name: Riddlr.LobbyTimerRegistry},
-      {DynamicSupervisor, name: Riddlr.LobbyTimerSupervisor, strategy: :one_for_one},
+      {Registry, keys: :unique, name: Riddlr.GameClockRegistry},
+      {DynamicSupervisor, name: Riddlr.GameClockSupervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry
       RiddlrWeb.Endpoint
     ]

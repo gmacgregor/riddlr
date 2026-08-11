@@ -1,7 +1,7 @@
 defmodule RiddlrWeb.GameLive.Lobby do
   use RiddlrWeb, :live_view
 
-  alias Riddlr.Clock
+  alias Riddlr.GameClock
   alias Riddlr.Games
   alias Riddlr.Gameplay.Presence
 
@@ -29,12 +29,13 @@ defmodule RiddlrWeb.GameLive.Lobby do
               )
 
               Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(id))
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
               Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
-              Riddlr.LobbyTimer.ensure_started(id, riddle.live_date)
+              GameClock.ensure_started(riddle)
             end
 
             player_count = lobby_topic(id) |> Presence.list() |> map_size()
-            time_until_game_starts = time_remaining(riddle.live_date)
+            time_until_game_starts = lobby_seconds_left(riddle)
 
             {:ok,
              socket
@@ -50,12 +51,17 @@ defmodule RiddlrWeb.GameLive.Lobby do
   end
 
   @impl true
-  def handle_info({:countdown_tick, seconds}, socket) do
+  def handle_info({:countdown_tick, :lobby, seconds}, socket) do
     {:noreply,
      socket
      |> assign(:time_remaining, seconds)
      |> push_event("countdown-tick", %{seconds: seconds})}
   end
+
+  # The clock rolls straight from the lobby phase into the play phase. The lobby
+  # leaves on the :riddle_live broadcast, not on a tick, so play ticks are
+  # ignored here.
+  def handle_info({:countdown_tick, _phase, _seconds}, socket), do: {:noreply, socket}
 
   @impl true
   def handle_info({:riddle_live, riddle}, socket) do
@@ -75,8 +81,12 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
   defp lobby_topic(id), do: "game:lobby:#{id}"
 
-  defp time_remaining(nil), do: 0
-
-  defp time_remaining(live_date),
-    do: max(0, DateTime.diff(live_date, Clock.utc_now()))
+  # The seconds shown on the first render. Every render after it comes from a
+  # tick on the same clock.
+  defp lobby_seconds_left(riddle) do
+    case GameClock.countdown(riddle) do
+      {:lobby, seconds} -> seconds
+      {:play, _} -> 0
+    end
+  end
 end

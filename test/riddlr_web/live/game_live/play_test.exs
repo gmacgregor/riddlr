@@ -4,6 +4,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   import Phoenix.LiveViewTest
 
   alias Riddlr.Clock.Frozen
+  alias Riddlr.GameClock
   alias Riddlr.Gameplay.Answer
   alias Riddlr.{Games, Gameplay, AccountsFixtures, GamesFixtures}
 
@@ -357,7 +358,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert render(live) =~ "04:30"
     end
 
-    test "a tick past the solve time leaves no time on the clock", %{conn: conn, user: user} do
+    test "every player takes the second from the riddle's clock", %{conn: conn, user: user} do
       live_date = ~U[2026-08-01 12:00:00.000000Z]
 
       riddle =
@@ -368,8 +369,31 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      Frozen.advance(90, :second)
-      send(live.pid, :tick)
+      Phoenix.PubSub.broadcast(
+        Riddlr.PubSub,
+        GameClock.topic(riddle.id),
+        {:countdown_tick, :play, 42}
+      )
+
+      assert has_element?(live, "#countdown-timer[data-seconds='42']")
+    end
+
+    test "the clock running out leaves no time on it", %{conn: conn, user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{solve_time: 60, live_date: live_date})
+        |> set_play_status_direct("live")
+
+      Frozen.freeze(live_date)
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      Phoenix.PubSub.broadcast(
+        Riddlr.PubSub,
+        GameClock.topic(riddle.id),
+        {:countdown_tick, :play, 0}
+      )
 
       assert has_element?(live, "#countdown-timer[data-seconds='0']")
     end
@@ -443,6 +467,20 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       # Simulate the ban broadcast that Accounts.set_user_status/2 would emit
       send(live.pid, {:user_status_changed, :banned})
+
+      assert_redirect(live, "/")
+    end
+
+    test "a user banned before they arrived cannot chat", %{conn: conn} do
+      user = AccountsFixtures.user_fixture()
+      {:ok, _} = Riddlr.Accounts.set_user_status(user, :banned)
+
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("completed")
+      conn = log_in_user(conn, user)
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      render_submit(element(live, "#chat-form"), %{"message" => "hello"})
 
       assert_redirect(live, "/")
     end

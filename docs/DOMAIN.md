@@ -70,10 +70,15 @@ row and its jobs.
    jobs, inserts the ready + live jobs, broadcasts `{:riddle_scheduled, riddle}`.
 1. **Ready** — worker flips to `ready`, broadcasts on `games:riddle:ready`.
 2. **Lobby** — `GET /game/:id/lobby` → `GameLive.Lobby`. On connect: `Presence.track/4`
-   on `game:lobby:{id}`, subscribe to that topic + `games:riddle:live`, and
-   `LobbyTimer.ensure_started/2`. `Riddlr.LobbyTimer` is a per-riddle GenServer under
-   `LobbyTimerSupervisor`/`LobbyTimerRegistry` broadcasting `{:countdown_tick, seconds}`
-   once per wall-clock second, then stopping at 0. Player count = `Presence.list |> map_size`.
+   on `game:lobby:{id}`, subscribe to that topic + `games:riddle:live` +
+   `GameClock.topic(riddle.id)`, and `GameClock.ensure_started/1`. `Riddlr.GameClock` is a
+   per-riddle GenServer under `GameClockSupervisor`/`GameClockRegistry` broadcasting
+   `{:countdown_tick, phase, seconds}` once per wall-clock second: `:lobby` until the
+   live date, then `:play` until the solve time runs out, then it exits. Both the lobby
+   and the play view subscribe to it, and `GameClock.countdown/1` is the only place the
+   remaining-seconds arithmetic is written. The process holds a snapshot of the riddle,
+   refreshed on `{:riddle_saved, riddle}`, so rescheduling updates every connected lobby.
+   Player count = `Presence.list |> map_size`.
 3. **Live** — `Games.transition(id, :live)` sets `live`, broadcasts `{:riddle_live, riddle}`;
    every lobby LiveView `push_navigate`s to `/game/:id/play` simultaneously.
 4. **Race** — `GameLive.Play` subscribes to completed/archived/answer_submitted/

@@ -162,15 +162,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       before_html = render(live)
       assert before_html =~ ~r/data-seconds="(\d+)"/
 
-      send(live.pid, {:countdown_tick, 100})
+      send(live.pid, {:countdown_tick, :lobby, 100})
       after_html = render(live)
 
       # Countdown element still present and data-seconds attribute is set
       assert has_element?(live, "#countdown[data-seconds]")
 
-      # data-seconds value is a non-negative integer
-      [seconds_str] = Regex.run(~r/data-seconds="(\d+)"/, after_html, capture: :all_but_first)
-      assert String.to_integer(seconds_str) >= 0
+      assert after_html =~ ~s(data-seconds="100")
     end
   end
 

@@ -23,6 +23,7 @@ Deep dive: `docs/DOMAIN.md`. Lifecycle detail: `docs/RIDDLE_LIFECYCLE.md`.
 | **Cooldown** | 1s per-user submit rate limit (UX only, non-atomic). Also the post-completion window before archive. |
 | **Archive** | Terminal state. Drops the riddle's ETS rows. |
 | **Clock** | The port every time read goes through (`Riddlr.Clock`). Frozen in tests; nothing else reads the runtime clock. |
+| **Game clock** | A riddle's countdown (`Riddlr.GameClock`). One process per riddle broadcasting a tick a second, in two phases: `:lobby` counts to the Live date, `:play` counts down the Solve time. All players see the same value at the same moment. |
 
 Avoid: "round"/"turn" (there are none — one riddle is one simultaneous race),
 "question" (say **riddle**), "score" as a verb for placement (say **award points**).

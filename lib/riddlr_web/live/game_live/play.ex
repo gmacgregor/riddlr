@@ -5,7 +5,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.{Accounts, Clock, Games, Gameplay}
+  alias Riddlr.{Accounts, GameClock, Games, Gameplay}
   alias Riddlr.Gameplay.Answer
 
   import Riddlr.Utils.User
@@ -53,6 +53,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(id))
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
+                Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
                 answers = build_initial_feed(riddle.id, game_completed)
                 solvers = if game_completed, do: load_top_solvers(riddle.id), else: []
                 {answers, solvers}
@@ -64,24 +65,19 @@ defmodule RiddlrWeb.GameLive.Play do
               if game_completed do
                 0
               else
-                compute_time_remaining(riddle.live_date, riddle.solve_time)
+                if connected?(socket), do: GameClock.ensure_started(riddle)
+                solve_seconds_left(riddle)
               end
-
-            if connected?(socket) and not game_completed and time_remaining > 0 do
-              Process.send_after(self(), :tick, 1000)
-            end
 
             {:ok,
              socket
-             |> assign_user_banned(user)
+             |> assign(:banned, is_banned?(user))
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
-             |> assign(:game_start_time, riddle.live_date)
              |> assign(:game_completed, game_completed)
              |> assign(:already_solved, already_solved)
              |> assign(:submission_state, nil)
              |> assign(:time_remaining, time_remaining)
-             |> assign(:cooldown_remaining, 0)
              |> assign(:top_solvers, top_solvers)
              |> assign(:active_tab, :leaderboard)
              |> assign(:try_again_message, nil)
@@ -180,18 +176,12 @@ defmodule RiddlrWeb.GameLive.Play do
         |> Enum.reduce(socket, &stream_insert(&2, :answers, &1))
 
       top_solvers = load_top_solvers(riddle.id)
-      cooldown_remaining = riddle.archive_after_seconds
-
-      if cooldown_remaining > 0 do
-        Process.send_after(self(), :cooldown_tick, 1000)
-      end
 
       {:noreply,
        socket
        |> assign(:riddle, riddle)
        |> assign(:game_completed, true)
        |> assign(:time_remaining, 0)
-       |> assign(:cooldown_remaining, cooldown_remaining)
        |> assign(:top_solvers, top_solvers)}
     else
       {:noreply, socket}
@@ -211,33 +201,21 @@ defmodule RiddlrWeb.GameLive.Play do
     end
   end
 
-  def handle_info(:tick, socket) do
+  def handle_info({:countdown_tick, :play, seconds}, socket) do
     if socket.assigns.game_completed do
       {:noreply, socket}
     else
-      time_remaining =
-        compute_time_remaining(socket.assigns.game_start_time, socket.assigns.riddle.solve_time)
-
-      if time_remaining > 0 do
-        Process.send_after(self(), :tick, 1000)
-      end
-
       {:noreply,
        socket
-       |> assign(:time_remaining, time_remaining)
-       |> push_event("countdown-tick", %{seconds: time_remaining})}
+       |> assign(:time_remaining, seconds)
+       |> push_event("countdown-tick", %{seconds: seconds})}
     end
   end
 
-  def handle_info(:cooldown_tick, socket) do
-    remaining = max(0, socket.assigns.cooldown_remaining - 1)
-
-    if remaining > 0 do
-      Process.send_after(self(), :cooldown_tick, 1000)
-    end
-
-    {:noreply, assign(socket, :cooldown_remaining, remaining)}
-  end
+  # The riddle is already live here, so a :lobby tick can only be the clock's
+  # first broadcast arriving just after mount. Nothing on this page counts down
+  # to the live date.
+  def handle_info({:countdown_tick, _phase, _seconds}, socket), do: {:noreply, socket}
 
   def handle_info({:user_status_changed, :banned}, socket) do
     {:noreply,
@@ -260,10 +238,6 @@ defmodule RiddlrWeb.GameLive.Play do
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
-
-  defp assign_user_banned(socket, user) do
-    assign(socket, :user_banned, is_banned?(user))
-  end
 
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
@@ -346,11 +320,11 @@ defmodule RiddlrWeb.GameLive.Play do
     end)
   end
 
-  defp compute_time_remaining(nil, solve_time), do: solve_time
-
-  defp compute_time_remaining(live_date, solve_time) do
-    elapsed = DateTime.diff(Clock.utc_now(), live_date, :second)
-    max(solve_time - elapsed, 0)
+  defp solve_seconds_left(riddle) do
+    case GameClock.countdown(riddle) do
+      {:play, seconds} -> seconds
+      {:lobby, _} -> riddle.solve_time
+    end
   end
 
   def format_time(seconds) do
