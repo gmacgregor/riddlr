@@ -11,6 +11,12 @@ defmodule RiddlrWeb.GameLive.Play do
   import Riddlr.Utils.User
 
   @answer_max_length 500
+
+  # The feed carries on after the round ends, so it needs a row saying where the
+  # round stopped and the chat started. Streams can't inject a row at render
+  # time, so the divider rides in the stream as an item of its own.
+  @round_ended %{id: "round-ended", divider: true}
+
   @try_again_messages [
     "Uuuh… no! Think harder.",
     "Ooopsie whoopise, not quite. Go on, guess again!",
@@ -55,6 +61,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
                 answers = build_initial_feed(riddle.id, game_completed)
+                answers = if game_completed, do: [@round_ended | answers], else: answers
                 solvers = if game_completed, do: load_top_solvers(riddle.id), else: []
                 {answers, solvers}
               else
@@ -143,7 +150,7 @@ defmodule RiddlrWeb.GameLive.Play do
          :ok <- check_not_banned(socket.assigns),
          :ok <- check_game_completed(riddle) do
       Gameplay.broadcast_answer(Answer.new(riddle.id, user, text, chat: true))
-      {:noreply, socket}
+      {:noreply, push_event(socket, "chat-sent", %{})}
     else
       {:error, :banned} ->
         {:noreply,
@@ -167,18 +174,18 @@ defmodule RiddlrWeb.GameLive.Play do
 
   def handle_info({:riddle_completed, riddle}, socket) do
     if riddle.id == socket.assigns.riddle.id do
-      # Correct answers were masked while the round ran, so re-stream them from
-      # ETS — which kept the real text — now that revealing them is safe.
-      socket =
-        riddle.id
-        |> build_initial_feed(true)
-        |> Enum.filter(& &1.correct)
-        |> Enum.reduce(socket, &stream_insert(&2, :answers, &1))
+      # The post-game feed renders in its own container, and a stream only ships
+      # the rows it was handed this render — the live feed's rows leave with the
+      # container that held them. So rebuild the feed from ETS, which also
+      # unmasks the correct answers now that revealing them is safe.
+      feed = build_initial_feed(riddle.id, true)
 
       top_solvers = load_top_solvers(riddle.id)
 
       {:noreply,
        socket
+       |> stream(:answers, feed, reset: true, limit: 100)
+       |> stream_insert(:answers, @round_ended, at: 0)
        |> assign(:riddle, riddle)
        |> assign(:game_completed, true)
        |> assign(:time_remaining, 0)
@@ -242,6 +249,9 @@ defmodule RiddlrWeb.GameLive.Play do
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
 
+  # Every feed item is an answer except the round-ended divider.
+  defp divider?(item), do: Map.get(item, :divider, false)
+
   defp check_game_completed(%{play_status: "completed"}), do: :ok
   defp check_game_completed(%{play_status: status}), do: {:error, {:not_completed, status}}
 
@@ -262,11 +272,6 @@ defmodule RiddlrWeb.GameLive.Play do
 
   defp format_error({:not_live, _}), do: "The game is not currently active."
   defp format_error(_), do: "Something went wrong. Please try again."
-
-  defp placement_text(1), do: "1st"
-  defp placement_text(2), do: "2nd"
-  defp placement_text(3), do: "3rd"
-  defp placement_text(n), do: "#{n}th"
 
   defp try_again() do
     Enum.random(@try_again_messages)

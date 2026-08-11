@@ -12,6 +12,12 @@ defmodule RiddlrWeb.CustomComponents do
 
   # ─── Helpers ──────────────────────────────────────────────────────────────────
 
+  @doc "Ordinal for a finishing position: 1 -> \"1st\"."
+  def placement_text(1), do: "1st"
+  def placement_text(2), do: "2nd"
+  def placement_text(3), do: "3rd"
+  def placement_text(n), do: "#{n}th"
+
   defp format_time(seconds) do
     minutes = div(seconds, 60)
     secs = rem(seconds, 60)
@@ -118,6 +124,26 @@ defmodule RiddlrWeb.CustomComponents do
   #   </p>
   #   """
   # end
+
+  # ─── Solve Badge ──────────────────────────────────────────────────────────────
+
+  @doc """
+  Marks a correct answer in a feed.
+
+  `text` is the answer itself and must stay `nil` while the round runs — the
+  feed would otherwise hand the answer to everyone still guessing.
+  """
+  attr :placement, :integer, default: nil
+  attr :text, :string, default: nil
+  attr :class, :any, default: nil
+
+  def game_solve_badge(assigns) do
+    ~H"""
+    <span class={["rg-solve-badge", @class]}>
+      🎯 solved it{if @placement, do: " — #{placement_text(@placement)}"}{if @text, do: ": #{@text}"}
+    </span>
+    """
+  end
 
   # ─── Shared Avatar ────────────────────────────────────────────────────────────
 

@@ -71,9 +71,11 @@
       />
       <span class="rg-msg__user">{answer.username}</span>
       <span :if={not answer.correct} class="rg-msg__text">{answer.text}</span>
-      <span :if={answer.correct} class="rg-msg__text rg-msg__text--solved">
-        🎯 solved it{if answer.placement, do: " — #{placement_text(answer.placement)}"}
-      </span>
+      <.game_solve_badge
+        :if={answer.correct}
+        placement={answer.placement}
+        class="rg-msg__text rg-msg__text--solved"
+      />
       <span :if={answer.offset_ms} class="rg-msg__time">+{format_offset(answer.offset_ms)}</span>
     </div>
   </div>
@@ -166,22 +168,31 @@
         <div
           :for={{dom_id, msg} <- @streams.answers}
           id={dom_id}
-          class="rg-post-chat-msg"
+          class={if divider?(msg), do: "rg-post-chat-divider", else: "rg-post-chat-msg"}
+          role={if divider?(msg), do: "separator"}
         >
+          <span :if={divider?(msg)} class="rg-post-chat-divider__label">Round ended</span>
           <div
+            :if={not divider?(msg)}
             class={"rg-post-chat-avatar rg-post-chat-avatar--#{avatar_color(msg.username)}"}
             aria-hidden="true"
           >
             {String.first(msg.username) |> String.upcase()}
           </div>
-          <div class="rg-post-chat-body">
+          <div :if={not divider?(msg)} class="rg-post-chat-body">
             <span class="rg-post-chat-name rg-post-chat-name--cyan">{msg.username}</span>
-            <p class="rg-post-chat-text">{msg.text}</p>
+            <.game_solve_badge
+              :if={msg.correct}
+              placement={msg.placement}
+              text={msg.text}
+              class="rg-post-chat-text"
+            />
+            <p :if={not msg.correct} class="rg-post-chat-text">{msg.text}</p>
           </div>
         </div>
       </div>
 
-      <div class="rg-post-chat-input">
+      <div class="rg-post-chat-input" id="chat-input-bar" phx-hook=".ChatForm">
         <form id="chat-form" phx-submit="send_chat" class="contents">
           <input
             id="chat-input"
@@ -238,6 +249,17 @@
           setTimeout(() => span.classList.add("revealed"), i * 60)
         })
       }, 300)
+    }
+  }
+</script>
+
+<script :type={Phoenix.LiveView.ColocatedHook} name=".ChatForm">
+  export default {
+    mounted() {
+      this.handleEvent("chat-sent", () => {
+        const input = this.el.querySelector("#chat-input")
+        if (input) input.value = ""
+      })
     }
   }
 </script>
