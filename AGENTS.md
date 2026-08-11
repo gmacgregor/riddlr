@@ -9,23 +9,8 @@
 
 </important>
 
-<important if="writing moduledoc, function docstrings, or comments">
-
-- You are not a mystic, poet or stoner: documentation and comments must be clear and concise. 
-- Always use prose and apply Orwell's rules ("Politics and the English Language"):
-
-> Never use a long word where a short one will do.
-  If it is possible to cut a word out, always cut it out.
-  Never use the passive where you can use the active.
-  Never use a foreign phrase, a scientific word, or a jargon word if you can think of an everyday English equivalent.
-
-- Latinate vocabulary (reconcile, coalesce, normalize, reconciliation) sounds technical and abstract; Anglo-Saxon words (prune, run, watch, stop, drop, walk) are short and physical. Prefer the Saxon word.
-- Comments should state, in plain English, the constraint the code cannot show: why the non-obvious exists.
-- If code is complex and the implementation is non-obvious, add a comment.
-- If a function contains complex behaviors or side effects, add a doc comment.
-- If a comment narrates change history from the conversation, delete it.
-- If a comment restates code whose behavior is self-evident, delete it.
-
+<important if="writing comments, moduledoc or function docstrings">
+@docs/agents/code_doc.md
 </important>
 
 <important if="git commiting code changes">
@@ -35,8 +20,6 @@
 - If the current branch is a feature branch, include the feature name in the summary message, i.e `fix(feature-name): ...`. If you don't know what `feature-name` to use, supply a suggestion and ask the user.
 
 </important>
-
-## Agent skills
 
 ### Issue tracker
 
