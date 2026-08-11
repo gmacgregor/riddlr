@@ -1,8 +1,8 @@
 defmodule Riddlr.Workers.CompleteRiddleWorker do
   @moduledoc """
-  Worker to complete a live riddle once its solve_time expires. Guards live in
-  `Games.transition/3`, which refuses to complete a `live_until_solved` riddle
-  on this (solver-less) path.
+  Worker to complete a live riddle once its solve_time expires. Every riddle has
+  a solve_time, so this is the only thing that ends a round. Guards live in
+  `Games.transition/3`.
   """
   use Oban.Worker,
     queue: :game_lifecycle,

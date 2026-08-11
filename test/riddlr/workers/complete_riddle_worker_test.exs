@@ -46,18 +46,6 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
     assert Riddlr.Repo.reload(riddle).play_status == "completed"
   end
 
-  test "cancels if live_until_solved is true at execution time" do
-    riddle =
-      riddle_fixture(%{
-        play_status: "live",
-        publish_status: "published",
-        live_until_solved: true
-      })
-
-    assert {:cancel, message} = perform_job(CompleteRiddleWorker, %{riddle_id: riddle.id})
-    assert message =~ "cannot transition from live to completed"
-  end
-
   test "unique constraint prevents duplicate jobs within 1 hour" do
     riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
 

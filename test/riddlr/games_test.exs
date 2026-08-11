@@ -481,35 +481,4 @@ defmodule Riddlr.GamesTest do
       assert %{ready_before_seconds: ["must be greater than 0"]} = errors_on(changeset)
     end
   end
-
-  describe "complete_riddle_on_first_solve/3 job cancellation" do
-    import Riddlr.GamesFixtures
-
-    test "cancels the pending CompleteRiddleWorker" do
-      riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
-      user = Riddlr.AccountsFixtures.user_fixture()
-
-      {:ok, _job} =
-        Riddlr.Workers.CompleteRiddleWorker.new(%{"riddle_id" => riddle.id}) |> Oban.insert()
-
-      assert {:ok, _} = Games.complete_riddle_on_first_solve(riddle.id, user.id)
-
-      refute_enqueued(
-        worker: Riddlr.Workers.CompleteRiddleWorker,
-        args: %{"riddle_id" => riddle.id}
-      )
-    end
-
-    test "leaves the archive job it just enqueued alone" do
-      riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
-      user = Riddlr.AccountsFixtures.user_fixture()
-
-      assert {:ok, _} = Games.complete_riddle_on_first_solve(riddle.id, user.id)
-
-      assert_enqueued(
-        worker: Riddlr.Workers.ArchiveRiddleTransitionWorker,
-        args: %{"riddle_id" => riddle.id}
-      )
-    end
-  end
 end

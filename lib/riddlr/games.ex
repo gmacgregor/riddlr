@@ -35,8 +35,6 @@ defmodule Riddlr.Games do
                     &inspect/1
                   )
 
-  @complete_worker inspect(CompleteRiddleWorker)
-
   # A job in any other state has already run, been cancelled or been discarded,
   # so there is nothing left to cancel.
   @cancellable_states ["available", "scheduled", "retryable"]
@@ -347,21 +345,20 @@ defmodule Riddlr.Games do
     * `{:ok, riddle}` — transitioned and committed
     * `{:error, :not_found}` — no such riddle
     * `{:unpublished, publish_status}` — riddle is not published
-    * `{:invalid, from, to}` — forbidden by `Riddle.valid_transitions/0`, or a
-      `live_until_solved` riddle asked to complete without a solver
+    * `{:invalid, from, to}` — forbidden by `Riddle.valid_transitions/0`
     * `{:error, changeset}` — the write failed
 
   The three non-changeset failures are permanent: callers should not retry.
   """
   def transition(riddle_id, to, stats \\ %{}) do
-    with {:ok, riddle} <- fetch_transitionable(riddle_id, to, stats) do
+    with {:ok, riddle} <- fetch_transitionable(riddle_id, to) do
       riddle
       |> run_transition(to, stats)
       |> after_commit(to)
     end
   end
 
-  defp fetch_transitionable(riddle_id, to, stats) do
+  defp fetch_transitionable(riddle_id, to) do
     case Repo.get(Riddle, riddle_id) do
       nil ->
         {:error, :not_found}
@@ -370,24 +367,13 @@ defmodule Riddlr.Games do
         {:unpublished, publish_status}
 
       riddle ->
-        if allowed?(riddle, to, stats) do
+        if Riddle.can_transition?(riddle.play_status, to) do
           {:ok, riddle}
         else
           {:invalid, riddle.play_status, to}
         end
     end
   end
-
-  defp allowed?(riddle, to, stats) do
-    Riddle.can_transition?(riddle.play_status, to) and solve_satisfied?(riddle, to, stats)
-  end
-
-  # A live_until_solved riddle has no timer: it completes only on a solve, and a
-  # solve is what puts :first_solver_id in the stats.
-  defp solve_satisfied?(%Riddle{live_until_solved: true}, :completed, stats),
-    do: Map.has_key?(stats, :first_solver_id)
-
-  defp solve_satisfied?(_riddle, _to, _stats), do: true
 
   defp run_transition(riddle, to, stats) do
     Multi.new()
@@ -401,14 +387,9 @@ defmodule Riddlr.Games do
   end
 
   defp enqueue_next_job(multi, :live) do
-    Multi.run(multi, :complete_job, fn _repo, %{riddle: riddle} ->
-      if riddle.live_until_solved do
-        {:ok, :skipped}
-      else
-        %{"riddle_id" => riddle.id}
-        |> Riddlr.Workers.CompleteRiddleWorker.new(schedule_in: riddle.solve_time)
-        |> Oban.insert()
-      end
+    Multi.insert(multi, :complete_job, fn %{riddle: riddle} ->
+      %{"riddle_id" => riddle.id}
+      |> Riddlr.Workers.CompleteRiddleWorker.new(schedule_in: riddle.solve_time)
     end)
   end
 
@@ -474,29 +455,6 @@ defmodule Riddlr.Games do
       |> Repo.update_all(set: updates)
 
     if count > 0, do: {:ok, :recorded}, else: {:ok, :already_set}
-  end
-
-  @doc """
-  Atomically claims first-solver status and immediately completes the riddle.
-  Uses `record_first_solver/2`'s conditional DB write as the concurrency gate —
-  only the caller that successfully sets first_solver_id proceeds with completion.
-
-  Stats map may include: first_solve_time, completion_rate.
-  first_solver_id is set internally from user_id.
-
-  Returns {:ok, riddle} on success, {:ok, :skipped} if another caller won the race,
-  or {:error, reason} on failure.
-  """
-  def complete_riddle_on_first_solve(riddle_id, user_id, stats \\ %{}) do
-    case record_first_solver(riddle_id, user_id) do
-      {:ok, :recorded} ->
-        # The timer that would have completed this riddle is now moot.
-        cancel_jobs(Repo, riddle_id, [@complete_worker])
-        transition(riddle_id, :completed, Map.put(stats, :first_solver_id, user_id))
-
-      {:ok, :already_set} ->
-        {:ok, :skipped}
-    end
   end
 
   defp preload_assoc(%Riddle{} = riddle) do

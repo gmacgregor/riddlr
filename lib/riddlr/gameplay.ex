@@ -11,9 +11,9 @@ defmodule Riddlr.Gameplay do
     answer has been stored; called first it returns `placement - 1`
   - the cooldown check is a check-and-set, so a second call inside the same
     submission burns the player's next second
-  - a riddle's `live_until_solved` flag decides whether the first solve completes
-    the riddle or merely records the First solver; neither `Games` function guards
-    against being called for the wrong riddle type
+
+  A round always runs its full `solve_time` — the first solve records the First
+  solver and nothing else, and `CompleteRiddleWorker` ends the round on the timer.
 
   Guard order is deliberate: the cooldown runs last so a blank or over-long answer
   is rejected without costing the player their next second.
@@ -99,27 +99,17 @@ defmodule Riddlr.Gameplay do
       :ok = Riddlr.Accounts.award_game_points(user.id, placement, points)
 
       if placement == 1 do
-        claim_first_solve(riddle, user, answer.offset_ms && div(answer.offset_ms, 1000))
+        Riddlr.Games.record_first_solver(
+          riddle.id,
+          user.id,
+          answer.offset_ms && div(answer.offset_ms, 1000)
+        )
       end
 
       {:correct, placement, points}
     else
       :incorrect
     end
-  end
-
-  # Timed riddles keep running and let CompleteRiddleWorker fire at solve_time.
-  defp claim_first_solve(%{live_until_solved: true} = riddle, user, first_solve_time_seconds) do
-    stats =
-      riddle.id
-      |> get_completion_stats()
-      |> Map.put(:first_solve_time, first_solve_time_seconds)
-
-    Riddlr.Games.complete_riddle_on_first_solve(riddle.id, user.id, stats)
-  end
-
-  defp claim_first_solve(riddle, user, first_solve_time_seconds) do
-    Riddlr.Games.record_first_solver(riddle.id, user.id, first_solve_time_seconds)
   end
 
   defp compute_offset_ms(nil), do: nil

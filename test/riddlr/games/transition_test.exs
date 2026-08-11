@@ -88,12 +88,12 @@ defmodule Riddlr.Games.TransitionTest do
       )
     end
 
-    test "skips the complete job when live_until_solved" do
-      riddle = published(%{play_status: "ready", live_until_solved: true})
+    test "always enqueues the complete job" do
+      riddle = published(%{play_status: "ready"})
 
       assert {:ok, _} = Games.transition(riddle.id, :live)
 
-      refute_enqueued(worker: Riddlr.Workers.CompleteRiddleWorker)
+      assert_enqueued(worker: Riddlr.Workers.CompleteRiddleWorker)
     end
   end
 
@@ -137,15 +137,15 @@ defmodule Riddlr.Games.TransitionTest do
       )
     end
 
-    test "a live_until_solved riddle will not complete without a solver" do
-      riddle = published(%{play_status: "live", live_until_solved: true})
+    test "a live riddle completes without a solver" do
+      riddle = published(%{play_status: "live"})
 
-      assert {:invalid, "live", :completed} = Games.transition(riddle.id, :completed)
-      assert Repo.reload(riddle).play_status == "live"
+      assert {:ok, updated} = Games.transition(riddle.id, :completed)
+      assert updated.play_status == "completed"
     end
 
-    test "a live_until_solved riddle completes when a solver is supplied" do
-      riddle = published(%{play_status: "live", live_until_solved: true})
+    test "completes with a solver supplied" do
+      riddle = published(%{play_status: "live"})
       user = Riddlr.AccountsFixtures.user_fixture()
 
       assert {:ok, updated} = Games.transition(riddle.id, :completed, %{first_solver_id: user.id})

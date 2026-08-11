@@ -14,7 +14,7 @@ defmodule Riddlr.Games.Riddle do
   - **scheduled**: Published with live_date set, workers scheduled
   - **ready**: `ready_before_seconds` before live_date, ready to go live
   - **live**: Currently accepting answers from players
-  - **completed**: First correct answer received, cooldown period starts
+  - **completed**: Solve time expired, cooldown period starts
   - **archived**: Cooldown complete, riddle moved to archive
 
   ### Automatic Transitions
@@ -22,9 +22,11 @@ defmodule Riddlr.Games.Riddle do
   State transitions are triggered by:
 
   1. **Manual scheduling**: Admin sets live_date + publish_status
-  2. **Oban workers**: Time-based transitions (ready, live)
-  3. **Player action**: First correct answer triggers completion
-  4. **Cooldown timer**: Auto-archive after configurable delay
+  2. **Oban workers**: Time-based transitions (ready, live, complete)
+  3. **Cooldown timer**: Auto-archive after configurable delay
+
+  A round always runs its full `solve_time`. The first correct answer records the
+  First solver on the row and nothing more — it does not end the round.
 
   ### Scheduling Behavior
 
@@ -47,7 +49,7 @@ defmodule Riddlr.Games.Riddle do
       # System automatically transitions:
       # - 13:50:00 => play_status: "ready"
       # - 14:00:00 => play_status: "live"
-      # - [first correct answer] => play_status: "completed"
+      # - [+solve_time] => play_status: "completed"
       # - [+archive_after_seconds] => play_status: "archived"
 
   ## Fields
@@ -93,7 +95,6 @@ defmodule Riddlr.Games.Riddle do
     field :average_solve_time, :float
     field :archive_after_seconds, :integer, default: 180
     field :ready_before_seconds, :integer, default: @ready_before_seconds
-    field :live_until_solved, :boolean, default: false
 
     belongs_to :category, Riddlr.Games.Category
     belongs_to :first_solver, Riddlr.Accounts.User
@@ -120,8 +121,7 @@ defmodule Riddlr.Games.Riddle do
       :completion_rate,
       :average_solve_time,
       :archive_after_seconds,
-      :ready_before_seconds,
-      :live_until_solved
+      :ready_before_seconds
     ])
     |> cast_answers(attrs)
     |> validate_required([:name, :description, :answers, :solve_time, :category_id])

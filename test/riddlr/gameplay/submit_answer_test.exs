@@ -164,16 +164,15 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
     end
   end
 
-  describe "submit_answer/3 — live until solved" do
-    test "completes the riddle on the first correct answer", %{user: user} do
-      riddle = live_riddle(%{live_until_solved: true})
+  describe "submit_answer/3 — the first solve" do
+    test "records the solver but leaves the round running", %{user: user} do
+      riddle = live_riddle()
 
       assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
 
       reloaded = Riddlr.Games.get_riddle!(riddle.id)
-      assert reloaded.play_status == "completed"
+      assert reloaded.play_status == "live"
       assert reloaded.first_solver_id == user.id
-      assert reloaded.completion_rate == 100.0
     end
   end
 

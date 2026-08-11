@@ -54,7 +54,7 @@ via `{:cancel, ...}` state guards:
 |---|---|
 | `ReadyRiddleTransitionWorker` | `live_date - ready_before_seconds` (default 600s) |
 | `LiveRiddleTransitionWorker` | at `live_date` |
-| `CompleteRiddleWorker` | `solve_time` after live (default 120s), skipped if `live_until_solved` |
+| `CompleteRiddleWorker` | `solve_time` after live (default 120s) |
 | `ArchiveRiddleTransitionWorker` | `archive_after_seconds` after completion (default 180s) |
 
 Scheduling/cancellation goes through `Riddlr.Games.save_riddle/2` — one write for the
@@ -90,10 +90,9 @@ row and its jobs.
    Gameplay owns the points table (**1st=10, 2nd=9 … 10th=1, 0 after**) and passes the
    value to `Accounts.award_game_points/3`, which atomically increments `total_points`,
    plus `podium_count` for top-3 and `wins_count` for 1st.
-   On placement 1: if `live_until_solved`, the winner cancels the pending
-   `CompleteRiddleWorker` and completes the riddle immediately — the conditional
-   `update_all ... where is_nil(first_solver_id)` in `record_first_solver/3` is the
-   concurrency gate. Otherwise the timed game keeps running.
+   On placement 1 the winner is recorded via `record_first_solver/3`, whose
+   conditional `update_all ... where is_nil(first_solver_id)` is the concurrency
+   gate. Nothing is broadcast — the round keeps running to `solve_time`.
 6. **Complete** — `Games.transition(id, :completed, stats)` writes `completed`, `first_solver_id`,
    `first_solve_time`, `completion_rate` (unique solvers / unique answerers), enqueues
    archive. Play LiveView highlights correct answers, loads `get_top_solvers/2`
@@ -144,7 +143,7 @@ Design direction: `docs/superpowers/specs/2026-03-10-lobby-play-redesign.md` and
 - Restarting `Gameplay.EtsOwner` wipes all in-flight answers.
 - The 1s cooldown is non-atomic — UX rate limit only, not a security control.
 - `docs/riddle-lifecycle.md` is **stale**: claims `live → completed` on first correct
-  answer (only true with `live_until_solved`), 5-min ready window (actually
+  answer (never true — a round always runs its full `solve_time`), 5-min ready window (actually
   `ready_before_seconds`, default 600s), `default` queue (actually `game_lifecycle`),
   and `archive_after_seconds: 3` (schema default 180).
 - Play LiveView's redirect on archive is commented out, so players stay on the page.
