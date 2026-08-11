@@ -83,7 +83,11 @@ row and its jobs.
    solved → non-empty and ≤500 chars → 1s per-user cooldown (checked last, since
    the check mutates). Matching is case-insensitive and
    trimmed against `riddle.answers`. Answers store a monotonic timestamp +
-   `solve_time_ms` offset from `live_date` and broadcast to every player's feed.
+   `solve_time_ms` offset from `live_date` and broadcast to every player's feed —
+   **except the text of a correct answer**, which `Answer.for_live_feed/1` strips
+   before it leaves the server. The round outlives the first solve, so an
+   unmasked feed would hand the answer to everyone still guessing. The feed shows
+   "solved it — 2nd" instead; ETS keeps the real text for the reveal.
    Moderation runs async; flagged answers are `stream_delete`d for everyone.
    Wrong answers get a random taunt + shake animation.
 5. **Scoring** — placement = count of correct ETS entries with timestamp ≤ yours.
@@ -95,7 +99,8 @@ row and its jobs.
    gate. Nothing is broadcast — the round keeps running to `solve_time`.
 6. **Complete** — `Games.transition(id, :completed, stats)` writes `completed`, `first_solver_id`,
    `first_solve_time`, `completion_rate` (unique solvers / unique answerers), enqueues
-   archive. Play LiveView highlights correct answers, loads `get_top_solvers/2`
+   archive. Play LiveView re-streams correct answers from ETS — revealing the
+   text masked during the round — loads `get_top_solvers/2`
    (fastest 10) and switches to a tabbed Leaderboard / post-game Chat panel with a
    cooldown countdown. Chat reuses the `answer_submitted` topic with `chat: true`.
 7. **Archive** — `Games.transition(id, :archived)` writes `archived` and drops that riddle's

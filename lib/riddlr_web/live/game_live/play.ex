@@ -60,13 +60,6 @@ defmodule RiddlrWeb.GameLive.Play do
                 {[], []}
               end
 
-            # Track correct answers in assigns so we can re-stream them with highlight
-            # when the game completes (stream items don't re-render on outer assign changes).
-            correct_answers =
-              initial_answers
-              |> Enum.filter(& &1.correct)
-              |> Map.new(&{&1.id, &1})
-
             time_remaining =
               if game_completed do
                 0
@@ -89,7 +82,6 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:submission_state, nil)
              |> assign(:time_remaining, time_remaining)
              |> assign(:cooldown_remaining, 0)
-             |> assign(:correct_answers, correct_answers)
              |> assign(:top_solvers, top_solvers)
              |> assign(:active_tab, :leaderboard)
              |> assign(:try_again_message, nil)
@@ -170,16 +162,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
   @impl true
   def handle_info({:answer_submitted, answer_data}, socket) do
-    socket = stream_insert(socket, :answers, answer_data, at: 0)
-
-    socket =
-      if answer_data.correct do
-        update(socket, :correct_answers, &Map.put(&1, answer_data.id, answer_data))
-      else
-        socket
-      end
-
-    {:noreply, socket}
+    {:noreply, stream_insert(socket, :answers, answer_data, at: 0)}
   end
 
   def handle_info({:answer_flagged, answer_id}, socket) do
@@ -188,13 +171,13 @@ defmodule RiddlrWeb.GameLive.Play do
 
   def handle_info({:riddle_completed, riddle}, socket) do
     if riddle.id == socket.assigns.riddle.id do
-      # Re-insert correct answers with show_highlight: true so the stream items
-      # update in the DOM (stream items don't re-render on outer assign changes).
+      # Correct answers were masked while the round ran, so re-stream them from
+      # ETS — which kept the real text — now that revealing them is safe.
       socket =
-        socket.assigns.correct_answers
-        |> Enum.reduce(socket, fn {_id, answer}, acc ->
-          stream_insert(acc, :answers, %{answer | show_highlight: true})
-        end)
+        riddle.id
+        |> build_initial_feed(true)
+        |> Enum.filter(& &1.correct)
+        |> Enum.reduce(socket, &stream_insert(&2, :answers, &1))
 
       top_solvers = load_top_solvers(riddle.id)
       cooldown_remaining = riddle.archive_after_seconds
@@ -317,7 +300,8 @@ defmodule RiddlrWeb.GameLive.Play do
 
   # Builds feed items for answers already in ETS when the LiveView mounts.
   # Batch-loads usernames from the DB to avoid N+1 queries.
-  # When game_completed is true, correct answers are immediately highlighted.
+  # Correct answers were masked while the round ran (Answer.for_live_feed/1), so
+  # ETS is the only place the real text survives. Revealing is simply not masking.
   # ETS doesn't store usernames, so the feed is joined against Accounts here.
   # Offsets are dropped: they're only meaningful live, next to a running timer.
   defp build_initial_feed(riddle_id, game_completed) do
@@ -333,12 +317,9 @@ defmodule RiddlrWeb.GameLive.Play do
           nil -> "Player"
         end
 
-      %{
-        answer
-        | username: username,
-          offset_ms: nil,
-          show_highlight: game_completed and answer.correct
-      }
+      answer = if game_completed, do: answer, else: Answer.for_live_feed(answer)
+
+      %{answer | username: username, offset_ms: nil}
     end)
   end
 

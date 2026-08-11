@@ -59,6 +59,23 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
   end
 
   describe "submit_answer/3 — correct answers" do
+    test "broadcasts the solve without the answer text", %{riddle: riddle, user: user} do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle.id))
+
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
+
+      assert_receive {:answer_submitted, %Answer{} = broadcast}
+      assert broadcast.correct
+      assert broadcast.text == nil
+      assert broadcast.username == user.username
+    end
+
+    test "still stores the real text in ETS", %{riddle: riddle, user: user} do
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
+
+      assert [%{text: "keyboard", correct: true}] = Gameplay.get_answers(riddle.id)
+    end
+
     test "stamps the answer with the clock, not the runtime", %{riddle: riddle, user: user} do
       Frozen.freeze()
       Frozen.advance(5, :second)

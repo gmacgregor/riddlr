@@ -455,19 +455,19 @@ body {
   animation: rg-msg-in 200ms ease-out both;
 }
 
-.rg-msg--correct {
+.rg-msg--solved {
   background: var(--correct-bg);
   border: 1.5px solid var(--correct-border);
 }
 
-.rg-msg--correct .rg-msg__user,
-.rg-msg--correct .rg-msg__text,
-.rg-msg--correct .rg-msg__time {
+.rg-msg--solved .rg-msg__user,
+.rg-msg--solved .rg-msg__text,
+.rg-msg--solved .rg-msg__time {
   color: var(--accent-green);
 }
 
-.rg-msg--correct .rg-msg__user,
-.rg-msg--correct .rg-msg__text {
+.rg-msg--solved .rg-msg__user,
+.rg-msg--solved .rg-msg__text {
   font-weight: 700;
 }
 

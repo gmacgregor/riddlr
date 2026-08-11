@@ -63,14 +63,17 @@
     <div
       :for={{dom_id, answer} <- @streams.answers}
       id={dom_id}
-      class={["rg-msg", answer.show_highlight && "rg-msg--correct"]}
+      class={["rg-msg", answer.correct && "rg-msg--solved"]}
     >
       <.rg_avatar
         letter={String.first(answer.username) |> String.upcase()}
         username={answer.username}
       />
       <span class="rg-msg__user">{answer.username}</span>
-      <span class="rg-msg__text">{answer.text}</span>
+      <span :if={not answer.correct} class="rg-msg__text">{answer.text}</span>
+      <span :if={answer.correct} class="rg-msg__text rg-msg__text--solved">
+        🎯 solved it{if answer.placement, do: " — #{placement_text(answer.placement)}"}
+      </span>
       <span :if={answer.offset_ms} class="rg-msg__time">+{format_offset(answer.offset_ms)}</span>
     </div>
   </div>

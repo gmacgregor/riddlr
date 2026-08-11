@@ -17,9 +17,15 @@ defmodule Riddlr.Gameplay.Answer do
   Post-game chat is an Answer too, with `chat: true`. Same struct, same topic,
   same feed — the UI doesn't need to know there are two kinds.
 
-  What an Answer deliberately doesn't know: whether it was right (that's the
-  riddle's business), what Placement it earned or what it's worth in points
-  (`Riddlr.Gameplay` runs the race). It carries the submission; it doesn't judge it.
+  A correct answer is the one thing that must not travel. `for_live_feed/1`
+  strips the text before it goes anywhere a player can see, because the round
+  keeps running after the first solve and the feed would otherwise hand the
+  answer to everyone still guessing. Masking in the template is not enough —
+  the string has to be gone from the payload.
+
+  What an Answer deliberately doesn't know: what it's worth in points
+  (`Riddlr.Gameplay` runs the race and owns the table). It carries the
+  submission and where it finished; it doesn't price it.
   """
 
   alias Riddlr.Clock
@@ -33,10 +39,10 @@ defmodule Riddlr.Gameplay.Answer do
     :text,
     :timestamp,
     :offset_ms,
+    :placement,
     correct: false,
     flagged: false,
-    chat: false,
-    show_highlight: false
+    chat: false
   ]
 
   @type t :: %__MODULE__{
@@ -47,17 +53,17 @@ defmodule Riddlr.Gameplay.Answer do
           text: String.t(),
           timestamp: integer(),
           offset_ms: non_neg_integer() | nil,
+          placement: pos_integer() | nil,
           correct: boolean(),
           flagged: boolean(),
-          chat: boolean(),
-          show_highlight: boolean()
+          chat: boolean()
         }
 
   @doc """
   Builds an answer for `text`, stamped with the monotonic clock.
 
-  Options: `:correct`, `:offset_ms`, `:chat`, and `:timestamp` for callers that
-  already took a reading and need the same one on the stored row.
+  Options: `:correct`, `:offset_ms`, `:placement`, `:chat`, and `:timestamp` for
+  callers that already took a reading and need the same one on the stored row.
   """
   def new(riddle_id, user, text, opts \\ []) do
     timestamp = Keyword.get_lazy(opts, :timestamp, &Clock.monotonic_us/0)
@@ -70,10 +76,24 @@ defmodule Riddlr.Gameplay.Answer do
       text: text,
       timestamp: timestamp,
       offset_ms: Keyword.get(opts, :offset_ms),
+      placement: Keyword.get(opts, :placement),
       correct: Keyword.get(opts, :correct, false),
       chat: Keyword.get(opts, :chat, false)
     }
   end
+
+  @doc """
+  The answer as the crowd may see it while the round is still live.
+
+  A correct answer keeps its author, placement and timing but loses its text:
+  everyone learns *that* it was solved, nobody learns *what* the answer is.
+  Incorrect answers and chat pass through untouched.
+
+  Reveal is simply not calling this — after completion the stored answer is fed
+  to the feed as-is.
+  """
+  def for_live_feed(%__MODULE__{correct: true} = answer), do: %{answer | text: nil}
+  def for_live_feed(%__MODULE__{} = answer), do: answer
 
   @doc """
   The DOM/stream id an answer is known by, here and in moderation.

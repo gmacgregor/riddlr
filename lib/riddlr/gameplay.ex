@@ -89,12 +89,14 @@ defmodule Riddlr.Gameplay do
 
     store_answer(answer)
 
+    # Placement must follow store_answer/1 — the count includes this row.
+    placement = if correct?, do: calculate_placement(riddle.id, answer.timestamp)
+    answer = %{answer | placement: placement}
+
     broadcast_answer(answer)
     moderate_answer_async(answer)
 
     if correct? do
-      # Must follow store_answer/1 — the count includes this submission's row.
-      placement = calculate_placement(riddle.id, answer.timestamp)
       points = points_for_placement(placement)
       :ok = Riddlr.Accounts.award_game_points(user.id, placement, points)
 
@@ -175,7 +177,8 @@ defmodule Riddlr.Gameplay do
   defp points_for_placement(_), do: 0
 
   @doc """
-  Returns every stored `Answer` for a riddle, newest first.
+  Returns every stored `Answer` for a riddle, newest first, with each correct
+  answer carrying the `placement` it earned.
 
   `username` is nil — ETS doesn't store it. Callers that display answers join
   against `Accounts` themselves.
@@ -185,6 +188,20 @@ defmodule Riddlr.Gameplay do
     |> :ets.match_object(Answer.ets_pattern(riddle_id))
     |> Enum.map(&Answer.from_ets/1)
     |> Enum.sort_by(& &1.timestamp, :desc)
+    |> place_solves()
+  end
+
+  # Placement is a position in the whole race, so it has to be read off every
+  # answer. Callers that show a windowed feed must not rank the window.
+  defp place_solves(answers) do
+    placements =
+      answers
+      |> Enum.filter(& &1.correct)
+      |> Enum.sort_by(& &1.timestamp)
+      |> Enum.with_index(1)
+      |> Map.new(fn {answer, placement} -> {answer.id, placement} end)
+
+    Enum.map(answers, &%{&1 | placement: Map.get(placements, &1.id)})
   end
 
   @doc """
@@ -192,12 +209,14 @@ defmodule Riddlr.Gameplay do
 
   Chat rides the same topic and the same message tag so every subscriber picks
   it up without knowing there are two kinds.
+
+  Correct answers go out masked — see `Answer.for_live_feed/1`.
   """
   def broadcast_answer(%Answer{} = answer) do
     Phoenix.PubSub.broadcast(
       Riddlr.PubSub,
       Answer.topic(answer.riddle_id),
-      {:answer_submitted, answer}
+      {:answer_submitted, Answer.for_live_feed(answer)}
     )
   end
 

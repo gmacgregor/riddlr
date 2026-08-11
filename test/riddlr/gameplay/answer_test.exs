@@ -30,7 +30,7 @@ defmodule Riddlr.Gameplay.AnswerTest do
       refute answer.correct
       refute answer.flagged
       refute answer.chat
-      refute answer.show_highlight
+      assert answer.placement == nil
       assert answer.offset_ms == nil
     end
 

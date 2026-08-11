@@ -376,6 +376,24 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   end
 
   describe "game state transitions via PubSub" do
+    test "completion reveals the answers that were masked during the round", %{
+      conn: conn,
+      user: user
+    } do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
+      solver = AccountsFixtures.user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, solver, "keyboard")
+      refute render(live) =~ "keyboard"
+
+      send(live.pid, {:riddle_completed, riddle})
+
+      assert render(live) =~ ~s(<p class="rg-post-chat-text">keyboard</p>)
+    end
+
     test "shows game-over UI when :riddle_completed received", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       conn = log_in_user(conn, user)
@@ -457,6 +475,58 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       html = render(live)
       assert html =~ user.username
       assert html =~ "keyboard"
+    end
+
+    test "a solve shows up in the feed as a placement, not as text", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      solver = AccountsFixtures.user_fixture()
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      Gameplay.broadcast_answer(
+        Answer.new(riddle.id, solver, "keyboard", correct: true, placement: 2)
+      )
+
+      html = render(live)
+      assert html =~ solver.username
+      assert html =~ "solved it"
+      assert html =~ "2nd"
+      refute html =~ "keyboard"
+    end
+
+    test "a player joining mid-round never sees an already-solved answer", %{
+      conn: conn,
+      riddle: riddle
+    } do
+      solver = AccountsFixtures.user_fixture()
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, solver, "keyboard")
+
+      latecomer = AccountsFixtures.user_fixture()
+      conn = log_in_user(conn, latecomer)
+      {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert html =~ solver.username
+      refute html =~ "keyboard"
+    end
+
+    test "the replayed feed ranks solves in the order they happened", %{
+      conn: conn,
+      riddle: riddle
+    } do
+      first = AccountsFixtures.user_fixture()
+      second = AccountsFixtures.user_fixture()
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, first, "keyboard")
+      assert {:correct, 2, 9} = Gameplay.submit_answer(riddle, second, "a keyboard")
+
+      conn = log_in_user(conn, AccountsFixtures.user_fixture())
+      {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert html =~ "1st"
+      assert html =~ "2nd"
+      refute html =~ "keyboard"
     end
 
     test "flagged answer is removed from the feed", %{conn: conn, riddle: riddle, user: user} do
