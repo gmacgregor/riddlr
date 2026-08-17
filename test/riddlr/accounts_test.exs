@@ -78,6 +78,20 @@ defmodule Riddlr.AccountsTest do
       assert "has already been taken" in errors_on(changeset).email
     end
 
+    test "validates username uniqueness, ignoring case" do
+      %{username: username} = user_fixture()
+
+      {:error, changeset} =
+        Accounts.register_user(valid_user_attributes(username: username))
+
+      assert "has already been taken" in errors_on(changeset).username
+
+      {:error, changeset} =
+        Accounts.register_user(valid_user_attributes(username: String.upcase(username)))
+
+      assert "has already been taken" in errors_on(changeset).username
+    end
+
     test "registers users without password" do
       email = unique_user_email()
       {:ok, user} = Accounts.register_user(valid_user_attributes(email: email))
