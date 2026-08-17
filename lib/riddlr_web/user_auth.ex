@@ -241,14 +241,22 @@ defmodule RiddlrWeb.UserAuth do
       %{"user_token" => user_token} ->
         case Accounts.get_user_by_session_token(user_token) do
           {user, _token_inserted_at} ->
-            Phoenix.Component.assign(socket, :current_user, user)
+            assign_current_user(socket, user)
 
           nil ->
-            Phoenix.Component.assign(socket, :current_user, nil)
+            assign_current_user(socket, nil)
         end
 
       %{} ->
-        Phoenix.Component.assign(socket, :current_user, nil)
+        assign_current_user(socket, nil)
     end
+  end
+
+  # Layouts and shared components read :current_scope, so LiveViews carry it
+  # alongside :current_user just like the plug does for controllers.
+  defp assign_current_user(socket, user) do
+    socket
+    |> Phoenix.Component.assign(:current_user, user)
+    |> Phoenix.Component.assign(:current_scope, Scope.for_user(user))
   end
 end

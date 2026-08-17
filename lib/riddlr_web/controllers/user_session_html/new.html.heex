@@ -1,73 +1,46 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="mx-auto max-w-sm space-y-4">
-    <div class="text-center">
-      <.header>
-        <p>Log in</p>
-        <:subtitle>
-          <%= if @current_scope do %>
-            You need to reauthenticate to perform sensitive actions on your account.
-          <% else %>
-            Don't have an account? <.link
-              navigate={~p"/users/register"}
-              class="font-semibold text-brand hover:underline"
-              phx-no-format
-            >Sign up</.link> for an account now.
-          <% end %>
-        </:subtitle>
-      </.header>
-    </div>
+  <.auth_shell title="Log in">
+    <:subtitle>
+      <%= if @current_scope do %>
+        You need to reauthenticate before you change your account.
+      <% else %>
+        We'll email you a link. No password needed.
+      <% end %>
+    </:subtitle>
 
-    <div :if={local_mail_adapter?()} class="alert alert-info">
-      <.icon name="hero-information-circle" class="size-6 shrink-0" />
-      <div>
-        <p>You are running the local mail adapter.</p>
-        <p>
-          To see sent emails, visit <.link href="/dev/mailbox" class="underline">the mailbox page</.link>.
-        </p>
-      </div>
-    </div>
-
-    <.form :let={f} for={@form} as={:user} id="login_form_magic" action={~p"/users/log-in"}>
-      <.input
-        readonly={!!@current_scope}
+    <.form
+      :let={f}
+      for={@form}
+      as={:user}
+      id="login_form_magic"
+      action={~p"/users/log-in"}
+      class="rg-auth__form"
+    >
+      <.auth_input
         field={f[:email]}
         type="email"
         label="Email"
+        readonly={!!@current_scope}
         autocomplete="username"
         spellcheck="false"
+        placeholder="you@example.com"
         required
         phx-mounted={JS.focus()}
       />
-      <.button class="btn btn-primary w-full">
+      <.auth_submit phx-disable-with="Sending...">
         Log in with email <span aria-hidden="true">→</span>
-      </.button>
+      </.auth_submit>
     </.form>
 
-    <div class="divider">or</div>
+    <p :if={!@current_scope} class="rg-auth__footer">
+      No account yet? <.link navigate={~p"/users/register"} class="rg-auth__link">Sign up</.link>
+    </p>
 
-    <.form :let={f} for={@form} as={:user} id="login_form_password" action={~p"/users/log-in"}>
-      <.input
-        readonly={!!@current_scope}
-        field={f[:email]}
-        type="email"
-        label="Email"
-        autocomplete="username"
-        spellcheck="false"
-        required
-      />
-      <.input
-        field={f[:password]}
-        type="password"
-        label="Password"
-        autocomplete="current-password"
-        spellcheck="false"
-      />
-      <.button class="btn btn-primary w-full" name={@form[:remember_me].name} value="true">
-        Log in and stay logged in <span aria-hidden="true">→</span>
-      </.button>
-      <.button class="btn btn-primary btn-soft w-full mt-2">
-        Log in only this time
-      </.button>
-    </.form>
-  </div>
+    <div :if={local_mail_adapter?()} class="rg-auth__note">
+      <.icon name="hero-information-circle" class="rg-auth__note-icon" />
+      <span>
+        Local mail adapter is on. Sent email lands in <.link href="/dev/mailbox">the mailbox page</.link>.
+      </span>
+    </div>
+  </.auth_shell>
 </Layouts.app>

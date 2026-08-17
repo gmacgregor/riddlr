@@ -87,6 +87,20 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert html =~ "Riddle drops in"
     end
 
+    test "renders the app header with account controls", %{conn: conn, user: user} do
+      riddle =
+        GamesFixtures.riddle_fixture()
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      conn = log_in_user(conn, user)
+      {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert html =~ "rg-header"
+      assert html =~ user.username
+      assert html =~ "Log out"
+    end
+
     test "redirects to /play when riddle is :live", %{conn: conn, user: user} do
       riddle =
         GamesFixtures.riddle_fixture()

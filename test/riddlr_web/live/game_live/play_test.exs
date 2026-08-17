@@ -89,6 +89,19 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       %{riddle: riddle, user: user}
     end
 
+    test "renders the app header with account controls", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      conn = log_in_user(conn, user)
+      {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert html =~ "rg-header"
+      assert html =~ user.username
+      assert html =~ "Log out"
+    end
+
     test "displays riddle description", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")

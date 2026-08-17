@@ -7,36 +7,26 @@ defmodule RiddlrWeb.UserProfileLive.Show do
 
   def render(assigns) do
     ~H"""
-    <.header>
-      Profile
-      <:subtitle>Manage your account profile and settings</:subtitle>
-    </.header>
+    <Layouts.app flash={@flash} current_scope={@current_scope}>
+      <.auth_shell title="Profile">
+        <:subtitle>Your account at a glance.</:subtitle>
 
-    <div class="mt-8 space-y-6">
-      <div class="bg-white shadow sm:rounded-lg">
-        <div class="px-4 py-5 sm:p-6">
-          <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Username</dt>
-              <dd class="mt-1 text-sm text-gray-900">{@current_user.username}</dd>
-            </div>
-            <div>
-              <dt class="text-sm font-medium text-gray-500">Email</dt>
-              <dd class="mt-1 text-sm text-gray-900">{@current_user.email}</dd>
-            </div>
-          </dl>
+        <dl class="rg-auth__meta">
+          <div class="rg-auth__meta-row">
+            <dt class="rg-auth__meta-label">Username</dt>
+            <dd class="rg-auth__meta-value">{@current_user.username}</dd>
+          </div>
+          <div class="rg-auth__meta-row">
+            <dt class="rg-auth__meta-label">Email</dt>
+            <dd class="rg-auth__meta-value">{@current_user.email}</dd>
+          </div>
+        </dl>
+
+        <div class="rg-auth__footer">
+          <.link navigate={~p"/users/settings"} class="rg-auth__link">Edit settings</.link>
         </div>
-      </div>
-
-      <div class="flex gap-4">
-        <.link
-          navigate={~p"/users/settings"}
-          class="text-sm font-semibold leading-6 text-zinc-900 hover:text-zinc-700"
-        >
-          Edit Settings <span aria-hidden="true">→</span>
-        </.link>
-      </div>
-    </div>
+      </.auth_shell>
+    </Layouts.app>
     """
   end
 end

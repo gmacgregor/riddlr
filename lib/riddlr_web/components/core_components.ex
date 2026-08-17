@@ -56,25 +56,22 @@ defmodule RiddlrWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class={[
+        "rg-flash",
+        @kind == :info && "rg-flash--info",
+        @kind == :error && "rg-flash--error"
+      ]}
       {@rest}
     >
-      <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
-      ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
-        </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
-        </button>
+      <.icon :if={@kind == :info} name="hero-information-circle" class="rg-flash__icon" />
+      <.icon :if={@kind == :error} name="hero-exclamation-circle" class="rg-flash__icon" />
+      <div class="rg-flash__body">
+        <p :if={@title} class="rg-flash__title">{@title}</p>
+        <p>{msg}</p>
       </div>
+      <button type="button" class="rg-flash__close" aria-label={gettext("close")}>
+        <.icon name="hero-x-mark" class="size-4" />
+      </button>
     </div>
     """
   end

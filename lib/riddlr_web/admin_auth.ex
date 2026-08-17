@@ -9,6 +9,7 @@ defmodule RiddlrWeb.AdminAuth do
   import Phoenix.LiveView
 
   alias Riddlr.Accounts
+  alias Riddlr.Accounts.Scope
   alias Riddlr.Authorization
 
   def on_mount(:require_admin, _params, session, socket) do
@@ -41,12 +42,19 @@ defmodule RiddlrWeb.AdminAuth do
     case session do
       %{"user_token" => token} ->
         case Accounts.get_user_by_session_token(token) do
-          {user, _} -> assign(socket, :current_user, user)
-          nil -> assign(socket, :current_user, nil)
+          {user, _} -> assign_current_user(socket, user)
+          nil -> assign_current_user(socket, nil)
         end
 
       %{} ->
-        assign(socket, :current_user, nil)
+        assign_current_user(socket, nil)
     end
+  end
+
+  # The admin layout reads :current_scope for its account controls.
+  defp assign_current_user(socket, user) do
+    socket
+    |> assign(:current_user, user)
+    |> assign(:current_scope, Scope.for_user(user))
   end
 end

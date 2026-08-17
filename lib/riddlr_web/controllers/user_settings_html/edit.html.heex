@@ -1,49 +1,30 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="text-center">
-    <.header>
-      Account Settings
-      <:subtitle>Manage your account email address and password settings</:subtitle>
-    </.header>
-  </div>
+  <.auth_shell title="Account Settings">
+    <:subtitle>Change the email address you log in with.</:subtitle>
 
-  <.form :let={f} for={@email_changeset} action={~p"/users/settings"} id="update_email">
-    <input type="hidden" name="action" value="update_email" />
+    <.form
+      :let={f}
+      for={@email_changeset}
+      action={~p"/users/settings"}
+      id="update_email"
+      class="rg-auth__form"
+    >
+      <input type="hidden" name="action" value="update_email" />
 
-    <.input
-      field={f[:email]}
-      type="email"
-      label="Email"
-      autocomplete="username"
-      spellcheck="false"
-      required
-    />
+      <.auth_input
+        field={f[:email]}
+        type="email"
+        label="Email"
+        autocomplete="username"
+        spellcheck="false"
+        required
+      />
 
-    <.button variant="primary" phx-disable-with="Changing...">Change Email</.button>
-  </.form>
+      <.auth_submit phx-disable-with="Changing...">Change email</.auth_submit>
+    </.form>
 
-  <div class="divider" />
-
-  <.form :let={f} for={@password_changeset} action={~p"/users/settings"} id="update_password">
-    <input type="hidden" name="action" value="update_password" />
-
-    <.input
-      field={f[:password]}
-      type="password"
-      label="New password"
-      autocomplete="new-password"
-      spellcheck="false"
-      required
-    />
-    <.input
-      field={f[:password_confirmation]}
-      type="password"
-      label="Confirm new password"
-      autocomplete="new-password"
-      spellcheck="false"
-      required
-    />
-    <.button variant="primary" phx-disable-with="Changing...">
-      Save Password
-    </.button>
-  </.form>
+    <p class="rg-auth__footer">
+      <.link navigate={~p"/"} class="rg-auth__link">Back to the game</.link>
+    </p>
+  </.auth_shell>
 </Layouts.app>

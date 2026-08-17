@@ -1,0 +1,269 @@
+/* =============================================================================
+   auth.css — Riddlr account screens (log in, register, confirm, settings)
+
+   Uses the fluid type/space scale and palette tokens defined in riddlr.css.
+   Every screen renders inside .rg-frame, so the shell is sized to fill the
+   frame and centre its card.
+   ============================================================================= */
+
+/* ─── Shell ──────────────────────────────────────────────────────────────────── */
+.rg-auth {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-l) var(--space-m);
+  overflow-y: auto;
+  background:
+    radial-gradient(
+      ellipse 120% 40% at 50% 0%,
+      rgba(139, 92, 246, 0.18) 0%,
+      transparent 70%
+    ),
+    var(--bg-primary);
+}
+
+.rg-auth__card {
+  width: 100%;
+  max-width: 22rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────────── */
+.rg-auth__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  text-align: center;
+}
+
+.rg-auth__title {
+  font-family: "DM Sans", sans-serif;
+  font-size: var(--step-2);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-emphasis);
+}
+
+.rg-auth__subtitle {
+  font-size: var(--step--1);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-wrap: balance;
+}
+
+/* ─── Form ───────────────────────────────────────────────────────────────────── */
+.rg-auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+}
+
+.rg-auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+}
+
+.rg-auth__label {
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.rg-auth__input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-s);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  font-family: "Inter", sans-serif;
+  font-size: var(--step-0);
+  line-height: 1.6;
+  color: var(--text-primary);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.rg-auth__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.rg-auth__input:focus,
+.rg-auth__input:focus-visible {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+}
+
+.rg-auth__input[readonly] {
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  cursor: not-allowed;
+}
+
+.rg-auth__input--error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px var(--error-glow);
+}
+
+.rg-auth__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3xs);
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--error);
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────────────── */
+.rg-auth__submit,
+.rg-auth__ghost {
+  width: 100%;
+  padding: var(--space-xs) var(--space-l);
+  border-radius: var(--radius-l);
+  font-family: "Inter", sans-serif;
+  font-size: var(--step-0);
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  transition:
+    transform 75ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.rg-auth__submit {
+  background: var(--gradient-cta);
+  color: var(--text-emphasis);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);
+}
+
+.rg-auth__submit:hover {
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+.rg-auth__submit:active,
+.rg-auth__ghost:active {
+  transform: scale(0.98);
+}
+
+.rg-auth__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+.rg-auth__ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.rg-auth__ghost:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.rg-auth__submit:focus-visible,
+.rg-auth__ghost:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* ─── Footer + links ─────────────────────────────────────────────────────────── */
+.rg-auth__footer {
+  font-size: var(--step--1);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ─── Read-only detail rows ──────────────────────────────────────────────── */
+.rg-auth__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.rg-auth__meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-s);
+  padding-bottom: var(--space-2xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.rg-auth__meta-label {
+  font-size: var(--step--1);
+  color: var(--text-tertiary);
+}
+
+.rg-auth__meta-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.rg-auth__link {
+  color: var(--avatar-violet);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rg-auth__link:hover {
+  color: var(--text-emphasis);
+  text-decoration: underline;
+}
+
+/* ─── Dev note (local mail adapter, tips) ────────────────────────────────────── */
+.rg-auth__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-s);
+  background: rgba(103, 232, 249, 0.07);
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: var(--radius-m);
+  font-size: var(--step--2);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.rg-auth__note-icon {
+  flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.1rem;
+  color: var(--accent-cyan);
+}
+
+.rg-auth__note a {
+  color: var(--accent-cyan);
+  text-decoration: underline;
+}
+
+/* ─── Sections (settings) ────────────────────────────────────────────────────── */
+.rg-auth__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s);
+  padding: var(--space-s);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+}
+
+.rg-auth__section-title {
+  font-size: var(--step--1);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}

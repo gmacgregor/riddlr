@@ -373,3 +373,9 @@
   align-items: center;
   margin-top: 2rem;
 }
+
+/* Account controls sit apart from the admin section links. */
+.adm-header__nav .rg-auth-menu {
+  padding-left: var(--space-s);
+  border-left: 1px solid var(--border);
+}

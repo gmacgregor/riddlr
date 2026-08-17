@@ -17,6 +17,41 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       assert response =~ "Log in with email"
     end
 
+    test "renders login page using the riddlr design system", %{conn: conn} do
+      response =
+        conn
+        |> get(~p"/users/log-in")
+        |> html_response(200)
+
+      assert response =~ ~s(class="rg-auth")
+      assert response =~ "rg-auth__submit"
+      refute response =~ "btn btn-primary"
+    end
+
+    test "renders flash messages in the riddlr design system", %{conn: conn} do
+      response =
+        conn
+        |> Phoenix.ConnTest.init_test_session(%{})
+        |> Phoenix.Controller.fetch_flash()
+        |> Phoenix.Controller.put_flash(:error, "Something broke")
+        |> get(~p"/users/log-in")
+        |> html_response(200)
+
+      assert response =~ "rg-flash rg-flash--error"
+      assert response =~ "Something broke"
+      refute response =~ "alert-error"
+    end
+
+    test "does not offer password login", %{conn: conn} do
+      response =
+        conn
+        |> get(~p"/users/log-in")
+        |> html_response(200)
+
+      refute response =~ "login_form_password"
+      refute response =~ ~s(name="user[password]")
+    end
+
     test "renders login page with email filled in (sudo mode)", %{conn: conn, user: user} do
       html =
         conn
@@ -50,6 +85,34 @@ defmodule RiddlrWeb.UserSessionControllerTest do
 
       conn = get(conn, ~p"/users/log-in/#{token}")
       assert html_response(conn, 200) =~ "Confirm and stay logged in"
+    end
+
+    test "greets the user by username, not email", %{conn: conn, user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_login_instructions(user, url)
+        end)
+
+      response = conn |> get(~p"/users/log-in/#{token}") |> html_response(200)
+
+      assert response =~ "Welcome #{user.username}"
+      refute response =~ "Welcome #{user.email}"
+    end
+
+    test "renders confirmation page using the riddlr design system", %{
+      conn: conn,
+      unconfirmed_user: user
+    } do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_login_instructions(user, url)
+        end)
+
+      response = conn |> get(~p"/users/log-in/#{token}") |> html_response(200)
+
+      assert response =~ ~s(class="rg-auth")
+      assert response =~ "rg-auth__submit"
+      refute response =~ "btn btn-primary"
     end
 
     test "renders login page for confirmed user", %{conn: conn, user: user} do

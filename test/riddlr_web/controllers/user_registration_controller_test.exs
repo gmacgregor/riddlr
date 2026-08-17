@@ -7,9 +7,20 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
     test "renders registration page", %{conn: conn} do
       conn = get(conn, ~p"/users/register")
       response = html_response(conn, 200)
-      assert response =~ "Register"
+      assert response =~ "Create your account"
       assert response =~ ~p"/users/log-in"
       assert response =~ ~p"/users/register"
+    end
+
+    test "renders registration page using the riddlr design system", %{conn: conn} do
+      response =
+        conn
+        |> get(~p"/users/register")
+        |> html_response(200)
+
+      assert response =~ ~s(class="rg-auth")
+      assert response =~ "rg-auth__submit"
+      refute response =~ "btn btn-primary"
     end
 
     test "redirects if already logged in", %{conn: conn} do
@@ -43,7 +54,7 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
         })
 
       response = html_response(conn, 200)
-      assert response =~ "Register"
+      assert response =~ "Create your account"
       assert response =~ "must have the @ sign and no spaces"
     end
   end

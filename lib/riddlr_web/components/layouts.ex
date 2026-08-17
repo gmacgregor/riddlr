@@ -70,6 +70,13 @@ defmodule RiddlrWeb.Layouts do
 
     <main class="rg-viewport">
       <div class="rg-frame" role="main" aria-label="Riddlr game">
+        <header class="rg-header">
+          <.link navigate={~p"/"} class="rg-header__brand">
+            <span aria-hidden="true">🧩</span> Riddlr
+          </.link>
+          <.auth_menu current_scope={@current_scope} />
+        </header>
+
         {render_slot(@inner_block)}
       </div>
     </main>
@@ -90,7 +97,7 @@ defmodule RiddlrWeb.Layouts do
 
   def flash_group(assigns) do
     ~H"""
-    <div id={@id} aria-live="polite">
+    <div id={@id} class="rg-flash-group" aria-live="polite">
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />
 

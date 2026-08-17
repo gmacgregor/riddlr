@@ -1,219 +1,221 @@
-<%!-- ═══════════════════════════════════════════════════════════════
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <%!-- ═══════════════════════════════════════════════════════════════
      TIMER + RIDDLE SECTION — active game only
      ═══════════════════════════════════════════════════════════════ --%>
-<section :if={not @game_completed} class="rg-timer-section" aria-label="Timer and riddle">
-  <div class="rg-active-game" id="state-active">
-    <%!-- <.game_time_remaining time_remaining={@time_remaining} /> --%>
-    <div class="rg-time-bar">
-      <span class="rg-time-bar__label">⏱ Time left</span>
-      <time
-        class="rg-time-bar__value leading-none"
-        aria-live="polite"
-        aria-atomic="true"
-        id="countdown-timer"
-        phx-hook=".SolveTimer"
-        data-seconds={@time_remaining}
+  <section :if={not @game_completed} class="rg-timer-section" aria-label="Timer and riddle">
+    <div class="rg-active-game" id="state-active">
+      <%!-- <.game_time_remaining time_remaining={@time_remaining} /> --%>
+      <div class="rg-time-bar">
+        <span class="rg-time-bar__label">⏱ Time left</span>
+        <time
+          class="rg-time-bar__value leading-none"
+          aria-live="polite"
+          aria-atomic="true"
+          id="countdown-timer"
+          phx-hook=".SolveTimer"
+          data-seconds={@time_remaining}
+        >
+          <span data-timer-display>{format_time(@time_remaining)}</span>
+        </time>
+      </div>
+      <%!-- <.game_riddle_text riddle={@riddle} /> --%>
+      <p
+        id="riddle-description"
+        class="rg-riddle-text"
+        phx-hook=".RiddleReveal"
+        data-text={@riddle.description}
       >
-        <span data-timer-display>{format_time(@time_remaining)}</span>
-      </time>
+        {@riddle.description}
+      </p>
     </div>
-    <%!-- <.game_riddle_text riddle={@riddle} /> --%>
-    <p
-      id="riddle-description"
-      class="rg-riddle-text"
-      phx-hook=".RiddleReveal"
-      data-text={@riddle.description}
-    >
-      {@riddle.description}
-    </p>
-  </div>
-</section>
+  </section>
 
-<%!-- ═══════════════════════════════════════════════════════════════
+  <%!-- ═══════════════════════════════════════════════════════════════
      ROUND COMPLETE HEADER — completed game only
      ═══════════════════════════════════════════════════════════════ --%>
-<.game_round_header
-  :if={@game_completed}
-  riddle={@riddle}
-  outcome={if @riddle.first_solver, do: :solved, else: :expired}
-  solver_username={@riddle.first_solver && @riddle.first_solver.username}
-  solve_time={@riddle.first_solve_time}
-/>
+  <.game_round_header
+    :if={@game_completed}
+    riddle={@riddle}
+    outcome={if @riddle.first_solver, do: :solved, else: :expired}
+    solver_username={@riddle.first_solver && @riddle.first_solver.username}
+    solve_time={@riddle.first_solve_time}
+  />
 
-<div :if={@game_completed} class="rg-divider"></div>
+  <div :if={@game_completed} class="rg-divider"></div>
 
-<%!-- ═══════════════════════════════════════════════════════════════
+  <%!-- ═══════════════════════════════════════════════════════════════
      CHAT SECTION — live game: answer feed + guess input
      ═══════════════════════════════════════════════════════════════ --%>
-<section :if={not @game_completed} class="rg-chat-section" aria-label="Live answers">
-  <div class="rg-chat-header">
-    <span class="rg-chat-header__label">💬 Live Answers</span>
-    <span class="rg-chat-header__count" aria-live="polite">Live</span>
-  </div>
-
-  <%!-- Answer stream --%>
-  <div
-    id="answer-feed"
-    phx-update="stream"
-    class="rg-messages"
-    aria-live="polite"
-    aria-relevant="additions"
-    aria-label="Answer feed"
-  >
-    <div
-      :for={{dom_id, answer} <- @streams.answers}
-      id={dom_id}
-      class={["rg-msg", answer.correct && "rg-msg--solved"]}
-    >
-      <.rg_avatar
-        letter={String.first(answer.username) |> String.upcase()}
-        username={answer.username}
-      />
-      <span class="rg-msg__user">{answer.username}</span>
-      <span :if={not answer.correct} class="rg-msg__text">{answer.text}</span>
-      <.game_solve_badge
-        :if={answer.correct}
-        placement={answer.placement}
-        class="rg-msg__text rg-msg__text--solved"
-      />
-      <span :if={answer.offset_ms} class="rg-msg__time">+{format_offset(answer.offset_ms)}</span>
+  <section :if={not @game_completed} class="rg-chat-section" aria-label="Live answers">
+    <div class="rg-chat-header">
+      <span class="rg-chat-header__label">💬 Live Answers</span>
+      <span class="rg-chat-header__count" aria-live="polite">Live</span>
     </div>
-  </div>
 
-  <%!-- Guess input — hidden once solved --%>
-  <div
-    :if={not @already_solved}
-    id="answer-form-container"
-    phx-hook=".AnswerForm"
-    class="rg-input-bar"
-  >
-    <form id="answer-form" phx-submit="submit_answer" class="contents">
-      <div class={[
-        "rg-input-field",
-        @submission_state == :incorrect && "rg-input-field--error"
-      ]}>
-        <input
-          id="answer-input"
-          type="text"
-          name="answer"
-          placeholder="Take a guess..."
-          autocomplete="off"
-          aria-label="Type your answer"
-          aria-describedby={if @submission_state == :incorrect, do: "answer-feedback-incorrect"}
-          aria-invalid={to_string(@submission_state == :incorrect)}
+    <%!-- Answer stream --%>
+    <div
+      id="answer-feed"
+      phx-update="stream"
+      class="rg-messages"
+      aria-live="polite"
+      aria-relevant="additions"
+      aria-label="Answer feed"
+    >
+      <div
+        :for={{dom_id, answer} <- @streams.answers}
+        id={dom_id}
+        class={["rg-msg", answer.correct && "rg-msg--solved"]}
+      >
+        <.rg_avatar
+          letter={String.first(answer.username) |> String.upcase()}
+          username={answer.username}
         />
+        <span class="rg-msg__user">{answer.username}</span>
+        <span :if={not answer.correct} class="rg-msg__text">{answer.text}</span>
+        <.game_solve_badge
+          :if={answer.correct}
+          placement={answer.placement}
+          class="rg-msg__text rg-msg__text--solved"
+        />
+        <span :if={answer.offset_ms} class="rg-msg__time">+{format_offset(answer.offset_ms)}</span>
       </div>
-      <button class="rg-guess-btn" type="submit">Guess!</button>
-    </form>
-    <p
-      :if={@submission_state == :incorrect}
-      id="answer-feedback-incorrect"
-      class="rg-answer-feedback"
-      role="alert"
-    >
-      {@try_again_message}
-    </p>
-    <p
-      :if={match?({:error, _}, @submission_state)}
-      id="answer-feedback-error"
-      class="rg-answer-feedback rg-answer-feedback--system"
-      role="alert"
-    >
-      {elem(@submission_state, 1)}
-    </p>
-  </div>
+    </div>
 
-  <%!-- Already solved banner --%>
-  <div :if={@already_solved} class="rg-input-bar rg-input-bar--solved" role="status">
-    <p class="rg-input-bar__solved-msg">
-      {case @submission_state do
-        {:correct, placement, points} -> "#{placement_text(placement)} place! +#{points} pts"
-        _ -> "You already solved this one."
-      end}
-    </p>
-  </div>
-</section>
+    <%!-- Guess input — hidden once solved --%>
+    <div
+      :if={not @already_solved}
+      id="answer-form-container"
+      phx-hook=".AnswerForm"
+      class="rg-input-bar"
+    >
+      <form id="answer-form" phx-submit="submit_answer" class="contents">
+        <div class={[
+          "rg-input-field",
+          @submission_state == :incorrect && "rg-input-field--error"
+        ]}>
+          <input
+            id="answer-input"
+            type="text"
+            name="answer"
+            placeholder="Take a guess..."
+            autocomplete="off"
+            aria-label="Type your answer"
+            aria-describedby={if @submission_state == :incorrect, do: "answer-feedback-incorrect"}
+            aria-invalid={to_string(@submission_state == :incorrect)}
+          />
+        </div>
+        <button class="rg-guess-btn" type="submit">Guess!</button>
+      </form>
+      <p
+        :if={@submission_state == :incorrect}
+        id="answer-feedback-incorrect"
+        class="rg-answer-feedback"
+        role="alert"
+      >
+        {@try_again_message}
+      </p>
+      <p
+        :if={match?({:error, _}, @submission_state)}
+        id="answer-feedback-error"
+        class="rg-answer-feedback rg-answer-feedback--system"
+        role="alert"
+      >
+        {elem(@submission_state, 1)}
+      </p>
+    </div>
 
-<%!-- ═══════════════════════════════════════════════════════════════
+    <%!-- Already solved banner --%>
+    <div :if={@already_solved} class="rg-input-bar rg-input-bar--solved" role="status">
+      <p class="rg-input-bar__solved-msg">
+        {case @submission_state do
+          {:correct, placement, points} -> "#{placement_text(placement)} place! +#{points} pts"
+          _ -> "You already solved this one."
+        end}
+      </p>
+    </div>
+  </section>
+
+  <%!-- ═══════════════════════════════════════════════════════════════
      POST-GAME SECTION — leaderboard / chat tabs
      ═══════════════════════════════════════════════════════════════ --%>
-<section :if={@game_completed} class="rg-round-content" aria-label="Post-game content">
-  <.game_tab_bar active_tab={@active_tab} />
+  <section :if={@game_completed} class="rg-round-content" aria-label="Post-game content">
+    <.game_tab_bar active_tab={@active_tab} />
 
-  <%!-- Leaderboard panel --%>
-  <div
-    id="panel-leaderboard"
-    role="tabpanel"
-    aria-label="Game leaderboard"
-    hidden={@active_tab != :leaderboard}
-  >
-    <.game_leaderboard top_solvers={@top_solvers} />
-  </div>
+    <%!-- Leaderboard panel --%>
+    <div
+      id="panel-leaderboard"
+      role="tabpanel"
+      aria-label="Game leaderboard"
+      hidden={@active_tab != :leaderboard}
+    >
+      <.game_leaderboard top_solvers={@top_solvers} />
+    </div>
 
-  <%!-- Chat panel --%>
-  <div
-    id="panel-chat"
-    role="tabpanel"
-    aria-label="Post-game chat"
-    hidden={@active_tab != :chat}
-  >
-    <div class="rg-post-chat">
-      <div
-        id="chat-feed"
-        phx-update="stream"
-        class="rg-post-chat-messages"
-        aria-live="polite"
-        aria-relevant="additions"
-      >
+    <%!-- Chat panel --%>
+    <div
+      id="panel-chat"
+      role="tabpanel"
+      aria-label="Post-game chat"
+      hidden={@active_tab != :chat}
+    >
+      <div class="rg-post-chat">
         <div
-          :for={{dom_id, msg} <- @streams.answers}
-          id={dom_id}
-          class={if divider?(msg), do: "rg-post-chat-divider", else: "rg-post-chat-msg"}
-          role={if divider?(msg), do: "separator"}
+          id="chat-feed"
+          phx-update="stream"
+          class="rg-post-chat-messages"
+          aria-live="polite"
+          aria-relevant="additions"
         >
-          <span :if={divider?(msg)} class="rg-post-chat-divider__label">Round ended</span>
           <div
-            :if={not divider?(msg)}
-            class={"rg-post-chat-avatar rg-post-chat-avatar--#{avatar_color(msg.username)}"}
-            aria-hidden="true"
+            :for={{dom_id, msg} <- @streams.answers}
+            id={dom_id}
+            class={if divider?(msg), do: "rg-post-chat-divider", else: "rg-post-chat-msg"}
+            role={if divider?(msg), do: "separator"}
           >
-            {String.first(msg.username) |> String.upcase()}
-          </div>
-          <div :if={not divider?(msg)} class="rg-post-chat-body">
-            <span class="rg-post-chat-name rg-post-chat-name--cyan">{msg.username}</span>
-            <.game_solve_badge
-              :if={msg.correct}
-              placement={msg.placement}
-              text={msg.text}
-              class="rg-post-chat-text"
-            />
-            <p :if={not msg.correct} class="rg-post-chat-text">{msg.text}</p>
+            <span :if={divider?(msg)} class="rg-post-chat-divider__label">Round ended</span>
+            <div
+              :if={not divider?(msg)}
+              class={"rg-post-chat-avatar rg-post-chat-avatar--#{avatar_color(msg.username)}"}
+              aria-hidden="true"
+            >
+              {String.first(msg.username) |> String.upcase()}
+            </div>
+            <div :if={not divider?(msg)} class="rg-post-chat-body">
+              <span class="rg-post-chat-name rg-post-chat-name--cyan">{msg.username}</span>
+              <.game_solve_badge
+                :if={msg.correct}
+                placement={msg.placement}
+                text={msg.text}
+                class="rg-post-chat-text"
+              />
+              <p :if={not msg.correct} class="rg-post-chat-text">{msg.text}</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="rg-post-chat-input" id="chat-input-bar" phx-hook=".ChatForm">
-        <form id="chat-form" phx-submit="send_chat" class="contents">
-          <input
-            id="chat-input"
-            type="text"
-            name="message"
-            placeholder="Say something..."
-            autocomplete="off"
-            class="rg-post-chat-field"
-            aria-label="Chat message"
-          />
-          <button class="rg-post-chat-send" type="submit" aria-label="Send message">↑</button>
-        </form>
+        <div class="rg-post-chat-input" id="chat-input-bar" phx-hook=".ChatForm">
+          <form id="chat-form" phx-submit="send_chat" class="contents">
+            <input
+              id="chat-input"
+              type="text"
+              name="message"
+              placeholder="Say something..."
+              autocomplete="off"
+              class="rg-post-chat-field"
+              aria-label="Chat message"
+            />
+            <button class="rg-post-chat-send" type="submit" aria-label="Send message">↑</button>
+          </form>
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<%!-- ═══════════════════════════════════════════════════════════════
+  <%!-- ═══════════════════════════════════════════════════════════════
      NAV BAR
      ═══════════════════════════════════════════════════════════════ --%>
-<.game_nav active={:riddle} game_id={to_string(@riddle.id)} />
+  <.game_nav active={:riddle} game_id={to_string(@riddle.id)} />
+</Layouts.app>
 
 <%!-- ═══════════════════════════════════════════════════════════════
      JS HOOKS

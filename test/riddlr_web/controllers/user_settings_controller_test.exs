@@ -13,6 +13,27 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
       assert response =~ "Settings"
     end
 
+    test "renders settings page using the riddlr design system", %{conn: conn} do
+      response =
+        conn
+        |> get(~p"/users/settings")
+        |> html_response(200)
+
+      assert response =~ ~s(class="rg-auth")
+      assert response =~ "rg-auth__submit"
+      refute response =~ "btn btn-primary"
+    end
+
+    test "does not offer password management", %{conn: conn} do
+      response =
+        conn
+        |> get(~p"/users/settings")
+        |> html_response(200)
+
+      refute response =~ "Save Password"
+      refute response =~ ~s(name="user[password]")
+    end
+
     test "redirects if user is not logged in" do
       conn = build_conn()
       conn = get(conn, ~p"/users/settings")
@@ -50,7 +71,7 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
       assert Accounts.get_user_by_email_and_password(user.email, "new valid password")
     end
 
-    test "does not update password on invalid data", %{conn: conn} do
+    test "does not update password on invalid data", %{conn: conn, user: user} do
       old_password_conn =
         put(conn, ~p"/users/settings", %{
           "action" => "update_password",
@@ -60,11 +81,8 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
           }
         })
 
-      response = html_response(old_password_conn, 200)
-      assert response =~ "Settings"
-      assert response =~ "should be at least 12 character(s)"
-      assert response =~ "does not match password"
-
+      assert html_response(old_password_conn, 200) =~ "Settings"
+      refute Accounts.get_user_by_email_and_password(user.email, "too short")
       assert get_session(old_password_conn, :user_token) == get_session(conn, :user_token)
     end
   end

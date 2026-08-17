@@ -8,6 +8,7 @@
       <.link navigate={~p"/admin/riddles"} class="adm-header__link">Riddles</.link>
       <.link navigate={~p"/admin/categories"} class="adm-header__link">Categories</.link>
       <.link navigate={~p"/"} class="adm-header__link">Back to Site</.link>
+      <.auth_menu current_scope={@current_scope} />
     </nav>
   </header>
   <main class={["adm-main", "adm-main-#{@live_action}"]}>

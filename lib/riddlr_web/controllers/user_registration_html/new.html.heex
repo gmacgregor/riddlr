@@ -1,33 +1,26 @@
 <Layouts.app flash={@flash} current_scope={@current_scope}>
-  <div class="mx-auto max-w-sm">
-    <div class="text-center">
-      <.header>
-        Register for an account
-        <:subtitle>
-          Already registered?
-          <.link navigate={~p"/users/log-in"} class="font-semibold text-brand hover:underline">
-            Log in
-          </.link>
-          to your account now.
-        </:subtitle>
-      </.header>
-    </div>
+  <.auth_shell title="Create your account">
+    <:subtitle>Pick a name, add your email, and start solving.</:subtitle>
 
-    <.form :let={f} for={@changeset} action={~p"/users/register"}>
-      <.input field={f[:username]} type="text" label="Username" required />
-      <.input
+    <.form :let={f} for={@changeset} action={~p"/users/register"} class="rg-auth__form">
+      <.auth_input field={f[:username]} label="Username" placeholder="riddlemaster" required />
+      <.auth_input
         field={f[:email]}
         type="email"
         label="Email"
         autocomplete="username"
         spellcheck="false"
+        placeholder="you@example.com"
         required
         phx-mounted={JS.focus()}
       />
-
-      <.button phx-disable-with="Creating account..." class="btn btn-primary w-full">
-        Create an account
-      </.button>
+      <.auth_submit phx-disable-with="Creating account...">
+        Create an account <span aria-hidden="true">→</span>
+      </.auth_submit>
     </.form>
-  </div>
+
+    <p class="rg-auth__footer">
+      Already registered? <.link navigate={~p"/users/log-in"} class="rg-auth__link">Log in</.link>
+    </p>
+  </.auth_shell>
 </Layouts.app>

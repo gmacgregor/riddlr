@@ -62,7 +62,7 @@ config :esbuild,
   ],
   css: [
     args:
-      ~w(css/riddlr.css css/game-completed.css css/admin.css --bundle --outdir=../priv/static/assets/css),
+      ~w(css/riddlr.css css/game-completed.css css/admin.css css/auth.css --bundle --outdir=../priv/static/assets/css),
     cd: Path.expand("../assets", __DIR__)
   ]
 

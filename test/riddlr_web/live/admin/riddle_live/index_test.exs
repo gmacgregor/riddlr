@@ -18,6 +18,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert html =~ riddle.name
     end
 
+    test "shows account controls in the admin header", %{conn: conn, admin: admin} do
+      conn = log_in_user(conn, admin)
+      {:ok, _live, html} = live(conn, ~p"/admin/riddles")
+
+      assert html =~ "rg-auth-menu"
+      assert html =~ admin.username
+      assert html =~ "Log out"
+    end
+
     test "redirects non-admin", %{conn: conn} do
       player = AccountsFixtures.user_fixture(%{role: :player})
       conn = log_in_user(conn, player)

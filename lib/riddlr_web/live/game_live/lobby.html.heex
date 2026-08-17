@@ -1,20 +1,22 @@
-<%!-- ═══════════════════════════════════════════════════════════════
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <%!-- ═══════════════════════════════════════════════════════════════
      TIMER SECTION — pre-game countdown
      ═══════════════════════════════════════════════════════════════ --%>
-<section class="rg-timer-section" aria-label="Countdown to game start">
-  <.game_countdown riddle={@riddle} time_remaining={@time_remaining} format={:long} />
+  <section class="rg-timer-section" aria-label="Countdown to game start">
+    <.game_countdown riddle={@riddle} time_remaining={@time_remaining} format={:long} />
 
-  <div class="rg-pre-game__waiting" aria-live="polite" aria-atomic="true">
-    <span class="rg-pre-game__label">
-      {@player_count} {if @player_count == 1, do: "player waiting", else: "players waiting"}
-    </span>
-  </div>
-</section>
+    <div class="rg-pre-game__waiting" aria-live="polite" aria-atomic="true">
+      <span class="rg-pre-game__label">
+        {@player_count} {if @player_count == 1, do: "player waiting", else: "players waiting"}
+      </span>
+    </div>
+  </section>
 
-<%!-- ═══════════════════════════════════════════════════════════════
+  <%!-- ═══════════════════════════════════════════════════════════════
      NAV BAR
      ═══════════════════════════════════════════════════════════════ --%>
-<.game_nav active={:riddle} game_id={to_string(@riddle.id)} />
+  <.game_nav active={:riddle} game_id={to_string(@riddle.id)} />
+</Layouts.app>
 
 <%!-- ═══════════════════════════════════════════════════════════════
      JS HOOKS

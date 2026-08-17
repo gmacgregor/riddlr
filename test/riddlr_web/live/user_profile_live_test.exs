@@ -19,6 +19,16 @@ defmodule RiddlrWeb.UserProfileLiveTest do
       assert html =~ user.email
     end
 
+    test "renders the app header with account controls", %{conn: conn, user: user} do
+      {:ok, _show_live, html} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/profile")
+
+      assert html =~ "rg-header"
+      assert html =~ "Log out"
+    end
+
     test "redirects when not logged in", %{conn: conn} do
       assert {:error, redirect} = live(conn, ~p"/profile")
       assert {:redirect, %{to: path}} = redirect
