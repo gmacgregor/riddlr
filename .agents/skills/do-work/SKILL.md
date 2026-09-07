@@ -17,7 +17,7 @@ Done when you understand the task and have no further questions.
 
 If the task has not already been planned, create a plan for it.
 
-- Explore the relevant code first. Identify what files need to change and what files need to be added. 
+- Explore the relevant code first. Identify what files need to change and what files need to be added.
 - Note any existing patterns or conventions in nearby code.
 - Break the work into small, testable slices.
 - Present the plan to the user and get approval before proceeding.
@@ -49,7 +49,13 @@ mix test
 
 Done when both commands exit clean with no errors.
 
-## 5. Commit (optional) & Close Issue (optional)
+## 5. Review Changes
+
+Determine if a code review skill exists. Prefer a user defined code review skill (i.e. in the current project scope or the user's home directory) over a built-in code review skill provided by your harness. If no such skill exists, notify the user that a code review skill could not be determined and then abandon this step. Otherwise, notify the user of the name and location of the skill that will be invoked, and then follow its instructions. Notify the user again when the code review is complete.
+
+Done when the step is either abandoned or the code review skill has been successfully invoked.
+
+## 6. Commit (optional) & Close Issue (optional)
 
 Ask the user if you should commit your changes. If work was performed against a specific issue, ask if you should commit changes and also close the issue.
 
