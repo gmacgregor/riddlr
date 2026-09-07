@@ -6,6 +6,9 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
   alias Riddlr.Gameplay.Answer
   alias Riddlr.{AccountsFixtures, GamesFixtures}
 
+  @mask Riddlr.Moderation.mask()
+  @bad_word Riddlr.ModerationFixtures.bad_word()
+
   setup do
     riddle = live_riddle()
     user = AccountsFixtures.user_fixture()
@@ -36,25 +39,21 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
       assert stored.id == broadcast.id
     end
 
-    test "moderation flags the answer by the id it was broadcast under", %{
+    test "masks a banned word synchronously, in the broadcast text itself", %{
       riddle: riddle,
       user: user
     } do
       Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle.id))
-      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(riddle.id))
 
-      Gameplay.submit_answer(riddle, user, "this is spam")
+      Gameplay.submit_answer(riddle, user, "this is #{@bad_word}")
 
-      assert_receive {:answer_submitted, %Answer{id: id}}
-      assert_receive {:answer_flagged, ^id}, 500
+      assert_receive {:answer_submitted, %Answer{text: "this is #{@mask}"}}
     end
 
-    test "flags an answer that trips moderation", %{riddle: riddle, user: user} do
-      Phoenix.PubSub.subscribe(Riddlr.PubSub, "gameplay:#{riddle.id}:answer_flagged")
+    test "stores the masked text, not the raw one", %{riddle: riddle, user: user} do
+      assert Gameplay.submit_answer(riddle, user, "this is #{@bad_word}") == :incorrect
 
-      assert Gameplay.submit_answer(riddle, user, "this is spam") == :incorrect
-
-      assert_receive {:answer_flagged, _answer_id}, 500
+      assert [%{text: "this is #{@mask}"}] = Gameplay.get_answers(riddle.id)
     end
   end
 

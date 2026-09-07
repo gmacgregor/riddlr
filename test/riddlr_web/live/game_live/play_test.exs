@@ -8,6 +8,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   alias Riddlr.Gameplay.Answer
   alias Riddlr.{Games, Gameplay, AccountsFixtures, GamesFixtures}
 
+  @mask Riddlr.Moderation.mask()
+  @bad_word Riddlr.ModerationFixtures.bad_word()
+
   setup do
     user = AccountsFixtures.user_fixture()
     %{user: user}
@@ -680,18 +683,21 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      answer = Answer.new(riddle.id, user, "spam content", offset_ms: 500)
+      # This exercises the retraction mechanism itself (:answer_flagged), the
+      # hook the future external moderation layer fires — the local blocklist
+      # no longer uses it, it masks synchronously before broadcast instead.
+      answer = Answer.new(riddle.id, user, "clean content", offset_ms: 500)
 
       send(live.pid, {:answer_submitted, answer})
       html = render(live)
-      assert html =~ "spam content"
+      assert html =~ "clean content"
 
       send(live.pid, {:answer_flagged, answer.id})
       html = render(live)
-      refute html =~ "spam content"
+      refute html =~ "clean content"
     end
 
-    test "submitting a blocked word triggers async moderation and removes from feed", %{
+    test "submitting a blocked word masks it synchronously, never showing the raw word", %{
       conn: conn,
       riddle: riddle,
       user: user
@@ -703,17 +709,13 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       # that handle_event sends). This is reliable in tests — the E2E PubSub
       # round-trip from form submit → PubSub → handle_info is async and would
       # require sleep() to stabilise.
-      answer = Answer.new(riddle.id, user, "spam", offset_ms: 100)
+      answer = Answer.new(riddle.id, user, @bad_word, offset_ms: 100)
 
       send(live.pid, {:answer_submitted, answer})
 
       html = render(live)
-      assert html =~ "spam"
-
-      # Async moderation flags it — verify it disappears from feed
-      send(live.pid, {:answer_flagged, answer.id})
-      html = render(live)
-      refute html =~ "spam"
+      refute html =~ @bad_word
+      assert html =~ @mask
     end
 
     test "correct answers appear in post-game chat after completion", %{

@@ -8,6 +8,11 @@ defmodule Riddlr.Gameplay.Answer do
   screen, and the id used to yank it back off those screens if moderation
   doesn't like it. All three are built here.
 
+  `new/4` also runs `text` through `Riddlr.Moderation.obfuscate/1` before it's
+  stored anywhere, so a banned word never reaches ETS, a broadcast, or
+  another player's screen in the first place — there's nothing local
+  moderation needs to retract after the fact.
+
   The id matters more than it looks. It's `riddle-user-timestamp`, and it gets
   built twice: once when you submit, and once when someone else joins the game
   and we replay the feed from ETS. Moderation flags an answer by id, so if those
@@ -73,7 +78,7 @@ defmodule Riddlr.Gameplay.Answer do
       riddle_id: riddle_id,
       user_id: user.id,
       username: user.username,
-      text: text,
+      text: Riddlr.Moderation.obfuscate(text),
       timestamp: timestamp,
       offset_ms: Keyword.get(opts, :offset_ms),
       placement: Keyword.get(opts, :placement),
