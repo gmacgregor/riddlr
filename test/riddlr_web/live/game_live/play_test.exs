@@ -576,6 +576,23 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       assert_redirect(live, "/")
     end
+
+    test "a user banned before they arrived cannot submit an answer", %{conn: conn} do
+      user = AccountsFixtures.user_fixture()
+      {:ok, _} = Riddlr.Accounts.set_user_status(user, :banned)
+
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
+      conn = log_in_user(conn, user)
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      live
+      |> form("#answer-form", %{answer: "keyboard"})
+      |> render_submit()
+
+      assert_redirect(live, "/")
+      assert Gameplay.get_answers(riddle.id) == []
+    end
   end
 
   describe "answer feed" do
