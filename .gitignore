@@ -41,3 +41,5 @@ npm-debug.log
 /.claude/settings.local.json
 
 /design
+
+.scratch
