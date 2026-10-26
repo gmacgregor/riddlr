@@ -18,6 +18,8 @@ defmodule RiddlrWeb.CustomComponents do
   def placement_text(3), do: "3rd"
   def placement_text(n), do: "#{n}th"
 
+  # Deprecated: use RiddlrWeb.GameLive.Feed.format_time/1 instead. Kept until
+  # the components that call it move over.
   defp format_time(seconds) do
     minutes = div(seconds, 60)
     secs = rem(seconds, 60)
