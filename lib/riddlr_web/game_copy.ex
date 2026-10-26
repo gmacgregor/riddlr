@@ -137,6 +137,21 @@ defmodule RiddlrWeb.GameCopy do
   @spec feed_solved(pos_integer()) :: String.t()
   def feed_solved(placement), do: "Solved · #{ordinal(placement)}"
 
+  @doc "The divider on Results between the riddle's guesses and the chat."
+  @spec chat_divider() :: String.t()
+  def chat_divider, do: "Riddle ended"
+
+  @doc """
+  The Results chat on an archived riddle. Archive drops the guesses and
+  closes chat, so the list is empty.
+  """
+  @spec chat_archived() :: String.t()
+  def chat_archived, do: "Chat closed. This riddle's guesses and messages are gone."
+
+  @doc "The placeholder in the Results chat field."
+  @spec chat_placeholder() :: String.t()
+  def chat_placeholder, do: "Say something nice to the winner"
+
   @doc "The message when a player sends an empty guess."
   @spec guess_empty() :: String.t()
   def guess_empty, do: "Type an answer first."

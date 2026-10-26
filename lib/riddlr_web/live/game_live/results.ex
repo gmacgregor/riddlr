@@ -17,6 +17,9 @@ defmodule RiddlrWeb.GameLive.Results do
   import Riddlr.Utils.User
 
   @message_max_length 500
+  # Guesses loaded at mount, and rows kept in the feed once chat joins them.
+  @log_limit 100
+  @feed_limit 200
 
   # The feed shows the riddle's answers and then the chat, so it needs a row
   # that marks where the race stopped. A stream can't add a row at render
@@ -47,7 +50,7 @@ defmodule RiddlrWeb.GameLive.Results do
           if connected?(socket) do
             if chat_open?, do: subscribe_to_chat(id)
             Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
-            [@round_ended | load_feed(riddle.id)]
+            load_feed(riddle.id) ++ [@round_ended]
           else
             []
           end
@@ -62,8 +65,8 @@ defmodule RiddlrWeb.GameLive.Results do
          |> assign(:board, board)
          |> assign(:you, you_card(board, riddle.id, user.id))
          |> assign(:payout, payout(board))
-         |> assign(:active_tab, :leaderboard)
-         |> stream(:answers, feed, limit: 100)}
+         # Negative: chat joins at the bottom, so the oldest rows drop first.
+         |> stream(:answers, feed, limit: -@feed_limit)}
 
       {:ok, %{play_status: status}} when status in ["closed", "scheduled", "ready"] ->
         {:ok, push_navigate(socket, to: ~p"/game/#{id}/lobby")}
@@ -77,10 +80,6 @@ defmodule RiddlrWeb.GameLive.Results do
   end
 
   @impl true
-  def handle_event("switch_tab", %{"tab" => tab}, socket) do
-    {:noreply, assign(socket, :active_tab, String.to_existing_atom(tab))}
-  end
-
   def handle_event("send_chat", _params, %{assigns: %{chat_open?: false}} = socket) do
     {:noreply, socket}
   end
@@ -100,16 +99,19 @@ defmodule RiddlrWeb.GameLive.Results do
          |> put_flash(:error, "Your account has been suspended.")
          |> push_navigate(to: ~p"/")}
 
-      # The post-game screen has no place to show an error yet, so an empty or
-      # over-long message is dropped.
-      {:error, _reason} ->
+      {:error, :empty_message} ->
+        {:noreply, push_event(socket, "chat-empty", %{})}
+
+      # The post-game screen has no place to show an error, so an over-long
+      # message is dropped.
+      {:error, :message_too_long} ->
         {:noreply, socket}
     end
   end
 
   @impl true
   def handle_info({:answer_submitted, answer}, socket) do
-    {:noreply, stream_insert(socket, :answers, answer, at: 0)}
+    {:noreply, stream_insert(socket, :answers, answer, limit: -@feed_limit)}
   end
 
   def handle_info({:answer_flagged, answer_id}, socket) do
@@ -162,15 +164,16 @@ defmodule RiddlrWeb.GameLive.Results do
     end
   end
 
-  # The riddle's answers from ETS, newest first. Play masks correct answers
-  # (Answer.for_live_feed/1) while the race runs. The race is over, so they
-  # show in full here. Offsets go: they only mean something next to a
+  # The riddle's last @log_limit answers from ETS, oldest first. Play masks correct
+  # answers (Answer.for_live_feed/1) while the race runs. The race is over, so
+  # they show in full here. Offsets go: they only mean something next to a
   # running timer.
   @spec load_feed(integer()) :: [Answer.t()]
   defp load_feed(riddle_id) do
     riddle_id
     |> Gameplay.get_answers()
-    |> Enum.take(100)
+    |> Enum.take(@log_limit)
+    |> Enum.reverse()
     |> Feed.put_usernames()
     |> Enum.map(&%{&1 | offset_ms: nil})
   end

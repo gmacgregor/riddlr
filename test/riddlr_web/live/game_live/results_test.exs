@@ -256,22 +256,29 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
   end
 
   describe "tabs" do
-    test "the off panel is marked is-off, not hidden, so desktop can show both", %{
-      conn: conn,
-      user: user
-    } do
+    test "start on Leaderboard, with Chat off and its badge hidden", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#panel-chat.is-off")
+      assert has_element?(live, "#results-tabs[role=tablist][aria-label=Results]")
+
+      assert has_element?(
+               live,
+               "#tab-board[role=tab][aria-controls=panel-board][aria-selected=true]",
+               "Leaderboard"
+             )
+
+      assert has_element?(
+               live,
+               "#tab-chat[role=tab][aria-controls=panel-chat][aria-selected=false][tabindex='-1']",
+               "Chat"
+             )
+
+      assert has_element?(live, "#tab-chat #chat-badge.rg-tab__badge[hidden]")
       refute has_element?(live, "#panel-board.is-off")
+      assert has_element?(live, "#panel-chat.is-off")
       refute has_element?(live, "#panel-chat[hidden]")
-
-      render_click(live, "switch_tab", %{"tab" => "chat"})
-
-      assert has_element?(live, "#panel-board.is-off")
-      refute has_element?(live, "#panel-chat.is-off")
     end
   end
 
@@ -286,10 +293,11 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#panel-chat .rg-solve-badge", "solved it — 1st: keyboard")
+      assert has_element?(live, "#chat-feed li.rg-msg.is-solve .rg-msg__stamp", "Solved · 1st")
+      assert has_element?(live, "#chat-feed li.rg-msg.is-solve .rg-msg__text", "keyboard")
     end
 
-    test "keeps the round's guesses below a round-ended divider", %{conn: conn, user: user} do
+    test "keeps the round's guesses above a round-ended divider", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("live")
       guesser = AccountsFixtures.user_fixture()
       assert :incorrect = Gameplay.submit_answer(riddle, guesser, "banana")
@@ -300,12 +308,12 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
       html = render(live)
 
-      assert has_element?(live, "#panel-chat .rg-post-chat-divider", "Round ended")
-      assert has_element?(live, "#panel-chat", "banana")
-      assert position(html, "Round ended") < position(html, "banana")
+      assert has_element?(live, "ol#chat-feed > li.rg-chat__div[role=separator]", "Riddle ended")
+      assert has_element?(live, "#chat-feed li.rg-msg.is-wrong .rg-msg__text", "banana")
+      assert position(html, "banana") < position(html, "Riddle ended")
     end
 
-    test "keeps the live feed's newest-first order", %{conn: conn, user: user} do
+    test "lists the guess log oldest first", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("live")
       first = AccountsFixtures.user_fixture()
       second = AccountsFixtures.user_fixture()
@@ -318,10 +326,10 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
       html = render(live)
 
-      assert position(html, "cabbage") < position(html, "banana")
+      assert position(html, "banana") < position(html, "cabbage")
     end
 
-    test "a message sent after the round renders above the divider", %{conn: conn, user: user} do
+    test "a message sent after the round renders below the divider", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
       conn = log_in_user(conn, user)
 
@@ -330,11 +338,45 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       send(live.pid, {:answer_submitted, Answer.new(riddle.id, user, "gg everyone", chat: true)})
       html = render(live)
 
-      assert position(html, "gg everyone") < position(html, "Round ended")
+      assert position(html, "Riddle ended") < position(html, "gg everyone")
     end
   end
 
   describe "post-game chat" do
+    test "has a labelled message field and an icon send button", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#chat-form label.rg-sr-only[for=chat-input]", "Message")
+
+      assert has_element?(
+               live,
+               "#chat-form input#chat-input[placeholder='Say something nice to the winner']"
+             )
+
+      assert has_element?(
+               live,
+               "#chat-form button.rg-btn.rg-btn--icon[type=submit][aria-label='Send message'] svg"
+             )
+    end
+
+    test "shows a message as a tile, a name and the text", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      other = AccountsFixtures.user_fixture()
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      Gameplay.broadcast_answer(Answer.new(riddle.id, user, "gg everyone", chat: true))
+      Gameplay.broadcast_answer(Answer.new(riddle.id, other, "well played", chat: true))
+
+      assert has_element?(live, "#chat-feed li.rg-msg.is-chat.is-me .rg-tile")
+      assert has_element?(live, "#chat-feed li.rg-msg.is-me .rg-msg__name", "you")
+      assert has_element?(live, "#chat-feed li.rg-msg.is-me .rg-msg__text", "gg everyone")
+      assert has_element?(live, "#chat-feed li.rg-msg:not(.is-me) .rg-msg__name", other.username)
+      refute has_element?(live, "#chat-feed .rg-msg__t")
+    end
+
     test "a flagged message leaves the feed", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
       conn = log_in_user(conn, user)
@@ -352,6 +394,17 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       )
 
       refute has_element?(live, "#chat-feed", "clean content")
+    end
+
+    test "an empty message tells the client to refocus the input", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      render_submit(element(live, "#chat-form"), %{"message" => "   "})
+
+      assert_push_event(live, "chat-empty", %{})
+      refute has_element?(live, "#chat-feed .rg-msg")
     end
 
     test "sending a message tells the client to clear the input", %{conn: conn, user: user} do
@@ -417,7 +470,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       assert has_element?(live, ".rg-results__top")
       assert has_element?(live, "#panel-board .rg-row", winner.username)
-      refute has_element?(live, "#chat-feed .rg-post-chat-msg")
+      refute has_element?(live, "#chat-feed .rg-msg")
+      assert has_element?(live, "#chat-feed > li.rg-chat__div", "Riddle ended")
+      assert has_element?(live, "#chat-feed > li.rg-chat__empty", "Chat closed")
     end
 
     test "takes no chat once archived", %{conn: conn, user: user} do

@@ -1,5 +1,5 @@
 <Layouts.game flash={@flash} current_scope={@current_scope}>
-  <div class="rg-wrap rg-results rg-view">
+  <div id="results" class="rg-wrap rg-results rg-view" phx-hook=".ResultsTabs">
     <div class="rg-results__top">
       <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />
       <p class="rg-results__riddle">“{@riddle.description}”</p>
@@ -36,13 +36,36 @@
         </span>
       </div>
     </div>
-    <.game_tab_bar active_tab={@active_tab} />
+    <%!-- The hook owns the tab state, so server patches must leave it alone. --%>
+    <div id="results-tabs" class="rg-tabs" role="tablist" aria-label="Results" phx-update="ignore">
+      <button
+        id="tab-board"
+        type="button"
+        role="tab"
+        class="rg-tab"
+        aria-controls="panel-board"
+        aria-selected="true"
+      >
+        Leaderboard
+      </button>
+      <button
+        id="tab-chat"
+        type="button"
+        role="tab"
+        class="rg-tab"
+        aria-controls="panel-chat"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Chat <span id="chat-badge" class="rg-tab__badge" hidden></span>
+      </button>
+    </div>
 
     <section
       id="panel-board"
-      class={["rg-results__board", @active_tab != :leaderboard && "is-off"]}
+      class="rg-results__board"
       role="tabpanel"
-      aria-label="Game leaderboard"
+      aria-labelledby="tab-board"
     >
       <h2 class="rg-panel__h rg-desk-only">Leaderboard</h2>
       <div class="rg-podium">
@@ -113,79 +136,201 @@
       </section>
     </section>
 
-    <%!-- Chat keeps its old markup until #32 restyles it. --%>
     <section
       id="panel-chat"
-      class={["rg-results__chat", @active_tab != :chat && "is-off"]}
+      class="rg-results__chat is-off"
       role="tabpanel"
-      aria-label="Post-game chat"
+      aria-labelledby="tab-chat"
     >
-      <div class="rg-post-chat">
-        <div
-          id="chat-feed"
-          phx-update="stream"
-          class="rg-post-chat-messages"
-          aria-live="polite"
-          aria-relevant="additions"
-        >
-          <div
-            :for={{dom_id, msg} <- @streams.answers}
+      <h2 class="rg-panel__h rg-desk-only">Chat</h2>
+      <ol
+        id="chat-feed"
+        class="rg-chat"
+        phx-update="stream"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
+        <%= for {dom_id, msg} <- @streams.answers do %>
+          <li :if={divider?(msg)} id={dom_id} class="rg-chat__div" role="separator">
+            {GameCopy.chat_divider()}
+          </li>
+          <li
+            :if={not divider?(msg)}
             id={dom_id}
-            class={if divider?(msg), do: "rg-post-chat-divider", else: "rg-post-chat-msg"}
-            role={if divider?(msg), do: "separator"}
+            class={[
+              "rg-msg",
+              msg.user_id == @current_user.id && "is-me",
+              msg.chat && "is-chat",
+              msg.correct && "is-solve",
+              !msg.correct && !msg.chat && "is-wrong"
+            ]}
           >
-            <span :if={divider?(msg)} class="rg-post-chat-divider__label">Round ended</span>
-            <div
-              :if={not divider?(msg)}
-              class={"rg-post-chat-avatar rg-post-chat-avatar--#{avatar_color(msg.username)}"}
-              aria-hidden="true"
-            >
-              {String.first(msg.username) |> String.upcase()}
-            </div>
-            <div :if={not divider?(msg)} class="rg-post-chat-body">
-              <span class="rg-post-chat-name rg-post-chat-name--cyan">{msg.username}</span>
-              <.game_solve_badge
-                :if={msg.correct}
-                placement={msg.placement}
-                text={msg.text}
-                class="rg-post-chat-text"
-              />
-              <p :if={not msg.correct} class="rg-post-chat-text">{msg.text}</p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          :if={@chat_open?}
-          class="rg-post-chat-input"
-          id="chat-input-bar"
-          phx-hook=".ChatForm"
-        >
-          <form id="chat-form" phx-submit="send_chat" class="contents">
-            <input
-              id="chat-input"
-              type="text"
-              name="message"
-              placeholder="Say something..."
-              autocomplete="off"
-              class="rg-post-chat-field"
-              aria-label="Chat message"
+            <GameComponents.tile
+              initial={GameComponents.initial(msg.username)}
+              tone={GameComponents.tone(msg.username, @current_user.username)}
+              size="sm"
             />
-            <button class="rg-post-chat-send" type="submit" aria-label="Send message">↑</button>
-          </form>
-        </div>
-      </div>
+            <span class="rg-msg__body">
+              <span class="rg-msg__name">
+                {if msg.user_id == @current_user.id, do: GameCopy.room_you(), else: msg.username}
+              </span>
+              <span :if={msg.correct} class="rg-msg__stamp">
+                <GameComponents.icon name="check" /> {GameCopy.feed_solved(msg.placement)}
+              </span>
+              <span class="rg-msg__text">{msg.text}</span>
+            </span>
+          </li>
+        <% end %>
+        <li :if={!@chat_open?} id="chat-empty" class="rg-chat__empty">
+          {GameCopy.chat_archived()}
+        </li>
+      </ol>
+
+      <form
+        :if={@chat_open?}
+        id="chat-form"
+        class="rg-chat__bar"
+        phx-submit="send_chat"
+        phx-hook=".ChatForm"
+      >
+        <label class="rg-sr-only" for="chat-input">Message</label>
+        <input
+          id="chat-input"
+          class="rg-chat__field"
+          type="text"
+          name="message"
+          autocomplete="off"
+          placeholder={GameCopy.chat_placeholder()}
+        />
+        <button class="rg-btn rg-btn--icon" type="submit" aria-label="Send message">
+          <GameComponents.icon name="send" />
+        </button>
+      </form>
     </section>
   </div>
 </Layouts.game>
 
 <script :type={Phoenix.LiveView.ColocatedHook} name=".ChatForm">
+  // Clears the field after a send. An empty send only puts focus back, since
+  // a click on the send button takes it away.
   export default {
     mounted() {
-      this.handleEvent("chat-sent", () => {
-        const input = this.el.querySelector("#chat-input")
-        if (input) input.value = ""
+      const input = this.el.querySelector("#chat-input")
+      this.handleEvent("chat-sent", () => { input.value = "" })
+      this.handleEvent("chat-empty", () => input.focus())
+    }
+  }
+</script>
+
+<script :type={Phoenix.LiveView.ColocatedHook} name=".ResultsTabs">
+  // Runs the Leaderboard | Chat tabs below 1024px, counts chat that arrives
+  // while Chat is hidden, and keeps the newest message in view.
+  //
+  // Panel classes and roles change through this.js() so that LiveView keeps
+  // them across patches. At 1024px and up the tabs are hidden and both panels
+  // show, so the panels drop their tabpanel roles.
+  const NEAR_BOTTOM_PX = 80
+
+  export default {
+    mounted() {
+      const $ = (sel) => this.el.querySelector(sel)
+      this.tabs = { board: $("#tab-board"), chat: $("#tab-chat") }
+      this.panels = { board: $("#panel-board"), chat: $("#panel-chat") }
+      this.list = $("#chat-feed")
+      this.badge = $("#chat-badge")
+      this.tab = "board"
+      this.unread = 0
+      // Messages already on the page at mount never count as unread.
+      this.seen = new Set([...this.list.querySelectorAll("li.rg-msg.is-chat")].map((li) => li.id))
+      this.nearBottom = true
+
+      this.tabs.board.addEventListener("click", () => this.setTab("board", false))
+      this.tabs.chat.addEventListener("click", () => this.setTab("chat", false))
+      $("#results-tabs").addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return
+        e.preventDefault()
+        this.setTab(this.tab === "board" ? "chat" : "board", true)
       })
+
+      this.list.addEventListener("scroll", () => {
+        const l = this.list
+        this.nearBottom = l.scrollHeight - l.scrollTop - l.clientHeight < NEAR_BOTTOM_PX
+      })
+      this.toBottom()
+
+      this.observer = new MutationObserver((records) => this.onAdded(records))
+      this.observer.observe(this.list, { childList: true })
+
+      this.desk = window.matchMedia("(min-width: 1024px)")
+      this.onDeskChange = () => this.setRoles()
+      this.desk.addEventListener("change", this.onDeskChange)
+      this.setRoles()
+    },
+
+    destroyed() {
+      this.observer.disconnect()
+      this.desk.removeEventListener("change", this.onDeskChange)
+    },
+
+    setTab(tab, focus) {
+      this.tab = tab
+      const other = tab === "board" ? "chat" : "board"
+      this.tabs[tab].setAttribute("aria-selected", "true")
+      this.tabs[tab].tabIndex = 0
+      this.tabs[other].setAttribute("aria-selected", "false")
+      this.tabs[other].tabIndex = -1
+      this.js().removeClass(this.panels[tab], "is-off")
+      this.js().addClass(this.panels[other], "is-off")
+      if (tab === "chat") {
+        this.setUnread(0)
+        // The panel shows on the next frame, so wait for it to have a height.
+        requestAnimationFrame(() => this.toBottom())
+      }
+      if (focus) this.tabs[tab].focus()
+    },
+
+    // Counts each new chat message once. A reconnect re-sends the stream, and
+    // the ids it has seen keep those rows from counting again. A player's own
+    // message always scrolls into view, as it does in the design.
+    onAdded(records) {
+      let fresh = 0
+      let mine = false
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLElement) || !node.matches("li.rg-msg.is-chat")) continue
+          if (this.seen.has(node.id)) continue
+          this.seen.add(node.id)
+          fresh += 1
+          if (node.classList.contains("is-me")) mine = true
+        }
+      }
+      if (fresh === 0) return
+      if (this.nearBottom || mine) this.toBottom()
+      if (this.tab !== "chat" && !this.desk.matches) this.setUnread(this.unread + fresh)
+    },
+
+    setUnread(n) {
+      this.unread = n
+      this.badge.hidden = n === 0
+      this.badge.textContent = String(n)
+    },
+
+    toBottom() {
+      this.list.scrollTop = this.list.scrollHeight
+      this.nearBottom = true
+    },
+
+    setRoles() {
+      for (const key of ["board", "chat"]) {
+        const panel = this.panels[key]
+        if (this.desk.matches) {
+          this.js().removeAttribute(panel, "role")
+          this.js().removeAttribute(panel, "aria-labelledby")
+        } else {
+          this.js().setAttribute(panel, "role", "tabpanel")
+          this.js().setAttribute(panel, "aria-labelledby", `tab-${key}`)
+        }
+      }
     }
   }
 </script>

@@ -7,33 +7,6 @@ defmodule RiddlrWeb.CustomComponents do
     router: RiddlrWeb.Router,
     statics: RiddlrWeb.static_paths()
 
-  import Phoenix.LiveView.JS
-
-  # ─── Helpers ──────────────────────────────────────────────────────────────────
-
-  @doc "Ordinal for a finishing position: 1 -> \"1st\"."
-  def placement_text(n), do: RiddlrWeb.GameCopy.ordinal(n)
-
-  # ─── Solve Badge ──────────────────────────────────────────────────────────────
-
-  @doc """
-  Marks a correct answer in a feed.
-
-  `text` is the answer itself and must stay `nil` while the round runs — the
-  feed would otherwise hand the answer to everyone still guessing.
-  """
-  attr :placement, :integer, default: nil
-  attr :text, :string, default: nil
-  attr :class, :any, default: nil
-
-  def game_solve_badge(assigns) do
-    ~H"""
-    <span class={["rg-solve-badge", @class]}>
-      🎯 solved it{if @placement, do: " — #{placement_text(@placement)}"}{if @text, do: ": #{@text}"}
-    </span>
-    """
-  end
-
   # ─── Nav Bar ──────────────────────────────────────────────────────────────────
 
   @doc "Bottom navigation bar shared across all game screens."
@@ -121,60 +94,5 @@ defmodule RiddlrWeb.CustomComponents do
       </button>
     </nav>
     """
-  end
-
-  # ─── Tab Bar ──────────────────────────────────────────────────────────────────
-
-  @doc "Leaderboard / Chat tab switcher for the post-game view."
-  attr :active_tab, :atom, values: [:leaderboard, :chat], required: true
-  attr :unread_chat, :integer, default: 0
-
-  def game_tab_bar(assigns) do
-    ~H"""
-    <div id="tab-bar" class="rg-tab-bar" role="tablist" aria-label="Post-game content tabs">
-      <button
-        class={["rg-tab", @active_tab == :leaderboard && "rg-tab--active"]}
-        role="tab"
-        aria-selected={to_string(@active_tab == :leaderboard)}
-        aria-controls="panel-board"
-        type="button"
-        phx-click={switch_tab("leaderboard")}
-      >
-        🏆 Leaderboard
-        <span :if={@active_tab == :leaderboard} class="rg-tab__indicator" aria-hidden="true"></span>
-      </button>
-      <button
-        class={["rg-tab", @active_tab == :chat && "rg-tab--active"]}
-        role="tab"
-        aria-selected={to_string(@active_tab == :chat)}
-        aria-controls="panel-chat"
-        type="button"
-        phx-click={switch_tab("chat")}
-      >
-        <span class="rg-tab__row">
-          💬 Chat
-          <span
-            :if={@unread_chat > 0}
-            class="rg-tab__badge"
-            aria-label={"#{@unread_chat} new messages"}
-          >
-            {@unread_chat}
-          </span>
-        </span>
-        <span :if={@active_tab == :chat} class="rg-tab__indicator" aria-hidden="true"></span>
-      </button>
-    </div>
-    """
-  end
-
-  defp panel_id("leaderboard"), do: "#panel-board"
-  defp panel_id("chat"), do: "#panel-chat"
-
-  defp switch_tab(tab) do
-    other = if tab == "leaderboard", do: "chat", else: "leaderboard"
-
-    remove_class("is-off", to: panel_id(tab))
-    |> add_class("is-off", to: panel_id(other))
-    |> push("switch_tab", value: %{tab: tab})
   end
 end
