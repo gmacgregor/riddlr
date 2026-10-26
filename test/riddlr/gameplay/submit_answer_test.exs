@@ -94,7 +94,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
 
       assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
 
-      assert [%{user_id: solver_id, solve_time_ms: 4500}] = Gameplay.get_top_solvers(riddle.id)
+      assert [%{user_id: solver_id, solve_time_ms: 4500}] = Gameplay.solve_rows(riddle.id)
       assert solver_id == user.id
     end
 

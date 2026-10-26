@@ -14,6 +14,22 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
     assert Riddlr.Repo.reload(riddle).play_status == "archived"
   end
 
+  test "keeps the riddle's solves after dropping its ETS rows" do
+    riddle = riddle_fixture(%{play_status: "live", publish_status: "published"})
+    user = Riddlr.AccountsFixtures.user_fixture()
+    assert {:correct, 1, 10} = Riddlr.Gameplay.submit_answer(riddle, user, "keyboard")
+    assert :ok = perform_job(Riddlr.Workers.CompleteRiddleWorker, %{riddle_id: riddle.id})
+
+    assert :ok = perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
+
+    assert Riddlr.Gameplay.get_answers(riddle.id) == []
+
+    assert [%{user_id: user_id, placement: 1}] =
+             Riddlr.Repo.all(from s in Riddlr.Gameplay.Solve, where: s.riddle_id == ^riddle.id)
+
+    assert user_id == user.id
+  end
+
   test "cancels if riddle is not published" do
     riddle = riddle_fixture(%{play_status: "completed", publish_status: "draft"})
 

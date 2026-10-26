@@ -18,11 +18,12 @@ Deep dive: `docs/DOMAIN.md`. Lifecycle detail: `docs/RIDDLE_LIFECYCLE.md`.
 | **Riddle number** | Public "No. N" of a riddle. Set by the database when the riddle is created. |
 | **Solve time** | Seconds a live riddle stays open before auto-completing. |
 | **Lobby** | Pre-game waiting room with presence + shared countdown. |
+| **Solve** | One player's correct answer, saved to the database when the riddle completes (`Riddlr.Gameplay.Solve`): placement, points, solve time. The Results board reads solves, so it outlives archive. |
 | **Placement** | A solver's race order among correct answers. Drives points. |
 | **First solver** | Placement 1. Recorded on the riddle; the concurrency gate for completion. |
 | **Podium** | Placements 1–3. |
 | **Cooldown** | 1s per-user submit rate limit (UX only, non-atomic). Also the post-completion window before archive. |
-| **Archive** | Terminal state. Drops the riddle's ETS rows. |
+| **Archive** | Terminal state. Drops the riddle's ETS rows; its solves stay. |
 | **Clock** | The port every time read goes through (`Riddlr.Clock`). Frozen in tests; nothing else reads the runtime clock. |
 | **Game clock** | A riddle's countdown (`Riddlr.GameClock`). One process per riddle broadcasting a tick a second, in two phases: `:lobby` counts to the Live date, `:play` counts down the Solve time. All players see the same value at the same moment. |
 

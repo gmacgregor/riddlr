@@ -55,12 +55,12 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
-  describe "solve_for/2" do
+  describe "live_solve_for/2" do
     test "nil when the user has not solved" do
       rid = unique_riddle_id()
       uid = unique_user_id()
       seed_answer(rid, uid, "wrong", false)
-      assert Gameplay.solve_for(rid, uid) == nil
+      assert Gameplay.live_solve_for(rid, uid) == nil
     end
 
     test "the user's placement and points" do
@@ -72,7 +72,7 @@ defmodule Riddlr.GameplayTest do
       seed_answer(rid, second, "wrong", false, ts - 500)
       seed_answer(rid, second, "correct", true, ts)
 
-      assert Gameplay.solve_for(rid, second) == %{placement: 2, points: 9}
+      assert Gameplay.live_solve_for(rid, second) == %{placement: 2, points: 9}
     end
   end
 
@@ -155,65 +155,40 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
-  describe "get_top_solvers/2" do
-    test "returns empty list when no correct answers" do
+  describe "solve_rows/1" do
+    test "returns no rows when no correct answers" do
       rid = unique_riddle_id()
-      uid = unique_user_id()
-      seed_answer(rid, uid, "wrong", false)
+      seed_answer(rid, unique_user_id(), "wrong", false)
 
-      assert Gameplay.get_top_solvers(rid) == []
+      assert Gameplay.solve_rows(rid) == []
     end
 
-    test "returns single solver with placement 1 and correct points" do
-      rid = unique_riddle_id()
-      uid = unique_user_id()
-      seed_answer(rid, uid, "correct", true)
-
-      [solver] = Gameplay.get_top_solvers(rid)
-      assert solver.user_id == uid
-      assert solver.placement == 1
-      assert solver.points == 10
-    end
-
-    test "orders solvers by timestamp (fastest first)" do
+    test "orders solvers fastest first, ignoring wrong guesses" do
       rid = unique_riddle_id()
       uid1 = unique_user_id()
       uid2 = unique_user_id()
+      ts = System.monotonic_time(:microsecond)
+      seed_answer(rid, uid2, "correct", true, ts)
+      seed_answer(rid, uid1, "correct", true, ts - 1000)
+      seed_answer(rid, unique_user_id(), "wrong", false, ts - 2000)
 
-      # uid1 answered first (past timestamp)
-      past_ts = System.monotonic_time(:microsecond) - 1000
-      seed_answer(rid, uid1, "correct", true, past_ts)
-      seed_answer(rid, uid2, "correct", true)
-
-      [first, second] = Gameplay.get_top_solvers(rid)
-      assert first.user_id == uid1
-      assert first.placement == 1
-      assert second.user_id == uid2
-      assert second.placement == 2
+      assert [
+               %{riddle_id: ^rid, user_id: ^uid1, placement: 1, points: 10},
+               %{user_id: ^uid2, placement: 2, points: 9}
+             ] = Gameplay.solve_rows(rid)
     end
 
-    test "respects limit parameter" do
-      rid = unique_riddle_id()
-
-      for _ <- 1..5 do
-        uid = unique_user_id()
-        seed_answer(rid, uid, "correct", true)
-      end
-
-      result = Gameplay.get_top_solvers(rid, 3)
-      assert length(result) == 3
-    end
-
-    test "ignores incorrect answers" do
+    test "counts a player once, at their earliest correct answer" do
       rid = unique_riddle_id()
       uid1 = unique_user_id()
       uid2 = unique_user_id()
-      seed_answer(rid, uid1, "wrong", false)
-      seed_answer(rid, uid2, "correct", true)
+      ts = System.monotonic_time(:microsecond)
+      seed_answer(rid, uid1, "correct", true, ts - 1000)
+      seed_answer(rid, uid2, "correct", true, ts - 500)
+      seed_answer(rid, uid1, "correct", true, ts)
 
-      [solver] = Gameplay.get_top_solvers(rid)
-      assert solver.user_id == uid2
-      assert solver.placement == 1
+      assert [%{user_id: ^uid1, placement: 1}, %{user_id: ^uid2, placement: 2}] =
+               Gameplay.solve_rows(rid)
     end
   end
 

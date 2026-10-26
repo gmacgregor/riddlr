@@ -1,8 +1,10 @@
 defmodule RiddlrWeb.GameLive.Results do
   @moduledoc """
-  Shows a completed riddle: who solved it, the leaderboard, and a chat that
-  follows the riddle's answers. Opening it for a riddle in any other state
-  sends the player to the screen for that state.
+  Shows a finished riddle: who solved it, the leaderboard, and a chat that
+  follows the riddle's answers. Works for completed and archived riddles: the
+  board comes from saved solves, but archive drops the answers, so an archived
+  riddle shows an empty feed. Opening it for a riddle in any other state sends
+  the player to the screen for that state.
   """
 
   use RiddlrWeb, :live_view
@@ -23,26 +25,27 @@ defmodule RiddlrWeb.GameLive.Results do
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     case Games.fetch_riddle(id) do
-      {:ok, %{play_status: "completed"} = riddle} ->
+      {:ok, %{play_status: status} = riddle} when status in ["completed", "archived"] ->
         user = socket.assigns.current_user
+        # Chat closes at archive. A page opened before then keeps its chat.
+        chat_open? = status == "completed"
 
-        {feed, top_solvers} =
+        feed =
           if connected?(socket) do
-            Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
-            Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
-            Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(id))
+            if chat_open?, do: subscribe_to_chat(id)
             Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
-            {[@round_ended | load_feed(riddle.id)], load_top_solvers(riddle.id)}
+            [@round_ended | load_feed(riddle.id)]
           else
-            {[], []}
+            []
           end
 
         {:ok,
          socket
          |> assign(:banned, is_banned?(user))
+         |> assign(:chat_open?, chat_open?)
          |> assign(:page_title, "Results — #{riddle.name}")
          |> assign(:riddle, riddle)
-         |> assign(:top_solvers, top_solvers)
+         |> assign(:top_solvers, load_board(riddle.id))
          |> assign(:active_tab, :leaderboard)
          |> stream(:answers, feed, limit: 100)}
 
@@ -52,12 +55,6 @@ defmodule RiddlrWeb.GameLive.Results do
       {:ok, %{play_status: "live"}} ->
         {:ok, push_navigate(socket, to: ~p"/game/#{id}/play")}
 
-      {:ok, %{play_status: "archived"}} ->
-        {:ok,
-         socket
-         |> put_flash(:info, "That game has ended.")
-         |> push_navigate(to: ~p"/")}
-
       {:error, :not_found} ->
         {:ok, push_navigate(socket, to: ~p"/")}
     end
@@ -66,6 +63,10 @@ defmodule RiddlrWeb.GameLive.Results do
   @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, :active_tab, String.to_existing_atom(tab))}
+  end
+
+  def handle_event("send_chat", _params, %{assigns: %{chat_open?: false}} = socket) do
+    {:noreply, socket}
   end
 
   def handle_event("send_chat", %{"message" => text}, socket) do
@@ -121,6 +122,13 @@ defmodule RiddlrWeb.GameLive.Results do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
+  @spec subscribe_to_chat(String.t()) :: :ok | {:error, term()}
+  defp subscribe_to_chat(riddle_id) do
+    Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
+    Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle_id))
+    Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(riddle_id))
+  end
+
   @spec check_not_banned(map()) :: :ok | {:error, :banned}
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
@@ -151,14 +159,20 @@ defmodule RiddlrWeb.GameLive.Results do
     |> Enum.map(&%{&1 | offset_ms: nil})
   end
 
-  @spec load_top_solvers(integer()) :: [map()]
-  defp load_top_solvers(riddle_id) do
+  # Every saved solve, shaped for `game_leaderboard/1`. A deleted account
+  # shows as "Player", as on the feed.
+  @spec load_board(integer()) :: [map()]
+  defp load_board(riddle_id) do
     riddle_id
-    |> Gameplay.get_top_solvers()
-    |> Feed.put_usernames()
-    |> Enum.map(fn entry ->
-      solve_time_display = entry.solve_time_ms && Feed.format_time(div(entry.solve_time_ms, 1000))
-      Map.put(entry, :solve_time_display, solve_time_display)
+    |> Gameplay.list_solves()
+    |> Enum.map(fn solve ->
+      %{
+        placement: solve.placement,
+        points: solve.points,
+        username: if(solve.user, do: solve.user.username, else: "Player"),
+        solve_time_display:
+          solve.solve_time_ms && Feed.format_time(div(solve.solve_time_ms, 1000))
+      }
     end)
   end
 end

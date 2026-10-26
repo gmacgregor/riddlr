@@ -43,6 +43,22 @@ defmodule Riddlr.GamesFixtures do
   end
 
   @doc """
+  A saved solve of `riddle` by `user`. Pass `:placement`, `:points` and
+  `:solve_time_ms` to override the defaults (1st, 10 points, 3s).
+  """
+  def solve_fixture(riddle, user, attrs \\ %{}) do
+    Riddlr.Repo.insert!(
+      struct!(
+        Riddlr.Gameplay.Solve,
+        Map.merge(
+          %{placement: 1, points: 10, solve_time_ms: 3_000},
+          Map.merge(attrs, %{riddle_id: riddle.id, user_id: user.id})
+        )
+      )
+    )
+  end
+
+  @doc """
   The shared "logic" category every riddle fixture hangs off.
   """
   def category_fixture do

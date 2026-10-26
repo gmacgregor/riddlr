@@ -30,12 +30,21 @@ defmodule Riddlr.Gameplay do
   and are recreated automatically if that process restarts. A restart wipes every
   in-flight answer.
 
+  When a riddle completes, `solve_rows/1` turns the ETS race into rows that
+  `Riddlr.Games.transition/3` saves as `Riddlr.Gameplay.Solve`. After that,
+  `list_solves/1`, `solve_for/2` and `count_solves/1` read the database, and
+  still work after archive drops the ETS rows.
+
   The 1s cooldown is not atomic — two concurrent submissions can both pass before
   either writes. It is a rate-limiting UX affordance, not a security boundary.
   """
 
   alias Riddlr.Clock
   alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Solve
+  alias Riddlr.Repo
+
+  import Ecto.Query, only: [from: 2]
 
   @answers_table :riddle_answers
   @cooldowns_table :answer_cooldowns
@@ -164,11 +173,12 @@ defmodule Riddlr.Gameplay do
   @type solve :: %{placement: pos_integer(), points: non_neg_integer()}
 
   @doc """
-  The placement and points a user earned on a riddle, or `nil` if they have
-  not solved it. Lets a player who reloads see their own result again.
+  The placement and points a user earned on a live riddle, read from ETS, or
+  `nil` if they have not solved it. Lets a player who reloads Play see their
+  own result again. Once the riddle completes, use `solve_for/2`.
   """
-  @spec solve_for(integer(), integer()) :: solve() | nil
-  def solve_for(riddle_id, user_id) do
+  @spec live_solve_for(integer(), integer()) :: solve() | nil
+  def live_solve_for(riddle_id, user_id) do
     case Enum.find(get_answers(riddle_id), &(&1.correct and &1.user_id == user_id)) do
       nil ->
         nil
@@ -292,24 +302,62 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
-  Returns the top `limit` solvers for a riddle, ordered by solve time (fastest first).
-  Each entry: %{user_id, placement, points}.
+  Every solver of a riddle from ETS, as rows ready for `Repo.insert_all/3` into
+  `Riddlr.Gameplay.Solve`. Fastest first, placed 1..N, with points 10 down to
+  1 and then 0.
+
+  A player counts once, at their earliest correct answer: the already-solved
+  guard is not atomic, so two fast correct submissions can both land.
+
+  `Riddlr.Workers.CompleteRiddleWorker` passes these to `Games.transition/3`,
+  which saves them in the same transaction as the move to `completed`.
   """
-  def get_top_solvers(riddle_id, limit \\ 10) do
+  @spec solve_rows(integer()) :: [map()]
+  def solve_rows(riddle_id) do
+    now = Clock.utc_now() |> DateTime.truncate(:second)
+
     @answers_table
     |> :ets.match_object(Answer.ets_pattern(riddle_id, true))
     |> Enum.map(&Answer.from_ets/1)
     |> Enum.sort_by(& &1.timestamp)
-    |> Enum.take(limit)
+    |> Enum.uniq_by(& &1.user_id)
     |> Enum.with_index(1)
     |> Enum.map(fn {answer, placement} ->
       %{
+        riddle_id: riddle_id,
         user_id: answer.user_id,
         placement: placement,
         points: points_for_placement(placement),
-        solve_time_ms: answer.offset_ms
+        solve_time_ms: answer.offset_ms,
+        inserted_at: now,
+        updated_at: now
       }
     end)
+  end
+
+  @doc """
+  Every saved solve of a riddle, by placement, with `:user` loaded. Empty
+  until the riddle completes.
+  """
+  @spec list_solves(integer()) :: [Solve.t()]
+  def list_solves(riddle_id) do
+    from(s in Solve, where: s.riddle_id == ^riddle_id, order_by: s.placement, preload: :user)
+    |> Repo.all()
+  end
+
+  @doc """
+  A user's saved solve of a riddle, or `nil` if they did not solve it or the
+  riddle has not completed.
+  """
+  @spec solve_for(integer(), integer()) :: Solve.t() | nil
+  def solve_for(riddle_id, user_id) do
+    Repo.get_by(Solve, riddle_id: riddle_id, user_id: user_id)
+  end
+
+  @doc "How many solves a riddle has saved. 0 until the riddle completes."
+  @spec count_solves(integer()) :: non_neg_integer()
+  def count_solves(riddle_id) do
+    Repo.aggregate(from(s in Solve, where: s.riddle_id == ^riddle_id), :count)
   end
 
   @doc """

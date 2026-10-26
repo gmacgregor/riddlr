@@ -3,6 +3,7 @@
 | Entity | File | Notes |
 |---|---|---|
 | `Riddlr.Games.Riddle` | `lib/riddlr/games/riddle.ex` | Central aggregate. `answers` (array of accepted strings), `difficulty`, `hint`/`hint_delay`, `live_date`, `play_status`, `publish_status`, timing knobs (`ready_before_seconds`, `solve_time`, `archive_after_seconds`, `live_until_solved`), stats (`first_solve_time`, `completion_rate`, `average_solve_time`) |
+| `Riddlr.Gameplay.Solve` | `lib/riddlr/gameplay/solve.ex` | One correct solver of a riddle: `placement`, `points`, `solve_time_ms`. Written when the riddle completes; outlives archive |
 | `Riddlr.Games.Category` | `lib/riddlr/games/category.ex` | Taxonomy, unique `name` |
 | `Riddlr.Accounts.User` | `lib/riddlr/accounts/user.ex` | `email`, `username`, `role`, `account_status`, denormalized `total_points` / `wins_count` / `podium_count` |
 | `Riddlr.Accounts.UserToken` | `lib/riddlr/accounts/user_token.ex` | Session / magic-link / email-confirm tokens |
@@ -12,12 +13,13 @@ Relationships:
 
 - `Category` has_many `Riddle` (required `category_id`)
 - `Riddle` belongs_to `first_solver` → `User` (nullable)
+- `Solve` belongs_to `Riddle` (deleted with it) and `User` (nilified when the user is deleted). Unique on `(riddle_id, user_id)` and `(riddle_id, placement)`
 - `User` has_many `UserToken`
 
-**There is no answer/submission/leaderboard table.** Submissions, cooldowns and
+**There is no answer/submission table.** Submissions, cooldowns and live
 placement live in ETS (`:riddle_answers` bag, `:answer_cooldowns` set) owned by
-`Riddlr.Gameplay.EtsOwner` and are wiped on archive. Only aggregates flush back to
-`riddles` and `users`.
+`Riddlr.Gameplay.EtsOwner` and are wiped on archive. On completion every solver is
+copied to `solves`; other aggregates flush back to `riddles` and `users`.
 
 ## Bounded Contexts
 
@@ -26,7 +28,7 @@ placement live in ETS (`:riddle_answers` bag, `:answer_cooldowns` set) owned by
 - `Riddlr.Gameplay` (`lib/riddlr/gameplay.ex`) — the Answer race. `submit_answer/3`
   owns the guard chain, cooldown, placement, points, first solver and the
   live-until-solved decision; the ETS primitives behind it are private. Also exposes
-  read-side state (`solved?/2`, `get_answers/1`, `get_top_solvers/2`,
+  read-side state (`solved?/2`, `get_answers/1`, `live_solve_for/2`, `solve_rows/1`,
   `get_completion_stats/1`), the chat broadcast and ETS cleanup
 - `Riddlr.Accounts` — registration, magic-link/password auth, `award_game_points/3`
 - `Riddlr.Authorization` — hierarchical roles `super_admin > moderator > editor >
@@ -103,13 +105,15 @@ row and its jobs.
    conditional `update_all ... where is_nil(first_solver_id)` is the concurrency
    gate. Nothing is broadcast — the round keeps running to `solve_time`.
 6. **Complete** — `Games.transition(id, :completed, stats)` writes `completed`, `first_solver_id`,
-   `first_solve_time`, `completion_rate` (unique solvers / unique answerers), enqueues
-   archive. Play LiveView re-streams correct answers from ETS — revealing the
-   text masked during the round — loads `get_top_solvers/2`
-   (fastest 10) and switches to a tabbed Leaderboard / post-game Chat panel with a
-   cooldown countdown. Chat reuses the `answer_submitted` topic with `chat: true`.
+   `first_solve_time`, `completion_rate` (unique solvers / unique answerers), saves every
+   solver to `solves` (from `Gameplay.solve_rows/1`, passed in by `CompleteRiddleWorker`)
+   in the same transaction, and enqueues archive. Results (`/game/:id/results`) reads the
+   board from `Gameplay.list_solves/1` and re-streams answers from ETS — revealing the
+   text masked during the round — in a tabbed Leaderboard / post-game Chat panel.
+   Chat reuses the `answer_submitted` topic with `chat: true`.
 7. **Archive** — `Games.transition(id, :archived)` writes `archived` and drops that riddle's
-   ETS rows via `Gameplay.cleanup_riddle/1` (as does `Games.delete_riddle/1`).
+   ETS rows via `Gameplay.cleanup_riddle/1` (as does `Games.delete_riddle/1`). Its `solves`
+   stay, so Results still shows the board; the feed is empty.
 
 Every Play status transition goes through one interface, `Games.transition/3`, which
 owns the guards (published + `Riddle.valid_transitions/0`), the write, the follow-on

@@ -14,6 +14,13 @@ defmodule Riddlr.Workers.CompleteRiddleWorker do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"riddle_id" => id}}) do
-    Transition.run(id, :completed, Gameplay.get_completion_stats(id))
+    Transition.run(id, :completed, completion_stats(id))
+  end
+
+  @spec completion_stats(integer()) :: map()
+  defp completion_stats(id) do
+    id
+    |> Gameplay.get_completion_stats()
+    |> Map.put(:solves, Gameplay.solve_rows(id))
   end
 end

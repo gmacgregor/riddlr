@@ -65,7 +65,7 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:words, String.split(riddle.description))
-             |> assign(:solve, Gameplay.solve_for(riddle.id, user.id))
+             |> assign(:solve, Gameplay.live_solve_for(riddle.id, user.id))
              |> assign(:time_remaining, solve_seconds_left(riddle))
              |> assign(:guess_msg, nil)
              |> assign(:guess_wrong?, false)

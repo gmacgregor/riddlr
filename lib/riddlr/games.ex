@@ -378,6 +378,7 @@ defmodule Riddlr.Games do
   defp run_transition(riddle, to, stats) do
     Multi.new()
     |> Multi.update(:riddle, Riddle.changeset(riddle, transition_attrs(to, stats)))
+    |> save_solves(to, stats)
     |> enqueue_next_job(to)
     |> Repo.transaction()
     |> case do
@@ -385,6 +386,17 @@ defmodule Riddlr.Games do
       {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
     end
   end
+
+  # The solves go in with the move to `completed`, so the board and the status
+  # commit or roll back as one. A retry after rollback writes them again; a
+  # second run after commit is refused as an invalid transition. The
+  # `on_conflict: :nothing` covers a direct second call.
+  @spec save_solves(Multi.t(), atom(), map()) :: Multi.t()
+  defp save_solves(multi, :completed, %{solves: [_ | _] = solves}) do
+    Multi.insert_all(multi, :solves, Riddlr.Gameplay.Solve, solves, on_conflict: :nothing)
+  end
+
+  defp save_solves(multi, _to, _stats), do: multi
 
   defp enqueue_next_job(multi, :live) do
     Multi.insert(multi, :complete_job, fn %{riddle: riddle} ->

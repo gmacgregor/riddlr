@@ -60,15 +60,26 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       assert path == "/game/#{riddle.id}/play"
     end
+  end
 
-    test "redirects home with a flash when the riddle is archived", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
-      conn = log_in_user(conn, user)
+  describe "leaderboard" do
+    test "shows the saved solves of a completed riddle", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      winner = AccountsFixtures.user_fixture()
 
-      assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
-               live(conn, ~p"/game/#{riddle.id}/results")
+      GamesFixtures.solve_fixture(riddle, winner, %{
+        placement: 1,
+        points: 10,
+        solve_time_ms: 3_000
+      })
 
-      assert flash["info"] == "That game has ended."
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 2, points: 9, solve_time_ms: 61_000})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#panel-leaderboard .rg-podium__card--gold", winner.username)
+      assert has_element?(live, "#panel-leaderboard .rg-podium__card--gold", "+00:03")
+      assert has_element?(live, "#panel-leaderboard .rg-podium__card--silver", user.username)
     end
   end
 
@@ -200,6 +211,46 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
   end
 
   describe "archive" do
+    test "shows the saved board for an archived riddle", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
+      winner = AccountsFixtures.user_fixture()
+
+      GamesFixtures.solve_fixture(riddle, winner, %{
+        placement: 1,
+        points: 10,
+        solve_time_ms: 3_000
+      })
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, ".rg-round-header")
+      assert has_element?(live, "#panel-leaderboard .rg-podium__card--gold", winner.username)
+      refute has_element?(live, "#chat-feed .rg-post-chat-msg")
+    end
+
+    test "takes no chat once archived", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      refute has_element?(live, "#chat-form")
+
+      Gameplay.broadcast_answer(Answer.new(riddle.id, user, "late message", chat: true))
+      render_hook(live, "send_chat", %{"message" => "sneaky"})
+
+      refute has_element?(live, "#chat-feed", "late message")
+      refute has_element?(live, "#chat-feed", "sneaky")
+    end
+
+    test "shows an empty board when nobody solved", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#panel-leaderboard")
+      refute has_element?(live, "#panel-leaderboard .rg-podium")
+    end
+
     test "stays on the page and shows a flash when the riddle is archived", %{
       conn: conn,
       user: user
