@@ -544,6 +544,50 @@
   color: var(--hi);
 }
 
+/* ───────────────── Lobby ───────────────── */
+.rg-lobby {
+  display: grid;
+  gap: var(--s6);
+}
+.rg-lobby__clock {
+  display: grid;
+  gap: var(--s4);
+  justify-items: start;
+}
+.rg-lobby__h {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(32px, 8vw, 56px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+.rg-lobby__when {
+  color: var(--muted);
+}
+.rg-lobby__when b {
+  color: var(--paper);
+  font-family: var(--f-label);
+}
+.rg-lobby__ready {
+  min-height: 1.5em;
+  font-family: var(--f-label);
+  font-weight: 600;
+  color: var(--red);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+@media (min-width: 1024px) {
+  .rg-lobby {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    column-gap: var(--s8);
+    padding-top: var(--s7);
+  }
+  .rg-lobby__clock {
+    grid-row: span 2;
+    align-content: start;
+  }
+}
+
 /* ───────────────── Flash (restyles the shared flash group in the shell) ───────────────── */
 .rg-app .rg-flash {
   background: var(--ink-2);

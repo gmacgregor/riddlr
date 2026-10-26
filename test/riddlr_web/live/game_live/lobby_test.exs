@@ -5,6 +5,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
   alias Riddlr.Clock.Frozen
   alias Riddlr.{Games, GamesFixtures, AccountsFixtures}
+  alias RiddlrWeb.GameCopy
 
   setup do
     user = AccountsFixtures.user_fixture()
@@ -34,7 +35,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == "Game lobby is not yet available."
+      assert flash["info"] == GameCopy.lobby_unavailable()
     end
 
     test "redirects when riddle is :scheduled", %{conn: conn, user: user} do
@@ -47,7 +48,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == "Game lobby is not yet available."
+      assert flash["info"] == GameCopy.lobby_unavailable()
     end
 
     test "redirects when riddle is :completed", %{conn: conn, user: user} do
@@ -60,7 +61,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == "Game lobby is not yet available."
+      assert flash["info"] == GameCopy.lobby_unavailable()
     end
 
     test "redirects when riddle is :archived", %{conn: conn, user: user} do
@@ -73,7 +74,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == "Game lobby is not yet available."
+      assert flash["info"] == GameCopy.lobby_unavailable()
     end
 
     test "mounts successfully when riddle is :ready", %{conn: conn, user: user} do
@@ -84,7 +85,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       conn = log_in_user(conn, user)
       {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert html =~ "Riddle drops in"
+      assert html =~ GameCopy.lobby_heading()
     end
 
     test "renders the game topbar with account controls and no bottom nav", %{
@@ -127,6 +128,33 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       %{riddle: riddle, user: user}
     end
 
+    test "shows the riddle number, category and heading", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, ".rg-lobby__clock .rg-kicker__num", "No. #{riddle.number}")
+      assert has_element?(live, ".rg-lobby__clock .rg-kicker", riddle.category.name)
+      assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.lobby_heading())
+    end
+
+    test "shows the solve time and the scoring rule", %{conn: conn, user: user} do
+      riddle =
+        GamesFixtures.riddle_fixture(%{solve_time: 90})
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, ".rg-facts .rg-fact", GameCopy.solve_time("01:30"))
+      assert has_element?(live, ".rg-facts .rg-fact", GameCopy.scoring_rule())
+      assert has_element?(live, ".rg-fact svg.rg-icon[aria-hidden='true']")
+    end
+
     test "shows countdown element with data-seconds attribute", %{
       conn: conn,
       riddle: riddle,
@@ -134,14 +162,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
     } do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert has_element?(live, "#countdown[phx-hook][data-seconds]")
-      assert has_element?(live, ".rg-pre-game__label", "Riddle drops in")
+      assert has_element?(live, "#lobby-flaps.rg-flaps[role='timer'][phx-hook][data-seconds]")
     end
 
     test "shows player count element", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert has_element?(live, ".rg-pre-game__label", "waiting")
+      assert has_element?(live, "#lobby-player-count", GameCopy.players_waiting(1))
     end
   end
 
@@ -162,6 +189,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       html = conn |> get(~p"/game/#{riddle.id}/lobby") |> html_response(200)
 
       assert html =~ ~s(data-seconds="90")
+      assert html =~ ~s(aria-label="01:30 #{GameCopy.clock_label_tail()}")
     end
 
     test "handles :tick and updates time_remaining and data-seconds", %{conn: conn, user: user} do
@@ -175,17 +203,65 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      # Capture data-seconds before tick
-      before_html = render(live)
-      assert before_html =~ ~r/data-seconds="(\d+)"/
+      refute has_element?(live, "#lobby-flaps[data-seconds='100']")
 
       send(live.pid, {:countdown_tick, :lobby, 100})
-      after_html = render(live)
 
-      # Countdown element still present and data-seconds attribute is set
-      assert has_element?(live, "#countdown[data-seconds]")
+      assert has_element?(live, "#lobby-flaps[data-seconds='100']")
+    end
 
-      assert after_html =~ ~s(data-seconds="100")
+    test "tells players to get ready only in the last five seconds", %{
+      conn: conn,
+      user: user
+    } do
+      riddle =
+        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(DateTime.utc_now(), 120, :second)})
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, "#lobby-ready[aria-live='assertive']")
+      refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+
+      send(live.pid, {:countdown_tick, :lobby, 6})
+      refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+
+      send(live.pid, {:countdown_tick, :lobby, 5})
+      assert has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+
+      send(live.pid, {:countdown_tick, :lobby, 1})
+      assert has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+
+      send(live.pid, {:countdown_tick, :lobby, 0})
+      refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+    end
+  end
+
+  describe "drop time" do
+    test "gives the drop time for the browser to show in local time", %{conn: conn, user: user} do
+      live_date = DateTime.utc_now() |> DateTime.add(600, :second) |> DateTime.truncate(:second)
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{live_date: live_date})
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      iso = DateTime.to_iso8601(live_date)
+      utc_hhmm = Calendar.strftime(live_date, "%H:%M")
+
+      assert has_element?(live, ".rg-lobby__when", GameCopy.lobby_when_lead())
+      assert has_element?(live, ".rg-lobby__when", GameCopy.lobby_when_tail())
+
+      assert has_element?(
+               live,
+               ".rg-lobby__when time#lobby-drop-time[phx-hook][datetime='#{iso}']",
+               utc_hhmm
+             )
     end
   end
 
@@ -218,7 +294,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       send(live.pid, {:riddle_live, other_riddle})
 
       # Page still showing lobby content
-      assert has_element?(live, ".rg-pre-game__label", "Riddle drops in")
+      assert has_element?(live, "#lobby-h", GameCopy.lobby_heading())
     end
   end
 
@@ -232,7 +308,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
       # Connected LiveView test triggers Presence.track, so count is 1
-      assert has_element?(live, ".rg-pre-game__label", "1 player waiting")
+      assert has_element?(live, "#lobby-player-count", GameCopy.players_waiting(1))
     end
 
     test "updates player count when Presence diff received", %{conn: conn, user: user} do
@@ -254,7 +330,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       )
 
       # Player count re-renders after diff; connected mount tracks 1 player
-      assert has_element?(live, ".rg-pre-game__label", "1 player waiting")
+      assert has_element?(live, "#lobby-player-count", GameCopy.players_waiting(1))
     end
   end
 

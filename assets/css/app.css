@@ -338,23 +338,6 @@ body.phx-connecting #reconnect-bar {
     animation: dot-pulse 2s ease-in-out infinite;
 }
 
-/* ─── Countdown tick pulse ───────────────────────────────────────────────────── */
-@keyframes countdown-tick {
-    0% {
-        transform: scale(1);
-    }
-    30% {
-        transform: scale(1.03);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-.countdown-tick {
-    animation: countdown-tick 150ms ease-out;
-}
-
 /* ─── Lobby timer border glow (intensifies near zero) ────────────────────────── */
 .timer-card-urgent {
     box-shadow:

@@ -1,66 +1,37 @@
 <Layouts.game flash={@flash} current_scope={@current_scope}>
-  <%!-- ═══════════════════════════════════════════════════════════════
-     TIMER SECTION — pre-game countdown
-     ═══════════════════════════════════════════════════════════════ --%>
-  <section class="rg-timer-section" aria-label="Countdown to game start">
-    <.game_countdown riddle={@riddle} time_remaining={@time_remaining} format={:long} />
+  <section class="rg-view" aria-labelledby="lobby-h">
+    <div class="rg-wrap rg-lobby">
+      <div class="rg-lobby__clock">
+        <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />
+        <h1 id="lobby-h" class="rg-lobby__h" tabindex="-1">{GameCopy.lobby_heading()}</h1>
+        <GameComponents.flaps id="lobby-flaps" seconds={@time_remaining} />
+        <p :if={@riddle.live_date} class="rg-lobby__when">
+          {GameCopy.lobby_when_lead()} <b><GameComponents.local_time
+              id="lobby-drop-time"
+              at={@riddle.live_date}
+            /></b>. {GameCopy.lobby_when_tail()}
+        </p>
+        <ul class="rg-facts">
+          <li class="rg-fact">
+            <GameComponents.icon name="clock" /> {GameCopy.solve_time(
+              GameComponents.clock_str(@riddle.solve_time)
+            )}
+          </li>
+          <li class="rg-fact"><GameComponents.icon name="trophy" /> {GameCopy.scoring_rule()}</li>
+        </ul>
+        <p id="lobby-ready" class="rg-lobby__ready" aria-live="assertive">
+          {if @time_remaining in 1..5, do: GameCopy.lobby_ready()}
+        </p>
+      </div>
 
-    <div class="rg-pre-game__waiting" aria-live="polite" aria-atomic="true">
-      <span class="rg-pre-game__label">
-        {@player_count} {if @player_count == 1, do: "player waiting", else: "players waiting"}
-      </span>
+      <section class="rg-panel" aria-labelledby="room-h">
+        <div class="rg-panel__head">
+          <h2 id="room-h" class="rg-panel__h">In the room</h2>
+          <span id="lobby-player-count" class="rg-count rg-nowrap" aria-live="polite">
+            {GameCopy.players_waiting(@player_count)}
+          </span>
+        </div>
+      </section>
     </div>
   </section>
 </Layouts.game>
-
-<%!-- ═══════════════════════════════════════════════════════════════
-     JS HOOKS
-     ═══════════════════════════════════════════════════════════════ --%>
-<script :type={Phoenix.LiveView.ColocatedHook} name=".Countdown">
-  export default {
-    mounted() {
-      this.tick()
-      this.interval = setInterval(() => this.tick(), 1000)
-      this.handleEvent("countdown-tick", ({ seconds }) => {
-        this.el.dataset.seconds = seconds
-        this.tick()
-      })
-    },
-    destroyed() {
-      clearInterval(this.interval)
-    },
-    tick() {
-      const secs = parseInt(this.el.dataset.seconds, 10) || 0
-      const formatMode = this.el.dataset.format || "long"
-
-      // Mirror format_countdown/1 in custom_components.ex — edit there to change format.
-      const days = Math.floor(secs / 86400)
-      const rem1 = secs % 86400
-      const h = Math.floor(rem1 / 3600).toString().padStart(2, "0")
-      const m = Math.floor((rem1 % 3600) / 60).toString().padStart(2, "0")
-      const s = (rem1 % 60).toString().padStart(2, "0")
-      const hms = `${h}:${m}:${s}`
-
-      if (formatMode === "short") {
-        const totalHours = Math.floor(secs / 3600).toString().padStart(2, "0")
-        const shortMinutes = Math.floor((secs % 3600) / 60).toString().padStart(2, "0")
-        const shortSeconds = (secs % 60).toString().padStart(2, "0")
-        this.el.textContent = `${totalHours}:${shortMinutes}:${shortSeconds}`
-      } else {
-        this.el.textContent = days > 0 ? `${days} ${days === 1 ? "day" : "days"}, ${hms}` : hms
-      }
-
-      if (secs <= 10) {
-        this.el.style.color = "var(--error)"
-      } else if (secs <= 60) {
-        this.el.style.color = "var(--text-emphasis)"
-      } else {
-        this.el.style.color = "var(--accent-gold)"
-      }
-
-      this.el.classList.remove("countdown-tick")
-      void this.el.offsetWidth
-      this.el.classList.add("countdown-tick")
-    }
-  }
-</script>

@@ -6,6 +6,8 @@ defmodule RiddlrWeb.GameComponents do
   """
   use Phoenix.Component
 
+  alias RiddlrWeb.GameCopy
+
   @tones ~w(hi mint sky rose paper red)
 
   @typedoc "A tile colour. Each one maps to a `data-tone` rule in `game.css`."
@@ -55,6 +57,202 @@ defmodule RiddlrWeb.GameComponents do
       data-tone={@tone}
       aria-hidden="true"
     >{@initial}</span>
+    """
+  end
+
+  @doc """
+  Formats seconds as a clock: `MM:SS`, or `HH:MM:SS` from one hour up.
+  Negative seconds read as zero. The `.Flaps` hook in `flaps/1` mirrors
+  this, so change both together.
+  """
+  @spec clock_str(integer()) :: String.t()
+  def clock_str(seconds) when is_integer(seconds) do
+    secs = max(seconds, 0)
+    h = div(secs, 3600)
+    m = secs |> rem(3600) |> div(60)
+    s = rem(secs, 60)
+
+    if h > 0, do: Enum.map_join([h, m, s], ":", &pad/1), else: Enum.map_join([m, s], ":", &pad/1)
+  end
+
+  @spec pad(non_neg_integer()) :: String.t()
+  defp pad(n), do: n |> Integer.to_string() |> String.pad_leading(2, "0")
+
+  @doc """
+  A split-flap clock counting down to a riddle's start.
+
+  The server renders the first value from `seconds`. After that the `.Flaps`
+  hook owns the digits: it counts down once a second, re-syncs on each
+  `countdown-tick` push event, and flips only the digits that change. The
+  container is `phx-update="ignore"`, so LiveView still patches
+  `data-seconds` but leaves the digits to the hook.
+  """
+  attr :id, :string, required: true
+  attr :seconds, :integer, required: true
+
+  @spec flaps(map()) :: Phoenix.LiveView.Rendered.t()
+  def flaps(assigns) do
+    assigns = assign(assigns, :clock, clock_str(assigns.seconds))
+
+    ~H"""
+    <div
+      id={@id}
+      class={[
+        "rg-flaps",
+        String.length(@clock) > 5 && "rg-flaps--long",
+        urgency(@seconds)
+      ]}
+      role="timer"
+      aria-label={"#{@clock} #{GameCopy.clock_label_tail()}"}
+      data-label-tail={GameCopy.clock_label_tail()}
+      data-seconds={@seconds}
+      phx-hook=".Flaps"
+      phx-update="ignore"
+    >
+      <%= for char <- String.graphemes(@clock) do %>
+        <span
+          :if={char == ":"}
+          class="rg-flaps__sep"
+          aria-hidden="true"
+        >:</span><span :if={char != ":"} class="rg-flap" aria-hidden="true">{char}</span>
+      <% end %>
+    </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".Flaps">
+      // Mirrors clock_str/1 in game_components.ex. Change both together.
+      const clockStr = (secs) => {
+        secs = Math.max(0, secs)
+        const pad = (n) => String(n).padStart(2, "0")
+        const h = Math.floor(secs / 3600)
+        const m = Math.floor((secs % 3600) / 60)
+        const s = secs % 60
+        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+      }
+
+      export default {
+        mounted() {
+          this.seconds = parseInt(this.el.dataset.seconds, 10) || 0
+          this.handleEvent("countdown-tick", ({ seconds }) => {
+            this.seconds = seconds
+            this.start()
+            this.render()
+          })
+          this.start()
+          this.render()
+        },
+        destroyed() {
+          clearInterval(this.timer)
+        },
+        // Restart the local second so it lines up with the server's tick.
+        start() {
+          clearInterval(this.timer)
+          this.timer = setInterval(() => {
+            this.seconds = Math.max(0, this.seconds - 1)
+            this.render()
+          }, 1000)
+        },
+        render() {
+          const str = clockStr(this.seconds)
+          const chars = [...str]
+          const layout = chars.map((c) => (c === ":" ? ":" : "d")).join("")
+          const el = this.el
+
+          // Rebuild the cells only when the shape changes (MM:SS <-> HH:MM:SS).
+          // Read the shape from the DOM: LiveView strips data-* attributes it
+          // did not render, so the hook cannot keep it on the element.
+          const current = [...el.children]
+            .map((n) => (n.classList.contains("rg-flaps__sep") ? ":" : "d"))
+            .join("")
+          if (current !== layout) {
+            el.innerHTML = chars
+              .map((c) => c === ":"
+                ? '<span class="rg-flaps__sep" aria-hidden="true">:</span>'
+                : '<span class="rg-flap" aria-hidden="true"></span>')
+              .join("")
+          }
+          el.classList.toggle("rg-flaps--long", chars.length > 5)
+
+          chars.forEach((c, i) => {
+            const node = el.children[i]
+            if (c === ":" || node.textContent === c) return
+            node.textContent = c
+            node.classList.remove("is-tick")
+            // Force a reflow so the browser restarts the flip animation.
+            void node.offsetWidth
+            node.classList.add("is-tick")
+          })
+
+          // Mirrors urgency/1.
+          el.classList.toggle("is-crit", this.seconds <= 5)
+          el.classList.toggle("is-warn", this.seconds > 5 && this.seconds <= 10)
+          el.setAttribute("aria-label", `${str} ${el.dataset.labelTail}`)
+        }
+      }
+    </script>
+    """
+  end
+
+  # The clock's warning class. The `.Flaps` hook mirrors these thresholds.
+  @spec urgency(integer()) :: String.t() | nil
+  defp urgency(seconds) when seconds <= 5, do: "is-crit"
+  defp urgency(seconds) when seconds <= 10, do: "is-warn"
+  defp urgency(_seconds), do: nil
+
+  @doc """
+  A time of day in the viewer's own time zone, as `HH:MM`.
+
+  The server cannot know the viewer's zone, so it renders the UTC time and the
+  `.LocalTime` hook rewrites it in the browser's locale.
+  """
+  attr :id, :string, required: true
+  attr :at, DateTime, required: true
+
+  @spec local_time(map()) :: Phoenix.LiveView.Rendered.t()
+  def local_time(assigns) do
+    ~H"""
+    <time
+      id={@id}
+      datetime={DateTime.to_iso8601(@at)}
+      phx-hook=".LocalTime"
+      phx-update="ignore"
+    >{Calendar.strftime(@at, "%H:%M")}</time>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".LocalTime">
+      export default {
+        mounted() {
+          const at = new Date(this.el.getAttribute("datetime"))
+          this.el.textContent = at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        }
+      }
+    </script>
+    """
+  end
+
+  @doc """
+  A line icon from the game design, drawn in the current text colour.
+  Decorative only: it is hidden from screen readers.
+  """
+  attr :name, :string, required: true, values: ~w(clock trophy)
+
+  @spec icon(map()) :: Phoenix.LiveView.Rendered.t()
+  def icon(assigns) do
+    ~H"""
+    <svg
+      class="rg-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <%= case @name do %>
+        <% "clock" -> %>
+          <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+        <% "trophy" -> %>
+          <path d="M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4a3 3 0 0 0 3 4" /><path d="M17 6h3a3 3 0 0 1-3 4" /><path d="M12 14v4" /><path d="M8 21h8" />
+      <% end %>
+    </svg>
     """
   end
 

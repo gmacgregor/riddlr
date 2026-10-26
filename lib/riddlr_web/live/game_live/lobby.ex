@@ -4,6 +4,8 @@ defmodule RiddlrWeb.GameLive.Lobby do
   alias Riddlr.GameClock
   alias Riddlr.Games
   alias Riddlr.Gameplay.Presence
+  alias RiddlrWeb.GameComponents
+  alias RiddlrWeb.GameCopy
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -16,7 +18,7 @@ defmodule RiddlrWeb.GameLive.Lobby do
           riddle.play_status != "ready" ->
             {:ok,
              socket
-             |> put_flash(:info, "Game lobby is not yet available.")
+             |> put_flash(:info, GameCopy.lobby_unavailable())
              |> push_navigate(to: ~p"/")}
 
           true ->

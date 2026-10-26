@@ -4,6 +4,7 @@ defmodule RiddlrWeb.GameComponentsTest do
   import Phoenix.LiveViewTest
 
   alias RiddlrWeb.GameComponents
+  alias RiddlrWeb.GameCopy
 
   describe "tone/1" do
     test "picks a tone from the sum of the name's char codes" do
@@ -50,6 +51,62 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert html =~ ~s(data-tone="paper")
       refute html =~ "rg-tile--"
+    end
+  end
+
+  describe "clock_str/1" do
+    test "shows MM:SS under an hour" do
+      assert GameComponents.clock_str(0) == "00:00"
+      assert GameComponents.clock_str(45) == "00:45"
+      assert GameComponents.clock_str(3599) == "59:59"
+    end
+
+    test "shows HH:MM:SS from one hour up" do
+      assert GameComponents.clock_str(3600) == "01:00:00"
+      assert GameComponents.clock_str(90_061) == "25:01:01"
+    end
+
+    test "treats negative seconds as zero" do
+      assert GameComponents.clock_str(-3) == "00:00"
+    end
+  end
+
+  describe "flaps/1" do
+    test "renders one flap per digit as a timer" do
+      html = render_component(&GameComponents.flaps/1, id: "clock", seconds: 125)
+
+      assert html =~ ~s(id="clock")
+      assert html =~ ~s(role="timer")
+      assert html =~ ~s(data-seconds="125")
+      assert html =~ ~s(aria-label="02:05 #{GameCopy.clock_label_tail()}")
+      assert html =~ ~s(data-label-tail="#{GameCopy.clock_label_tail()}")
+      assert html =~ ~s(phx-update="ignore")
+      assert length(Regex.scan(~r/class="rg-flap"/, html)) == 4
+      assert length(Regex.scan(~r/class="rg-flaps__sep"/, html)) == 1
+      refute html =~ "rg-flaps--long"
+    end
+
+    test "warns at 6 to 10 seconds and turns critical at 5 or less" do
+      classes = fn seconds ->
+        html = render_component(&GameComponents.flaps/1, id: "clock", seconds: seconds)
+        [_, class] = Regex.run(~r/<div[^>]*class="([^"]*)"/, html)
+        class
+      end
+
+      refute classes.(11) =~ "is-"
+      assert classes.(10) =~ "is-warn"
+      assert classes.(6) =~ "is-warn"
+      refute classes.(6) =~ "is-crit"
+      assert classes.(5) =~ "is-crit"
+      refute classes.(5) =~ "is-warn"
+      assert classes.(0) =~ "is-crit"
+    end
+
+    test "uses the long style from one hour up" do
+      html = render_component(&GameComponents.flaps/1, id: "clock", seconds: 3600)
+
+      assert html =~ "rg-flaps--long"
+      assert length(Regex.scan(~r/class="rg-flap"/, html)) == 6
     end
   end
 
