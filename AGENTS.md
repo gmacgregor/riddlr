@@ -5,11 +5,11 @@
 - Split development tasks into thin vertical slices of functionality that provide incremental value with each iteration and allow you to validate solution effectiveness more immediately.
 - Do not develop large horizontal layers that must be completed before the next layer can be tackled.
 - If a TDD or Test-Driven-Development skill is in your context, load it and follow its guidance.
-- Commit code changes when directly instructed by the user to do so or when a skill in your context instructs you to do so.
+- Commit code changes when directly instructed by the user or when a skill in your context instructs you to do so.
 
 <!-- ELIXIR-PHOENIX-PLUGIN:START -->
 ## Elixir Phoenix Plugin usage
-@docs/elixir_phoenix_plugin.md
+@docs/agents/elixir_phoenix_plugin.md
 <!-- ELIXIR-PHOENIX-PLUGIN:END -->
 
 <!-- usage-rules-start -->
@@ -77,10 +77,10 @@ _A config-driven dev tool for Elixir projects to manage AGENTS.md files and agen
 </important>
 
 ### Issue tracker
-GitHub Issues on `gmacgregor/riddlr`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+GitHub Issues on `gmacgregor/riddlr`, via the `gh` CLI. See `@docs/agents/issue-tracker.md`.
 
 ### Triage labels
-Default five-role vocabulary, label strings unchanged. See `docs/agents/triage-labels.md`.
+Default five-role vocabulary, label strings unchanged. See `@docs/agents/triage-labels.md`.
 
 ### Domain docs
-Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `@docs/agents/domain.md`.
