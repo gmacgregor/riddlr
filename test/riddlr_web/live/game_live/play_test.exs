@@ -92,17 +92,17 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       %{riddle: riddle, user: user}
     end
 
-    test "renders the app header with account controls", %{
+    test "renders the game topbar with account controls and no bottom nav", %{
       conn: conn,
       riddle: riddle,
       user: user
     } do
       conn = log_in_user(conn, user)
-      {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/play")
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      assert html =~ "rg-header"
-      assert html =~ user.username
-      assert html =~ "Log out"
+      assert has_element?(live, "#topbar-me-chip", user.username)
+      assert has_element?(live, "#topbar-log-out")
+      refute has_element?(live, ".rg-nav")
     end
 
     test "displays riddle description", %{conn: conn, riddle: riddle, user: user} do

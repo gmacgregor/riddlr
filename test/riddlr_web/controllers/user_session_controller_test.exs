@@ -9,6 +9,13 @@ defmodule RiddlrWeb.UserSessionControllerTest do
   end
 
   describe "GET /users/log-in" do
+    test "keeps the old app shell, not the game shell", %{conn: conn} do
+      response = conn |> get(~p"/users/log-in") |> html_response(200)
+
+      assert response =~ "rg-header"
+      refute response =~ "rg-topbar"
+    end
+
     test "renders login page", %{conn: conn} do
       conn = get(conn, ~p"/users/log-in")
       response = html_response(conn, 200)

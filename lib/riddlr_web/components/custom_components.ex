@@ -295,7 +295,7 @@ defmodule RiddlrWeb.CustomComponents do
       <div class="rg-answers" aria-label="Accepted answers">
         <span class="rg-answers__label">Accepted Answers</span>
         <div class="rg-answers__pills">
-          <span :for={answer <- @riddle.answers} class="rg-pill">"{answer}"</span>
+          <span :for={answer <- @riddle.answers} class="rg-answer-pill">"{answer}"</span>
         </div>
       </div>
     </section>

@@ -83,7 +83,7 @@
   flex-wrap: wrap;
 }
 
-.rg-pill {
+.rg-answer-pill {
   padding: var(--space-3xs) var(--space-s);
   background: var(--bg-surface);
   border: 1px solid var(--accent-gold);

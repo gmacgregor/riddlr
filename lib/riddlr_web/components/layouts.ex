@@ -5,6 +5,8 @@ defmodule RiddlrWeb.Layouts do
   """
   use RiddlrWeb, :html
 
+  alias RiddlrWeb.GameComponents
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -82,6 +84,81 @@ defmodule RiddlrWeb.Layouts do
     </main>
 
     <.flash_group flash={@flash} />
+    """
+  end
+
+  @doc """
+  Renders the shell for the player screens: Home, Lobby and Play.
+
+  A full-height grid with the topbar on top and a scrolling `main` below.
+  Styled by `assets/css/game.css`. Account screens and admin keep `app/1`.
+
+  ## Examples
+
+      <Layouts.game flash={@flash} current_scope={@current_scope}>
+        <:status><span class="rg-pill">Live</span></:status>
+        <h1>Content</h1>
+      </Layouts.game>
+
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+
+  attr :current_scope, :map,
+    default: nil,
+    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
+
+  slot :status, doc: "the riddle status shown in the middle of the topbar"
+  slot :inner_block, required: true
+
+  @spec game(map()) :: Phoenix.LiveView.Rendered.t()
+  def game(assigns) do
+    ~H"""
+    <div class="rg-app">
+      <header class="rg-topbar">
+        <div class="rg-topbar__in">
+          <.link id="topbar-brand" navigate={~p"/"} class="rg-brand" aria-label="Riddlr home">
+            <span class="rg-brand__mark" aria-hidden="true">
+              <span class="rg-brand__q">?</span><span class="rg-brand__word">riddlr</span>
+            </span>
+          </.link>
+          <div class="rg-topbar__mid" aria-live="polite">{render_slot(@status)}</div>
+          <.topbar_account current_scope={@current_scope} />
+        </div>
+      </header>
+
+      <main class="rg-main">
+        {render_slot(@inner_block)}
+      </main>
+
+      <.flash_group flash={@flash} />
+    </div>
+    """
+  end
+
+  attr :current_scope, :map, default: nil
+
+  @spec topbar_account(map()) :: Phoenix.LiveView.Rendered.t()
+  defp topbar_account(assigns) do
+    ~H"""
+    <nav class="rg-topbar__account" aria-label="Account">
+      <%= if user = @current_scope && @current_scope.user do %>
+        <.link id="topbar-me-chip" navigate={~p"/users/settings"} class="rg-me-chip">
+          <GameComponents.tile
+            initial={GameComponents.initial(user.username)}
+            tone={GameComponents.tone(user.username, user.username)}
+            size="sm"
+          />
+          <span class="rg-me-chip__text">
+            <span class="rg-me-chip__name">{user.username}</span>
+          </span>
+        </.link>
+        <.link id="topbar-log-out" href={~p"/users/log-out"} method="delete" class="rg-link-btn">
+          Log out
+        </.link>
+      <% else %>
+        <.link id="topbar-log-in" navigate={~p"/users/log-in"} class="rg-link-btn">Log in</.link>
+      <% end %>
+    </nav>
     """
   end
 

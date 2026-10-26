@@ -1,4 +1,4 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
+<Layouts.game flash={@flash} current_scope={@current_scope}>
   <%!-- ═══════════════════════════════════════════════════════════════
      TIMER SECTION — pre-game countdown
      ═══════════════════════════════════════════════════════════════ --%>
@@ -11,12 +11,7 @@
       </span>
     </div>
   </section>
-
-  <%!-- ═══════════════════════════════════════════════════════════════
-     NAV BAR
-     ═══════════════════════════════════════════════════════════════ --%>
-  <.game_nav active={:riddle} game_id={to_string(@riddle.id)} />
-</Layouts.app>
+</Layouts.game>
 
 <%!-- ═══════════════════════════════════════════════════════════════
      JS HOOKS
