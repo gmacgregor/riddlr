@@ -92,6 +92,94 @@ defmodule RiddlrWeb.GameCopy do
   @spec clock_label_tail() :: String.t()
   def clock_label_tail, do: "until the riddle starts"
 
+  # ─── Play ─────────────────────────────────────────────────────────────────────
+
+  @doc """
+  A place as an ordinal, e.g. 1 as "1st", 12 as "12th" and 22 as "22nd".
+  """
+  @spec ordinal(pos_integer()) :: String.t()
+  def ordinal(n) when is_integer(n) and n > 0 do
+    suffix =
+      case {rem(n, 100), rem(n, 10)} do
+        {teen, _} when teen in 11..13 -> "th"
+        {_, 1} -> "st"
+        {_, 2} -> "nd"
+        {_, 3} -> "rd"
+        _ -> "th"
+      end
+
+    "#{n}#{suffix}"
+  end
+
+  @doc """
+  Seconds as `M:SS`, e.g. 270 as "4:30". Negative seconds read as zero.
+  """
+  @spec m_ss(integer()) :: String.t()
+  def m_ss(seconds) when is_integer(seconds) do
+    secs = max(seconds, 0)
+    "#{div(secs, 60)}:#{secs |> rem(60) |> Integer.to_string() |> String.pad_leading(2, "0")}"
+  end
+
+  @doc "How many guesses the Play feed holds, e.g. \"12 guesses\"."
+  @spec guess_count(non_neg_integer()) :: String.t()
+  def guess_count(1), do: "1 guess"
+  def guess_count(count), do: "#{delimit(count)} guesses"
+
+  @doc "The Play feed's line when nobody has guessed yet."
+  @spec feed_empty() :: String.t()
+  def feed_empty, do: "No guesses yet. Be the first to swing."
+
+  @doc "The stamp on a solve in the Play feed, e.g. \"Solved · 2nd\"."
+  @spec feed_solved(pos_integer()) :: String.t()
+  def feed_solved(placement), do: "Solved · #{ordinal(placement)}"
+
+  @doc "The message when a player sends an empty guess."
+  @spec guess_empty() :: String.t()
+  def guess_empty, do: "Type an answer first."
+
+  @doc "The message when a player guesses inside the 1s cooldown."
+  @spec guess_cooldown() :: String.t()
+  def guess_cooldown, do: "One guess per second. Breathe."
+
+  @quips [
+    "Not quite. Read it again.",
+    "Nope. The riddle is smirking at you.",
+    "Cold. Very cold.",
+    "That's a no. Shake it off.",
+    "Wrong, but bold. Try again.",
+    "So close? Hard to say. Still no.",
+    "Uuuh… no! Think harder.",
+    "Ooopsie whoopise, not quite. Go on, guess again!",
+    "Good guess, but no! So close… or not.",
+    "Nooooope! Wrack that brain.",
+    "Not so, unfortunately. Back to the drawing board!"
+  ]
+
+  @doc "Every line a wrong guess can get."
+  @spec quips() :: [String.t()]
+  def quips, do: @quips
+
+  @doc """
+  A random line for a wrong guess, never the same as `last`. A new line
+  each time makes the status region speak again.
+  """
+  @spec quip(String.t() | nil) :: String.t()
+  def quip(last \\ nil), do: Enum.random(@quips -- [last])
+
+  @doc "The solved panel's title, given the player's place and points."
+  @spec solved_title(pos_integer(), non_neg_integer()) :: String.t()
+  def solved_title(1, _points), do: "First! Nobody was faster."
+  def solved_title(_placement, 0), do: "Cracked it — just off the board."
+  def solved_title(placement, _points), do: "Cracked it. #{ordinal(placement)} place."
+
+  @doc """
+  The solved panel's line under the title, given the points and the seconds
+  left in the round.
+  """
+  @spec solved_sub(non_neg_integer(), integer()) :: String.t()
+  def solved_sub(points, seconds_left),
+    do: "+#{points} pts · round closes in #{m_ss(seconds_left)}. Watch the others sweat."
+
   # Formats a count with commas between thousands, e.g. 1234 as "1,234".
   @spec delimit(non_neg_integer()) :: String.t()
   defp delimit(n) when is_integer(n) and n >= 0 do

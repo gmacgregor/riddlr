@@ -279,7 +279,7 @@ defmodule RiddlrWeb.GameComponents do
   A line icon from the game design, drawn in the current text colour.
   Decorative only: it is hidden from screen readers.
   """
-  attr :name, :string, required: true, values: ~w(clock trophy)
+  attr :name, :string, required: true, values: ~w(clock trophy check)
 
   @spec icon(map()) :: Phoenix.LiveView.Rendered.t()
   def icon(assigns) do
@@ -300,6 +300,8 @@ defmodule RiddlrWeb.GameComponents do
           <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
         <% "trophy" -> %>
           <path d="M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4a3 3 0 0 0 3 4" /><path d="M17 6h3a3 3 0 0 1-3 4" /><path d="M12 14v4" /><path d="M8 21h8" />
+        <% "check" -> %>
+          <path d="M5 12.5l4.5 4.5L19 7.5" />
       <% end %>
     </svg>
     """

@@ -709,6 +709,355 @@
   }
 }
 
+/* ───────────────── Play ─────────────────
+   Mobile: one column, only the feed scrolls (Layouts.game locks main).
+   Desktop: riddle on the left, feed and input on the right. */
+.rg-view--play {
+  height: 100%;
+}
+.rg-play {
+  height: 100%;
+  max-width: var(--wrap);
+  margin-inline: auto;
+  display: grid;
+  grid-template-areas: "clock" "riddle" "feed" "input";
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Clockbar. The server sets is-warn (11–20s) and is-crit (≤10s) on .rg-play. */
+.rg-play__clock {
+  grid-area: clock;
+  padding: var(--s3) var(--pad) 0;
+}
+.rg-clockbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.rg-clockbar__label {
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hi);
+}
+.rg-clockbar__solved {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.rg-clockbar__time {
+  font-family: var(--f-label);
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rg-clockbar__track {
+  margin-top: var(--s2);
+  height: 4px;
+  background: var(--ink-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.rg-clockbar__fill {
+  display: block;
+  height: 100%;
+  background: var(--hi);
+  transform-origin: left;
+  transition: transform 1s linear;
+}
+.rg-play.is-warn .rg-clockbar__time {
+  color: var(--hi);
+}
+.rg-play.is-crit .rg-clockbar__time {
+  color: var(--red);
+  animation: rg-pulse 1s var(--ease-out) infinite;
+}
+.rg-play.is-crit .rg-clockbar__fill {
+  background: var(--red);
+}
+@keyframes rg-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Riddle. Each word fades in after its own --rg-delay, set in the markup. */
+.rg-play__riddle {
+  grid-area: riddle;
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4) var(--pad);
+  border-bottom: 1px solid var(--line);
+}
+.rg-riddle {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-style: italic;
+  font-size: clamp(24px, 6.4vw, 32px);
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  max-width: 22ch;
+}
+.rg-riddle__w {
+  display: inline-block;
+  animation: rg-word-in var(--t-med) var(--ease-out) var(--rg-delay, 0ms) both;
+}
+@keyframes rg-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Feed */
+.rg-play__feed {
+  grid-area: feed;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+.rg-feed__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--s3) var(--pad) var(--s2);
+}
+.rg-feed {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 0 var(--pad) var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+.rg-feed__empty {
+  color: var(--dim);
+  font-size: var(--fs-sm);
+  padding: var(--s4) 0;
+}
+/* The empty line stays in the stream container; hide it once a guess lands. */
+.rg-feed__empty:not(:only-child) {
+  display: none;
+}
+.rg-msg {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  animation: rg-msg-in var(--t-med) var(--ease-out);
+}
+.rg-msg__body {
+  display: grid;
+  min-width: 0;
+}
+.rg-msg__name {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--muted);
+}
+.rg-msg__text {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.rg-msg__t {
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  color: var(--dim);
+  white-space: nowrap;
+}
+.rg-msg.is-me .rg-msg__name {
+  color: var(--hi);
+}
+.rg-msg.is-wrong .rg-msg__text {
+  text-decoration: line-through;
+  text-decoration-color: var(--red);
+  text-decoration-thickness: 2px;
+  color: var(--muted);
+}
+.rg-msg__stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: var(--mint);
+  color: var(--on-light);
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  --rg-icon-size: 14px;
+}
+.rg-msg.is-solve {
+  animation: rg-stamp-in var(--t-slow) var(--ease-out);
+}
+@keyframes rg-stamp-in {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+
+/* Guess form */
+.rg-play__input {
+  grid-area: input;
+  padding: var(--s3) var(--pad);
+  padding-bottom: max(var(--s3), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--ink);
+}
+.rg-guess {
+  display: grid;
+  gap: var(--s1);
+}
+.rg-guess__label {
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rg-guess__row {
+  display: flex;
+  gap: var(--s2);
+}
+.rg-guess__field {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 52px;
+  padding: 0 var(--s4);
+  border-radius: var(--r);
+  border: 2px solid var(--line-2);
+  background: var(--ink-2);
+  font-size: 18px;
+  font-weight: 500;
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+.rg-guess__field:focus {
+  outline: none;
+  border-color: var(--hi);
+}
+.rg-guess__field[aria-invalid="true"] {
+  border-color: var(--red);
+}
+.rg-guess__btn {
+  min-height: 52px;
+  min-width: 96px;
+}
+.rg-guess__msg {
+  min-height: 1.5em;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.rg-guess__msg.is-wrong {
+  color: var(--red);
+}
+.rg-shake {
+  animation: rg-shake 360ms var(--ease-out);
+}
+@keyframes rg-shake {
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(7px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Solved panel */
+.rg-solved {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s2) 0;
+  animation: rg-stamp-in var(--t-slow) var(--ease-out);
+}
+.rg-stamp {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 72px;
+  height: 72px;
+  padding: 0 var(--s2);
+  border-radius: var(--r);
+  background: var(--mint);
+  color: var(--on-light);
+  font-family: var(--f-label);
+  font-weight: 600;
+  font-size: 24px;
+  transform: rotate(-4deg);
+}
+.rg-stamp.is-none {
+  background: var(--ink-3);
+  color: var(--paper);
+  border: 1px solid var(--line-2);
+  transform: none;
+}
+.rg-solved__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.rg-solved__title {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+}
+.rg-solved__sub {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+@media (min-width: 1024px) {
+  .rg-play {
+    grid-template-areas: "clock feed" "riddle feed" "riddle input";
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .rg-play__clock {
+    padding: var(--s6) var(--s7) 0 var(--pad);
+  }
+  .rg-clockbar__time {
+    font-size: 40px;
+  }
+  .rg-play__riddle {
+    border-bottom: 0;
+    padding: var(--s6) var(--s7) var(--s6) var(--pad);
+    align-content: center;
+  }
+  .rg-play__feed,
+  .rg-play__input {
+    border-left: 1px solid var(--line);
+    background: var(--ink-2);
+  }
+  .rg-feed__head {
+    padding-top: var(--s5);
+  }
+  .rg-riddle {
+    font-size: clamp(26px, 2.4vw, 36px);
+    max-width: 28ch;
+  }
+}
+
 /* ───────────────── Flash (restyles the shared flash group in the shell) ───────────────── */
 .rg-app .rg-flash {
   background: var(--ink-2);
@@ -753,5 +1102,8 @@
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+  }
+  .rg-app .rg-riddle__w {
+    animation: none !important;
   }
 }

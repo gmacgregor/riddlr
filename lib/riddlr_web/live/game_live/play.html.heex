@@ -1,191 +1,179 @@
-<Layouts.game flash={@flash} current_scope={@current_scope}>
-  <%!-- ═══════════════════════════════════════════════════════════════
-     TIMER + RIDDLE SECTION
-     ═══════════════════════════════════════════════════════════════ --%>
-  <section class="rg-timer-section" aria-label="Timer and riddle">
-    <div class="rg-active-game" id="state-active">
-      <%!-- <.game_time_remaining time_remaining={@time_remaining} /> --%>
-      <div class="rg-time-bar">
-        <span class="rg-time-bar__label">⏱ Time left</span>
-        <time
-          class="rg-time-bar__value leading-none"
-          aria-live="polite"
-          aria-atomic="true"
-          id="countdown-timer"
-          phx-hook=".SolveTimer"
-          data-seconds={@time_remaining}
-        >
-          <span data-timer-display>{Feed.format_time(@time_remaining)}</span>
-        </time>
-      </div>
-      <%!-- <.game_riddle_text riddle={@riddle} /> --%>
-      <p
-        id="riddle-description"
-        class="rg-riddle-text"
-        phx-hook=".RiddleReveal"
-        data-text={@riddle.description}
-      >
-        {@riddle.description}
-      </p>
-    </div>
-  </section>
-
-  <%!-- ═══════════════════════════════════════════════════════════════
-     CHAT SECTION — live game: answer feed + guess input
-     ═══════════════════════════════════════════════════════════════ --%>
-  <section class="rg-chat-section" aria-label="Live answers">
-    <div class="rg-chat-header">
-      <span class="rg-chat-header__label">💬 Live Answers</span>
-      <span class="rg-chat-header__count" aria-live="polite">Live</span>
-    </div>
-
-    <%!-- Answer stream --%>
-    <div
-      id="answer-feed"
-      phx-update="stream"
-      class="rg-messages"
-      aria-live="polite"
-      aria-relevant="additions"
-      aria-label="Answer feed"
-    >
-      <div
-        :for={{dom_id, answer} <- @streams.answers}
-        id={dom_id}
-        class={["rg-msg", answer.correct && "rg-msg--solved"]}
-      >
-        <.rg_avatar
-          letter={String.first(answer.username) |> String.upcase()}
-          username={answer.username}
-        />
-        <span class="rg-msg__user">{answer.username}</span>
-        <span :if={not answer.correct} class="rg-msg__text">{answer.text}</span>
-        <.game_solve_badge
-          :if={answer.correct}
-          placement={answer.placement}
-          class="rg-msg__text rg-msg__text--solved"
-        />
-        <span :if={answer.offset_ms} class="rg-msg__time">+{format_offset(answer.offset_ms)}</span>
-      </div>
-    </div>
-
-    <%!-- Guess input — hidden once solved --%>
-    <div
-      :if={not @already_solved}
-      id="answer-form-container"
-      phx-hook=".AnswerForm"
-      class="rg-input-bar"
-    >
-      <form id="answer-form" phx-submit="submit_answer" class="contents">
-        <div class={[
-          "rg-input-field",
-          @submission_state == :incorrect && "rg-input-field--error"
-        ]}>
-          <input
-            id="answer-input"
-            type="text"
-            name="answer"
-            placeholder="Take a guess..."
-            autocomplete="off"
-            aria-label="Type your answer"
-            aria-describedby={if @submission_state == :incorrect, do: "answer-feedback-incorrect"}
-            aria-invalid={to_string(@submission_state == :incorrect)}
-          />
+<Layouts.game flash={@flash} current_scope={@current_scope} locked>
+  <section class="rg-view rg-view--play" aria-labelledby="play-h">
+    <div id="play-root" class={["rg-play", urgency(@time_remaining)]} phx-hook=".PlayFocus">
+      <div class="rg-play__clock">
+        <div class="rg-clockbar">
+          <span class="rg-live-dot" aria-hidden="true"></span>
+          <span class="rg-clockbar__label">Live</span>
+          <span id="play-solved" class="rg-clockbar__solved rg-nowrap"></span>
+          <time
+            id="countdown-timer"
+            class="rg-clockbar__time rg-nowrap"
+            role="timer"
+            aria-label="Time left"
+            data-seconds={@time_remaining}
+          >{GameCopy.m_ss(@time_remaining)}</time>
         </div>
-        <button class="rg-guess-btn" type="submit">Guess!</button>
-      </form>
-      <p
-        :if={@submission_state == :incorrect}
-        id="answer-feedback-incorrect"
-        class="rg-answer-feedback"
-        role="alert"
-      >
-        {@try_again_message}
-      </p>
-      <p
-        :if={match?({:error, _}, @submission_state)}
-        id="answer-feedback-error"
-        class="rg-answer-feedback rg-answer-feedback--system"
-        role="alert"
-      >
-        {elem(@submission_state, 1)}
-      </p>
-    </div>
+        <div class="rg-clockbar__track" aria-hidden="true">
+          <span
+            id="play-fill"
+            class="rg-clockbar__fill"
+            style={"transform: scaleX(#{share_left(@time_remaining, @riddle.solve_time)})"}
+          ></span>
+        </div>
+      </div>
 
-    <%!-- Already solved banner --%>
-    <div :if={@already_solved} class="rg-input-bar rg-input-bar--solved" role="status">
-      <p class="rg-input-bar__solved-msg">
-        {case @submission_state do
-          {:correct, placement, points} -> "#{placement_text(placement)} place! +#{points} pts"
-          _ -> "You already solved this one."
-        end}
-      </p>
+      <div class="rg-play__riddle">
+        <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />
+        <h1 id="play-h" class="rg-riddle" tabindex="-1" aria-label={@riddle.description}>
+          <%= for {word, i} <- Enum.with_index(@words) do %>
+            <span
+              class="rg-riddle__w"
+              style={"--rg-delay: #{150 + i * 45}ms"}
+              aria-hidden="true"
+            >{word}</span>{" "}
+          <% end %>
+        </h1>
+      </div>
+
+      <section class="rg-play__feed" aria-labelledby="feed-h">
+        <div class="rg-feed__head">
+          <h2 id="feed-h" class="rg-panel__h">Guesses</h2>
+          <span id="feed-count" class="rg-count rg-nowrap">{GameCopy.guess_count(@guess_count)}</span>
+        </div>
+        <ol
+          id="answer-feed"
+          class="rg-feed"
+          phx-update="stream"
+          phx-hook=".FeedScroll"
+          aria-live="polite"
+          aria-relevant="additions"
+        >
+          <li id="feed-empty" class="rg-feed__empty">{GameCopy.feed_empty()}</li>
+          <li
+            :for={{dom_id, answer} <- @streams.answers}
+            id={dom_id}
+            class={[
+              "rg-msg",
+              answer.user_id == @current_user.id && "is-me",
+              if(answer.correct, do: "is-solve", else: "is-wrong")
+            ]}
+          >
+            <GameComponents.tile
+              initial={GameComponents.initial(answer.username)}
+              tone={GameComponents.tone(answer.username, @current_user.username)}
+              size="sm"
+            />
+            <span class="rg-msg__body">
+              <span class="rg-msg__name">
+                {if answer.user_id == @current_user.id,
+                  do: GameCopy.room_you(),
+                  else: answer.username}
+              </span>
+              <span :if={answer.correct} class="rg-msg__stamp">
+                <GameComponents.icon name="check" /> {GameCopy.feed_solved(answer.placement)}
+              </span>
+              <span :if={not answer.correct} class="rg-msg__text">{answer.text}</span>
+            </span>
+            <span :if={answer.offset_ms} class="rg-msg__t">
+              +{GameCopy.m_ss(div(answer.offset_ms, 1000))}
+            </span>
+          </li>
+        </ol>
+      </section>
+
+      <div class="rg-play__input">
+        <form
+          :if={!@solve}
+          id="answer-form"
+          class="rg-guess"
+          phx-submit="submit_answer"
+          phx-hook=".GuessForm"
+        >
+          <label class="rg-guess__label" for="answer-input">Your answer</label>
+          <div class="rg-guess__row">
+            <input
+              id="answer-input"
+              class="rg-guess__field"
+              type="text"
+              name="answer"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              aria-describedby="guess-msg"
+              aria-invalid={to_string(@guess_wrong?)}
+            />
+            <button
+              id="guess-btn"
+              class="rg-btn rg-btn--hi rg-guess__btn"
+              type="submit"
+              disabled={@cooling?}
+            >
+              {if @cooling?, do: "Wait", else: "Guess"}
+            </button>
+          </div>
+          <p id="guess-msg" class={["rg-guess__msg", @guess_wrong? && "is-wrong"]} role="status">
+            {@guess_msg}
+          </p>
+        </form>
+        <div :if={@solve} id="solved-panel" class="rg-solved">
+          <span id="solved-stamp" class={["rg-stamp", @solve.points == 0 && "is-none"]}>
+            {String.upcase(GameCopy.ordinal(@solve.placement))}
+          </span>
+          <div class="rg-solved__text">
+            <p class="rg-solved__title" role="status">
+              {GameCopy.solved_title(@solve.placement, @solve.points)}
+            </p>
+            <p class="rg-solved__sub">{GameCopy.solved_sub(@solve.points, @time_remaining)}</p>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </Layouts.game>
 
-<%!-- ═══════════════════════════════════════════════════════════════
-     JS HOOKS
-     ═══════════════════════════════════════════════════════════════ --%>
-<script :type={Phoenix.LiveView.ColocatedHook} name=".SolveTimer">
+<script :type={Phoenix.LiveView.ColocatedHook} name=".PlayFocus">
+  // On wide screens the guess input takes focus; on small ones the riddle
+  // does, so the keyboard does not cover it.
   export default {
     mounted() {
-      this.displayEl = this.el.querySelector("[data-timer-display]")
-      this.render(parseInt(this.el.dataset.seconds, 10) || 0)
-      this.handleEvent("countdown-tick", ({ seconds }) => { this.render(seconds) })
-    },
-    render(secs) {
-      const m = Math.floor(secs / 60).toString().padStart(2, "0")
-      const s = (secs % 60).toString().padStart(2, "0")
-      if (this.displayEl) this.displayEl.textContent = `${m}:${s}`
-      const urgency = secs <= 10 ? "critical" : secs <= 30 ? "warning" : "normal"
-      const card = this.el.closest("[id='solve-timer-card']") || this.el
-      if (card.dataset.urgency !== urgency) card.dataset.urgency = urgency
+      const input = this.el.querySelector("#answer-input")
+      if (input && window.matchMedia("(min-width: 1024px)").matches) input.focus()
+      else this.el.querySelector("#play-h")?.focus({ preventScroll: true })
     }
   }
 </script>
 
-<script :type={Phoenix.LiveView.ColocatedHook} name=".RiddleReveal">
+<script :type={Phoenix.LiveView.ColocatedHook} name=".GuessForm">
+  // On a wrong guess, shakes the row and selects the text so the next guess
+  // types over it.
   export default {
     mounted() {
-      const para = this.el
-      if (!para) return
-      const escape = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      const words = para.textContent.trim().split(/\s+/)
-      para.innerHTML = words.map(w => `<span class="riddle-word">${escape(w)} </span>`).join("")
-      setTimeout(() => {
-        para.querySelectorAll(".riddle-word").forEach((span, i) => {
-          setTimeout(() => span.classList.add("revealed"), i * 60)
-        })
-      }, 300)
-    }
-  }
-</script>
-
-<script :type={Phoenix.LiveView.ColocatedHook} name=".AnswerForm">
-  export default {
-    mounted() {
-      this.handleEvent("answer-shake", () => {
+      this.handleEvent("guess-wrong", () => {
+        const row = this.el.querySelector(".rg-guess__row")
         const input = this.el.querySelector("#answer-input")
-        const field = this.el.querySelector(".rg-input-field")
-        if (!input) return
-        input.classList.remove("shake")
-        void input.offsetWidth
-        input.classList.add("shake")
-        if (field) {
-          field.classList.remove("rg-input-field--error-animate")
-          void field.offsetWidth
-          field.classList.add("rg-input-field--error-animate")
-        }
-        setTimeout(() => {
-          input.classList.remove("shake")
-          if (field) field.classList.remove("rg-input-field--error-animate")
-        }, 700)
+        row.classList.remove("rg-shake")
+        // Force a reflow so the browser restarts the shake animation.
+        void row.offsetWidth
+        row.classList.add("rg-shake")
+        input.select()
       })
-      this.handleEvent("answer-correct", () => {
-        this.el.style.transition = "opacity 400ms ease"
-        this.el.style.opacity = "0"
-        setTimeout(() => { this.el.style.display = "none" }, 400)
-      })
+    }
+  }
+</script>
+
+<script :type={Phoenix.LiveView.ColocatedHook} name=".FeedScroll">
+  // Keeps the newest guess in view, unless the player has scrolled up to read.
+  export default {
+    mounted() {
+      this.el.scrollTop = this.el.scrollHeight
+    },
+    beforeUpdate() {
+      const el = this.el
+      this.nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    },
+    updated() {
+      if (this.nearBottom) this.el.scrollTop = this.el.scrollHeight
     }
   }
 </script>

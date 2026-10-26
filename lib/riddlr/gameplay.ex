@@ -148,6 +148,24 @@ defmodule Riddlr.Gameplay do
     |> Enum.any?(&Answer.from_ets(&1).correct)
   end
 
+  @typedoc "Where a solver finished and the points that place earned."
+  @type solve :: %{placement: pos_integer(), points: non_neg_integer()}
+
+  @doc """
+  The placement and points a user earned on a riddle, or `nil` if they have
+  not solved it. Lets a player who reloads see their own result again.
+  """
+  @spec solve_for(integer(), integer()) :: solve() | nil
+  def solve_for(riddle_id, user_id) do
+    case Enum.find(get_answers(riddle_id), &(&1.correct and &1.user_id == user_id)) do
+      nil ->
+        nil
+
+      %Answer{placement: placement} ->
+        %{placement: placement, points: points_for_placement(placement)}
+    end
+  end
+
   defp check_already_solved(riddle_id, user_id) do
     if solved?(riddle_id, user_id), do: {:error, :already_solved}, else: :ok
   end

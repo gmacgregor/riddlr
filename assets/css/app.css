@@ -346,30 +346,6 @@ body.phx-connecting #reconnect-bar {
     transition: box-shadow 0.5s ease;
 }
 
-/* ─── Input shake (incorrect answer) ────────────────────────────────────────── */
-@keyframes input-shake {
-    0%,
-    100% {
-        transform: translateX(0);
-    }
-    20% {
-        transform: translateX(-6px);
-    }
-    40% {
-        transform: translateX(6px);
-    }
-    60% {
-        transform: translateX(-4px);
-    }
-    80% {
-        transform: translateX(4px);
-    }
-}
-
-.shake {
-    animation: input-shake 300ms ease-in-out;
-}
-
 /* ─── Input error flash (red glow on incorrect answer) ──────────────────────── */
 @keyframes input-error-flash {
     0% {
@@ -408,15 +384,6 @@ body.phx-connecting #reconnect-bar {
 
 .feed-entry {
     animation: feed-in 200ms ease-out;
-}
-
-/* ─── Riddle reveal (word fade-in handled by JS) ─────────────────────────────── */
-.riddle-word {
-    opacity: 0;
-    transition: opacity 150ms ease;
-}
-.riddle-word.revealed {
-    opacity: 1;
 }
 
 /* ─── Cooldown progress bar ──────────────────────────────────────────────────── */

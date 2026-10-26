@@ -7,19 +7,18 @@ defmodule RiddlrWeb.GameLive.Play do
 
   alias Riddlr.{GameClock, Games, Gameplay}
   alias Riddlr.Gameplay.Answer
+  alias RiddlrWeb.{GameComponents, GameCopy}
   alias RiddlrWeb.GameLive.Feed
 
   import Riddlr.Utils.User
 
   @answer_max_length 500
+  # The most guesses the feed keeps in the DOM; older ones drop off the top.
+  @feed_limit 100
 
-  @try_again_messages [
-    "Uuuh… no! Think harder.",
-    "Ooopsie whoopise, not quite. Go on, guess again!",
-    "Good guess, but no! So close… or not.",
-    "Nooooope! Wrack that brain.",
-    "Not so, unfortunately. Back to the drawing board!"
-  ]
+  # How long the Guess button stays disabled after a guess. Matches the
+  # Gameplay cooldown.
+  @cooldown_ms 1_000
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -46,9 +45,8 @@ defmodule RiddlrWeb.GameLive.Play do
 
           "live" ->
             user = socket.assigns.current_user
-            already_solved = Gameplay.solved?(riddle.id, user.id)
 
-            initial_answers =
+            {initial_answers, guess_count} =
               if connected?(socket) do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
@@ -58,7 +56,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 GameClock.ensure_started(riddle)
                 build_initial_feed(riddle.id)
               else
-                []
+                {[], 0}
               end
 
             {:ok,
@@ -66,11 +64,15 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:banned, is_banned?(user))
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
-             |> assign(:already_solved, already_solved)
-             |> assign(:submission_state, nil)
+             |> assign(:words, String.split(riddle.description))
+             |> assign(:solve, Gameplay.solve_for(riddle.id, user.id))
              |> assign(:time_remaining, solve_seconds_left(riddle))
-             |> assign(:try_again_message, nil)
-             |> stream(:answers, initial_answers, limit: 100)}
+             |> assign(:guess_msg, nil)
+             |> assign(:guess_wrong?, false)
+             |> assign(:cooling?, false)
+             |> assign(:cooldown_timer, nil)
+             |> assign(:guess_count, guess_count)
+             |> stream(:answers, initial_answers, limit: -@feed_limit)}
         end
 
       {:error, :not_found} ->
@@ -90,21 +92,14 @@ defmodule RiddlrWeb.GameLive.Play do
 
     case result do
       {:correct, placement, points} ->
-        # Delay already_solved assign by 450ms so the .AnswerForm fade animation (400ms)
-        # completes before LiveView removes the form container from the DOM.
-        Process.send_after(self(), {:mark_solved, riddle.id}, 450)
-
-        {:noreply,
-         socket
-         |> push_event("answer-correct", %{})
-         |> assign(:submission_state, {:correct, placement, points})}
+        {:noreply, assign(socket, :solve, %{placement: placement, points: points})}
 
       :incorrect ->
         {:noreply,
          socket
-         |> assign(:try_again_message, try_again())
-         |> assign(:submission_state, :incorrect)
-         |> push_event("answer-shake", %{})}
+         |> put_guess_msg(GameCopy.quip(socket.assigns.guess_msg), true)
+         |> start_cooldown()
+         |> push_event("guess-wrong", %{})}
 
       {:error, :banned} ->
         {:noreply,
@@ -112,18 +107,27 @@ defmodule RiddlrWeb.GameLive.Play do
          |> put_flash(:error, "Your account has been suspended.")
          |> push_navigate(to: ~p"/")}
 
+      {:error, :empty_answer} ->
+        {:noreply, put_guess_msg(socket, GameCopy.guess_empty(), true)}
+
       {:error, reason} ->
-        {:noreply, assign(socket, :submission_state, {:error, format_error(reason)})}
+        {:noreply, put_guess_msg(socket, format_error(reason), false)}
     end
   end
 
   @impl true
   def handle_info({:answer_submitted, answer_data}, socket) do
-    {:noreply, stream_insert(socket, :answers, answer_data, at: 0)}
+    {:noreply,
+     socket
+     |> update(:guess_count, &(&1 + 1))
+     |> stream_insert(:answers, answer_data, at: -1, limit: -@feed_limit)}
   end
 
   def handle_info({:answer_flagged, answer_id}, socket) do
-    {:noreply, stream_delete(socket, :answers, %{id: answer_id})}
+    {:noreply,
+     socket
+     |> update(:guess_count, &max(&1 - 1, 0))
+     |> stream_delete(:answers, %{id: answer_id})}
   end
 
   def handle_info({:riddle_completed, riddle}, socket) do
@@ -137,8 +141,7 @@ defmodule RiddlrWeb.GameLive.Play do
   def handle_info({:countdown_tick, :play, seconds}, socket) do
     {:noreply,
      socket
-     |> assign(:time_remaining, seconds)
-     |> push_event("countdown-tick", %{seconds: seconds})}
+     |> assign(:time_remaining, seconds)}
   end
 
   # The riddle is already live here, so a :lobby tick can only be the clock's
@@ -158,12 +161,8 @@ defmodule RiddlrWeb.GameLive.Play do
     {:noreply, assign(socket, :banned, false)}
   end
 
-  def handle_info({:mark_solved, riddle_id}, socket) do
-    if socket.assigns.riddle.id == riddle_id do
-      {:noreply, assign(socket, :already_solved, true)}
-    else
-      {:noreply, socket}
-    end
+  def handle_info(:cooldown_over, socket) do
+    {:noreply, assign(socket, cooling?: false, cooldown_timer: nil)}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
@@ -171,29 +170,39 @@ defmodule RiddlrWeb.GameLive.Play do
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
 
-  defp format_error(:cooldown), do: "Please wait a moment before submitting again."
+  defp put_guess_msg(socket, msg, wrong?),
+    do: assign(socket, guess_msg: msg, guess_wrong?: wrong?)
+
+  # Disables the Guess button for a second. A new guess restarts the timer.
+  defp start_cooldown(socket) do
+    if timer = socket.assigns.cooldown_timer, do: Process.cancel_timer(timer)
+    timer = Process.send_after(self(), :cooldown_over, @cooldown_ms)
+    assign(socket, cooling?: true, cooldown_timer: timer)
+  end
+
+  defp format_error(:cooldown), do: GameCopy.guess_cooldown()
   defp format_error(:already_solved), do: "You've already solved this riddle!"
-  defp format_error(:empty_answer), do: "Answer cannot be empty."
 
   defp format_error(:answer_too_long),
     do: "Answer is too long (max #{@answer_max_length} characters)."
 
   defp format_error({:not_live, _}), do: "The game is not currently active."
 
-  defp try_again() do
-    Enum.random(@try_again_messages)
-  end
-
-  # Builds feed items for answers already in ETS when the LiveView mounts.
+  # Builds feed items for answers already in ETS when the LiveView mounts,
+  # oldest first, plus the count of every guess so far.
   # Correct answers stay masked while the race runs (Answer.for_live_feed/1).
-  # Offsets go: they only mean something for answers seen live.
-  @spec build_initial_feed(integer()) :: [Answer.t()]
+  @spec build_initial_feed(integer()) :: {[Answer.t()], non_neg_integer()}
   defp build_initial_feed(riddle_id) do
-    riddle_id
-    |> Gameplay.get_answers()
-    |> Enum.take(100)
-    |> Feed.put_usernames()
-    |> Enum.map(&%{Answer.for_live_feed(&1) | offset_ms: nil})
+    answers = Gameplay.get_answers(riddle_id)
+
+    feed =
+      answers
+      |> Enum.take(@feed_limit)
+      |> Enum.reverse()
+      |> Feed.put_usernames()
+      |> Enum.map(&Answer.for_live_feed/1)
+
+    {feed, length(answers)}
   end
 
   defp solve_seconds_left(riddle) do
@@ -203,6 +212,14 @@ defmodule RiddlrWeb.GameLive.Play do
     end
   end
 
-  defp format_offset(ms) when ms < 1000, do: "#{ms}ms"
-  defp format_offset(ms), do: "#{div(ms, 1000)}s"
+  # The clock's warning class. Thresholds come from the design.
+  @spec urgency(integer()) :: String.t() | nil
+  defp urgency(seconds) when seconds <= 10, do: "is-crit"
+  defp urgency(seconds) when seconds <= 20, do: "is-warn"
+  defp urgency(_seconds), do: nil
+
+  # How much of the riddle's solve time is left, from 0.0 to 1.0, for the track's scaleX.
+  @spec share_left(integer(), integer() | nil) :: float()
+  defp share_left(_seconds, total) when not is_integer(total) or total <= 0, do: 0.0
+  defp share_left(seconds, total), do: (seconds / total) |> max(0.0) |> min(1.0) |> Float.round(3)
 end

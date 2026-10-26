@@ -107,6 +107,10 @@ defmodule RiddlrWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :locked, :boolean,
+    default: false,
+    doc: "stops `main` scrolling, for screens that scroll their own parts (Play)"
+
   slot :status, doc: "the riddle status shown in the middle of the topbar"
   slot :inner_block, required: true
 
@@ -126,7 +130,7 @@ defmodule RiddlrWeb.Layouts do
         </div>
       </header>
 
-      <main class="rg-main">
+      <main class={["rg-main", @locked && "is-locked"]}>
         {render_slot(@inner_block)}
       </main>
 

@@ -13,10 +13,7 @@ defmodule RiddlrWeb.CustomComponents do
   # ─── Helpers ──────────────────────────────────────────────────────────────────
 
   @doc "Ordinal for a finishing position: 1 -> \"1st\"."
-  def placement_text(1), do: "1st"
-  def placement_text(2), do: "2nd"
-  def placement_text(3), do: "3rd"
-  def placement_text(n), do: "#{n}th"
+  def placement_text(n), do: RiddlrWeb.GameCopy.ordinal(n)
 
   # Deprecated: use RiddlrWeb.GameLive.Feed.format_time/1 instead. Kept until
   # the components that call it move over.
@@ -25,45 +22,6 @@ defmodule RiddlrWeb.CustomComponents do
     secs = rem(seconds, 60)
     :io_lib.format("~2..0B:~2..0B", [minutes, secs]) |> IO.iodata_to_binary()
   end
-
-  # ─── Active Game ──────────────────────────────────────────────────────────────
-
-  @doc "Time-remaining bar shown during an active game."
-  attr :time_remaining, :integer, required: true
-
-  def game_time_remaining(assigns) do
-    ~H"""
-    <div class="rg-time-bar">
-      <span class="rg-time-bar__label">⏱ Time left</span>
-      <time
-        class="rg-time-bar__value leading-none"
-        aria-live="polite"
-        aria-atomic="true"
-        id="countdown-timer"
-        phx-hook=".SolveTimer"
-        data-seconds={@time_remaining}
-      >
-        <span data-timer-display>{format_time(@time_remaining)}</span>
-      </time>
-    </div>
-    """
-  end
-
-  # @doc "Riddle text with word-by-word reveal animation."
-  # attr :riddle, :map, required: true
-
-  # def game_riddle_text(assigns) do
-  #   ~H"""
-  #   <p
-  #     id="riddle-description"
-  #     class="rg-riddle-text"
-  #     phx-hook=".RiddleReveal"
-  #     data-text={@riddle.description}
-  #   >
-  #     {@riddle.description}
-  #   </p>
-  #   """
-  # end
 
   # ─── Solve Badge ──────────────────────────────────────────────────────────────
 
@@ -82,33 +40,6 @@ defmodule RiddlrWeb.CustomComponents do
     <span class={["rg-solve-badge", @class]}>
       🎯 solved it{if @placement, do: " — #{placement_text(@placement)}"}{if @text, do: ": #{@text}"}
     </span>
-    """
-  end
-
-  # ─── Shared Avatar ────────────────────────────────────────────────────────────
-
-  @doc "Colored initial avatar. Color is derived from username if not provided."
-  attr :letter, :string, required: true
-  attr :color, :string, default: nil
-  attr :username, :string, default: nil
-
-  def rg_avatar(assigns) do
-    assigns =
-      assign_new(assigns, :resolved_color, fn ->
-        cond do
-          assigns[:color] -> assigns[:color]
-          assigns[:username] -> avatar_color(assigns[:username])
-          true -> "purple"
-        end
-      end)
-
-    ~H"""
-    <div
-      class={"rg-avatar rg-avatar--#{@resolved_color}"}
-      aria-hidden="true"
-    >
-      {@letter}
-    </div>
     """
   end
 

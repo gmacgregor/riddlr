@@ -35,6 +35,27 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
+  describe "solve_for/2" do
+    test "nil when the user has not solved" do
+      rid = unique_riddle_id()
+      uid = unique_user_id()
+      seed_answer(rid, uid, "wrong", false)
+      assert Gameplay.solve_for(rid, uid) == nil
+    end
+
+    test "the user's placement and points" do
+      rid = unique_riddle_id()
+      first = unique_user_id()
+      second = unique_user_id()
+      ts = System.monotonic_time(:microsecond)
+      seed_answer(rid, first, "correct", true, ts - 1000)
+      seed_answer(rid, second, "wrong", false, ts - 500)
+      seed_answer(rid, second, "correct", true, ts)
+
+      assert Gameplay.solve_for(rid, second) == %{placement: 2, points: 9}
+    end
+  end
+
   describe "get_answers/1" do
     test "returns empty list when no answers exist" do
       rid = unique_riddle_id()
