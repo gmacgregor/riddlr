@@ -46,7 +46,7 @@ defmodule RiddlrWeb.GameLive.Play do
           "live" ->
             user = socket.assigns.current_user
 
-            {initial_answers, guess_count} =
+            {initial_answers, guess_count, solver_ids} =
               if connected?(socket) do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
@@ -56,7 +56,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 GameClock.ensure_started(riddle)
                 build_initial_feed(riddle.id)
               else
-                {[], 0}
+                {[], 0, MapSet.new()}
               end
 
             {:ok,
@@ -72,6 +72,7 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:cooling?, false)
              |> assign(:cooldown_timer, nil)
              |> assign(:guess_count, guess_count)
+             |> assign(:solver_ids, solver_ids)
              |> stream(:answers, initial_answers, limit: -@feed_limit)}
         end
 
@@ -120,6 +121,7 @@ defmodule RiddlrWeb.GameLive.Play do
     {:noreply,
      socket
      |> update(:guess_count, &(&1 + 1))
+     |> update(:solver_ids, &add_solver(&1, answer_data))
      |> stream_insert(:answers, answer_data, at: -1, limit: -@feed_limit)}
   end
 
@@ -167,6 +169,13 @@ defmodule RiddlrWeb.GameLive.Play do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
+  # Keeps solvers as a set of user ids, so a solve the mount snapshot already
+  # holds is not counted twice when its broadcast lands. Chat and wrong guesses
+  # add nothing. A flagged solve stays: the solve still stands.
+  @spec add_solver(MapSet.t(), Answer.t()) :: MapSet.t()
+  defp add_solver(ids, %Answer{correct: true, chat: false, user_id: id}), do: MapSet.put(ids, id)
+  defp add_solver(ids, _answer), do: ids
+
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
 
@@ -189,9 +198,10 @@ defmodule RiddlrWeb.GameLive.Play do
   defp format_error({:not_live, _}), do: "The game is not currently active."
 
   # Builds feed items for answers already in ETS when the LiveView mounts,
-  # oldest first, plus the count of every guess so far.
+  # oldest first, plus the count of every guess and the ids of every solver so far.
   # Correct answers stay masked while the race runs (Answer.for_live_feed/1).
-  @spec build_initial_feed(integer()) :: {[Answer.t()], non_neg_integer()}
+  @spec build_initial_feed(integer()) ::
+          {[Answer.t()], non_neg_integer(), MapSet.t()}
   defp build_initial_feed(riddle_id) do
     answers = Gameplay.get_answers(riddle_id)
 
@@ -202,7 +212,9 @@ defmodule RiddlrWeb.GameLive.Play do
       |> Feed.put_usernames()
       |> Enum.map(&Answer.for_live_feed/1)
 
-    {feed, length(answers)}
+    solver_ids = for %Answer{correct: true, user_id: id} <- answers, into: MapSet.new(), do: id
+
+    {feed, length(answers), solver_ids}
   end
 
   defp solve_seconds_left(riddle) do

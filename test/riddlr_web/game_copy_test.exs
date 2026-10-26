@@ -25,6 +25,11 @@ defmodule RiddlrWeb.GameCopyTest do
       assert GameCopy.guess_count(1200) == "1,200 guesses"
     end
 
+    test "solved count" do
+      assert GameCopy.solved_count(0) == "0 solved"
+      assert GameCopy.solved_count(1200) == "1,200 solved"
+    end
+
     test "M:SS clock" do
       assert GameCopy.m_ss(0) == "0:00"
       assert GameCopy.m_ss(45) == "0:45"

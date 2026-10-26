@@ -602,6 +602,81 @@ defmodule RiddlrWeb.GameLive.PlayTest do
     end
   end
 
+  describe "solved count" do
+    setup %{user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
+      %{riddle: riddle, user: user}
+    end
+
+    test "shows 0 solved before anyone solves", %{conn: conn, riddle: riddle, user: user} do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert has_element?(live, "#play-solved", "0 solved")
+    end
+
+    test "a player who arrives mid-round sees the current count", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      answer = hd(riddle.answers)
+      {:correct, 1, _} = Gameplay.submit_answer(riddle, AccountsFixtures.user_fixture(), answer)
+      {:correct, 2, _} = Gameplay.submit_answer(riddle, AccountsFixtures.user_fixture(), answer)
+      :incorrect = Gameplay.submit_answer(riddle, AccountsFixtures.user_fixture(), "nope")
+
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert has_element?(live, "#play-solved", "2 solved")
+    end
+
+    test "goes up when another player solves", %{conn: conn, riddle: riddle, user: user} do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      other = AccountsFixtures.user_fixture()
+      {:correct, 1, _} = Gameplay.submit_answer(riddle, other, hd(riddle.answers))
+
+      assert has_element?(live, "#play-solved", "1 solved")
+    end
+
+    test "a solver already counted is not counted again", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      other = AccountsFixtures.user_fixture()
+      {:correct, 1, _} = Gameplay.submit_answer(riddle, other, hd(riddle.answers))
+
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      # The same solve can arrive after the mount snapshot already counted it.
+      solve = Answer.new(riddle.id, other, "keyboard", correct: true, placement: 1)
+      Gameplay.broadcast_answer(solve)
+      Gameplay.broadcast_answer(solve)
+
+      assert has_element?(live, "#play-solved", "1 solved")
+    end
+
+    test "wrong guesses and chat leave the count alone", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      other = AccountsFixtures.user_fixture()
+      :incorrect = Gameplay.submit_answer(riddle, other, "nope")
+      Gameplay.broadcast_answer(Answer.new(riddle.id, other, "gg", chat: true))
+
+      assert has_element?(live, "#feed-count", "2 guesses")
+      assert has_element?(live, "#play-solved", "0 solved")
+    end
+  end
+
   describe "game state transitions via PubSub" do
     test "moves the player to results when the round ends", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")

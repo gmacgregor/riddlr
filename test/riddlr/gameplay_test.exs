@@ -35,6 +35,26 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
+  describe "solved_count/1" do
+    test "0 for an unknown riddle" do
+      assert Gameplay.solved_count(unique_riddle_id()) == 0
+    end
+
+    test "counts distinct correct solvers, ignoring wrong guesses" do
+      rid = unique_riddle_id()
+      first = unique_user_id()
+      second = unique_user_id()
+      seed_answer(rid, first, "wrong", false)
+      seed_answer(rid, first, "correct", true)
+      seed_answer(rid, second, "correct", true)
+      seed_answer(rid, second, "correct", true)
+      seed_answer(rid, unique_user_id(), "wrong", false)
+      seed_answer(unique_riddle_id(), unique_user_id(), "correct", true)
+
+      assert Gameplay.solved_count(rid) == 2
+    end
+  end
+
   describe "solve_for/2" do
     test "nil when the user has not solved" do
       rid = unique_riddle_id()

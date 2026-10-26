@@ -148,6 +148,18 @@ defmodule Riddlr.Gameplay do
     |> Enum.any?(&Answer.from_ets(&1).correct)
   end
 
+  @doc """
+  How many players have solved a riddle so far. Returns 0 when nobody has
+  solved it or it has no answers stored.
+  """
+  @spec solved_count(integer()) :: non_neg_integer()
+  def solved_count(riddle_id) do
+    @answers_table
+    |> :ets.match_object(Answer.ets_pattern(riddle_id, true))
+    |> Enum.uniq_by(&Answer.from_ets(&1).user_id)
+    |> length()
+  end
+
   @typedoc "Where a solver finished and the points that place earned."
   @type solve :: %{placement: pos_integer(), points: non_neg_integer()}
 

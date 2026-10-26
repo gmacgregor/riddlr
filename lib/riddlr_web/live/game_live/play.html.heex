@@ -5,7 +5,9 @@
         <div class="rg-clockbar">
           <span class="rg-live-dot" aria-hidden="true"></span>
           <span class="rg-clockbar__label">Live</span>
-          <span id="play-solved" class="rg-clockbar__solved rg-nowrap"></span>
+          <span id="play-solved" class="rg-clockbar__solved rg-nowrap">{GameCopy.solved_count(
+            MapSet.size(@solver_ids)
+          )}</span>
           <time
             id="countdown-timer"
             class="rg-clockbar__time rg-nowrap"

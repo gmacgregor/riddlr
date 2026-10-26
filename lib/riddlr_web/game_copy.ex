@@ -125,6 +125,10 @@ defmodule RiddlrWeb.GameCopy do
   def guess_count(1), do: "1 guess"
   def guess_count(count), do: "#{delimit(count)} guesses"
 
+  @doc "How many players have solved the riddle, e.g. \"3 solved\"."
+  @spec solved_count(non_neg_integer()) :: String.t()
+  def solved_count(count), do: "#{delimit(count)} solved"
+
   @doc "The Play feed's line when nobody has guessed yet."
   @spec feed_empty() :: String.t()
   def feed_empty, do: "No guesses yet. Be the first to swing."
