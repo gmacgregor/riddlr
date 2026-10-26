@@ -51,7 +51,7 @@ Done when both commands exit clean with no errors.
 
 ## 5. Review Changes
 
-Invoke the code-review skill tool. If no such skill exists, notify the user that a code review skill could not be determined and then abandon this step. Otherwise, follow its instructions and re-run the validation step. If the instructions suggest using multiple agents to perform the code review, then select different models from the current orchestrator model. Notify the user when the code review is complete.
+Invoke the phx:review skill tool. If no such skill exists, invoke the code-review skill tool. If no such skill exists, notify the user that a code review skill could not be determined and then abandon this step. Otherwise, follow its instructions and re-run the validation step. If the instructions suggest using multiple agents to perform the code review, then select different models from the current orchestrator model. Notify the user when the code review is complete.
 
 Done when the step is either abandoned or the code review skill has been successfully invoked and changes validated.
 
