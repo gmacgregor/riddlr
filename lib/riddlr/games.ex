@@ -39,10 +39,6 @@ defmodule Riddlr.Games do
   # so there is nothing left to cancel.
   @cancellable_states ["available", "scheduled", "retryable"]
 
-  # The advisory lock key that `transition/3` holds while it picks the next
-  # riddle number.
-  @number_lock :erlang.phash2("riddles.number")
-
   @doc """
   Returns the list of riddles.
 
@@ -380,50 +376,13 @@ defmodule Riddlr.Games do
   end
 
   defp run_transition(riddle, to, stats) do
-    changeset = Riddle.changeset(riddle, transition_attrs(to, stats))
-
     Multi.new()
-    |> write_transition(changeset, to)
+    |> Multi.update(:riddle, Riddle.changeset(riddle, transition_attrs(to, stats)))
     |> enqueue_next_job(to)
     |> Repo.transaction()
     |> case do
       {:ok, %{riddle: riddle}} -> {:ok, riddle}
-      {:error, :number, {:invalid, from, to}, _changes} -> {:invalid, from, to}
       {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
-    end
-  end
-
-  @spec write_transition(Multi.t(), Ecto.Changeset.t(), atom()) :: Multi.t()
-  defp write_transition(multi, changeset, :live) do
-    multi
-    |> Multi.run(:number, fn repo, _changes -> next_number(repo, changeset.data.id) end)
-    |> Multi.update(:riddle, fn %{number: number} ->
-      Ecto.Changeset.put_change(changeset, :number, number)
-    end)
-  end
-
-  defp write_transition(multi, changeset, _to), do: Multi.update(multi, :riddle, changeset)
-
-  # Going live is the one transition that gives a riddle its public number:
-  # the highest so far plus one. The advisory lock makes two go-lives take
-  # turns, so they never read the same highest number. It is released when the
-  # transaction ends. The unique index backs this up.
-  #
-  # `fetch_transitionable/2` checked the status before the lock, so a second
-  # call for the same riddle may have passed that check too. Reading the status
-  # again under the lock stops it from giving the riddle a second number.
-  @spec next_number(module(), integer()) ::
-          {:ok, pos_integer()} | {:error, {:invalid, String.t(), :live}}
-  defp next_number(repo, riddle_id) do
-    repo.query!("SELECT pg_advisory_xact_lock($1)", [@number_lock])
-
-    case repo.one!(from r in Riddle, where: r.id == ^riddle_id, select: r.play_status) do
-      "ready" ->
-        highest = repo.one(from r in Riddle, select: max(r.number))
-        {:ok, (highest || 0) + 1}
-
-      status ->
-        {:error, {:invalid, status, :live}}
     end
   end
 

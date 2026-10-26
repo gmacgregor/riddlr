@@ -25,6 +25,15 @@ defmodule Riddlr.Games.SaveRiddleTest do
       assert %Riddlr.Games.Category{} = riddle.category
     end
 
+    test "gives a new riddle a number" do
+      first = riddle_fixture()
+      second = riddle_fixture()
+
+      assert is_integer(first.number)
+      assert is_integer(second.number)
+      assert first.number != second.number
+    end
+
     test "updates an existing riddle" do
       riddle = riddle_fixture()
 
@@ -40,19 +49,32 @@ defmodule Riddlr.Games.SaveRiddleTest do
       assert Repo.reload(riddle).name == riddle.name
     end
 
-    test "ignores a number in the attrs" do
+    test "two riddles cannot share a number" do
+      first = riddle_fixture()
+      second = riddle_fixture()
+
+      assert {:error, changeset} =
+               second
+               |> Ecto.Changeset.change(number: first.number)
+               |> Riddle.changeset(%{})
+               |> Repo.update()
+
+      assert %{number: ["has already been taken"]} = errors_on(changeset)
+    end
+
+    test "ignores a number in the attrs on create" do
+      riddle = riddle_fixture(%{number: 999_999})
+
+      assert is_integer(riddle.number)
+      refute riddle.number == 999_999
+    end
+
+    test "ignores a number in the attrs on update" do
       riddle = riddle_fixture()
 
       assert {:ok, saved} = Games.save_riddle(riddle, %{"number" => 5, "name" => "Renamed"})
-      assert saved.number == nil
-      assert Repo.reload(riddle).number == nil
-    end
-
-    test "keeps the number of a riddle that already went live" do
-      riddle = riddle_fixture() |> put_riddle_number(7)
-
-      assert {:ok, saved} = Games.save_riddle(riddle, %{number: 99, name: "Renamed"})
-      assert saved.number == 7
+      assert saved.number == riddle.number
+      assert Repo.reload(riddle).number == riddle.number
     end
   end
 
@@ -142,7 +164,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
 
       assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(7200)})
       assert saved.play_status == "scheduled"
-      assert saved.number == nil
+      assert saved.number == riddle.number
     end
 
     test "moves the jobs when the live date changes" do

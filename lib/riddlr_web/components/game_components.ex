@@ -60,8 +60,8 @@ defmodule RiddlrWeb.GameComponents do
 
   @doc """
   The line above a riddle's title: its number as a "No. N" chip, then its
-  category. A riddle that has not gone live has no number, so it shows only
-  the category.
+  category. Riddles created before numbering began have no number, so they
+  show only the category.
   """
   attr :number, :integer, default: nil
   attr :category, :string, required: true

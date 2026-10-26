@@ -96,9 +96,9 @@ defmodule Riddlr.Games.Riddle do
     field :archive_after_seconds, :integer, default: 180
     field :ready_before_seconds, :integer, default: @ready_before_seconds
 
-    # Set by `Riddlr.Games.transition/3` when the riddle goes live, never
-    # cast from attrs.
-    field :number, :integer
+    # Set by the database (`riddles_number_seq`) when the riddle is inserted,
+    # never cast from attrs. Rows from before the sequence may be nil.
+    field :number, :integer, read_after_writes: true
 
     belongs_to :category, Riddlr.Games.Category
     belongs_to :first_solver, Riddlr.Accounts.User

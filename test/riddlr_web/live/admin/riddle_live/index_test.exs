@@ -73,13 +73,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
 
   describe "index page riddle number" do
     test "shows each riddle's number in the first column", %{conn: conn, admin: admin} do
-      riddle = GamesFixtures.riddle_fixture() |> GamesFixtures.put_riddle_number(12)
+      riddle = GamesFixtures.riddle_fixture()
 
       conn = log_in_user(conn, admin)
       {:ok, view, _html} = live(conn, ~p"/admin/riddles")
 
       assert has_element?(view, "th:first-child", "No.")
-      assert has_element?(view, "#riddles-#{riddle.id} td:first-child", "12")
+      assert has_element?(view, "#riddles-#{riddle.id} td:first-child", to_string(riddle.number))
     end
   end
 

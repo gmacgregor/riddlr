@@ -49,21 +49,6 @@ defmodule Riddlr.GamesFixtures do
     Riddlr.Repo.get!(Riddlr.Games.Category, get_or_create_default_category())
   end
 
-  @doc """
-  Gives a riddle a number as if it had gone live, without running the
-  transition. Returns the reloaded riddle.
-  """
-  def put_riddle_number(riddle, number) do
-    import Ecto.Query, only: [from: 2]
-
-    Riddlr.Repo.update_all(
-      from(r in Riddlr.Games.Riddle, where: r.id == ^riddle.id),
-      set: [number: number]
-    )
-
-    Riddlr.Repo.reload!(riddle)
-  end
-
   defp get_or_create_default_category do
     case Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") do
       nil ->
