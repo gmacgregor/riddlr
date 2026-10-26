@@ -57,4 +57,22 @@ defmodule RiddlrWeb.GameComponents do
     >{@initial}</span>
     """
   end
+
+  @doc """
+  The line above a riddle's title: its number as a "No. N" chip, then its
+  category. A riddle that has not gone live has no number, so it shows only
+  the category.
+  """
+  attr :number, :integer, default: nil
+  attr :category, :string, required: true
+
+  @spec kicker(map()) :: Phoenix.LiveView.Rendered.t()
+  def kicker(assigns) do
+    ~H"""
+    <p class="rg-kicker">
+      <span :if={@number} class="rg-kicker__num">No. {@number}</span>
+      <span>{@category}</span>
+    </p>
+    """
+  end
 end

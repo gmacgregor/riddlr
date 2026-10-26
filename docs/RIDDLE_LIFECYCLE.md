@@ -121,7 +121,8 @@ Each transition is either manual (admin-initiated) or automatic (worker/event-tr
 #### ready → live
 - Triggered by: `LiveTransitionWorker`
 - When: At `live_date`
-- Action: Updates `play_status` to "live"
+- Action: Updates `play_status` to "live" and sets the riddle number to the
+  highest so far + 1, in the same transaction
 
 #### live → completed
 - Triggered by: First correct answer submission

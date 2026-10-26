@@ -97,6 +97,41 @@ defmodule Riddlr.Games.TransitionTest do
     end
   end
 
+  describe "transition/3 to :live sets the riddle number" do
+    test "the first riddle to go live gets 1" do
+      riddle = published(%{play_status: "ready"})
+
+      assert {:ok, updated} = Games.transition(riddle.id, :live)
+      assert updated.number == 1
+      assert Repo.reload(riddle).number == 1
+    end
+
+    test "the next riddle gets the highest number plus one" do
+      first = published(%{play_status: "ready"})
+      second = published(%{play_status: "ready"})
+      put_riddle_number(first, 41)
+
+      assert {:ok, updated} = Games.transition(second.id, :live)
+      assert updated.number == 42
+    end
+
+    test "completing and archiving keep the number" do
+      riddle = published(%{play_status: "ready"})
+      assert {:ok, %{number: number}} = Games.transition(riddle.id, :live)
+
+      assert {:ok, %{number: ^number}} = Games.transition(riddle.id, :completed)
+      assert {:ok, %{number: ^number}} = Games.transition(riddle.id, :archived)
+      assert Repo.reload(riddle).number == number
+    end
+
+    test "a riddle that never went live has no number" do
+      riddle = published(%{play_status: "scheduled"})
+
+      assert {:ok, updated} = Games.transition(riddle.id, :ready)
+      assert updated.number == nil
+    end
+  end
+
   describe "transition/3 to :completed" do
     test "moves a live riddle to completed and broadcasts" do
       riddle = published(%{play_status: "live"})

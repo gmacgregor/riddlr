@@ -39,6 +39,21 @@ defmodule Riddlr.Games.SaveRiddleTest do
       assert {:error, %Ecto.Changeset{}} = Games.save_riddle(riddle, %{name: nil})
       assert Repo.reload(riddle).name == riddle.name
     end
+
+    test "ignores a number in the attrs" do
+      riddle = riddle_fixture()
+
+      assert {:ok, saved} = Games.save_riddle(riddle, %{"number" => 5, "name" => "Renamed"})
+      assert saved.number == nil
+      assert Repo.reload(riddle).number == nil
+    end
+
+    test "keeps the number of a riddle that already went live" do
+      riddle = riddle_fixture() |> put_riddle_number(7)
+
+      assert {:ok, saved} = Games.save_riddle(riddle, %{number: 99, name: "Renamed"})
+      assert saved.number == 7
+    end
   end
 
   describe "save_riddle/2 :schedule" do
@@ -122,6 +137,14 @@ defmodule Riddlr.Games.SaveRiddleTest do
   end
 
   describe "save_riddle/2 :reschedule" do
+    test "leaves the number alone" do
+      riddle = scheduled_riddle_fixture(%{live_date: future(3600)})
+
+      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(7200)})
+      assert saved.play_status == "scheduled"
+      assert saved.number == nil
+    end
+
     test "moves the jobs when the live date changes" do
       riddle = scheduled_riddle_fixture(%{live_date: future(3600)})
       [old_ready, old_live] = pending_jobs(riddle.id) |> Enum.sort_by(& &1.id)

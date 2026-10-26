@@ -96,6 +96,10 @@ defmodule Riddlr.Games.Riddle do
     field :archive_after_seconds, :integer, default: 180
     field :ready_before_seconds, :integer, default: @ready_before_seconds
 
+    # Set by `Riddlr.Games.transition/3` when the riddle goes live, never
+    # cast from attrs.
+    field :number, :integer
+
     belongs_to :category, Riddlr.Games.Category
     belongs_to :first_solver, Riddlr.Accounts.User
 
@@ -141,6 +145,7 @@ defmodule Riddlr.Games.Riddle do
     |> validate_number(:archive_after_seconds, greater_than_or_equal_to: 0)
     |> validate_number(:ready_before_seconds, greater_than: 0)
     |> foreign_key_constraint(:first_solver_id)
+    |> unique_constraint(:number)
   end
 
   defp cast_answers(changeset, attrs) do

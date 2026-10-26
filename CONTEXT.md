@@ -15,6 +15,7 @@ Deep dive: `docs/DOMAIN.md`. Lifecycle detail: `docs/RIDDLE_LIFECYCLE.md`.
 | **Play status** | Riddle's lifecycle state: `closed → scheduled → ready → live → completed → archived`. |
 | **Publish status** | Orthogonal `draft`/`published`. Unpublished riddles never transition. |
 | **Live date** | Wall-clock instant a riddle goes `live`. |
+| **Riddle number** | Public "No. N" of a riddle, in play order. Set once, when the riddle goes `live` (highest so far + 1). Never set by admins. Nil until then. |
 | **Solve time** | Seconds a live riddle stays open before auto-completing. |
 | **Lobby** | Pre-game waiting room with presence + shared countdown. |
 | **Placement** | A solver's race order among correct answers. Drives points. |

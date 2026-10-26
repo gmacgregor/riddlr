@@ -52,4 +52,21 @@ defmodule RiddlrWeb.GameComponentsTest do
       refute html =~ "rg-tile--"
     end
   end
+
+  describe "kicker/1" do
+    test "shows the riddle number, then the category" do
+      html = render_component(&GameComponents.kicker/1, number: 66, category: "Classics")
+
+      assert html =~ ~s(class="rg-kicker")
+      assert html =~ ~r{<span class="rg-kicker__num">No\. 66</span>\s*<span>Classics</span>}
+    end
+
+    test "shows only the category when the riddle has no number" do
+      html = render_component(&GameComponents.kicker/1, number: nil, category: "Classics")
+
+      assert html =~ "Classics"
+      refute html =~ "rg-kicker__num"
+      refute html =~ "No."
+    end
+  end
 end
