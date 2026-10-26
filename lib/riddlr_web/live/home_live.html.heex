@@ -1,0 +1,66 @@
+<Layouts.game flash={@flash} current_scope={@current_scope}>
+  <section class="rg-view" aria-labelledby="home-h">
+    <div class="rg-wrap rg-home">
+      <section class="rg-hero" aria-labelledby="home-h">
+        <h1 id="home-h" class="rg-hero__title" tabindex="-1">
+          One riddle.<br />Everyone at once.<br /><em>First to crack it wins.</em>
+        </h1>
+        <div
+          id="hero-card"
+          class={["rg-hero__card", @next && @next.play_status == "live" && "is-live"]}
+        >
+          <p :if={!@next} class="rg-hero__teaser">{GameCopy.next_none()}</p>
+          <%= if @next && @next.play_status == "live" do %>
+            <div class="rg-hero__row">
+              <span class="rg-hero__label">{GameCopy.hero_live(@next.category.name)}</span>
+              <span class="rg-pill rg-pill--live">
+                <span class="rg-live-dot" aria-hidden="true"></span>
+                <span id="hero-left">{GameCopy.m_ss(@seconds)}</span>&nbsp;{GameCopy.hero_left()}
+              </span>
+            </div>
+            <p class="rg-hero__teaser">{GameCopy.hero_teaser(@solved)}</p>
+            <.link navigate={~p"/game/#{@next.id}/play"} class="rg-btn rg-btn--hi">
+              {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
+            </.link>
+          <% end %>
+          <%= if @next && @next.play_status != "live" do %>
+            <div class="rg-hero__row">
+              <span class="rg-hero__label">
+                {@next.category.name} · {GameCopy.next_drops_at()}
+                <GameComponents.local_time
+                  id={"hero-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
+                  at={@next.live_date}
+                />
+              </span>
+            </div>
+            <GameComponents.flaps id="hero-flaps" seconds={@seconds} />
+            <p id="hero-count" class="rg-hero__meta">{GameCopy.hero_waiting(@waiting)}</p>
+            <.link
+              :if={@next.play_status == "ready"}
+              navigate={~p"/game/#{@next.id}/lobby"}
+              class="rg-btn rg-btn--hi"
+            >
+              {GameCopy.next_enter_lobby()} <GameComponents.icon name="arrow" />
+            </.link>
+          <% end %>
+        </div>
+      </section>
+
+      <section id="intro" class="rg-panel rg-intro" aria-labelledby="intro-h">
+        <h2 id="intro-h" class="rg-panel__h">{GameCopy.intro_heading()}</h2>
+        <ol class="rg-intro__steps">
+          <li
+            :for={{step, n} <- Enum.with_index(GameCopy.intro_steps(), 1)}
+            class="rg-intro__step"
+          >
+            <GameComponents.tile initial={to_string(n)} tone="hi" size="sm" />
+            <span class="rg-intro__text">
+              <b class="rg-intro__t">{step.title}</b>
+              <span class="rg-intro__s">{step.text}</span>
+            </span>
+          </li>
+        </ol>
+      </section>
+    </div>
+  </section>
+</Layouts.game>

@@ -25,12 +25,12 @@ defmodule RiddlrWeb.GameLive.Lobby do
             if connected?(socket) do
               Presence.track(
                 self(),
-                lobby_topic(id),
+                Presence.lobby_topic(id),
                 to_string(socket.assigns.current_user.id),
                 %{username: socket.assigns.current_user.username}
               )
 
-              Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(id))
+              Phoenix.PubSub.subscribe(Riddlr.PubSub, Presence.lobby_topic(id))
               Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
               Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
               GameClock.ensure_started(riddle)
@@ -99,9 +99,6 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  @spec lobby_topic(integer() | String.t()) :: String.t()
-  defp lobby_topic(id), do: "game:lobby:#{id}"
-
   # The ticker shows the players in the latest diff's joins. The viewer and
   # players already in the room (a second tab) are not news. A diff with no
   # new joins keeps the last one on show.
@@ -140,7 +137,7 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
     present =
       riddle.id
-      |> lobby_topic()
+      |> Presence.lobby_topic()
       |> Presence.list()
       |> usernames()
       |> Map.put(me.id, me.username)

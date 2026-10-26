@@ -219,8 +219,16 @@ defmodule RiddlrWeb.UserAuth do
   defp maybe_store_return_to(conn), do: conn
 
   @doc """
-  Used for LiveView routes that require the user to be authenticated.
+  Mounts the user on a LiveView.
+
+    * `:mount_current_user` assigns the user, or nil, and never halts. For
+      public pages.
+    * `:ensure_authenticated` sends a visitor with no user to log in.
   """
+  def on_mount(:mount_current_user, _params, session, socket) do
+    {:cont, mount_current_user(socket, session)}
+  end
+
   def on_mount(:ensure_authenticated, _params, session, socket) do
     socket = mount_current_user(socket, session)
 

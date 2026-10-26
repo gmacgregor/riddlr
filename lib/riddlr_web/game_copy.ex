@@ -6,6 +6,50 @@ defmodule RiddlrWeb.GameCopy do
   happens in one place and the tests follow it.
   """
 
+  # ─── Home ─────────────────────────────────────────────────────────────────────
+
+  @doc "The heading of the Home intro."
+  @spec intro_heading() :: String.t()
+  def intro_heading, do: "First time here?"
+
+  @doc "How many players wait in the next riddle's Lobby, e.g. \"12 waiting in the lobby\"."
+  @spec hero_waiting(non_neg_integer()) :: String.t()
+  def hero_waiting(count), do: "#{delimit(count)} waiting in the lobby"
+
+  @doc "The Home card's label on a live riddle, e.g. \"Live now · Logic\"."
+  @spec hero_live(String.t()) :: String.t()
+  def hero_live(category), do: "Live now · #{category}"
+
+  @doc "The word after the time left in the Home card's live pill."
+  @spec hero_left() :: String.t()
+  def hero_left, do: "left"
+
+  @doc "The Home card's line on a live riddle, given how many have solved it."
+  @spec hero_teaser(non_neg_integer()) :: String.t()
+  def hero_teaser(solved), do: "The race is on. #{delimit(solved)} solved so far."
+
+  @doc """
+  The Home intro's steps, as title and text. The last step must match the
+  points table in `Riddlr.Gameplay`.
+  """
+  @spec intro_steps() :: [%{title: String.t(), text: String.t()}]
+  def intro_steps do
+    [
+      %{
+        title: "Join the lobby",
+        text: "Each riddle drops at a set time. Wait in the lobby with everyone else."
+      },
+      %{
+        title: "Race to answer",
+        text: "The riddle appears for all players at once. Guess as often as you like."
+      },
+      %{
+        title: "Beat the clock",
+        text: "The ten fastest correct answers score, from 10 points down to 1."
+      }
+    ]
+  end
+
   # ─── Lobby ────────────────────────────────────────────────────────────────────
 
   @doc "The flash shown when a player opens a lobby that is not open."

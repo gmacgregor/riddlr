@@ -8,4 +8,11 @@ defmodule Riddlr.Gameplay.Presence do
   use Phoenix.Presence,
     otp_app: :riddlr,
     pubsub_server: Riddlr.PubSub
+
+  @doc """
+  The topic a riddle's Lobby tracks its players on. Subscribe to it to hear
+  `presence_diff` broadcasts as players come and go.
+  """
+  @spec lobby_topic(integer() | String.t()) :: String.t()
+  def lobby_topic(riddle_id), do: "game:lobby:#{riddle_id}"
 end

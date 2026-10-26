@@ -20,7 +20,9 @@ defmodule RiddlrWeb.Router do
   scope "/", RiddlrWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live_session :public, on_mount: [{RiddlrWeb.UserAuth, :mount_current_user}] do
+      live "/", HomeLive, :home
+    end
   end
 
   # Other scopes may use custom stacks.
