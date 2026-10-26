@@ -632,6 +632,116 @@
   color: var(--muted);
 }
 
+.rg-schedule__empty {
+  margin-top: var(--s3);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.rg-schedule__list {
+  display: grid;
+  margin-top: var(--s2);
+}
+.rg-sched {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+  border-bottom: 1px dashed var(--line);
+}
+.rg-sched:last-child {
+  border-bottom: 0;
+}
+.rg-sched__time {
+  display: grid;
+  font-family: var(--f-label);
+  line-height: 1.2;
+}
+.rg-sched__time b {
+  display: block;
+  font-size: var(--fs-lg);
+}
+.rg-sched__body {
+  display: grid;
+}
+.rg-sched__cat {
+  display: block;
+  font-weight: 700;
+}
+.rg-sched__sub {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.rg-sched__solve {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  white-space: nowrap;
+  --rg-icon-size: 16px;
+}
+
+.rg-last__empty {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  padding: var(--s4);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-lg);
+}
+.rg-last__empty-t {
+  display: block;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: var(--fs-lg);
+}
+.rg-last__empty-s {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.rg-lastcard {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+.rg-lastcard__q {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: var(--fs-lg);
+  line-height: 1.35;
+}
+.rg-lastcard__a {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.rg-lastcard__answer {
+  font-family: var(--f-label);
+  font-weight: 600;
+  font-size: var(--fs-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--mint);
+  color: var(--on-light);
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+.rg-lastcard__win {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.rg-lastcard__win b {
+  color: var(--paper);
+}
+.rg-lastcard .rg-link-btn {
+  justify-self: start;
+}
+
 @media (min-width: 1024px) {
   .rg-home {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
@@ -642,8 +752,17 @@
   .rg-hero {
     grid-row: span 2;
   }
-  .rg-intro {
+  .rg-intro,
+  .rg-last {
     grid-column: 2;
+  }
+  /* Fill the right column beside the hero, not under the schedule. */
+  .rg-last {
+    grid-row: 2;
+  }
+  .rg-schedule {
+    grid-column: 1;
+    grid-row: 3;
   }
 }
 @media (min-width: 768px) and (max-width: 1023px) {

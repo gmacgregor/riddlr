@@ -51,9 +51,10 @@ defmodule RiddlrWeb.GameCopyTest do
   end
 
   describe "results" do
-    test "solve time in seconds with one decimal" do
-      assert GameCopy.solve_secs(3_456) == "3.5s"
-      assert GameCopy.solve_secs(12_000) == "12.0s"
+    test "solve time in seconds with two decimals" do
+      assert GameCopy.solve_secs(3_456) == "3.46s"
+      assert GameCopy.solve_secs(12_340) == "12.34s"
+      assert GameCopy.solve_secs(12_000) == "12.00s"
       assert GameCopy.solve_secs(nil) == "—"
     end
 

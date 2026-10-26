@@ -116,6 +116,120 @@ defmodule RiddlrWeb.HomeLiveTest do
     end
   end
 
+  describe "coming up" do
+    test "says nothing else is scheduled when there is no upcoming riddle", %{conn: conn} do
+      upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#schedule h2", "Coming up")
+      assert has_element?(live, "#schedule", "Nothing else scheduled yet.")
+      refute has_element?(live, "#schedule .rg-sched")
+    end
+
+    test "lists the riddles after the next one, soonest first, with no text", %{conn: conn} do
+      upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
+      later = upcoming_fixture("scheduled", ~U[2030-01-01 16:00:00Z])
+      sooner = upcoming_fixture("ready", ~U[2030-01-01 15:00:00Z])
+      Ecto.Changeset.change(sooner, solve_time: 90) |> Riddlr.Repo.update!()
+      draft = upcoming_fixture("scheduled", ~U[2030-01-01 15:30:00Z])
+      Ecto.Changeset.change(draft, publish_status: "draft") |> Riddlr.Repo.update!()
+
+      {:ok, live, html} = live(conn, ~p"/")
+
+      first = "#schedule li.rg-sched:nth-child(1)"
+      assert has_element?(live, "#{first} time[datetime='2030-01-01T15:00:00Z']", "15:00")
+      assert has_element?(live, "#{first} .rg-sched__cat", sooner.category.name)
+      assert has_element?(live, "#{first} .rg-sched__sub", "Riddle hidden until it drops")
+      assert has_element?(live, "#{first} .rg-sched__solve .rg-icon")
+      assert has_element?(live, "#{first} .rg-sched__solve", "01:30")
+
+      second = "#schedule li.rg-sched:nth-child(2)"
+      assert has_element?(live, "#{second} time[datetime='2030-01-01T16:00:00Z']")
+      assert has_element?(live, "#{second} .rg-sched__solve", "01:00")
+
+      refute has_element?(live, "#schedule li.rg-sched:nth-child(3)")
+      refute has_element?(live, "#schedule", "Nothing else scheduled yet.")
+      refute html =~ later.description
+    end
+  end
+
+  describe "last riddle" do
+    test "says no riddle has been solved when none has finished", %{conn: conn} do
+      upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last h2", "Last riddle")
+      assert has_element?(live, "#last .rg-last__empty-t", "No riddles solved yet.")
+
+      assert has_element?(
+               live,
+               "#last .rg-last__empty-s",
+               "Answers and winners show here once the first riddle closes."
+             )
+
+      refute has_element?(live, "#last .rg-lastcard")
+    end
+
+    test "shows the last finished riddle, its answer and first solver", %{conn: conn} do
+      user = user_fixture()
+      last = upcoming_fixture("completed", ~U[2030-01-01 14:05:00Z])
+      GamesFixtures.solve_fixture(last, user, %{solve_time_ms: 12_340})
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last .rg-lastcard__q", "“#{last.description}”")
+      assert has_element?(live, "#last .rg-lastcard__answer", "keyboard")
+      assert has_element?(live, "#last .rg-lastcard__win", "Cracked first by")
+      assert has_element?(live, "#last .rg-lastcard__win b", user.username)
+      assert has_element?(live, "#last .rg-lastcard__win", "in 12.34s")
+
+      assert has_element?(
+               live,
+               "#last a[href='/game/#{last.id}/results']",
+               "See the board and chat"
+             )
+
+      refute has_element?(live, "#last .rg-last__empty")
+    end
+
+    test "names a deleted first solver as Player", %{conn: conn} do
+      last = upcoming_fixture("archived", ~U[2030-01-01 14:05:00Z])
+
+      Riddlr.Repo.insert!(%Riddlr.Gameplay.Solve{
+        riddle_id: last.id,
+        placement: 1,
+        points: 10,
+        solve_time_ms: 5_000
+      })
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last .rg-lastcard__win b", "Player")
+      assert has_element?(live, "#last .rg-lastcard__win", "in 5.00s")
+    end
+
+    test "says nobody cracked an archived riddle with no solver", %{conn: conn} do
+      last = upcoming_fixture("archived", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last .rg-lastcard__win", "Nobody cracked it")
+      assert has_element?(live, "#last a[href='/game/#{last.id}/results']")
+    end
+
+    test "shows no text or answer of a riddle that has not finished", %{conn: conn} do
+      next = upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
+      upcoming_fixture("scheduled", ~U[2030-01-01 15:05:00Z])
+
+      {:ok, _live, html} = live(conn, ~p"/")
+
+      refute html =~ next.description
+      refute html =~ "keyboard"
+    end
+  end
+
   describe "live updates" do
     test "flips the card to live when the riddle goes live", %{conn: conn} do
       next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
@@ -218,6 +332,36 @@ defmodule RiddlrWeb.HomeLiveTest do
       next = GamesFixtures.scheduled_riddle_fixture()
 
       assert has_element?(live, "#hero-card .rg-hero__label", "#{next.category.name} · drops at")
+    end
+
+    test "adds a riddle to Coming up once it is scheduled", %{conn: conn} do
+      upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+      assert has_element?(live, "#schedule", "Nothing else scheduled yet.")
+
+      later = GamesFixtures.scheduled_riddle_fixture(%{live_date: ~U[2030-01-01 15:00:00Z]})
+
+      assert has_element?(live, "#sched-#{later.id} time[datetime='2030-01-01T15:00:00Z']")
+    end
+
+    test "fills the last riddle card when a riddle completes", %{conn: conn} do
+      next = upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+      assert has_element?(live, "#last .rg-last__empty")
+
+      {:ok, _} = Games.transition(next.id, :completed)
+
+      assert has_element?(live, "#last .rg-lastcard__q", next.description)
+      assert has_element?(live, "#last .rg-lastcard__win", "Nobody cracked it")
+    end
+
+    test "updates the last riddle card when an admin edits it", %{conn: conn} do
+      last = upcoming_fixture("archived", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      {:ok, _} = Games.save_riddle(last, %{"answers" => ["piano"]})
+
+      assert has_element?(live, "#last .rg-lastcard__answer", "piano")
     end
   end
 

@@ -394,6 +394,65 @@ defmodule Riddlr.GamesTest do
     end
   end
 
+  describe "list_upcoming_riddles/1" do
+    import Riddlr.GamesFixtures
+
+    test "returns upcoming published riddles after the next one, soonest first" do
+      put_state(riddle_fixture(), "ready", "published", 60)
+      third = put_state(riddle_fixture(), "scheduled", "published", 7200)
+      second = put_state(riddle_fixture(), "scheduled", "published", 600)
+      put_state(riddle_fixture(), "scheduled", "draft", 300)
+      put_state(riddle_fixture(), "completed", "published", -60)
+
+      upcoming = Games.list_upcoming_riddles(3)
+
+      assert Enum.map(upcoming, & &1.id) == [second.id, third.id]
+      assert hd(upcoming).category.name == "logic"
+    end
+
+    test "keeps every upcoming riddle when the next one is live" do
+      put_state(riddle_fixture(), "live", "published", -30)
+      upcoming = put_state(riddle_fixture(), "scheduled", "published", 600)
+
+      assert Enum.map(Games.list_upcoming_riddles(3), & &1.id) == [upcoming.id]
+    end
+
+    test "returns at most `limit` riddles" do
+      for secs <- [60, 120, 180, 240],
+          do: put_state(riddle_fixture(), "scheduled", "published", secs)
+
+      assert length(Games.list_upcoming_riddles(2)) == 2
+    end
+  end
+
+  describe "last_finished_riddle/0" do
+    import Riddlr.GamesFixtures
+
+    test "returns nil when no riddle has finished" do
+      put_state(riddle_fixture(), "live", "published", -30)
+
+      assert Games.last_finished_riddle() == nil
+    end
+
+    test "returns the finished riddle with the latest Live date" do
+      put_state(riddle_fixture(), "archived", "published", -7200)
+      last = put_state(riddle_fixture(), "completed", "published", -600)
+      put_state(riddle_fixture(), "live", "published", -30)
+
+      found = Games.last_finished_riddle()
+
+      assert found.id == last.id
+      assert found.category.name == "logic"
+    end
+
+    test "counts archived riddles" do
+      archived = put_state(riddle_fixture(), "archived", "published", -60)
+      put_state(riddle_fixture(), "completed", "published", -600)
+
+      assert Games.last_finished_riddle().id == archived.id
+    end
+  end
+
   # Sets Play status, Publish status and a Live date `secs` from now, skipping
   # the changeset's transition checks.
   defp put_state(riddle, play_status, publish_status, secs) do

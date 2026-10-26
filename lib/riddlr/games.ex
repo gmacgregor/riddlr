@@ -457,13 +457,53 @@ defmodule Riddlr.Games do
   """
   @spec next_riddle() :: Riddle.t() | nil
   def next_riddle do
+    next_query()
+    |> preload(:category)
+    |> Repo.one()
+  end
+
+  @doc """
+  Up to `limit` riddles that come after the next riddle (`next_riddle/0`):
+  published, `scheduled` or `ready`, soonest Live date first, category
+  preloaded.
+  """
+  @spec list_upcoming_riddles(pos_integer()) :: [Riddle.t()]
+  def list_upcoming_riddles(limit) when is_integer(limit) and limit > 0 do
+    next_id = next_query() |> select([r], r.id)
+
+    Riddle
+    |> where([r], r.publish_status == "published")
+    |> where([r], r.play_status in ["scheduled", "ready"])
+    |> where([r], r.id not in subquery(next_id))
+    |> order_by([r], asc: r.live_date, asc: r.id)
+    |> limit(^limit)
+    |> preload(:category)
+    |> Repo.all()
+  end
+
+  @doc """
+  The most recent finished riddle: the `completed` or `archived` one with the
+  latest Live date, category preloaded. Returns nil when no riddle has
+  finished. Its first solver and time come from `Gameplay.first_solve/1`.
+  """
+  @spec last_finished_riddle() :: Riddle.t() | nil
+  def last_finished_riddle do
+    Riddle
+    |> where([r], r.play_status in ["completed", "archived"])
+    |> order_by([r], desc_nulls_last: r.live_date, desc: r.id)
+    |> limit(1)
+    |> preload(:category)
+    |> Repo.one()
+  end
+
+  # The query behind `next_riddle/0`: at most one row.
+  @spec next_query() :: Ecto.Query.t()
+  defp next_query do
     Riddle
     |> where([r], r.publish_status == "published")
     |> where([r], r.play_status in ["scheduled", "ready", "live"])
     |> order_by([r], asc: r.live_date, asc: r.id)
     |> limit(1)
-    |> preload(:category)
-    |> Repo.one()
   end
 
   @doc """

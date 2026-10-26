@@ -230,7 +230,7 @@ defmodule RiddlrWeb.GameLive.Results do
     |> Gameplay.list_solves()
     |> Enum.map(fn solve ->
       me? = solve.user_id == user_id
-      username = if(solve.user, do: solve.user.username, else: "Player")
+      username = if(solve.user, do: solve.user.username, else: GameCopy.gone_player())
 
       %{
         placement: solve.placement,

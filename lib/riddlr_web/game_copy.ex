@@ -12,6 +12,38 @@ defmodule RiddlrWeb.GameCopy do
   @spec intro_heading() :: String.t()
   def intro_heading, do: "First time here?"
 
+  @doc "The heading of the Home schedule."
+  @spec schedule_heading() :: String.t()
+  def schedule_heading, do: "Coming up"
+
+  @doc "The line under an upcoming riddle's category, which keeps its text secret."
+  @spec schedule_hidden() :: String.t()
+  def schedule_hidden, do: "Riddle hidden until it drops"
+
+  @doc "The Home schedule's line when nothing comes after the next riddle."
+  @spec schedule_empty() :: String.t()
+  def schedule_empty, do: "Nothing else scheduled yet."
+
+  @doc "The heading of the Home last riddle card."
+  @spec last_heading() :: String.t()
+  def last_heading, do: "Last riddle"
+
+  @doc "The last riddle card's line when nobody solved the riddle."
+  @spec last_unsolved() :: String.t()
+  def last_unsolved, do: "Nobody cracked it"
+
+  @doc "The link from the last riddle card to its Results."
+  @spec last_link() :: String.t()
+  def last_link, do: "See the board and chat"
+
+  @doc "The last riddle card's title when no riddle has finished."
+  @spec last_empty_title() :: String.t()
+  def last_empty_title, do: "No riddles solved yet."
+
+  @doc "The last riddle card's line when no riddle has finished."
+  @spec last_empty_text() :: String.t()
+  def last_empty_text, do: "Answers and winners show here once the first riddle closes."
+
   @doc "How many players wait in the next riddle's Lobby, e.g. \"12 waiting in the lobby\"."
   @spec hero_waiting(non_neg_integer()) :: String.t()
   def hero_waiting(count), do: "#{delimit(count)} waiting in the lobby"
@@ -246,14 +278,22 @@ defmodule RiddlrWeb.GameCopy do
   # ─── Results ────────────────────────────────────────────────────────────────────────────
 
   @doc """
-  A solve time in seconds with one decimal, e.g. 3456 ms as "3.5s". A solve
-  with no time (the riddle had no live date) reads "—".
+  A solve time in seconds with two decimals, e.g. 3456 ms as "3.46s". A
+  hundredth of a second can split two places, so one decimal is not enough.
+  A solve with no time (the riddle had no live date) reads "—".
   """
   @spec solve_secs(non_neg_integer() | nil) :: String.t()
   def solve_secs(nil), do: "—"
 
-  def solve_secs(ms) when is_integer(ms),
-    do: :erlang.float_to_binary(ms / 1000, decimals: 1) <> "s"
+  # Integer maths, so no float rounding shows in the digits.
+  def solve_secs(ms) when is_integer(ms) do
+    cs = div(max(ms, 0) + 5, 10)
+    "#{div(cs, 100)}.#{cs |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")}s"
+  end
+
+  @doc "The name shown for a player whose account is gone."
+  @spec gone_player() :: String.t()
+  def gone_player, do: "Player"
 
   @doc "The words before the first solver's name on Results."
   @spec results_by_lead() :: String.t()

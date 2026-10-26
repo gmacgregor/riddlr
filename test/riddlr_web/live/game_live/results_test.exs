@@ -75,7 +75,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
       assert has_element?(live, "#res-by b", winner.username)
-      assert has_element?(live, "#res-by", "in 3.5s · 2 solved")
+      assert has_element?(live, "#res-by", "in 3.46s · 2 solved")
     end
 
     test "says you when the viewer cracked it first", %{conn: conn, user: user} do
@@ -85,7 +85,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
       assert has_element?(live, "#res-by b", "you")
-      assert has_element?(live, "#res-by", "in 12.0s · 1 solved")
+      assert has_element?(live, "#res-by", "in 12.00s · 1 solved")
     end
 
     test "says nobody cracked it when there are no solves", %{conn: conn, user: user} do
@@ -194,9 +194,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       assert has_element?(live, ".rg-podium > .rg-pod--2:nth-child(1)", "you")
       assert has_element?(live, ".rg-podium > .rg-pod--1:nth-child(2)", winner.username)
-      assert has_element?(live, ".rg-pod--1 .rg-pod__t", "3.0s")
+      assert has_element?(live, ".rg-pod--1 .rg-pod__t", "3.00s")
       assert has_element?(live, ".rg-pod--1 .rg-pod__pts", "+10")
-      assert has_element?(live, ".rg-pod--2 .rg-pod__t", "61.0s")
+      assert has_element?(live, ".rg-pod--2 .rg-pod__t", "61.00s")
       assert has_element?(live, ".rg-podium > .rg-pod--3.rg-pod--empty:nth-child(3)", "Open")
     end
 
@@ -230,7 +230,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       assert has_element?(live, "ol.rg-board > li.rg-row:nth-child(1) .rg-row__pts", "+10")
       assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__name", "you")
-      assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__t", "4.3s")
+      assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__t", "4.25s")
       refute has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(1)")
     end
   end

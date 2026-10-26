@@ -35,6 +35,19 @@ defmodule Riddlr.Gameplay.SolvesTest do
     end
   end
 
+  describe "first_solve/1" do
+    test "returns the placement-1 solve with its user loaded", %{riddle: riddle, first: first} do
+      assert %Solve{placement: 1, solve_time_ms: 3_200, user: user} =
+               Gameplay.first_solve(riddle.id)
+
+      assert user.id == first.id
+    end
+
+    test "is nil for a riddle with no solves" do
+      assert Gameplay.first_solve(GamesFixtures.riddle_fixture().id) == nil
+    end
+  end
+
   describe "solve_for/2" do
     test "returns the user's solve", %{riddle: riddle, second: second} do
       assert %Solve{placement: 2, points: 9} = Gameplay.solve_for(riddle.id, second.id)

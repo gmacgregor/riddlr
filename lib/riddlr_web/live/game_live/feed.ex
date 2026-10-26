@@ -20,7 +20,7 @@ defmodule RiddlrWeb.GameLive.Feed do
       username =
         case Map.get(users_by_id, entry.user_id) do
           %{username: u} -> u
-          nil -> "Player"
+          nil -> RiddlrWeb.GameCopy.gone_player()
         end
 
       Map.put(entry, :username, username)

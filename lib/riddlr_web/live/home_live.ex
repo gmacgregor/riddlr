@@ -8,9 +8,15 @@ defmodule RiddlrWeb.HomeLive do
   riddle gets a button, since a `scheduled` riddle's Lobby is not open yet.
   Once live it shows the time left and how many have solved it.
 
+  Below the card, "Coming up" lists the riddles after the next one
+  (`Games.list_upcoming_riddles/1`), with no riddle text, and "Last riddle"
+  shows the most recent finished riddle with its answer and first solver
+  (`Games.last_finished_riddle/0`).
+
   The page follows the riddle's state while open. It listens to the riddle
   state topics, and to the next riddle's clock, Lobby presence and answers.
-  When the next riddle changes, the per-riddle topics move with it.
+  When the next riddle changes, the per-riddle topics move with it. Any state
+  message reloads the card and both panels.
   """
 
   use RiddlrWeb, :live_view
@@ -19,17 +25,24 @@ defmodule RiddlrWeb.HomeLive do
   alias Riddlr.Gameplay.{Answer, Presence}
   alias RiddlrWeb.{GameComponents, GameCopy}
 
-  # Each of these can change which riddle is next, or its state. Completed is
-  # here so a live riddle drops off the card when it ends.
-  @state_topics ~w(games:riddle:scheduled games:riddle:ready games:riddle:live games:riddle:completed)
+  # Each of these can change which riddle is next, or its state, or the
+  # schedule and last riddle panels. Completed is here so a live riddle drops
+  # off the card when it ends; changed carries admin edits and deletes.
+  @state_topics ~w(games:riddle:scheduled games:riddle:ready games:riddle:live games:riddle:completed games:riddle:archived games:riddle:changed)
   @state_messages [
     :riddle_scheduled,
     :riddle_rescheduled,
     :riddle_unscheduled,
     :riddle_ready,
     :riddle_live,
-    :riddle_completed
+    :riddle_completed,
+    :riddle_archived,
+    :riddle_saved,
+    :riddle_deleted
   ]
+
+  # How many riddles the schedule lists after the next one.
+  @upcoming_limit 3
 
   @impl true
   def mount(_params, _session, socket) do
@@ -45,7 +58,8 @@ defmodule RiddlrWeb.HomeLive do
     {:ok,
      socket
      |> assign(:page_title, "Home")
-     |> assign_next(next)}
+     |> assign_next(next)
+     |> assign_panels()}
   end
 
   @impl true
@@ -56,6 +70,7 @@ defmodule RiddlrWeb.HomeLive do
     {:noreply,
      socket
      |> assign_next(next)
+     |> assign_panels()
      |> sync_flaps()}
   end
 
@@ -93,6 +108,35 @@ defmodule RiddlrWeb.HomeLive do
     |> assign(:seconds, seconds_left(next))
     |> assign(:waiting, waiting(next))
     |> assign(:solved, solved(next))
+  end
+
+  # The schedule under the hero and the last finished riddle.
+  @spec assign_panels(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp assign_panels(socket) do
+    last = Games.last_finished_riddle()
+
+    socket
+    |> assign(:upcoming, Games.list_upcoming_riddles(@upcoming_limit))
+    |> assign(:last, last)
+    |> assign(:last_answer, last && List.first(last.answers, ""))
+    |> assign(:last_win, last && last_win(last.id))
+  end
+
+  # The last riddle's first solver and time, from the saved solve: the
+  # riddle's `first_solve_time` holds whole seconds, but a hundredth can split
+  # two places.
+  @spec last_win(integer()) :: %{name: String.t(), secs: String.t()} | nil
+  defp last_win(riddle_id) do
+    case Gameplay.first_solve(riddle_id) do
+      nil ->
+        nil
+
+      solve ->
+        %{
+          name: if(solve.user, do: solve.user.username, else: GameCopy.gone_player()),
+          secs: GameCopy.solve_secs(solve.solve_time_ms)
+        }
+    end
   end
 
   # The flaps hook owns its digits, so a new drop time (a reschedule, or a

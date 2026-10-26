@@ -362,6 +362,17 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
+  A riddle's saved placement-1 solve, with `:user` loaded, or `nil` if nobody
+  solved it or it has not completed. Its `solve_time_ms` keeps the
+  milliseconds the riddle's `first_solve_time` drops.
+  """
+  @spec first_solve(integer()) :: Solve.t() | nil
+  def first_solve(riddle_id) do
+    from(s in Solve, where: s.riddle_id == ^riddle_id and s.placement == 1, preload: :user)
+    |> Repo.one()
+  end
+
+  @doc """
   A user's saved solve of a riddle, or `nil` if they did not solve it or the
   riddle has not completed.
   """

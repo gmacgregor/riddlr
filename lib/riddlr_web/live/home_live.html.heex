@@ -61,6 +61,55 @@
           </li>
         </ol>
       </section>
+
+      <section id="schedule" class="rg-panel rg-schedule" aria-labelledby="sched-h">
+        <h2 id="sched-h" class="rg-panel__h">{GameCopy.schedule_heading()}</h2>
+        <p :if={@upcoming == []} class="rg-schedule__empty">{GameCopy.schedule_empty()}</p>
+        <ol :if={@upcoming != []} class="rg-schedule__list">
+          <li :for={riddle <- @upcoming} id={"sched-#{riddle.id}"} class="rg-sched">
+            <span class="rg-sched__time">
+              <b>
+                <GameComponents.local_time
+                  id={"sched-at-#{riddle.id}-#{DateTime.to_unix(riddle.live_date)}"}
+                  at={riddle.live_date}
+                />
+              </b>
+            </span>
+            <span class="rg-sched__body">
+              <span class="rg-sched__cat">{riddle.category.name}</span>
+              <span class="rg-sched__sub">{GameCopy.schedule_hidden()}</span>
+            </span>
+            <span class="rg-sched__solve">
+              <GameComponents.icon name="clock" /> {GameComponents.clock_str(riddle.solve_time)}
+            </span>
+          </li>
+        </ol>
+      </section>
+
+      <section id="last" class="rg-panel rg-last" aria-labelledby="last-h">
+        <h2 id="last-h" class="rg-panel__h">{GameCopy.last_heading()}</h2>
+        <div :if={!@last} class="rg-last__empty">
+          <span class="rg-last__empty-t">{GameCopy.last_empty_title()}</span>
+          <span class="rg-last__empty-s">{GameCopy.last_empty_text()}</span>
+        </div>
+        <div :if={@last} class="rg-lastcard">
+          <p class="rg-lastcard__q">“{@last.description}”</p>
+          <div class="rg-lastcard__a">
+            <span class="rg-lastcard__answer">{@last_answer}</span>
+            <span class="rg-lastcard__win">
+              <%= if @last_win do %>
+                {GameCopy.results_by_lead()} <b>{@last_win.name}</b>
+                in <span class="rg-nowrap">{@last_win.secs}</span>
+              <% else %>
+                {GameCopy.last_unsolved()}
+              <% end %>
+            </span>
+          </div>
+          <.link navigate={~p"/game/#{@last.id}/results"} class="rg-link-btn">
+            {GameCopy.last_link()}
+          </.link>
+        </div>
+      </section>
     </div>
   </section>
 </Layouts.game>
