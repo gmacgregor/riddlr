@@ -126,4 +126,34 @@ defmodule RiddlrWeb.GameComponentsTest do
       refute html =~ "No."
     end
   end
+
+  describe "room_cells/2" do
+    test "pads a small room with empty cells up to 8" do
+      assert GameComponents.room_cells(Enum.to_list(1..3), 4) == %{
+               visible: [1, 2, 3],
+               more: 0,
+               pad: 5
+             }
+    end
+
+    test "shows everyone when the room fits, with no padding past 8" do
+      players = Enum.to_list(1..12)
+      assert GameComponents.room_cells(players, 4) == %{visible: players, more: 0, pad: 0}
+    end
+
+    test "past three rows, shows cells minus two and counts the rest" do
+      players = Enum.to_list(1..50)
+      # 4 cols x 3 rows = 12 cells; 10 tiles + the two-cell "more" cell.
+      assert GameComponents.room_cells(players, 4) ==
+               %{visible: Enum.to_list(1..10), more: 40, pad: 0}
+    end
+
+    test "clamps the column count to 4..12" do
+      players = Enum.to_list(1..200)
+      assert %{visible: v} = GameComponents.room_cells(players, 1)
+      assert length(v) == 10
+      assert %{visible: v} = GameComponents.room_cells(players, 1000)
+      assert length(v) == 34
+    end
+  end
 end

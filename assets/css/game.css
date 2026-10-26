@@ -576,6 +576,127 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* Room panel. Tiles carry ids, so LiveView keeps a tile's node across
+   patches and pop-in runs only on tiles that just arrived. */
+.rg-room__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+.rg-room__p {
+  display: grid;
+  justify-items: center;
+  gap: var(--s1);
+  min-width: 0;
+}
+.rg-room__p:not(.rg-room__empty) {
+  animation: rg-pop-in var(--t-med) var(--ease-out);
+}
+.rg-room__p .rg-tile {
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+}
+.rg-room__name {
+  display: block;
+  max-width: 100%;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rg-room__p.is-me .rg-room__name {
+  color: var(--hi);
+  font-weight: 700;
+}
+.rg-room__empty .rg-tile {
+  background: transparent;
+  border: 1px dashed var(--line-2);
+  color: var(--dim);
+}
+.rg-room__more {
+  grid-column: span 2;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 var(--s3);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r);
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--paper);
+}
+@keyframes rg-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* Join ticker. Each join gets a new text node id, so msg-in runs again. */
+.rg-ticker {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 24px;
+  margin-top: var(--s3);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.rg-ticker__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  flex: none;
+}
+.rg-ticker__text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  animation: rg-msg-in var(--t-med) var(--ease-out);
+}
+.rg-ticker__text b {
+  color: var(--paper);
+  font-weight: 700;
+}
+@keyframes rg-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.rg-rules {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.rg-rules li {
+  position: relative;
+  padding-left: var(--s5);
+}
+.rg-rules li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 10px;
+  height: 10px;
+  background: var(--hi);
+  border-radius: 1px;
+}
+
 @media (min-width: 1024px) {
   .rg-lobby {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);

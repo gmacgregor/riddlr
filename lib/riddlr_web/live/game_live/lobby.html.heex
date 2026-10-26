@@ -24,14 +24,75 @@
         </p>
       </div>
 
-      <section class="rg-panel" aria-labelledby="room-h">
+      <section class="rg-panel rg-room" aria-labelledby="room-h">
         <div class="rg-panel__head">
-          <h2 id="room-h" class="rg-panel__h">In the room</h2>
-          <span id="lobby-player-count" class="rg-count rg-nowrap" aria-live="polite">
-            {GameCopy.players_waiting(@player_count)}
+          <h2 id="room-h" class="rg-panel__h">{GameCopy.room_heading()}</h2>
+          <span id="room-count" class="rg-count rg-nowrap" aria-live="polite">
+            {GameCopy.room_count(length(@players))}
           </span>
         </div>
+        <ul id="room-grid" class="rg-room__grid" phx-hook=".RoomGrid">
+          <li
+            :for={player <- @room.visible}
+            id={"room-p-#{player.id}"}
+            class={["rg-room__p", player.me? && "is-me"]}
+          >
+            <GameComponents.tile
+              initial={GameComponents.initial(player.username)}
+              tone={GameComponents.tone(player.username, @current_user.username)}
+            />
+            <span class="rg-room__name">
+              {if player.me?, do: GameCopy.room_you(), else: player.username}
+            </span>
+          </li>
+          <li :if={@room.more > 0} class="rg-room__more">
+            <span class="rg-nowrap">{GameCopy.room_more(@room.more)}</span>
+          </li>
+          <li :for={_ <- 1..@room.pad//1} class="rg-room__p rg-room__empty" aria-hidden="true">
+            <span class="rg-tile">?</span><span class="rg-room__name">&nbsp;</span>
+          </li>
+        </ul>
+        <p id="room-ticker" class="rg-ticker" aria-live="off">
+          <span :if={@last_join} class="rg-ticker__dot" aria-hidden="true"></span>
+          <span
+            :if={@last_join}
+            id={"room-ticker-#{@last_join.seq}"}
+            class="rg-ticker__text"
+          ><b>{@last_join.first}</b>{GameCopy.ticker_tail(@last_join.others)}</span>
+        </p>
+      </section>
+
+      <section class="rg-panel" aria-labelledby="rules-h">
+        <h2 id="rules-h" class="rg-panel__h">{GameCopy.rules_heading()}</h2>
+        <ul class="rg-rules">
+          <li :for={rule <- GameCopy.rules()}>{rule}</li>
+        </ul>
       </section>
     </div>
   </section>
+  <script :type={Phoenix.LiveView.ColocatedHook} name=".RoomGrid">
+    // Tells the server how many columns the room grid has at this width, so
+    // it can fill exactly three rows. Sends only when the count changes.
+    export default {
+      mounted() {
+        this.onResize = () => {
+          cancelAnimationFrame(this.frame)
+          this.frame = requestAnimationFrame(() => this.report())
+        }
+        window.addEventListener("resize", this.onResize)
+        this.report()
+      },
+      destroyed() {
+        window.removeEventListener("resize", this.onResize)
+        cancelAnimationFrame(this.frame)
+      },
+      report() {
+        const cols = getComputedStyle(this.el).gridTemplateColumns.split(" ").filter(Boolean).length
+        if (cols > 0 && cols !== this.cols) {
+          this.cols = cols
+          this.pushEvent("room-cols", { cols })
+        }
+      }
+    }
+  </script>
 </Layouts.game>

@@ -60,6 +60,55 @@ defmodule RiddlrWeb.GameComponents do
     """
   end
 
+  @typedoc "A player in the Lobby's room grid. `me?` marks the viewer."
+  @type room_player :: %{id: String.t(), username: String.t(), me?: boolean()}
+
+  @typedoc """
+  What the room grid shows: the players with tiles, how many players the
+  \"…and N more\" cell counts, and how many empty tiles pad a small room.
+  """
+  @type room :: %{
+          visible: [room_player()],
+          more: non_neg_integer(),
+          pad: non_neg_integer()
+        }
+
+  @room_rows 3
+  @room_min 8
+  @min_cols 4
+  @max_cols 12
+  # The "…and N more" cell spans two columns.
+  @more_span 2
+
+  @doc """
+  Splits a Lobby's players into what the room grid shows.
+
+  The grid holds at most three rows of `cols` cells, with `cols` clamped by
+  `clamp_cols/1`, so a full room never puts more than 36 cells in the DOM.
+  When the players do not fit, the last two cells become one "…and N more" cell:
+  `visible` holds the cells minus two and `more` counts the rest. A room of
+  fewer than 8 players gets `pad` empty cells to fill it to 8.
+  """
+  @spec room_cells([room_player()], integer()) :: room()
+  def room_cells(players, cols) when is_list(players) and is_integer(cols) do
+    cells = clamp_cols(cols) * @room_rows
+    total = length(players)
+
+    if total > cells do
+      shown = cells - @more_span
+      %{visible: Enum.take(players, shown), more: total - shown, pad: 0}
+    else
+      %{visible: players, more: 0, pad: max(@room_min - total, 0)}
+    end
+  end
+
+  @doc """
+  Clamps a measured room grid column count to 4..12. The floor matches the
+  design; the ceiling bounds the DOM whatever the client sends.
+  """
+  @spec clamp_cols(integer()) :: pos_integer()
+  def clamp_cols(cols) when is_integer(cols), do: cols |> max(@min_cols) |> min(@max_cols)
+
   @doc """
   Formats seconds as a clock: `MM:SS`, or `HH:MM:SS` from one hour up.
   Negative seconds read as zero. The `.Flaps` hook in `flaps/1` mirrors

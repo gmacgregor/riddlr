@@ -5,6 +5,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
   alias Riddlr.Clock.Frozen
   alias Riddlr.{Games, GamesFixtures, AccountsFixtures}
+  alias RiddlrWeb.GameComponents
   alias RiddlrWeb.GameCopy
 
   setup do
@@ -164,12 +165,6 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
       assert has_element?(live, "#lobby-flaps.rg-flaps[role='timer'][phx-hook][data-seconds]")
     end
-
-    test "shows player count element", %{conn: conn, riddle: riddle, user: user} do
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert has_element?(live, "#lobby-player-count", GameCopy.players_waiting(1))
-    end
   end
 
   describe "countdown tick" do
@@ -298,40 +293,226 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
     end
   end
 
-  describe "Presence player count" do
-    test "renders player count of 1 after own connection", %{conn: conn, user: user} do
+  describe "room panel" do
+    setup %{user: user} do
       riddle =
         GamesFixtures.riddle_fixture()
         |> set_play_status("scheduled")
         |> set_play_status("ready")
 
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      # Connected LiveView test triggers Presence.track, so count is 1
-      assert has_element?(live, "#lobby-player-count", GameCopy.players_waiting(1))
+      %{riddle: riddle, user: user}
     end
 
-    test "updates player count when Presence diff received", %{conn: conn, user: user} do
-      riddle =
-        GamesFixtures.riddle_fixture()
-        |> set_play_status("scheduled")
-        |> set_play_status("ready")
+    test "puts the viewer's own tile first, labelled you", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
 
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+      assert has_element?(live, "#room-h", GameCopy.room_heading())
+      assert has_element?(live, "#room-count[aria-live='polite']", GameCopy.room_count(1))
 
-      send(
-        live.pid,
-        %Phoenix.Socket.Broadcast{
-          topic: "game:lobby:#{riddle.id}",
-          event: "presence_diff",
-          payload: %{joins: %{}, leaves: %{}}
-        }
-      )
+      assert has_element?(
+               live,
+               "#room-grid li:first-child#room-p-#{user.id}.is-me",
+               GameCopy.room_you()
+             )
 
-      # Player count re-renders after diff; connected mount tracks 1 player
-      assert has_element?(live, "#lobby-player-count", GameCopy.players_waiting(1))
+      assert has_element?(
+               live,
+               "#room-p-#{user.id} .rg-tile",
+               GameComponents.initial(user.username)
+             )
     end
+
+    test "two players in the same lobby each see both names", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      other = AccountsFixtures.user_fixture()
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(riddle))
+
+      {:ok, other_live, _html} =
+        build_conn() |> log_in_user(other) |> live(~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(
+               other_live,
+               "#room-grid li:first-child#room-p-#{other.id}",
+               GameCopy.room_you()
+             )
+
+      assert has_element?(other_live, "#room-p-#{user.id}", user.username)
+      assert has_element?(other_live, "#room-count", GameCopy.room_count(2))
+
+      # The first player hears of the second through a presence diff.
+      assert_receive %Phoenix.Socket.Broadcast{event: "presence_diff"}
+      assert has_element?(live, "#room-p-#{other.id}", other.username)
+
+      assert has_element?(
+               live,
+               "#room-grid li:first-child#room-p-#{user.id}",
+               GameCopy.room_you()
+             )
+
+      assert has_element?(live, "#room-count", GameCopy.room_count(2))
+    end
+
+    test "count and grid follow players joining and leaving", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(riddle))
+
+      pid = track_player(riddle, "p1", "zelda")
+      await_diff()
+      assert has_element?(live, "#room-p-p1", "zelda")
+      assert has_element?(live, "#room-count", GameCopy.room_count(2))
+
+      Process.exit(pid, :kill)
+      await_diff()
+      refute has_element?(live, "#room-p-p1")
+      assert has_element?(live, "#room-count", GameCopy.room_count(1))
+    end
+
+    test "fills a small room with empty tiles up to 8", %{conn: conn, riddle: riddle, user: user} do
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(riddle))
+
+      assert count_cells(live, ".rg-room__p:not(.rg-room__empty)") == 1
+      assert count_cells(live, ".rg-room__empty[aria-hidden='true']") == 7
+
+      track_player(riddle, "p1", "zelda")
+      await_diff()
+      assert count_cells(live, ".rg-room__empty") == 6
+    end
+
+    test "a full room shows a bounded number of tiles and counts the rest", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      for n <- 1..49, do: track_player(riddle, "p#{n}", "player#{n}")
+
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+
+      # 4 columns x 3 rows = 12 cells: 10 tiles, then "more" spans two.
+      assert has_element?(live, "#room-count", GameCopy.room_count(50))
+      assert count_cells(live, ".rg-room__p") == 10
+      assert has_element?(live, "#room-grid li:first-child.is-me")
+      assert has_element?(live, "#room-grid .rg-room__more", GameCopy.room_more(40))
+      refute has_element?(live, "#room-grid .rg-room__empty")
+    end
+
+    test "fits the grid to the columns the browser measures", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      for n <- 1..49, do: track_player(riddle, "p#{n}", "player#{n}")
+
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+      assert has_element?(live, "#room-grid[phx-hook]")
+
+      # 6 columns x 3 rows = 18 cells: 16 tiles and the "more" cell.
+      render_hook(live, "room-cols", %{"cols" => 6})
+      assert count_cells(live, ".rg-room__p") == 16
+      assert has_element?(live, "#room-grid .rg-room__more", GameCopy.room_more(34))
+
+      # Past 12 columns the grid stops growing.
+      render_hook(live, "room-cols", %{"cols" => 500})
+      assert count_cells(live, ".rg-room__p") == 34
+    end
+
+    test "shows how the game works", %{conn: conn, riddle: riddle, user: user} do
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, "#rules-h", GameCopy.rules_heading())
+
+      for rule <- GameCopy.rules() do
+        assert has_element?(live, ".rg-rules li", rule)
+      end
+    end
+
+    test "the ticker names who just joined, never the viewer", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, "#room-ticker[aria-live='off']")
+      refute has_element?(live, "#room-ticker .rg-ticker__text")
+
+      send_diff(live, riddle, %{to_string(user.id) => user.username})
+      refute has_element?(live, "#room-ticker .rg-ticker__text")
+
+      send_diff(live, riddle, %{"p1" => "zelda"})
+      assert has_element?(live, "#room-ticker .rg-ticker__text b", "zelda")
+      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.ticker_tail(0))
+
+      send_diff(live, riddle, %{"p2" => "ann", "p3" => "bo", to_string(user.id) => user.username})
+      assert has_element?(live, "#room-ticker .rg-ticker__text b", "ann")
+      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.ticker_tail(1))
+
+      # A diff with only leaves keeps the last join on show.
+      send_diff(live, riddle, %{}, %{"p1" => "zelda"})
+      assert has_element?(live, "#room-ticker .rg-ticker__text b", "ann")
+    end
+  end
+
+  defp lobby_topic(riddle), do: "game:lobby:#{riddle.id}"
+
+  # Tracks a fake player in a riddle's lobby from its own process, the way a
+  # LiveView would. Returns the pid; kill it to make the player leave.
+  defp track_player(riddle, id, username) do
+    test = self()
+
+    pid =
+      spawn(fn ->
+        {:ok, _ref} =
+          Riddlr.Gameplay.Presence.track(self(), lobby_topic(riddle), to_string(id), %{
+            username: username
+          })
+
+        send(test, {:tracked, self()})
+        Process.sleep(:infinity)
+      end)
+
+    assert_receive {:tracked, ^pid}
+    pid
+  end
+
+  # Waits for the presence diff a join or leave sends. The test must subscribe
+  # to the lobby topic first.
+  defp await_diff do
+    assert_receive %Phoenix.Socket.Broadcast{event: "presence_diff"}
+  end
+
+  # Sends the lobby a presence diff by hand, for joins the test cannot make
+  # with real tracking (several players at once, or the viewer again).
+  defp send_diff(live, riddle, joins, leaves \\ %{}) do
+    to_metas = fn players ->
+      Map.new(players, fn {id, name} -> {id, %{metas: [%{username: name}]}} end)
+    end
+
+    send(live.pid, %Phoenix.Socket.Broadcast{
+      topic: lobby_topic(riddle),
+      event: "presence_diff",
+      payload: %{joins: to_metas.(joins), leaves: to_metas.(leaves)}
+    })
+  end
+
+  defp count_cells(live, selector) do
+    live
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("#room-grid " <> selector)
+    |> Enum.count()
   end
 
   # Helper to directly set play_status bypassing changeset transition validation
