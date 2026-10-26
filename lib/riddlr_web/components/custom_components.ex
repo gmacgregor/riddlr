@@ -7,21 +7,12 @@ defmodule RiddlrWeb.CustomComponents do
     router: RiddlrWeb.Router,
     statics: RiddlrWeb.static_paths()
 
-  import Riddlr.Utils.User
   import Phoenix.LiveView.JS
 
   # ─── Helpers ──────────────────────────────────────────────────────────────────
 
   @doc "Ordinal for a finishing position: 1 -> \"1st\"."
   def placement_text(n), do: RiddlrWeb.GameCopy.ordinal(n)
-
-  # Deprecated: use RiddlrWeb.GameLive.Feed.format_time/1 instead. Kept until
-  # the components that call it move over.
-  defp format_time(seconds) do
-    minutes = div(seconds, 60)
-    secs = rem(seconds, 60)
-    :io_lib.format("~2..0B:~2..0B", [minutes, secs]) |> IO.iodata_to_binary()
-  end
 
   # ─── Solve Badge ──────────────────────────────────────────────────────────────
 
@@ -132,132 +123,6 @@ defmodule RiddlrWeb.CustomComponents do
     """
   end
 
-  # ─── Round Complete Header ────────────────────────────────────────────────────
-
-  @doc "Round complete / time's up header with riddle recap and accepted answers."
-  attr :riddle, :map, required: true
-  attr :outcome, :atom, values: [:solved, :expired], required: true
-  attr :solver_username, :string, default: nil
-  attr :solve_time, :integer, default: nil
-
-  def game_round_header(assigns) do
-    ~H"""
-    <section
-      class={["rg-round-header", @outcome == :expired && "rg-round-header--expired"]}
-      aria-label="Round result"
-    >
-      <span class="rg-round-header__emoji" aria-hidden="true">
-        {if @outcome == :solved, do: "🎉", else: "⏰"}
-      </span>
-      <h1 class="rg-round-header__title">
-        {if @outcome == :solved, do: "Round Complete!", else: "Time's Up!"}
-      </h1>
-      <p class="rg-round-header__subtitle">
-        {if @outcome == :solved and @solver_username do
-          solve_str = if @solve_time, do: " in #{format_time(@solve_time)}", else: ""
-          "Solved#{solve_str} by #{@solver_username}"
-        else
-          "Better luck next time"
-        end}
-      </p>
-
-      <p class="rg-round-riddle-text">{@riddle.description}</p>
-
-      <div class="rg-answers" aria-label="Accepted answers">
-        <span class="rg-answers__label">Accepted Answers</span>
-        <div class="rg-answers__pills">
-          <span :for={answer <- @riddle.answers} class="rg-answer-pill">"{answer}"</span>
-        </div>
-      </div>
-    </section>
-    """
-  end
-
-  # ─── Game Leaderboard ─────────────────────────────────────────────────────────
-
-  @doc "Top solvers leaderboard with podium (top 3) and ranked list."
-  attr :top_solvers, :list, required: true
-  attr :solver_count, :integer, default: nil
-
-  def game_leaderboard(assigns) do
-    assigns =
-      assigns
-      |> assign(:podium, Enum.take(assigns.top_solvers, 3))
-      |> assign(:ranked, Enum.drop(assigns.top_solvers, 3))
-
-    ~H"""
-    <div class="rg-leaderboard" aria-label="Game leaderboard">
-      <%!-- Podium top 3 --%>
-      <div :if={@podium != []} class="rg-podium">
-        <div
-          :for={solver <- @podium}
-          class={["rg-podium__card", podium_card_class(solver.placement)]}
-        >
-          <span class="rg-podium__badge" aria-hidden="true">{podium_badge(solver.placement)}</span>
-          <div class={["rg-podium__avatar", podium_avatar_class(solver.placement)]} aria-hidden="true">
-            {String.first(solver.username) |> String.upcase()}
-          </div>
-          <span class={["rg-podium__name", podium_name_class(solver.placement)]}>
-            {solver.username}
-          </span>
-          <span :if={solver.solve_time_display} class="rg-podium__time">
-            +{solver.solve_time_display}
-          </span>
-        </div>
-      </div>
-
-      <div :if={@ranked != []} class="rg-divider"></div>
-
-      <%!-- Ranked list 4th+ --%>
-      <div :if={@ranked != []} class="rg-ranks">
-        <div :for={solver <- @ranked} class="rg-rank">
-          <span class="rg-rank__number" aria-label={"Rank #{solver.placement}"}>
-            {solver.placement}
-          </span>
-          <div
-            class={"rg-rank__avatar rg-rank__avatar--#{avatar_color(solver.username)}"}
-            aria-hidden="true"
-          >
-            {String.first(solver.username) |> String.upcase()}
-          </div>
-          <span class="rg-rank__name">{solver.username}</span>
-          <span :if={solver.solve_time_display} class="rg-rank__time">
-            +{solver.solve_time_display}
-          </span>
-        </div>
-      </div>
-
-      <button
-        :if={@solver_count && @solver_count > length(@top_solvers)}
-        class="rg-show-all"
-        type="button"
-      >
-        Show all {@solver_count} solvers ▼
-      </button>
-    </div>
-    """
-  end
-
-  defp podium_card_class(1), do: "rg-podium__card--gold"
-  defp podium_card_class(2), do: "rg-podium__card--silver"
-  defp podium_card_class(3), do: "rg-podium__card--bronze"
-  defp podium_card_class(_), do: ""
-
-  defp podium_avatar_class(1), do: "rg-podium__avatar--gold"
-  defp podium_avatar_class(2), do: "rg-podium__avatar--silver"
-  defp podium_avatar_class(3), do: "rg-podium__avatar--bronze"
-  defp podium_avatar_class(_), do: ""
-
-  defp podium_name_class(1), do: "rg-podium__name--gold"
-  defp podium_name_class(2), do: "rg-podium__name--silver"
-  defp podium_name_class(3), do: "rg-podium__name--bronze"
-  defp podium_name_class(_), do: ""
-
-  defp podium_badge(1), do: "👑"
-  defp podium_badge(2), do: "🥈"
-  defp podium_badge(3), do: "🥉"
-  defp podium_badge(_), do: ""
-
   # ─── Tab Bar ──────────────────────────────────────────────────────────────────
 
   @doc "Leaderboard / Chat tab switcher for the post-game view."
@@ -271,7 +136,7 @@ defmodule RiddlrWeb.CustomComponents do
         class={["rg-tab", @active_tab == :leaderboard && "rg-tab--active"]}
         role="tab"
         aria-selected={to_string(@active_tab == :leaderboard)}
-        aria-controls="panel-leaderboard"
+        aria-controls="panel-board"
         type="button"
         phx-click={switch_tab("leaderboard")}
       >
@@ -302,11 +167,14 @@ defmodule RiddlrWeb.CustomComponents do
     """
   end
 
+  defp panel_id("leaderboard"), do: "#panel-board"
+  defp panel_id("chat"), do: "#panel-chat"
+
   defp switch_tab(tab) do
     other = if tab == "leaderboard", do: "chat", else: "leaderboard"
 
-    remove_attribute("hidden", to: "#panel-#{tab}")
-    |> set_attribute({"hidden", ""}, to: "#panel-#{other}")
+    remove_class("is-off", to: panel_id(tab))
+    |> add_class("is-off", to: panel_id(other))
     |> push("switch_tab", value: %{tab: tab})
   end
 end

@@ -1,35 +1,124 @@
 <Layouts.game flash={@flash} current_scope={@current_scope}>
-  <.game_round_header
-    riddle={@riddle}
-    outcome={if @riddle.first_solver, do: :solved, else: :expired}
-    solver_username={@riddle.first_solver && @riddle.first_solver.username}
-    solve_time={@riddle.first_solve_time}
-  />
-
-  <div class="rg-divider"></div>
-
-  <%!-- ═══════════════════════════════════════════════════════════════
-     POST-GAME SECTION — leaderboard / chat tabs
-     ═══════════════════════════════════════════════════════════════ --%>
-  <section class="rg-round-content" aria-label="Post-game content">
+  <div class="rg-wrap rg-results rg-view">
+    <div class="rg-results__top">
+      <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />
+      <p class="rg-results__riddle">“{@riddle.description}”</p>
+      <h1
+        id="res-h"
+        class={["rg-answer", @board == [] && "is-unsolved"]}
+        tabindex="-1"
+        aria-label={"Answer: #{@answer}"}
+      >
+        <%= for {char, i} <- Enum.with_index(String.graphemes(@answer)) do %>
+          <span :if={char == " "} class="rg-answer__gap" aria-hidden="true"></span>
+          <span
+            :if={char != " "}
+            class="rg-answer__l"
+            style={"animation-delay: #{i * 40}ms"}
+            aria-hidden="true"
+          >{char}</span>
+        <% end %>
+      </h1>
+      <p id="res-by" class="rg-results__by">
+        <%= if first = List.first(@board) do %>
+          {GameCopy.results_by_lead()} <b>{first.shown_as}</b>
+          in <span class="rg-nowrap">{first.secs}</span>
+          · {GameCopy.solved_count(length(@board))}
+        <% else %>
+          {GameCopy.results_unsolved()}
+        <% end %>
+      </p>
+      <div id="res-you" class="rg-you">
+        <span class={["rg-stamp", @you.none? && "is-none"]}>{@you.stamp}</span>
+        <span class="rg-you__text">
+          <span class="rg-you__t">{@you.title}</span>
+          <span class="rg-you__s">{@you.sub}</span>
+        </span>
+      </div>
+    </div>
     <.game_tab_bar active_tab={@active_tab} />
 
-    <%!-- Leaderboard panel --%>
-    <div
-      id="panel-leaderboard"
+    <section
+      id="panel-board"
+      class={["rg-results__board", @active_tab != :leaderboard && "is-off"]}
       role="tabpanel"
       aria-label="Game leaderboard"
-      hidden={@active_tab != :leaderboard}
     >
-      <.game_leaderboard top_solvers={@top_solvers} />
-    </div>
+      <h2 class="rg-panel__h rg-desk-only">Leaderboard</h2>
+      <div class="rg-podium">
+        <%= for place <- [2, 1, 3] do %>
+          <% solver = Enum.at(@board, place - 1) %>
+          <div :if={solver} class={"rg-pod rg-pod--#{place}"}>
+            <div class="rg-pod__who">
+              <GameComponents.tile
+                initial={GameComponents.initial(solver.username)}
+                tone={GameComponents.tone(solver.username, @current_user.username)}
+                size="lg"
+              />
+              <span class="rg-pod__name">{solver.shown_as}</span>
+              <span class="rg-pod__t">{solver.secs}</span>
+            </div>
+            <div class="rg-pod__block">
+              <span class="rg-pod__place">{place}</span>
+              <span class="rg-pod__pts">+{solver.points}</span>
+            </div>
+          </div>
+          <div :if={!solver} class={"rg-pod rg-pod--#{place} rg-pod--empty"}>
+            <div class="rg-pod__who">
+              <span class="rg-tile rg-tile--lg rg-tile--open" aria-hidden="true">?</span>
+              <span class="rg-pod__name">{GameCopy.podium_open()}</span>
+              <span class="rg-pod__t">&nbsp;</span>
+            </div>
+            <div class="rg-pod__block">
+              <span class="rg-pod__place">{place}</span>
+            </div>
+          </div>
+        <% end %>
+      </div>
+      <ol class="rg-board">
+        <li
+          :for={solver <- @board}
+          class={["rg-row", solver.me? && "is-me"]}
+        >
+          <span class="rg-row__place">{solver.placement}</span>
+          <GameComponents.tile
+            initial={GameComponents.initial(solver.username)}
+            tone={GameComponents.tone(solver.username, @current_user.username)}
+            size="sm"
+          />
+          <span class="rg-row__name">{solver.shown_as}</span>
+          <span class="rg-row__t">{solver.secs}</span>
+          <span class="rg-row__pts">+{solver.points}</span>
+        </li>
+        <li :if={@board == []} class="rg-board__empty">{GameCopy.board_empty()}</li>
+      </ol>
+      <section class="rg-payout" aria-labelledby="payout-h">
+        <h3 id="payout-h" class="rg-panel__h">{GameCopy.payout_heading()}</h3>
+        <ol class="rg-points__row">
+          <li
+            :for={cell <- @payout}
+            class={[
+              "rg-pt",
+              if(cell.solver, do: "is-taken", else: "is-open"),
+              cell.solver && cell.solver.me? && "is-me"
+            ]}
+          >
+            <span class="rg-pt__p">{GameCopy.ordinal(cell.place)}</span>
+            <span class="rg-pt__v">{cell.points}</span>
+            <span class="rg-pt__who">
+              {if cell.solver, do: cell.solver.shown_as, else: GameCopy.payout_unclaimed()}
+            </span>
+          </li>
+        </ol>
+      </section>
+    </section>
 
-    <%!-- Chat panel --%>
-    <div
+    <%!-- Chat keeps its old markup until #32 restyles it. --%>
+    <section
       id="panel-chat"
+      class={["rg-results__chat", @active_tab != :chat && "is-off"]}
       role="tabpanel"
       aria-label="Post-game chat"
-      hidden={@active_tab != :chat}
     >
       <div class="rg-post-chat">
         <div
@@ -86,8 +175,8 @@
           </form>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </Layouts.game>
 
 <script :type={Phoenix.LiveView.ColocatedHook} name=".ChatForm">

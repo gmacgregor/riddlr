@@ -1058,6 +1058,334 @@
   }
 }
 
+/* ───────────────── Results ───────────────── */
+.rg-results {
+  display: grid;
+  gap: var(--s5);
+}
+.rg-results__top {
+  display: grid;
+  gap: var(--s3);
+}
+.rg-results__riddle {
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: var(--fs-lg);
+  line-height: 1.35;
+  color: var(--muted);
+  max-width: 40ch;
+}
+.rg-answer {
+  justify-self: start;
+  font-family: var(--f-label);
+  font-weight: 300;
+  font-size: clamp(36px, 11vw, 72px);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.rg-answer__l {
+  display: grid;
+  place-items: center;
+  width: 1.1em;
+  height: 1.2em;
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--on-light);
+  animation: rg-pop-in var(--t-med) var(--ease-out) both;
+}
+.rg-answer__gap {
+  width: 0.4em;
+}
+.rg-answer.is-unsolved .rg-answer__l {
+  background: var(--ink-3);
+  color: var(--paper);
+  border: 1px solid var(--line-2);
+}
+.rg-results__by {
+  color: var(--muted);
+}
+.rg-results__by b {
+  color: var(--paper);
+}
+.rg-you {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+}
+.rg-you__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.rg-you__t {
+  display: block;
+  font-weight: 700;
+  font-size: var(--fs-lg);
+}
+.rg-you__s {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.rg-desk-only {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .rg-results .is-off {
+    display: none;
+  }
+}
+
+.rg-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--s2);
+  margin-block: var(--s4);
+}
+.rg-pod {
+  display: grid;
+  justify-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  animation: rg-rise var(--t-slow) var(--ease-out) both;
+}
+.rg-pod--1 {
+  animation-delay: 240ms;
+}
+.rg-pod--2 {
+  animation-delay: 80ms;
+}
+.rg-pod--3 {
+  animation-delay: 160ms;
+}
+@keyframes rg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+.rg-pod__who {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+}
+.rg-pod__name {
+  display: block;
+  max-width: 100%;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rg-pod__t {
+  display: block;
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.rg-pod__block {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  width: 100%;
+  border-radius: var(--r) var(--r) 0 0;
+  background: var(--ink-3);
+  border: 1px solid var(--line-2);
+  border-bottom: 0;
+  font-family: var(--f-label);
+}
+.rg-pod__place {
+  display: block;
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1;
+}
+.rg-pod__pts {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.rg-pod--1 .rg-pod__block {
+  height: 128px;
+  background: var(--hi);
+  border-color: var(--hi);
+  color: var(--on-light);
+}
+.rg-pod--1 .rg-pod__pts {
+  color: var(--on-light);
+}
+.rg-pod--2 .rg-pod__block {
+  height: 96px;
+}
+.rg-pod--3 .rg-pod__block {
+  height: 72px;
+}
+.rg-pod--empty .rg-pod__block {
+  background: transparent;
+  border-style: dashed;
+}
+.rg-tile.rg-tile--open {
+  background: transparent;
+  border: 1px dashed var(--line-2);
+  color: var(--dim);
+}
+
+.rg-board {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+.rg-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.rg-row__place {
+  font-family: var(--f-label);
+  font-weight: 600;
+  width: 32px;
+  text-align: center;
+  color: var(--muted);
+}
+.rg-row__name {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rg-row__t {
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rg-row__pts {
+  font-family: var(--f-label);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 52px;
+  text-align: right;
+}
+.rg-row.is-me {
+  background: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--hi);
+  border-radius: var(--r);
+  padding-inline: var(--s2);
+}
+.rg-row.is-me .rg-row__name {
+  color: var(--hi);
+}
+.rg-board__empty {
+  padding: var(--s5) 0;
+  color: var(--muted);
+}
+
+.rg-payout {
+  margin-top: var(--s5);
+}
+.rg-points__row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: var(--s3);
+}
+.rg-pt {
+  display: grid;
+  gap: 2px;
+  padding: var(--s2);
+  border-radius: var(--r);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  text-align: center;
+  min-width: 0;
+}
+.rg-pt__p {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-family: var(--f-label);
+}
+.rg-pt__v {
+  display: block;
+  font-family: var(--f-label);
+  font-weight: 600;
+  font-size: var(--fs-lg);
+}
+.rg-pt__who {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.rg-pt.is-open {
+  background: transparent;
+  border-style: dashed;
+}
+.rg-pt.is-open .rg-pt__v,
+.rg-pt.is-open .rg-pt__who {
+  color: var(--dim);
+}
+.rg-pt.is-me {
+  border-color: var(--hi);
+}
+.rg-pt.is-me .rg-pt__who {
+  color: var(--hi);
+  font-weight: 700;
+}
+
+@media (min-width: 1024px) {
+  .rg-results {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-areas: "top chat" "board chat";
+    grid-template-rows: auto 1fr;
+    column-gap: var(--s7);
+    row-gap: var(--s6);
+    align-items: start;
+    padding-top: var(--s7);
+  }
+  .rg-results__top {
+    grid-area: top;
+  }
+  .rg-results .rg-tab-bar {
+    display: none;
+  }
+  .rg-results .rg-desk-only {
+    display: block;
+  }
+  .rg-results__board {
+    grid-area: board;
+  }
+  .rg-results__chat {
+    grid-area: chat;
+    position: sticky;
+    top: var(--s5);
+    padding: var(--s4);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--ink-2);
+    max-height: calc(100dvh - 120px);
+  }
+}
+
 /* ───────────────── Flash (restyles the shared flash group in the shell) ───────────────── */
 .rg-app .rg-flash {
   background: var(--ink-2);

@@ -18,10 +18,125 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, ".rg-round-header")
-      assert has_element?(live, "#panel-leaderboard")
+      assert has_element?(live, ".rg-results__top .rg-kicker", riddle.category.name)
+      assert has_element?(live, ".rg-results__riddle", "“#{riddle.description}”")
+      assert has_element?(live, "#panel-board")
       assert has_element?(live, "#chat-form")
+      refute has_element?(live, ".rg-round-header")
       refute has_element?(live, "#answer-form-container")
+    end
+  end
+
+  describe "answer" do
+    test "spells the riddle's first answer as tiles, with a gap for each space", %{
+      conn: conn,
+      user: user
+    } do
+      riddle =
+        GamesFixtures.riddle_fixture(%{answers: ["ice cap", "icecap"]})
+        |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "h1.rg-answer[aria-label='Answer: ice cap']")
+      assert has_element?(live, ".rg-answer .rg-answer__l:nth-child(1)", "i")
+      assert has_element?(live, ".rg-answer .rg-answer__l:nth-child(3)", "e")
+      assert has_element?(live, ".rg-answer .rg-answer__gap:nth-child(4)")
+      assert has_element?(live, ".rg-answer .rg-answer__l:nth-child(7)", "p")
+      refute has_element?(live, ".rg-answer :nth-child(8)")
+    end
+
+    test "shows dark tiles when nobody solved", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, ".rg-answer.is-unsolved")
+    end
+
+    test "shows light tiles once someone solved", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      GamesFixtures.solve_fixture(riddle, AccountsFixtures.user_fixture())
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, ".rg-answer")
+      refute has_element?(live, ".rg-answer.is-unsolved")
+    end
+  end
+
+  describe "by line" do
+    test "names the first solver, their time and the solve count", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      winner = AccountsFixtures.user_fixture()
+      GamesFixtures.solve_fixture(riddle, winner, %{placement: 1, solve_time_ms: 3_456})
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 2, points: 9, solve_time_ms: 9_000})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-by b", winner.username)
+      assert has_element?(live, "#res-by", "in 3.5s · 2 solved")
+    end
+
+    test "says you when the viewer cracked it first", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 1, solve_time_ms: 12_000})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-by b", "you")
+      assert has_element?(live, "#res-by", "in 12.0s · 1 solved")
+    end
+
+    test "says nobody cracked it when there are no solves", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-by", "Nobody cracked it before the clock ran out.")
+    end
+  end
+
+  describe "you card" do
+    test "a viewer who never guessed was not in this one", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-you .rg-stamp.is-none", "—")
+      assert has_element?(live, "#res-you", "You weren't in this one")
+    end
+
+    test "a viewer who guessed but did not solve", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("live")
+      assert :incorrect = Gameplay.submit_answer(riddle, user, "banana")
+      riddle = set_play_status(riddle, "completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-you .rg-stamp.is-none", "0")
+      assert has_element?(live, "#res-you", "Not this time")
+    end
+
+    test "the viewer who won", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 1, points: 10})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-you .rg-stamp:not(.is-none)", "1ST")
+      assert has_element?(live, "#res-you", "You won it")
+      assert has_element?(live, "#res-you", "+10 pts for this riddle")
+    end
+
+    test "a viewer who placed outside the top 10", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 11, points: 0})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-you .rg-stamp.is-none", "11TH")
+      assert has_element?(live, "#res-you", "Solved, but outside the top 10.")
     end
   end
 
@@ -62,8 +177,8 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
     end
   end
 
-  describe "leaderboard" do
-    test "shows the saved solves of a completed riddle", %{conn: conn, user: user} do
+  describe "podium" do
+    test "orders the top three 2 · 1 · 3 with time and points", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
       winner = AccountsFixtures.user_fixture()
 
@@ -77,9 +192,86 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#panel-leaderboard .rg-podium__card--gold", winner.username)
-      assert has_element?(live, "#panel-leaderboard .rg-podium__card--gold", "+00:03")
-      assert has_element?(live, "#panel-leaderboard .rg-podium__card--silver", user.username)
+      assert has_element?(live, ".rg-podium > .rg-pod--2:nth-child(1)", "you")
+      assert has_element?(live, ".rg-podium > .rg-pod--1:nth-child(2)", winner.username)
+      assert has_element?(live, ".rg-pod--1 .rg-pod__t", "3.0s")
+      assert has_element?(live, ".rg-pod--1 .rg-pod__pts", "+10")
+      assert has_element?(live, ".rg-pod--2 .rg-pod__t", "61.0s")
+      assert has_element?(live, ".rg-podium > .rg-pod--3.rg-pod--empty:nth-child(3)", "Open")
+    end
+
+    test "leaves every slot open when nobody solved", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, ".rg-pod--1.rg-pod--empty")
+      assert has_element?(live, ".rg-pod--2.rg-pod--empty")
+      assert has_element?(live, ".rg-pod--3.rg-pod--empty")
+    end
+  end
+
+  describe "board" do
+    test "lists every solve with place, name, time and points", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      winner = AccountsFixtures.user_fixture()
+      GamesFixtures.solve_fixture(riddle, winner, %{placement: 1, solve_time_ms: 3_000})
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 2, points: 9, solve_time_ms: 4_250})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "ol.rg-board > li.rg-row:nth-child(1) .rg-row__place", "1")
+
+      assert has_element?(
+               live,
+               "ol.rg-board > li.rg-row:nth-child(1) .rg-row__name",
+               winner.username
+             )
+
+      assert has_element?(live, "ol.rg-board > li.rg-row:nth-child(1) .rg-row__pts", "+10")
+      assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__name", "you")
+      assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__t", "4.3s")
+      refute has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(1)")
+    end
+  end
+
+  describe "payout" do
+    test "shows ten places with points and who claimed them", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      winner = AccountsFixtures.user_fixture()
+      GamesFixtures.solve_fixture(riddle, winner, %{placement: 1, points: 10})
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 2, points: 9})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, ".rg-payout .rg-panel__h", "Points this riddle")
+      assert has_element?(live, ".rg-points__row > .rg-pt.is-taken:nth-child(1)", winner.username)
+      assert has_element?(live, ".rg-pt:nth-child(1) .rg-pt__p", "1st")
+      assert has_element?(live, ".rg-pt:nth-child(1) .rg-pt__v", "10")
+      assert has_element?(live, ".rg-pt.is-taken.is-me:nth-child(2) .rg-pt__who", "you")
+      assert has_element?(live, ".rg-pt.is-open:nth-child(3) .rg-pt__who", "unclaimed")
+      assert has_element?(live, ".rg-pt.is-open:nth-child(10) .rg-pt__v", "1")
+      refute has_element?(live, ".rg-pt:nth-child(11)")
+    end
+  end
+
+  describe "tabs" do
+    test "the off panel is marked is-off, not hidden, so desktop can show both", %{
+      conn: conn,
+      user: user
+    } do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#panel-chat.is-off")
+      refute has_element?(live, "#panel-board.is-off")
+      refute has_element?(live, "#panel-chat[hidden]")
+
+      render_click(live, "switch_tab", %{"tab" => "chat"})
+
+      assert has_element?(live, "#panel-board.is-off")
+      refute has_element?(live, "#panel-chat.is-off")
     end
   end
 
@@ -223,8 +415,8 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, ".rg-round-header")
-      assert has_element?(live, "#panel-leaderboard .rg-podium__card--gold", winner.username)
+      assert has_element?(live, ".rg-results__top")
+      assert has_element?(live, "#panel-board .rg-row", winner.username)
       refute has_element?(live, "#chat-feed .rg-post-chat-msg")
     end
 
@@ -247,8 +439,13 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#panel-leaderboard")
-      refute has_element?(live, "#panel-leaderboard .rg-podium")
+      assert has_element?(
+               live,
+               "#panel-board .rg-board__empty",
+               "The board is empty. The riddle wins this round."
+             )
+
+      refute has_element?(live, "#panel-board .rg-row")
     end
 
     test "stays on the page and shows a flash when the riddle is archived", %{
@@ -263,7 +460,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       send(live.pid, {:riddle_archived, riddle})
 
       assert render(live) =~ "This game has been archived."
-      assert has_element?(live, ".rg-round-header")
+      assert has_element?(live, ".rg-results__top")
     end
   end
 

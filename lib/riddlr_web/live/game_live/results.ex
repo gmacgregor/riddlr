@@ -11,6 +11,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   alias Riddlr.{Games, Gameplay}
   alias Riddlr.Gameplay.Answer
+  alias RiddlrWeb.{GameComponents, GameCopy}
   alias RiddlrWeb.GameLive.Feed
 
   import Riddlr.Utils.User
@@ -22,6 +23,17 @@ defmodule RiddlrWeb.GameLive.Results do
   # time, so the divider is an item in the stream.
   @round_ended %{id: "round-ended", divider: true}
 
+  # One saved solve as the podium, board and payout show it. `username` picks
+  # the tile; `shown_as` is the name on screen, "you" for the viewer.
+  @typep board_entry :: %{
+           placement: pos_integer(),
+           points: non_neg_integer(),
+           username: String.t(),
+           shown_as: String.t(),
+           me?: boolean(),
+           secs: String.t()
+         }
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     case Games.fetch_riddle(id) do
@@ -29,6 +41,7 @@ defmodule RiddlrWeb.GameLive.Results do
         user = socket.assigns.current_user
         # Chat closes at archive. A page opened before then keeps its chat.
         chat_open? = status == "completed"
+        board = load_board(riddle.id, user.id)
 
         feed =
           if connected?(socket) do
@@ -45,7 +58,10 @@ defmodule RiddlrWeb.GameLive.Results do
          |> assign(:chat_open?, chat_open?)
          |> assign(:page_title, "Results — #{riddle.name}")
          |> assign(:riddle, riddle)
-         |> assign(:top_solvers, load_board(riddle.id))
+         |> assign(:answer, List.first(riddle.answers, ""))
+         |> assign(:board, board)
+         |> assign(:you, you_card(board, riddle.id, user.id))
+         |> assign(:payout, payout(board))
          |> assign(:active_tab, :leaderboard)
          |> stream(:answers, feed, limit: 100)}
 
@@ -159,19 +175,45 @@ defmodule RiddlrWeb.GameLive.Results do
     |> Enum.map(&%{&1 | offset_ms: nil})
   end
 
-  # Every saved solve, shaped for `game_leaderboard/1`. A deleted account
-  # shows as "Player", as on the feed.
-  @spec load_board(integer()) :: [map()]
-  defp load_board(riddle_id) do
+  # The viewer's card. Joining means guessing while the riddle was live; ETS
+  # knows that until archive, after which only solvers count as joined.
+  @spec you_card([board_entry()], integer(), integer()) :: GameCopy.you_card()
+  defp you_card(board, riddle_id, user_id) do
+    mine = Enum.find(board, & &1.me?)
+    GameCopy.you_card(mine, mine != nil or Gameplay.guessed?(riddle_id, user_id))
+  end
+
+  # One cell per scoring place: its points and the solver who took it, if any.
+  @spec payout([board_entry()]) :: [
+          %{place: pos_integer(), points: pos_integer(), solver: board_entry() | nil}
+        ]
+  defp payout(board) do
+    by_place = Map.new(board, &{&1.placement, &1})
+
+    Gameplay.points_table()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {points, place} ->
+      %{place: place, points: points, solver: Map.get(by_place, place)}
+    end)
+  end
+
+  # Every saved solve, by placement. A deleted account shows as "Player", as
+  # on the feed.
+  @spec load_board(integer(), integer()) :: [board_entry()]
+  defp load_board(riddle_id, user_id) do
     riddle_id
     |> Gameplay.list_solves()
     |> Enum.map(fn solve ->
+      me? = solve.user_id == user_id
+      username = if(solve.user, do: solve.user.username, else: "Player")
+
       %{
         placement: solve.placement,
         points: solve.points,
-        username: if(solve.user, do: solve.user.username, else: "Player"),
-        solve_time_display:
-          solve.solve_time_ms && Feed.format_time(div(solve.solve_time_ms, 1000))
+        username: username,
+        shown_as: if(me?, do: GameCopy.room_you(), else: username),
+        me?: me?,
+        secs: GameCopy.solve_secs(solve.solve_time_ms)
       }
     end)
   end

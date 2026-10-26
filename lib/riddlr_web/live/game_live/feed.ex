@@ -1,7 +1,7 @@
 defmodule RiddlrWeb.GameLive.Feed do
   @moduledoc """
   Turns ETS rows into what the game screens show: puts usernames on answer
-  and solver rows, and formats seconds as clock time.
+  and solver rows.
   """
 
   alias Riddlr.Accounts
@@ -25,18 +25,5 @@ defmodule RiddlrWeb.GameLive.Feed do
 
       Map.put(entry, :username, username)
     end)
-  end
-
-  @doc """
-  Formats seconds as `MM:SS`.
-
-      iex> RiddlrWeb.GameLive.Feed.format_time(75)
-      "01:15"
-  """
-  @spec format_time(non_neg_integer()) :: String.t()
-  def format_time(seconds) do
-    minutes = div(seconds, 60)
-    secs = rem(seconds, 60)
-    :io_lib.format("~2..0B:~2..0B", [minutes, secs]) |> IO.iodata_to_binary()
   end
 end

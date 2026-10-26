@@ -184,6 +184,85 @@ defmodule RiddlrWeb.GameCopy do
   def solved_sub(points, seconds_left),
     do: "+#{points} pts · round closes in #{m_ss(seconds_left)}. Watch the others sweat."
 
+  # ─── Results ────────────────────────────────────────────────────────────────────────────
+
+  @doc """
+  A solve time in seconds with one decimal, e.g. 3456 ms as "3.5s". A solve
+  with no time (the riddle had no live date) reads "—".
+  """
+  @spec solve_secs(non_neg_integer() | nil) :: String.t()
+  def solve_secs(nil), do: "—"
+
+  def solve_secs(ms) when is_integer(ms),
+    do: :erlang.float_to_binary(ms / 1000, decimals: 1) <> "s"
+
+  @doc "The words before the first solver's name on Results."
+  @spec results_by_lead() :: String.t()
+  def results_by_lead, do: "Cracked first by"
+
+  @doc "The Results line when nobody solved the riddle."
+  @spec results_unsolved() :: String.t()
+  def results_unsolved, do: "Nobody cracked it before the clock ran out."
+
+  @doc "The name under an empty podium slot."
+  @spec podium_open() :: String.t()
+  def podium_open, do: "Open"
+
+  @doc "The Results board's line when nobody solved the riddle."
+  @spec board_empty() :: String.t()
+  def board_empty, do: "The board is empty. The riddle wins this round."
+
+  @doc "The heading of the Results points payout."
+  @spec payout_heading() :: String.t()
+  def payout_heading, do: "Points this riddle"
+
+  @doc "The name in a payout cell nobody claimed."
+  @spec payout_unclaimed() :: String.t()
+  def payout_unclaimed, do: "unclaimed"
+
+  @typedoc """
+  The viewer's own result on Results. `none?` marks a stamp that earned no
+  points, which the design draws dark and flat.
+  """
+  @type you_card :: %{stamp: String.t(), none?: boolean(), title: String.t(), sub: String.t()}
+
+  @doc """
+  The viewer's card on Results, given their solve (or `nil`) and whether they
+  joined the riddle by guessing while it was live.
+  """
+  @spec you_card(%{placement: pos_integer(), points: non_neg_integer()} | nil, boolean()) ::
+          you_card()
+  def you_card(nil, false) do
+    %{
+      stamp: "—",
+      none?: true,
+      title: "You weren't in this one",
+      sub: "Join the next lobby to get on the board."
+    }
+  end
+
+  def you_card(nil, true) do
+    %{
+      stamp: "0",
+      none?: true,
+      title: "Not this time",
+      sub: "No points, but you know it now. Next one's yours."
+    }
+  end
+
+  def you_card(%{placement: placement, points: points}, _joined?) do
+    %{
+      stamp: placement |> ordinal() |> String.upcase(),
+      none?: points == 0,
+      title: if(placement == 1, do: "You won it", else: "You placed #{ordinal(placement)}"),
+      sub:
+        if(points > 0,
+          do: "+#{points} pts for this riddle",
+          else: "Solved, but outside the top 10."
+        )
+    }
+  end
+
   # Formats a count with commas between thousands, e.g. 1234 as "1,234".
   @spec delimit(non_neg_integer()) :: String.t()
   defp delimit(n) when is_integer(n) and n >= 0 do

@@ -158,6 +158,15 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
+  Returns true if the user has submitted any answer to this riddle. Reads ETS,
+  so it turns false once archive drops the riddle's answers.
+  """
+  @spec guessed?(integer(), integer()) :: boolean()
+  def guessed?(riddle_id, user_id) do
+    :ets.member(@answers_table, {riddle_id, user_id})
+  end
+
+  @doc """
   How many players have solved a riddle so far. Returns 0 when nobody has
   solved it or it has no answers stored.
   """
@@ -215,6 +224,13 @@ defmodule Riddlr.Gameplay do
   defp points_for_placement(9), do: 2
   defp points_for_placement(10), do: 1
   defp points_for_placement(_), do: 0
+
+  @doc """
+  The points each scoring place earns, from 1st to 10th. Places after 10th
+  earn nothing.
+  """
+  @spec points_table() :: [pos_integer()]
+  def points_table, do: Enum.map(1..10, &points_for_placement/1)
 
   @doc """
   Returns every stored `Answer` for a riddle, newest first, with each correct

@@ -35,6 +35,33 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
+  describe "guessed?/2" do
+    test "false when the user has no answers" do
+      assert Gameplay.guessed?(unique_riddle_id(), unique_user_id()) == false
+    end
+
+    test "true once the user has any answer" do
+      rid = unique_riddle_id()
+      uid = unique_user_id()
+      seed_answer(rid, uid, "wrong", false)
+      assert Gameplay.guessed?(rid, uid) == true
+    end
+
+    test "false once the riddle's answers are cleaned up" do
+      rid = unique_riddle_id()
+      uid = unique_user_id()
+      seed_answer(rid, uid, "wrong", false)
+      Gameplay.cleanup_riddle(rid)
+      assert Gameplay.guessed?(rid, uid) == false
+    end
+  end
+
+  describe "points_table/0" do
+    test "the points for places 1 to 10" do
+      assert Gameplay.points_table() == [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+    end
+  end
+
   describe "solved_count/1" do
     test "0 for an unknown riddle" do
       assert Gameplay.solved_count(unique_riddle_id()) == 0

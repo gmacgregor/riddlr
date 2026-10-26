@@ -49,4 +49,57 @@ defmodule RiddlrWeb.GameCopyTest do
       end
     end
   end
+
+  describe "results" do
+    test "solve time in seconds with one decimal" do
+      assert GameCopy.solve_secs(3_456) == "3.5s"
+      assert GameCopy.solve_secs(12_000) == "12.0s"
+      assert GameCopy.solve_secs(nil) == "—"
+    end
+
+    test "you card for a viewer who did not join" do
+      assert GameCopy.you_card(nil, false) == %{
+               stamp: "—",
+               none?: true,
+               title: "You weren't in this one",
+               sub: "Join the next lobby to get on the board."
+             }
+    end
+
+    test "you card for a viewer who guessed but did not solve" do
+      assert GameCopy.you_card(nil, true) == %{
+               stamp: "0",
+               none?: true,
+               title: "Not this time",
+               sub: "No points, but you know it now. Next one's yours."
+             }
+    end
+
+    test "you card for the winner" do
+      assert GameCopy.you_card(%{placement: 1, points: 10}, true) == %{
+               stamp: "1ST",
+               none?: false,
+               title: "You won it",
+               sub: "+10 pts for this riddle"
+             }
+    end
+
+    test "you card for a scoring place" do
+      assert GameCopy.you_card(%{placement: 3, points: 8}, true) == %{
+               stamp: "3RD",
+               none?: false,
+               title: "You placed 3rd",
+               sub: "+8 pts for this riddle"
+             }
+    end
+
+    test "you card for a solve outside the top 10" do
+      assert GameCopy.you_card(%{placement: 11, points: 0}, true) == %{
+               stamp: "11TH",
+               none?: true,
+               title: "You placed 11th",
+               sub: "Solved, but outside the top 10."
+             }
+    end
+  end
 end
