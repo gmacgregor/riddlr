@@ -1,0 +1,97 @@
+<Layouts.game flash={@flash} current_scope={@current_scope}>
+  <.game_round_header
+    riddle={@riddle}
+    outcome={if @riddle.first_solver, do: :solved, else: :expired}
+    solver_username={@riddle.first_solver && @riddle.first_solver.username}
+    solve_time={@riddle.first_solve_time}
+  />
+
+  <div class="rg-divider"></div>
+
+  <%!-- ═══════════════════════════════════════════════════════════════
+     POST-GAME SECTION — leaderboard / chat tabs
+     ═══════════════════════════════════════════════════════════════ --%>
+  <section class="rg-round-content" aria-label="Post-game content">
+    <.game_tab_bar active_tab={@active_tab} />
+
+    <%!-- Leaderboard panel --%>
+    <div
+      id="panel-leaderboard"
+      role="tabpanel"
+      aria-label="Game leaderboard"
+      hidden={@active_tab != :leaderboard}
+    >
+      <.game_leaderboard top_solvers={@top_solvers} />
+    </div>
+
+    <%!-- Chat panel --%>
+    <div
+      id="panel-chat"
+      role="tabpanel"
+      aria-label="Post-game chat"
+      hidden={@active_tab != :chat}
+    >
+      <div class="rg-post-chat">
+        <div
+          id="chat-feed"
+          phx-update="stream"
+          class="rg-post-chat-messages"
+          aria-live="polite"
+          aria-relevant="additions"
+        >
+          <div
+            :for={{dom_id, msg} <- @streams.answers}
+            id={dom_id}
+            class={if divider?(msg), do: "rg-post-chat-divider", else: "rg-post-chat-msg"}
+            role={if divider?(msg), do: "separator"}
+          >
+            <span :if={divider?(msg)} class="rg-post-chat-divider__label">Round ended</span>
+            <div
+              :if={not divider?(msg)}
+              class={"rg-post-chat-avatar rg-post-chat-avatar--#{avatar_color(msg.username)}"}
+              aria-hidden="true"
+            >
+              {String.first(msg.username) |> String.upcase()}
+            </div>
+            <div :if={not divider?(msg)} class="rg-post-chat-body">
+              <span class="rg-post-chat-name rg-post-chat-name--cyan">{msg.username}</span>
+              <.game_solve_badge
+                :if={msg.correct}
+                placement={msg.placement}
+                text={msg.text}
+                class="rg-post-chat-text"
+              />
+              <p :if={not msg.correct} class="rg-post-chat-text">{msg.text}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="rg-post-chat-input" id="chat-input-bar" phx-hook=".ChatForm">
+          <form id="chat-form" phx-submit="send_chat" class="contents">
+            <input
+              id="chat-input"
+              type="text"
+              name="message"
+              placeholder="Say something..."
+              autocomplete="off"
+              class="rg-post-chat-field"
+              aria-label="Chat message"
+            />
+            <button class="rg-post-chat-send" type="submit" aria-label="Send message">↑</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layouts.game>
+
+<script :type={Phoenix.LiveView.ColocatedHook} name=".ChatForm">
+  export default {
+    mounted() {
+      this.handleEvent("chat-sent", () => {
+        const input = this.el.querySelector("#chat-input")
+        if (input) input.value = ""
+      })
+    }
+  }
+</script>

@@ -76,13 +76,12 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert has_element?(live, "#riddle-description", riddle.description)
     end
 
-    test "mounts successfully when riddle is :completed (view-only)", %{conn: conn, user: user} do
+    test "redirects to results when riddle is :completed", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("completed")
       conn = log_in_user(conn, user)
 
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-      assert has_element?(live, ".rg-round-header")
-      refute has_element?(live, "#answer-form-container")
+      assert {:error, {:live_redirect, %{to: path}}} = live(conn, ~p"/game/#{riddle.id}/play")
+      assert path == "/game/#{riddle.id}/results"
     end
   end
 
@@ -247,22 +246,6 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert html =~ "too long"
     end
 
-    test "form hidden and riddle assign updated when game transitions to completed", %{
-      conn: conn,
-      riddle: riddle,
-      user: user
-    } do
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      # Simulate game ending via PubSub — riddle assign must also be updated (W2 fix)
-      completed_riddle = %{riddle | play_status: "completed"}
-      send(live.pid, {:riddle_completed, completed_riddle})
-
-      refute has_element?(live, "#answer-form-container")
-      assert has_element?(live, ".rg-round-header")
-    end
-
     test "cooldown blocks rapid submissions", %{conn: conn, riddle: riddle, user: user} do
       # Frozen: without it this test passes only when both submissions land
       # inside the same real second.
@@ -416,104 +399,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   end
 
   describe "game state transitions via PubSub" do
-    test "completion reveals the answers that were masked during the round", %{
-      conn: conn,
-      user: user
-    } do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
-      solver = AccountsFixtures.user_fixture()
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, solver, "keyboard")
-      refute render(live) =~ "keyboard"
-
-      send(live.pid, {:riddle_completed, riddle})
-
-      assert has_element?(live, "#panel-chat .rg-solve-badge", "solved it — 1st: keyboard")
-    end
-
-    test "the feed gets a round-ended divider when the round ends", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      refute has_element?(live, ".rg-post-chat-divider")
-
-      send(live.pid, {:riddle_completed, riddle})
-
-      assert has_element?(live, "#panel-chat .rg-post-chat-divider", "Round ended")
-    end
-
-    test "the post-game feed keeps the live feed's newest-first order", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
-      first = AccountsFixtures.user_fixture()
-      second = AccountsFixtures.user_fixture()
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      assert :incorrect = Gameplay.submit_answer(riddle, first, "banana")
-      assert :incorrect = Gameplay.submit_answer(riddle, second, "cabbage")
-
-      send(live.pid, {:riddle_completed, riddle})
-      html = render(live)
-
-      assert position(html, "cabbage") < position(html, "banana")
-    end
-
-    test "the round's guesses survive into the post-game feed", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
-      guesser = AccountsFixtures.user_fixture()
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      assert :incorrect = Gameplay.submit_answer(riddle, guesser, "banana")
-      assert render(live) =~ "banana"
-
-      send(live.pid, {:riddle_completed, riddle})
-
-      assert has_element?(live, "#panel-chat", "banana")
-    end
-
-    test "a message sent after the round renders above the divider", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
-      guesser = AccountsFixtures.user_fixture()
-      assert :incorrect = Gameplay.submit_answer(riddle, guesser, "banana")
-
-      riddle = set_play_status_direct(riddle, "completed")
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      send(live.pid, {:answer_submitted, Answer.new(riddle.id, user, "gg everyone", chat: true)})
-      html = render(live)
-
-      assert position(html, "gg everyone") < position(html, "Round ended")
-    end
-
-    test "a player arriving after the round sees the divider above the round's guesses", %{
-      conn: conn,
-      user: user
-    } do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
-      guesser = AccountsFixtures.user_fixture()
-      assert :incorrect = Gameplay.submit_answer(riddle, guesser, "banana")
-
-      riddle = set_play_status_direct(riddle, "completed")
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-      html = render(live)
-
-      assert has_element?(live, "#panel-chat .rg-post-chat-divider")
-      assert position(html, "Round ended") < position(html, "banana")
-    end
-
-    test "shows game-over UI when :riddle_completed received", %{conn: conn, user: user} do
+    test "moves the player to results when the round ends", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       conn = log_in_user(conn, user)
 
@@ -521,8 +407,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       send(live.pid, {:riddle_completed, riddle})
 
-      assert has_element?(live, ".rg-round-header")
-      refute has_element?(live, "#answer-form-container")
+      assert_redirect(live, "/game/#{riddle.id}/results")
     end
 
     test "ignores :riddle_completed for a different riddle", %{conn: conn, user: user} do
@@ -562,20 +447,6 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       # Simulate the ban broadcast that Accounts.set_user_status/2 would emit
       send(live.pid, {:user_status_changed, :banned})
-
-      assert_redirect(live, "/")
-    end
-
-    test "a user banned before they arrived cannot chat", %{conn: conn} do
-      user = AccountsFixtures.user_fixture()
-      {:ok, _} = Riddlr.Accounts.set_user_status(user, :banned)
-
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("completed")
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      render_submit(element(live, "#chat-form"), %{"message" => "hello"})
 
       assert_redirect(live, "/")
     end
@@ -718,26 +589,6 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert html =~ @mask
     end
 
-    test "correct answers appear in post-game chat after completion", %{
-      conn: conn,
-      riddle: riddle,
-      user: user
-    } do
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      correct_answer = Answer.new(riddle.id, user, "keyboard", correct: true, offset_ms: 2_000)
-
-      # Submit the correct answer first so it's tracked in correct_answers assign
-      send(live.pid, {:answer_submitted, correct_answer})
-      # Game completion transitions to post-game view
-      send(live.pid, {:riddle_completed, %{riddle | play_status: "completed"}})
-
-      html = render(live)
-      assert html =~ "keyboard"
-      assert has_element?(live, ".rg-round-header")
-    end
-
     test "time offset is displayed for real-time answers", %{
       conn: conn,
       riddle: riddle,
@@ -755,19 +606,6 @@ defmodule RiddlrWeb.GameLive.PlayTest do
     end
   end
 
-  describe "post-game chat" do
-    test "sending a message tells the client to clear the input", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("completed")
-      conn = log_in_user(conn, user)
-
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
-
-      render_submit(element(live, "#chat-form"), %{"message" => "gg everyone"})
-
-      assert_push_event(live, "chat-sent", %{})
-    end
-  end
-
   # Helper to directly set play_status bypassing changeset transition validation
   defp set_play_status(riddle, new_status) do
     riddle
@@ -778,7 +616,4 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
   # Alias for multi-step transitions
   defp set_play_status_direct(riddle, status), do: set_play_status(riddle, status)
-
-  # Byte offset of `text` in rendered HTML, for asserting one row sits above another.
-  defp position(html, text), do: html |> :binary.match(text) |> elem(0)
 end

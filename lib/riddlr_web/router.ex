@@ -62,6 +62,7 @@ defmodule RiddlrWeb.Router do
       live "/profile", UserProfileLive.Show, :show
       live "/game/:id/lobby", GameLive.Lobby, :lobby
       live "/game/:id/play", GameLive.Play, :play
+      live "/game/:id/results", GameLive.Results, :results
     end
 
     get "/users/settings", UserSettingsController, :edit

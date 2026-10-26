@@ -88,7 +88,7 @@ defmodule RiddlrWeb.Layouts do
   end
 
   @doc """
-  Renders the shell for the player screens: Home, Lobby and Play.
+  Renders the shell for the player screens: Home, Lobby, Play and Results.
 
   A full-height grid with the topbar on top and a scrolling `main` below.
   Styled by `assets/css/game.css`. Account screens and admin keep `app/1`.
