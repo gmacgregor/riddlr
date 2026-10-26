@@ -51,12 +51,12 @@ Done when both commands exit clean with no errors.
 
 ## 5. Review Changes
 
-Determine if a code review skill exists. Prefer a user defined code review skill (i.e. in the current project scope or the user's home directory) over a built-in code review skill provided by your harness. If no such skill exists, notify the user that a code review skill could not be determined and then abandon this step. Otherwise, notify the user of the name and location of the skill that will be invoked, and then follow its instructions. Notify the user again when the code review is complete.
+Invoke the code-review skill tool. If no such skill exists, notify the user that a code review skill could not be determined and then abandon this step. Otherwise, follow its instructions and re-run the validation step. If the instructions suggest using multiple agents to perform the code review, then select different models from the current orchestrator model. Notify the user when the code review is complete.
 
-Done when the step is either abandoned or the code review skill has been successfully invoked.
+Done when the step is either abandoned or the code review skill has been successfully invoked and changes validated.
 
 ## 6. Commit (optional) & Close Issue (optional)
 
-Ask the user if you should commit your changes. If work was performed against a specific issue, ask if you should commit changes and also close the issue.
+Ask the user if you should commit your changes and close the issue (assuming the work performed has one or more associated issues). When closing the issue, leave a succinct comment outlining what action was taken and remove any associated labels that no longer make sense given issue closure i.e. "TODO" or "ready-for-agent".
 
-Done when the user has confirmed that you should/should not commit and/or close the issue.
+Done when changes are committed and any associated issues are closed.
