@@ -134,6 +134,36 @@
           </li>
         </ol>
       </section>
+      <div id="res-next" class="rg-next">
+        <span :if={!@next} class="rg-next__t">{GameCopy.next_none()}</span>
+        <span :if={@next && @next.play_status == "live"} class="rg-next__t">
+          {GameCopy.next_lead()} <b :if={@next.number}>No. {@next.number}</b>
+          <span :if={@next.number}>·</span> {@next.category.name} · {GameCopy.next_live_now()}
+        </span>
+        <span :if={@next && @next.play_status != "live"} class="rg-next__t">
+          {GameCopy.next_lead()} <b>{@next.category.name}</b>
+          · {GameCopy.next_drops_at()}
+          <b><GameComponents.local_time
+            id={"res-next-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
+            at={@next.live_date}
+          /></b>
+        </span>
+        <.link
+          :if={@next && @next.play_status == "ready"}
+          navigate={~p"/game/#{@next.id}/lobby"}
+          class="rg-btn rg-btn--hi rg-btn--wide"
+        >
+          {GameCopy.next_enter_lobby()} <GameComponents.icon name="arrow" />
+        </.link>
+        <.link
+          :if={@next && @next.play_status == "live"}
+          navigate={~p"/game/#{@next.id}/play"}
+          class="rg-btn rg-btn--hi rg-btn--wide"
+        >
+          {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
+        </.link>
+        <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.next_home()}</.link>
+      </div>
     </section>
 
     <section

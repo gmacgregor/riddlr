@@ -1395,6 +1395,27 @@
   font-weight: 700;
 }
 
+.rg-next {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s5);
+  padding: var(--s4);
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--line-2);
+}
+.rg-next__t {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.rg-next__t b {
+  color: var(--paper);
+  font-family: var(--f-label);
+}
+.rg-next .rg-link-btn {
+  justify-self: start;
+}
+
 .rg-results__chat {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

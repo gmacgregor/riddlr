@@ -235,6 +235,34 @@ defmodule RiddlrWeb.GameCopy do
   @spec payout_unclaimed() :: String.t()
   def payout_unclaimed, do: "unclaimed"
 
+  @doc "The words before the next riddle on Results."
+  @spec next_lead() :: String.t()
+  def next_lead, do: "Next up:"
+
+  @doc "The Results card's line when no riddle is scheduled."
+  @spec next_none() :: String.t()
+  def next_none, do: "No riddle on the schedule yet."
+
+  @doc "The link from Results back to Home."
+  @spec next_home() :: String.t()
+  def next_home, do: "Back to home"
+
+  @doc "The words before the next riddle's start time on Results."
+  @spec next_drops_at() :: String.t()
+  def next_drops_at, do: "drops at"
+
+  @doc "The Results button to a ready riddle's lobby."
+  @spec next_enter_lobby() :: String.t()
+  def next_enter_lobby, do: "Enter the lobby"
+
+  @doc "The Results tag on a next riddle that is already live."
+  @spec next_live_now() :: String.t()
+  def next_live_now, do: "live now"
+
+  @doc "The Results button into a live riddle."
+  @spec next_jump_in() :: String.t()
+  def next_jump_in, do: "Jump in"
+
   @typedoc """
   The viewer's own result on Results. `none?` marks a stamp that earned no
   points, which the design draws dark and flat.

@@ -359,6 +359,55 @@ defmodule Riddlr.GamesTest do
     end
   end
 
+  describe "next_riddle/0" do
+    import Riddlr.GamesFixtures
+
+    test "returns nil when no riddle is upcoming or live" do
+      assert Games.next_riddle() == nil
+    end
+
+    test "returns the upcoming published riddle with the soonest Live date" do
+      later = put_state(riddle_fixture(), "scheduled", "published", 7200)
+      sooner = put_state(riddle_fixture(), "ready", "published", 600)
+
+      next = Games.next_riddle()
+
+      assert next.id == sooner.id
+      assert next.category.name == "logic"
+      refute next.id == later.id
+    end
+
+    test "puts a live riddle before an upcoming one" do
+      put_state(riddle_fixture(), "scheduled", "published", 600)
+      live = put_state(riddle_fixture(), "live", "published", -30)
+
+      assert Games.next_riddle().id == live.id
+    end
+
+    test "ignores drafts and riddles that are closed or finished" do
+      put_state(riddle_fixture(), "scheduled", "draft", 60)
+      put_state(riddle_fixture(), "closed", "published", 60)
+      put_state(riddle_fixture(), "completed", "published", -60)
+      put_state(riddle_fixture(), "archived", "published", -120)
+
+      assert Games.next_riddle() == nil
+    end
+  end
+
+  # Sets Play status, Publish status and a Live date `secs` from now, skipping
+  # the changeset's transition checks.
+  defp put_state(riddle, play_status, publish_status, secs) do
+    live_date = DateTime.utc_now() |> DateTime.add(secs, :second) |> DateTime.truncate(:second)
+
+    riddle
+    |> Ecto.Changeset.change(
+      play_status: play_status,
+      publish_status: publish_status,
+      live_date: live_date
+    )
+    |> Riddlr.Repo.update!()
+  end
+
   describe "record_first_solver/2" do
     import Riddlr.GamesFixtures
     import Riddlr.AccountsFixtures

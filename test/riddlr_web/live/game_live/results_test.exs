@@ -455,6 +455,97 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
     end
   end
 
+  describe "next riddle card" do
+    test "says nothing is scheduled when there is no next riddle", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-next", "No riddle on the schedule yet.")
+      assert has_element?(live, "#res-next a[href='/']", "Back to home")
+      refute has_element?(live, "#res-next .rg-btn")
+    end
+
+    test "sends players to the lobby of a ready riddle", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      live_date = ~U[2030-01-01 14:05:00Z]
+      next = upcoming_fixture("ready", live_date)
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
+      assert has_element?(live, "#res-next time[datetime='2030-01-01T14:05:00Z']", "14:05")
+
+      assert has_element?(
+               live,
+               "#res-next a.rg-btn[href='/game/#{next.id}/lobby']",
+               "Enter the lobby"
+             )
+
+      assert has_element?(live, "#res-next a[href='/']", "Back to home")
+    end
+
+    # The Lobby opens only once a riddle is ready, so a button would bounce
+    # the player home.
+    test "shows a scheduled riddle's start time with no lobby button", %{
+      conn: conn,
+      user: user
+    } do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      next = upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
+      assert has_element?(live, "#res-next time", "14:05")
+      refute has_element?(live, "#res-next .rg-btn")
+      assert has_element?(live, "#res-next a[href='/']", "Back to home")
+    end
+
+    test "sends players straight into a live riddle", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      next = upcoming_fixture("live", ~U[2020-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-next .rg-next__t b", "No. #{next.number}")
+      assert has_element?(live, "#res-next .rg-next__t", "#{next.category.name} · live now")
+      refute has_element?(live, "#res-next time")
+
+      assert has_element?(
+               live,
+               "#res-next a.rg-btn[href='/game/#{next.id}/play']",
+               "Jump in"
+             )
+    end
+
+    test "switches to Jump in when the next riddle goes live", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+      assert has_element?(live, "#res-next a.rg-btn", "Enter the lobby")
+
+      {:ok, _} = Games.transition(next.id, :live)
+
+      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/play']", "Jump in")
+    end
+
+    test "shows a riddle scheduled while the viewer is on the page", %{
+      conn: conn,
+      user: user
+    } do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+      assert has_element?(live, "#res-next", "No riddle on the schedule yet.")
+
+      next = GamesFixtures.scheduled_riddle_fixture()
+
+      assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
+    end
+  end
+
   describe "archive" do
     test "shows the saved board for an archived riddle", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
@@ -523,6 +614,18 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
   defp set_play_status(riddle, new_status) do
     riddle
     |> Ecto.Changeset.change(play_status: new_status)
+    |> Riddlr.Repo.update!()
+    |> then(&Games.get_riddle!(&1.id))
+  end
+
+  # A published riddle in `play_status` that goes live at `live_date`.
+  defp upcoming_fixture(play_status, live_date) do
+    GamesFixtures.riddle_fixture()
+    |> Ecto.Changeset.change(
+      play_status: play_status,
+      publish_status: "published",
+      live_date: live_date
+    )
     |> Riddlr.Repo.update!()
     |> then(&Games.get_riddle!(&1.id))
   end

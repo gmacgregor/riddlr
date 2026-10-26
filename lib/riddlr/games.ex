@@ -450,6 +450,23 @@ defmodule Riddlr.Games do
   defp broadcast_for(:archived), do: {"games:riddle:archived", :riddle_archived}
 
   @doc """
+  The riddle players can join next: the published riddle that is `scheduled`,
+  `ready` or `live` with the soonest Live date, category preloaded. A live
+  riddle's Live date has passed, so it comes before any upcoming one. Returns
+  nil when there is none.
+  """
+  @spec next_riddle() :: Riddle.t() | nil
+  def next_riddle do
+    Riddle
+    |> where([r], r.publish_status == "published")
+    |> where([r], r.play_status in ["scheduled", "ready", "live"])
+    |> order_by([r], asc: r.live_date, asc: r.id)
+    |> limit(1)
+    |> preload(:category)
+    |> Repo.one()
+  end
+
+  @doc """
   Records the first solver of a riddle (no-op if already set).
   Uses atomic update to avoid race conditions.
   Optionally stores `first_solve_time` (seconds from live_date) in the same operation.
