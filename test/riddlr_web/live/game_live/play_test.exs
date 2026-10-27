@@ -152,6 +152,15 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert has_element?(live, ".rg-play__riddle .rg-kicker", riddle.category.name)
     end
 
+    test "shows the live status pill in the topbar", %{conn: conn, riddle: riddle, user: user} do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--live .rg-live-dot")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--live", "No. #{riddle.number}")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "live")
+    end
+
     test "shows answer form", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")

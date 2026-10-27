@@ -1,6 +1,6 @@
 defmodule RiddlrWeb.GameComponents do
   @moduledoc """
-  Building blocks for the player screens (Home, Lobby, Play).
+  Building blocks for the player screens (Home, Lobby, Play, Results).
 
   These render the `rg-` markup styled by `assets/css/game.css`.
   """
@@ -324,6 +324,128 @@ defmodule RiddlrWeb.GameComponents do
       <span :if={@number} class="rg-kicker__num">No. {@number}</span>
       <span>{@category}</span>
     </p>
+    """
+  end
+
+  @doc """
+  The status pill in the topbar. Each player page passes its own `kind`:
+
+    * `:play` - a live riddle, "No. N · live" with a dot
+    * `:lobby` - "Lobby · No. N"
+    * `:results` - "Final · No. N"
+    * `:home_live` - "Live now" with a dot, linking to `href` (Play)
+    * `:home_next` - "Next MM:SS", counting down to the drop, linking to
+      `href` (the Lobby) when given
+
+  The part after the dot is long: CSS hides it on narrow screens. With no
+  riddle number, the number part is left out.
+  """
+  attr :kind, :atom, required: true, values: [:play, :lobby, :results, :home_live, :home_next]
+  attr :number, :integer, default: nil
+  attr :href, :string, default: nil, doc: "where a Home pill links to"
+  attr :id, :string, default: nil, doc: "the `:home_next` clock's id"
+  attr :seconds, :integer, default: 0, doc: "the `:home_next` seconds until the drop"
+
+  @spec status_pill(map()) :: Phoenix.LiveView.Rendered.t()
+  def status_pill(%{kind: :play} = assigns) do
+    ~H"""
+    <span class="rg-pill rg-pill--live">
+      <span class="rg-live-dot" aria-hidden="true"></span>
+      <%= if @number do %>
+        No. {@number}<span class="rg-pill__long">&nbsp;· live</span>
+      <% else %>
+        Live
+      <% end %>
+    </span>
+    """
+  end
+
+  def status_pill(%{kind: :home_live} = assigns) do
+    ~H"""
+    <.link navigate={@href} class="rg-pill rg-pill--live">
+      <span class="rg-live-dot" aria-hidden="true"></span>Live now
+    </.link>
+    """
+  end
+
+  def status_pill(%{kind: :home_next, href: nil} = assigns) do
+    ~H"""
+    <span class="rg-pill rg-pill--soon"><.next_clock id={@id} seconds={@seconds} /></span>
+    """
+  end
+
+  def status_pill(%{kind: :home_next} = assigns) do
+    ~H"""
+    <.link navigate={@href} class="rg-pill rg-pill--soon">
+      <.next_clock id={@id} seconds={@seconds} />
+    </.link>
+    """
+  end
+
+  def status_pill(%{kind: kind} = assigns) when kind in [:lobby, :results] do
+    ~H"""
+    <span class={["rg-pill", @kind == :lobby && "rg-pill--soon"]}>
+      {if @kind == :lobby, do: "Lobby", else: "Final"}<span
+        :if={@number}
+        class="rg-pill__long"
+      >&nbsp;· No. {@number}</span>
+    </span>
+    """
+  end
+
+  # The Home pill's countdown. The server renders the first value. After that
+  # the `.PillClock` hook counts down once a second and re-syncs on each
+  # `countdown-tick` push, as the `.Flaps` hook does. A scheduled riddle has
+  # no server clock, so the hook is what keeps it moving.
+  #
+  # The topbar slot is a polite live region. `role="timer"` with
+  # `aria-live="off"` keeps screen readers from reading every second.
+  attr :id, :string, required: true
+  attr :seconds, :integer, required: true
+
+  @spec next_clock(map()) :: Phoenix.LiveView.Rendered.t()
+  defp next_clock(assigns) do
+    ~H"""
+    <span class="rg-pill__long">Next&nbsp;</span><span
+      id={@id}
+      role="timer"
+      aria-live="off"
+      data-seconds={@seconds}
+      phx-hook=".PillClock"
+      phx-update="ignore"
+    >{clock_str(@seconds)}</span>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".PillClock">
+      // Mirrors clock_str/1 in game_components.ex. Change both together.
+      const clockStr = (secs) => {
+        secs = Math.max(0, secs)
+        const pad = (n) => String(n).padStart(2, "0")
+        const h = Math.floor(secs / 3600)
+        const m = Math.floor((secs % 3600) / 60)
+        const s = secs % 60
+        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+      }
+
+      // Counts down to a fixed deadline, not by interval callbacks, so a
+      // throttled background tab does not fall behind.
+      export default {
+        mounted() {
+          this.sync(parseInt(this.el.dataset.seconds, 10) || 0)
+          this.handleEvent("countdown-tick", ({ seconds }) => this.sync(seconds))
+          this.timer = setInterval(() => this.render(), 1000)
+        },
+        destroyed() {
+          clearInterval(this.timer)
+        },
+        sync(seconds) {
+          this.deadline = Date.now() + seconds * 1000
+          this.render()
+        },
+        render() {
+          const secs = Math.ceil((this.deadline - Date.now()) / 1000)
+          this.el.textContent = clockStr(secs)
+        }
+      }
+    </script>
     """
   end
 end

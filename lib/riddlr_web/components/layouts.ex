@@ -96,7 +96,7 @@ defmodule RiddlrWeb.Layouts do
   ## Examples
 
       <Layouts.game flash={@flash} current_scope={@current_scope}>
-        <:status><span class="rg-pill">Live</span></:status>
+        <:status><GameComponents.status_pill kind={:lobby} number={@riddle.number} /></:status>
         <h1>Content</h1>
       </Layouts.game>
 
@@ -111,7 +111,9 @@ defmodule RiddlrWeb.Layouts do
     default: false,
     doc: "stops `main` scrolling, for screens that scroll their own parts (Play)"
 
-  slot :status, doc: "the riddle status shown in the middle of the topbar"
+  slot :status,
+    doc: "the riddle status shown in the middle of the topbar, a `GameComponents.status_pill/1`"
+
   slot :inner_block, required: true
 
   @spec game(map()) :: Phoenix.LiveView.Rendered.t()

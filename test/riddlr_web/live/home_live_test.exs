@@ -417,6 +417,67 @@ defmodule RiddlrWeb.HomeLiveTest do
     end
   end
 
+  describe "status pill" do
+    test "shows no pill when nothing is scheduled", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      refute has_element?(live, ".rg-topbar__mid .rg-pill")
+    end
+
+    test "says Live now and links to Play while a riddle is live", %{conn: conn} do
+      live_date = ~U[2030-01-01 14:05:00Z]
+      Frozen.freeze(DateTime.add(live_date, 10, :second))
+      next = upcoming_fixture("live", live_date)
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(
+               live,
+               ".rg-topbar__mid a.rg-pill--live[href='/game/#{next.id}/play']",
+               "Live now"
+             )
+
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--live .rg-live-dot")
+    end
+
+    test "counts down to a ready riddle and links to its Lobby", %{conn: conn} do
+      Frozen.freeze(~U[2030-01-01 14:03:30.000000Z])
+      next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(
+               live,
+               ".rg-topbar__mid a.rg-pill--soon[href='/game/#{next.id}/lobby']",
+               "Next"
+             )
+
+      assert has_element?(live, ".rg-topbar__mid [role=timer][data-seconds='90']", "01:30")
+    end
+
+    test "counts down to a scheduled riddle with no link", %{conn: conn} do
+      Frozen.freeze(~U[2030-01-01 14:03:30.000000Z])
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, ".rg-topbar__mid span.rg-pill--soon", "Next")
+      assert has_element?(live, ".rg-topbar__mid [role=timer]", "01:30")
+      refute has_element?(live, ".rg-topbar__mid a")
+    end
+
+    test "switches from Next to Live now when the riddle goes live", %{conn: conn} do
+      next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon", "Next")
+
+      {:ok, _} = Games.transition(next.id, :live)
+
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--live", "Live now")
+      refute has_element?(live, ".rg-topbar__mid .rg-pill--soon")
+    end
+  end
+
   # A published riddle in `play_status` that goes live at `live_date`.
   defp upcoming_fixture(play_status, live_date) do
     GamesFixtures.riddle_fixture()

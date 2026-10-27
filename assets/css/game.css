@@ -441,6 +441,14 @@
 .rg-pill--soon {
   color: var(--paper);
 }
+a.rg-pill {
+  text-decoration: none;
+}
+@media (hover: hover) {
+  a.rg-pill:hover {
+    border-color: var(--hi);
+  }
+}
 .rg-live-dot {
   width: 8px;
   height: 8px;

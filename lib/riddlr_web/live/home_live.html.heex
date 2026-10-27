@@ -1,4 +1,18 @@
 <Layouts.game flash={@flash} current_scope={@current_scope}>
+  <:status>
+    <GameComponents.status_pill
+      :if={@next && @next.play_status == "live"}
+      kind={:home_live}
+      href={~p"/game/#{@next.id}/play"}
+    />
+    <GameComponents.status_pill
+      :if={@next && @next.play_status != "live"}
+      kind={:home_next}
+      id={"pill-clock-#{@next.id}"}
+      seconds={@seconds}
+      href={if @next.play_status == "ready", do: ~p"/game/#{@next.id}/lobby"}
+    />
+  </:status>
   <section class="rg-view" aria-labelledby="home-h">
     <div class="rg-wrap rg-home">
       <section class="rg-hero" aria-labelledby="home-h">

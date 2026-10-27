@@ -1,4 +1,5 @@
 <Layouts.game flash={@flash} current_scope={@current_scope}>
+  <:status><GameComponents.status_pill kind={:results} number={@riddle.number} /></:status>
   <div id="results" class="rg-wrap rg-results rg-view" phx-hook=".ResultsTabs">
     <div class="rg-results__top">
       <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />

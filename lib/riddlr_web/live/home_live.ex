@@ -13,6 +13,10 @@ defmodule RiddlrWeb.HomeLive do
   shows the most recent finished riddle with its answer and first solver
   (`Games.last_finished_riddle/0`).
 
+  The topbar pill follows the same next riddle: "Live now" while it is live,
+  else "Next" with a countdown. It reuses the card's data and adds no
+  subscription.
+
   The page follows the riddle's state while open. It listens to the riddle
   state topics, and to the next riddle's clock, Lobby presence and answers.
   When the next riddle changes, the per-riddle topics move with it. Any state

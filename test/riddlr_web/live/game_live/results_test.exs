@@ -25,6 +25,17 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       refute has_element?(live, ".rg-round-header")
       refute has_element?(live, "#answer-form-container")
     end
+
+    test "shows the Final status pill in the topbar", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      conn = log_in_user(conn, user)
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, ".rg-topbar__mid .rg-pill", "Final")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "No. #{riddle.number}")
+      refute has_element?(live, ".rg-topbar__mid .rg-pill--live")
+    end
   end
 
   describe "answer" do

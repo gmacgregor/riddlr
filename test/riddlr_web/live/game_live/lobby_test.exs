@@ -142,6 +142,14 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.lobby_heading())
     end
 
+    test "shows the Lobby status pill in the topbar", %{conn: conn, riddle: riddle, user: user} do
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon", "Lobby")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "No. #{riddle.number}")
+    end
+
     test "shows the solve time and the scoring rule", %{conn: conn, user: user} do
       riddle =
         GamesFixtures.riddle_fixture(%{solve_time: 90})
