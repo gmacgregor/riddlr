@@ -71,6 +71,9 @@ config :riddlr, RiddlrWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :riddlr, dev_routes: true
 
+# Dev runs over plain http; Safari drops Secure cookies on http://localhost.
+config :riddlr, :secure_session_cookie, false
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

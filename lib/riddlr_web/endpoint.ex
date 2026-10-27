@@ -10,7 +10,8 @@ defmodule RiddlrWeb.Endpoint do
     signing_salt: "yiRgXIpO",
     same_site: "Lax",
     http_only: true,
-    secure: true
+    # Safari drops Secure cookies over http://localhost, so dev and test turn this off.
+    secure: Application.compile_env(:riddlr, :secure_session_cookie, true)
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

@@ -23,6 +23,9 @@ config :riddlr, RiddlrWeb.Endpoint,
   secret_key_base: "mIiEcrgpaS7aAjsZ4nLam7f48oRNAr5KKFQ/U4krB1cbaoCrXOG4AP2S3g85Wc+b",
   server: false
 
+# Tests run over plain http, so the session cookie is not marked Secure.
+config :riddlr, :secure_session_cookie, false
+
 # Tests read time through a clock they can hold still — see Riddlr.Clock.Frozen.
 # Unfrozen, it passes through to the system clock.
 config :riddlr, clock: Riddlr.Clock.Frozen
