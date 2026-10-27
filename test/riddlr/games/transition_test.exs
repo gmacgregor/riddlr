@@ -127,7 +127,7 @@ defmodule Riddlr.Games.TransitionTest do
 
       stats = %{
         first_solver_id: user.id,
-        first_solve_time: 42,
+        first_solve_time: 4_567,
         completion_rate: 75.0,
         play_status: "archived"
       }
@@ -135,7 +135,7 @@ defmodule Riddlr.Games.TransitionTest do
       assert {:ok, updated} = Games.transition(riddle.id, :completed, stats)
       assert updated.play_status == "completed"
       assert updated.first_solver_id == user.id
-      assert updated.first_solve_time == 42
+      assert updated.first_solve_time == 4_567
       assert updated.completion_rate == 75.0
     end
 

@@ -90,6 +90,7 @@ defmodule Riddlr.Games.Riddle do
     field :hint_delay, :integer, default: @hint_delay
     field :live_date, :utc_datetime
     field :publish_status, :string, default: "draft"
+    # Milliseconds from `live_date` to the first correct answer.
     field :first_solve_time, :integer
     field :completion_rate, :float
     field :average_solve_time, :float

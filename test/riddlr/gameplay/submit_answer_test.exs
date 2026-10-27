@@ -98,6 +98,18 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
       assert solver_id == user.id
     end
 
+    test "records the first solve time on the riddle in milliseconds", %{user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+      riddle = live_riddle(%{live_date: live_date})
+
+      Frozen.freeze(live_date)
+      Frozen.advance(4567, :millisecond)
+
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
+
+      assert Riddlr.Games.get_riddle!(riddle.id).first_solve_time == 4567
+    end
+
     test "first solver gets placement 1, points and is recorded on the riddle", %{
       riddle: riddle,
       user: user

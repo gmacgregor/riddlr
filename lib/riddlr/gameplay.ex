@@ -110,11 +110,7 @@ defmodule Riddlr.Gameplay do
       :ok = Riddlr.Accounts.award_game_points(user.id, placement, points)
 
       if placement == 1 do
-        Riddlr.Games.record_first_solver(
-          riddle.id,
-          user.id,
-          answer.offset_ms && div(answer.offset_ms, 1000)
-        )
+        Riddlr.Games.record_first_solver(riddle.id, user.id, answer.offset_ms)
       end
 
       {:correct, placement, points}
@@ -363,8 +359,7 @@ defmodule Riddlr.Gameplay do
 
   @doc """
   A riddle's saved placement-1 solve, with `:user` loaded, or `nil` if nobody
-  solved it or it has not completed. Its `solve_time_ms` keeps the
-  milliseconds the riddle's `first_solve_time` drops.
+  solved it or it has not completed.
   """
   @spec first_solve(integer()) :: Solve.t() | nil
   def first_solve(riddle_id) do

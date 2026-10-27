@@ -74,7 +74,7 @@ Each transition is either manual (admin-initiated) or automatic (worker/event-tr
 
 ### completed
 - First correct answer has been received
-- `first_solver` and `first_solve_time` are recorded
+- `first_solver` and `first_solve_time` (milliseconds) are recorded
 - Cooldown period begins (default: 3 minutes)
 - `ArchiveTransitionWorker` is scheduled to run after cooldown
 - Can transition to: `archived` (automatic only)
@@ -356,7 +356,7 @@ field :publish_status, :string, default: "draft"
 field :live_date, :utc_datetime
 field :archive_after_seconds, :integer, default: 3
 field :first_solver_id, :bigint
-field :first_solve_time, :integer
+field :first_solve_time, :integer  # milliseconds
 ```
 
 ## Related Modules

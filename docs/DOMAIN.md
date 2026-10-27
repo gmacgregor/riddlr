@@ -101,8 +101,9 @@ row and its jobs.
    Gameplay owns the points table (**1st=10, 2nd=9 … 10th=1, 0 after**) and passes the
    value to `Accounts.award_game_points/3`, which atomically increments `total_points`,
    plus `podium_count` for top-3 and `wins_count` for 1st.
-   On placement 1 the winner is recorded via `record_first_solver/3`, whose
-   conditional `update_all ... where is_nil(first_solver_id)` is the concurrency
+   On placement 1 the winner and their time in milliseconds are recorded via
+   `record_first_solver/3`, whose conditional
+   `update_all ... where is_nil(first_solver_id)` is the concurrency
    gate. Nothing is broadcast — the round keeps running to `solve_time`.
 6. **Complete** — `Games.transition(id, :completed, stats)` writes `completed`, `first_solver_id`,
    `first_solve_time`, `completion_rate` (unique solvers / unique answerers), saves every

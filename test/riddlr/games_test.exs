@@ -467,7 +467,7 @@ defmodule Riddlr.GamesTest do
     |> Riddlr.Repo.update!()
   end
 
-  describe "record_first_solver/2" do
+  describe "record_first_solver/3" do
     import Riddlr.GamesFixtures
     import Riddlr.AccountsFixtures
 
@@ -487,6 +487,15 @@ defmodule Riddlr.GamesTest do
       {:ok, :recorded} = Games.record_first_solver(riddle.id, user1.id)
       assert {:ok, :already_set} = Games.record_first_solver(riddle.id, user2.id)
       assert Games.get_riddle!(riddle.id).first_solver_id == user1.id
+    end
+
+    test "stores the first solve time in milliseconds and keeps the first one" do
+      riddle = riddle_fixture(%{play_status: "live"})
+
+      {:ok, :recorded} = Games.record_first_solver(riddle.id, user_fixture().id, 4_567)
+      {:ok, :already_set} = Games.record_first_solver(riddle.id, user_fixture().id, 4_999)
+
+      assert Games.get_riddle!(riddle.id).first_solve_time == 4_567
     end
   end
 

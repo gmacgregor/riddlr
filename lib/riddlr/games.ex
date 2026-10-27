@@ -509,7 +509,7 @@ defmodule Riddlr.Games do
   @doc """
   Records the first solver of a riddle (no-op if already set).
   Uses atomic update to avoid race conditions.
-  Optionally stores `first_solve_time` (seconds from live_date) in the same operation.
+  Optionally stores `first_solve_time` (milliseconds from live_date) in the same operation.
   """
   def record_first_solver(riddle_id, user_id, first_solve_time \\ nil) do
     updates =

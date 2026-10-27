@@ -122,9 +122,7 @@ defmodule RiddlrWeb.HomeLive do
     |> assign(:last_win, last && last_win(last.id))
   end
 
-  # The last riddle's first solver and time, from the saved solve: the
-  # riddle's `first_solve_time` holds whole seconds, but a hundredth can split
-  # two places.
+  # The last riddle's first solver and time, from the saved solve.
   @spec last_win(integer()) :: %{name: String.t(), secs: String.t()} | nil
   defp last_win(riddle_id) do
     case Gameplay.first_solve(riddle_id) do
