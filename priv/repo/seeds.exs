@@ -54,81 +54,25 @@ end
 
 IO.puts("\nSeeding riddles...")
 
-riddles = [
-  %{
-    name: "The Keyboard",
-    description:
-      "What has keys but no locks, space but no room, and you can enter but can't go inside?",
-    answers: ["keyboard", "a keyboard", "computer keyboard"],
-    solve_time: 60,
-    category_id: 1,
-    category: "technology",
-    difficulty: "easy",
-    hint: "Think about something you use every day to type.",
-    hint_delay: 30,
-    publish_status: "published"
-  },
-  %{
-    name: "The Echo",
-    description: "What can you hear but not see or touch, even though you control it?",
-    answers: ["echo", "an echo"],
-    solve_time: 90,
-    category_id: 2,
-    category: "nature",
-    difficulty: "medium",
-    hint: "It's something that bounces back to you.",
-    hint_delay: 45,
-    publish_status: "published"
-  },
-  %{
-    name: "The Light Switch",
-    description:
-      "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?",
-    answers: ["map", "a map"],
-    solve_time: 120,
-    category_id: 3,
-    category: "logic",
-    difficulty: "medium",
-    hint: "Think about representation, not reality.",
-    hint_delay: 60,
-    publish_status: "published"
-  },
-  %{
-    name: "The River",
-    description:
-      "What runs but never walks, has a mouth but never talks, has a bed but never sleeps?",
-    answers: ["river", "a river", "stream"],
-    solve_time: 90,
-    category_id: 2,
-    category: "nature",
-    difficulty: "easy",
-    hint: "It flows through the land.",
-    hint_delay: 45,
-    publish_status: "published"
-  },
-  %{
-    name: "The Future",
-    description: "The more you take, the more you leave behind. What am I?",
-    answers: ["footsteps", "steps", "footprints"],
-    solve_time: 120,
-    category_id: 3,
-    category: "logic",
-    difficulty: "hard",
-    hint: "Think about what you create as you move.",
-    hint_delay: 60,
-    publish_status: "published"
-  },
-  %{
-    name: "Draft Riddle",
-    description: "This riddle is not yet ready for play.",
-    answers: ["test"],
-    solve_time: 60,
-    category_id: 4,
-    category: "test",
-    difficulty: "easy",
-    publish_status: "draft"
-  }
-]
+{riddles, _binding} = Code.eval_file("riddles.exs", __DIR__)
+
+# Look up each category by name, creating any that do not exist yet.
+category_ids =
+  riddles
+  |> Enum.map(& &1.category)
+  |> Enum.uniq()
+  |> Map.new(fn name ->
+    category =
+      Repo.get_by(Games.Category, name: name) ||
+        Repo.insert!(%Games.Category{name: name})
+
+    {name, category.id}
+  end)
+
+riddles =
+  Enum.map(riddles, fn %{category: name} = riddle ->
+    riddle |> Map.delete(:category) |> Map.put(:category_id, category_ids[name])
+  end)
 
 Enum.each(riddles, fn riddle_attrs ->
   case Games.create_riddle(riddle_attrs) do
