@@ -1605,6 +1605,8 @@ a.rg-pill {
 .rg-pod--empty .rg-pod__block {
   background: transparent;
   border-style: dashed;
+  /* Undo --on-accent from .rg-pod--1: no fill, so text sits on the page. */
+  color: var(--fg);
 }
 .rg-tile.rg-tile--open {
   background: transparent;

@@ -20,7 +20,8 @@ If the task has not already been planned, create a plan for it.
 - Explore the relevant code first. Identify what files need to change and what files need to be added.
 - Note any existing patterns or conventions in nearby code.
 - Break the work into small, testable slices.
-- Present the plan to the user and get approval before proceeding. Do not ask "approve plan?" unless you have actually presented it.
+- Write the full plan as visible reply text. Your reasoning is hidden from the user and does not count as presenting it.
+- Then end your turn and wait for approval. Do not use `ask_user` to approve a plan.
 
 Done when the plan has been presented and the user has confirmed it.
 
