@@ -241,6 +241,31 @@
   color: var(--fg-subtle);
 }
 
+/* ─── Form fields ────────────────────────────────────────────────────────────── */
+.adm-page .rg-input {
+  min-height: 40px;
+  padding: var(--s1) var(--s3);
+}
+
+.adm-page textarea.rg-input {
+  padding-block: var(--s2);
+}
+
+/* Native select arrows ignore padding and sit on the border, so draw our own
+   chevron from two gradients and inset it from the right edge. */
+.adm-page select.rg-input {
+  appearance: none;
+  padding-right: var(--s6);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
+    linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
 /* ─── Form rows ──────────────────────────────────────────────────────────────── */
 .adm-form-row {
   display: flex;
@@ -248,8 +273,20 @@
 }
 
 .adm-form-row > * {
+  display: flex;
   flex: 1;
   min-width: 0;
+}
+
+/* Labels that wrap to two lines would push their input down. Give the label
+   row the spare height and pin labels to its bottom, so inputs line up. */
+.adm-form-row .rg-field {
+  flex: 1;
+  grid-template-rows: 1fr auto;
+}
+
+.adm-form-row .rg-field__label {
+  align-self: end;
 }
 
 .adm-form-row--2-1-1-1 > :first-child {
@@ -260,6 +297,41 @@
   .adm-form-row {
     flex-direction: column;
     gap: 0;
+  }
+}
+
+/* Name field with the generate button on its right. The columns copy the
+   2-1-1-1 row below, so the name lines up with Category and the button with
+   Difficulty. Align to the bottom so the button sits level with the input,
+   not the label. */
+.adm-name-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--s4);
+  margin-bottom: var(--s4);
+}
+
+.adm-name-row .rg-field {
+  margin-bottom: 0;
+}
+
+.adm-name-row .rg-btn {
+  min-height: 40px;
+  border-color: var(--border-strong);
+  font-size: var(--fs-sm);
+}
+
+@media (hover: hover) {
+  .adm-name-row .rg-btn:hover {
+    border-color: var(--fg);
+  }
+}
+
+@media (max-width: 767px) {
+  .adm-name-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--s3);
   }
 }
 

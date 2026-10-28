@@ -1,6 +1,7 @@
 defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   use RiddlrWeb, :live_component
   alias Riddlr.Games
+  alias Riddlr.Games.RiddleName
   alias Riddlr.Authorization
   import Riddlr.Utils.Datetime
 
@@ -31,13 +32,25 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
         phx-change="validate"
         phx-submit="save"
       >
-        <.input
-          field={f[:name]}
-          type="text"
-          label="Name"
-          required
-          placeholder="…"
-        />
+        <div class="adm-name-row">
+          <div>
+            <.input
+              field={f[:name]}
+              type="text"
+              label="Name"
+              required
+              placeholder="…"
+            />
+          </div>
+          <.button
+            type="button"
+            id="generate-riddle-name"
+            phx-click="generate_name"
+            phx-target={@myself}
+          >
+            🎲 New name
+          </.button>
+        </div>
         <div class="adm-form-row adm-form-row--2-1-1-1">
           <div>
             <.input
@@ -100,7 +113,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
             <.input
               field={f[:ready_before_seconds]}
               type="number"
-              label="Lobby opens (sec before live)"
+              label="Lobby open (sec)"
               min="1"
             />
           </div>
@@ -108,7 +121,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
             <.input
               field={f[:archive_after_seconds]}
               type="number"
-              label="Archive cool off (sec)"
+              label="Post game chat (sec)"
               min="0"
             />
           </div>
@@ -142,11 +155,18 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     # Load categories for select dropdown
     categories = Games.list_categories() |> Enum.map(&{&1.name, &1.id})
 
-    # Pre-select "logic" category for new riddles
+    # Pre-select "logic" category and fill in a name for new riddles
     riddle =
       if assigns.action == :new && is_nil(riddle.category_id) do
         logic_id = Enum.find_value(categories, fn {name, id} -> name == "logic" && id end)
         %{riddle | category_id: logic_id}
+      else
+        riddle
+      end
+
+    riddle =
+      if assigns.action == :new && is_nil(riddle.name) do
+        %{riddle | name: RiddleName.generate()}
       else
         riddle
       end
@@ -157,6 +177,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     {:ok,
      socket
      |> assign(assigns)
+     |> assign(:riddle, riddle)
      |> assign(:title, form_title)
      |> assign(:categories, categories)
      |> assign_form(changeset)}
@@ -168,6 +189,20 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     # Convert live_date to UTC before validation to prevent Ecto from treating it as UTC
     params = convert_live_date_param(params)
     changeset = Games.change_riddle(socket.assigns.riddle, params) |> Map.put(:action, :validate)
+    {:noreply, assign_form(socket, changeset)}
+  end
+
+  def handle_event("generate_name", _params, socket) do
+    # Start from the form's current params so a new name does not wipe what
+    # the editor has typed in the other fields.
+    %{params: params, source: source} = socket.assigns.form
+    params = Map.put(params, "name", RiddleName.generate())
+
+    changeset =
+      socket.assigns.riddle
+      |> Games.change_riddle(params)
+      |> Map.put(:action, source.action)
+
     {:noreply, assign_form(socket, changeset)}
   end
 

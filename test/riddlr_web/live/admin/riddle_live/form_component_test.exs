@@ -38,6 +38,76 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     end
   end
 
+  describe "Generated name" do
+    test "new form opens with a generated name", %{conn: conn, admin: admin} do
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles/new")
+
+      name = form_name(index_live)
+
+      assert name in Riddlr.Games.RiddleName.all()
+    end
+
+    test "edit form keeps the riddle's own name", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture(%{name: "My Own Name"})
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+
+      assert form_name(index_live) == "My Own Name"
+    end
+
+    test "dice button keeps the default category", %{conn: conn, admin: admin} do
+      logic =
+        Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") ||
+          Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
+
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles/new")
+
+      index_live |> element("#generate-riddle-name") |> render_click()
+
+      assert has_element?(
+               index_live,
+               ~s(#riddle-form select[name="riddle[category_id]"] option[value="#{logic.id}"][selected])
+             )
+    end
+
+    test "dice button swaps in a new name and keeps other fields", %{
+      conn: conn,
+      admin: admin
+    } do
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles/new")
+
+      index_live
+      |> form("#riddle-form",
+        riddle: %{
+          name: "Typed Name",
+          description: "Keep me",
+          answers: "first answer\nsecond answer",
+          live_date: "2030-01-15T09:30"
+        }
+      )
+      |> render_change()
+
+      html = index_live |> element("#generate-riddle-name") |> render_click()
+
+      assert form_name(index_live) in Riddlr.Games.RiddleName.all()
+      assert html =~ "Keep me"
+      assert html =~ "first answer\nsecond answer"
+      assert html =~ ~s(value="2030-01-15T09:30:00")
+    end
+  end
+
+  defp form_name(live_view) do
+    live_view
+    |> element("#riddle-form input[name='riddle[name]']")
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.attribute("value")
+    |> List.first()
+  end
+
   describe "Create riddle" do
     @tag :skip
     test "creates riddle with valid data", %{conn: conn, admin: admin} do
@@ -256,7 +326,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       refute html =~ ~r/<select[^>]*name="riddle\[play_status\]"/
     end
 
-    test "shows archive cooldown field when riddle is completed", %{conn: conn, admin: admin} do
+    test "shows post game chat field when riddle is completed", %{conn: conn, admin: admin} do
       riddle =
         GamesFixtures.riddle_fixture(%{play_status: "completed", archive_after_seconds: 5})
 
@@ -264,11 +334,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Archive cool off"
+      assert html =~ "Post game chat"
       assert html =~ "5"
     end
 
-    test "shows archive cooldown field when riddle is archived", %{conn: conn, admin: admin} do
+    test "shows post game chat field when riddle is archived", %{conn: conn, admin: admin} do
       riddle =
         GamesFixtures.riddle_fixture(%{play_status: "archived", archive_after_seconds: 10})
 
@@ -276,11 +346,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Archive cool off"
+      assert html =~ "Post game chat"
       assert html =~ "10"
     end
 
-    test "archive cooldown field is always visible", %{
+    test "post game chat field is always visible", %{
       conn: conn,
       admin: admin
     } do
@@ -289,7 +359,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Archive cool off"
+      assert html =~ "Post game chat"
     end
   end
 
