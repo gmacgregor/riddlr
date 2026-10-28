@@ -6,20 +6,19 @@ This is a **single-context** repo.
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root — the glossary / ubiquitous language.
-- **`docs/DOMAIN.md`** — the long-form architecture and gameplay writeup (entities, bounded contexts, lifecycle, end-to-end player flow, known gaps).
+- **`GLOSSARY.md`** at the repo root — the glossary / ubiquitous language.
+- **`docs/DOMAIN.md`** — how the game works in domain terms: roles, lifecycle, scheduling, play flow, scoring, what lasts, known gaps. Names no code.
 - **`docs/adr/`** — read ADRs that touch the area you're about to work in.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
+If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved. That skill calls the glossary `CONTEXT.md`; in this repo it is `GLOSSARY.md`.
 
 ## File structure
 
 ```
 /
-├── CONTEXT.md                  ← glossary
+├── GLOSSARY.md                 ← glossary
 ├── docs/
-│   ├── DOMAIN.md               ← long-form domain + gameplay writeup
-│   ├── RIDDLE_LIFECYCLE.md
+│   ├── DOMAIN.md               ← how the game works
 │   └── adr/
 │       ├── 0001-....md
 │       └── 0002-....md
@@ -28,7 +27,7 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 
 ## Use the glossary's vocabulary
 
-When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
+When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
 
 If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 

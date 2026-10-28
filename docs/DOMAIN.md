@@ -1,164 +1,211 @@
-## Domain Model
+# Riddlr — Domain
 
-| Entity | File | Notes |
+How Riddlr works, in domain terms. Terms in **bold** are defined in
+[`GLOSSARY.md`](../GLOSSARY.md); this doc does not redefine them.
+
+It names no modules, functions, files, tables or message topics. Those change;
+the rules here should not. If code and this doc disagree, one of them is wrong —
+find out which.
+
+## The shape of a game
+
+One **Riddle** is one game. There are no rounds or turns. Every **Player** who
+joins races at the same time, from the **Live date** until the **Solve time**
+runs out. The first correct **Guess** does not end the game: the riddle stays
+live for its full Solve time so every player can still solve it and earn
+**Points**.
+
+## People and rights
+
+Every account is a **Player**. Some players also hold a role:
+
+| Role | Manage riddles and categories | Manage users | Moderate guesses | Ban players | See stats | Admin pages |
+|---|---|---|---|---|---|---|
+| **Super admin** | yes | yes | yes | yes | yes | yes |
+| **Moderator** | no | no | yes | yes | yes | yes |
+| **Editor** | yes | no | no | no | no | yes |
+| **Viewer** | no | no | no | no | yes | no |
+| Player | no | no | no | no | no | no |
+
+Roles do not stack: a moderator cannot edit riddles, and an editor cannot
+moderate. **Admin** means super admin, moderator or editor.
+
+## Riddle lifecycle
+
+A riddle has a **Play status** and a **Publish status**. They are separate:
+publish status says whether the riddle may run; play status says where it is.
+
+```
+closed ──schedule──▶ scheduled ──▶ ready ──▶ live ──▶ completed ──▶ archived
+   ▲                     │           │
+   └────── unschedule ───┴───────────┘
+```
+
+| From → to | Trigger | When |
 |---|---|---|
-| `Riddlr.Games.Riddle` | `lib/riddlr/games/riddle.ex` | Central aggregate. `answers` (array of accepted strings), `difficulty`, `hint`/`hint_delay`, `live_date`, `play_status`, `publish_status`, timing knobs (`ready_before_seconds`, `solve_time`, `archive_after_seconds`, `live_until_solved`), stats (`first_solve_time`, `completion_rate`, `average_solve_time`) |
-| `Riddlr.Gameplay.Solve` | `lib/riddlr/gameplay/solve.ex` | One correct solver of a riddle: `placement`, `points`, `solve_time_ms`. Written when the riddle completes; outlives archive |
-| `Riddlr.Games.Category` | `lib/riddlr/games/category.ex` | Taxonomy, unique `name` |
-| `Riddlr.Accounts.User` | `lib/riddlr/accounts/user.ex` | `email`, `username`, `role`, `account_status`, denormalized `total_points` / `wins_count` / `podium_count` |
-| `Riddlr.Accounts.UserToken` | `lib/riddlr/accounts/user_token.ex` | Session / magic-link / email-confirm tokens |
-| `Riddlr.Accounts.Scope` | `lib/riddlr/accounts/scope.ex` | Phoenix 1.8 scope wrapper |
+| closed → scheduled | Admin **Schedule**s | On save |
+| scheduled → ready | Automatic | **Live date** minus the **Ready window** (default 10 min) |
+| ready → live | Automatic | At the Live date |
+| live → completed | Automatic | When the **Solve time** runs out (default 2 min) |
+| completed → archived | Automatic | When **Post-game** ends (default 3 min; 0 archives at once) |
+| scheduled or ready → closed | Admin **Unschedule**s | On save |
 
-Relationships:
+Rules every transition obeys:
 
-- `Category` has_many `Riddle` (required `category_id`)
-- `Riddle` belongs_to `first_solver` → `User` (nullable)
-- `Solve` belongs_to `Riddle` (deleted with it) and `User` (nilified when the user is deleted). Unique on `(riddle_id, user_id)` and `(riddle_id, placement)`
-- `User` has_many `UserToken`
+- Only the moves in the diagram are allowed. Anything else is refused.
+- Only a published riddle moves. An automatic step that finds the riddle
+  unpublished, missing, or in the wrong status gives up for good; it does not
+  retry. Only a failed write retries.
+- Each step, once saved, sets up the next one: going live sets up completion,
+  completing sets up archive.
+- Everyone watching hears about a step only after it is saved. A step that
+  fails is never announced.
 
-**There is no answer/submission table.** Submissions, cooldowns and live
-placement live in ETS (`:riddle_answers` bag, `:answer_cooldowns` set) owned by
-`Riddlr.Gameplay.EtsOwner` and are wiped on archive. On completion every solver is
-copied to `solves`; other aggregates flush back to `riddles` and `users`.
+### Schedule, reschedule, unschedule
 
-## Bounded Contexts
+All admin edits go through one save. On each save the system compares the
+stored riddle with the edit and decides which of four things happened:
 
-- `Riddlr.Games` (`lib/riddlr/games.ex`) — riddle/category CRUD + all lifecycle
-  transitions, broadcasts on `games:riddle:*`
-- `Riddlr.Gameplay` (`lib/riddlr/gameplay.ex`) — the Answer race. `submit_answer/3`
-  owns the guard chain, cooldown, placement, points, first solver and the
-  live-until-solved decision; the ETS primitives behind it are private. Also exposes
-  read-side state (`solved?/2`, `get_answers/1`, `live_solve_for/2`, `solve_rows/1`,
-  `get_completion_stats/1`), the chat broadcast and ETS cleanup
-- `Riddlr.Accounts` — registration, magic-link/password auth, `award_game_points/3`
-- `Riddlr.Authorization` — hierarchical roles `super_admin > moderator > editor >
-  viewer > player`; permissions `:manage_riddles`, `:manage_users`,
-  `:moderate_content`, `:ban_players`, `:view_analytics`
-- `Riddlr.Moderation` — blocklist + stubbed external API, fail-open, run async under
-  `Riddlr.TaskSupervisor`
+1. **Unschedule** — a scheduled or ready riddle is set back to draft. Its
+   pending steps are dropped and it returns to closed. Its Live date stays but
+   means nothing until it is scheduled again. This is the only way to
+   unschedule.
+2. **Schedule** — a closed riddle is published with a Live date in the
+   future. It becomes scheduled and its ready and live steps are set up.
+3. **Reschedule** — a scheduled or ready riddle's Live date or Ready window
+   changes. Its pending steps are replaced to match. A past Live date is
+   allowed here: the riddle goes ready and live at once.
+4. **Plain edit** — anything else. The riddle is saved and nothing is
+   scheduled.
 
-## Lifecycle
+A riddle that cannot be scheduled — a draft, no Live date, a past Live date
+on a closed riddle, a riddle already past ready — is not an error. The save
+succeeds; it just schedules nothing. The riddle and its steps are saved
+together or not at all.
 
-```
-closed → scheduled → ready → live → completed → archived
-                 ↖──── (draft rollback) ────↙
-```
+Deleting a riddle drops its pending steps, its guesses and its solves.
 
-Enforced by `@valid_transitions` in `riddle.ex` via
-`validate_play_status_transition/1`. Orthogonal `publish_status`
-(`draft | published`) — workers refuse to transition unpublished riddles.
+## Play flow
 
-Driven by Oban workers in the `game_lifecycle` queue (`lib/riddlr/workers/`), all
-using string args, `unique: [period: {1, :hour}, keys: [:riddle_id]]`, and idempotent
-via `{:cancel, ...}` state guards:
+### Home
 
-| Worker | Fires |
+Home shows the **Next riddle**. Before it goes live, Home counts down to the
+Live date and shows how many players wait in the Lobby. Once live, it shows
+the time left and how many have solved it. Only a ready riddle offers a way
+into its Lobby. Below that, Home lists riddles coming up (without their text)
+and the last finished riddle with its Answer and First solver.
+
+### Lobby
+
+The **Lobby** opens when a riddle turns ready and closes when it goes live. A
+scheduled riddle has no Lobby yet. Players in the Lobby see who else is there
+and a shared countdown to the Live date. When the riddle goes live, every
+player in the Lobby moves to Play at the same moment.
+
+### Game clock
+
+Each riddle has one **Game clock**, shared by every viewer. It ticks once a
+second on the second, so all players see the same number at the same moment.
+It counts to the Live date, then down the Solve time, then stops. If the
+riddle is rescheduled, every open countdown moves with it.
+
+### Play
+
+While the riddle is live, players submit **Guesses**. Each guess passes these
+checks in order:
+
+1. The player is not banned.
+2. The riddle is live.
+3. The player has not already solved it.
+4. The guess is not blank and is at most 500 characters.
+5. The player's **Cooldown** has passed (1 s since their last guess).
+
+The Cooldown check runs last so that a blank or too-long guess does not cost
+the player their next second.
+
+A guess is correct if it matches any of the riddle's **Answers**, ignoring
+case and outer spaces. A player who solves the riddle can guess no more. A
+player who guesses wrong may keep guessing.
+
+Every guess goes on the **Feed** for all players. The text of a correct guess
+is hidden — the feed shows "solved it — 2nd" instead — because the riddle
+stays live and the text would give the Answer away. Wrong guesses get a
+taunt.
+
+### Moderation
+
+Text goes through two checks:
+
+- A word blocklist, run before the guess is stored or shown. Banned words are
+  masked, so nothing unclean ever reaches the Feed.
+- An outside check, run after the guess is shown so it never slows the race.
+  If it **Flag**s a guess, that guess is removed from every Feed. If the check
+  fails, the guess stands. This check is a stub today and passes everything.
+
+A **Ban** takes effect at once: a banned player on Play or Results can no
+longer guess or chat.
+
+### Results and Post-game
+
+When the riddle completes, every player moves to Results. Results shows the
+**First solver**, the **Podium** and the **Leaderboard**, and the full Feed with
+correct guesses now shown. During **Post-game** players can **Chat**. At
+**Archive** chat closes, the Feed empties, and the Leaderboard stays. Results
+also points to the Next riddle.
+
+A player who opens Play for a completed riddle goes to Results; for an
+archived riddle, to Home.
+
+## Scoring
+
+**Placement** is a solver's order among correct guesses, by the moment each
+guess arrived. Points by placement:
+
+| Placement | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11+ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Points | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+
+Points are awarded the moment a player solves, not at completion. Each player
+keeps running totals of points, **Wins** (placement 1) and podiums (placement
+1–3).
+
+The first player to solve is recorded on the riddle as **First solver**, with
+their time from the Live date. If two players solve at once, only one is
+recorded.
+
+At completion the riddle records its **Completion rate** and saves one
+**Solve** per solver. The status change and the solves are saved together.
+
+## What lasts and what does not
+
+| Kept for good | Gone at Archive (or on server restart) |
 |---|---|
-| `ReadyRiddleTransitionWorker` | `live_date - ready_before_seconds` (default 600s) |
-| `LiveRiddleTransitionWorker` | at `live_date` |
-| `CompleteRiddleWorker` | `solve_time` after live (default 120s) |
-| `ArchiveRiddleTransitionWorker` | `archive_after_seconds` after completion (default 180s) |
+| Riddle, its Play and Publish status, First solver, Completion rate | Guesses and the Feed |
+| Solves (placement, points, time) | Cooldowns |
+| Player totals: points, wins, podiums | — |
 
-Scheduling/cancellation goes through `Riddlr.Games.save_riddle/2` — one write for the
-row and its jobs.
+Chat is never kept: it reaches whoever is on Results at the time and nothing
+more.
 
-## Gameplay Flow
+## Known gaps
 
-**One riddle = one game.** No turns, no rounds — every player races simultaneously.
-
-0. **Author/schedule** (`lib/riddlr_web/live/admin/riddle_live/form_component.ex`) —
-   admin creates riddle (`closed`/`draft`), publishes with a `live_date`.
-   `Games.save_riddle/2` runs an `Ecto.Multi`: sets `scheduled`, cancels any stale
-   jobs, inserts the ready + live jobs, broadcasts `{:riddle_scheduled, riddle}`.
-1. **Ready** — worker flips to `ready`, broadcasts on `games:riddle:ready`.
-2. **Lobby** — `GET /game/:id/lobby` → `GameLive.Lobby`. On connect: `Presence.track/4`
-   on `game:lobby:{id}`, subscribe to that topic + `games:riddle:live` +
-   `GameClock.topic(riddle.id)`, and `GameClock.ensure_started/1`. `Riddlr.GameClock` is a
-   per-riddle GenServer under `GameClockSupervisor`/`GameClockRegistry` broadcasting
-   `{:countdown_tick, phase, seconds}` once per wall-clock second: `:lobby` until the
-   live date, then `:play` until the solve time runs out, then it exits. Both the lobby
-   and the play view subscribe to it, and `GameClock.countdown/1` is the only place the
-   remaining-seconds arithmetic is written. The process holds a snapshot of the riddle,
-   refreshed on `{:riddle_saved, riddle}`, so rescheduling updates every connected lobby.
-   Player count = `Presence.list |> map_size`.
-3. **Live** — `Games.transition(id, :live)` sets `live`, broadcasts `{:riddle_live, riddle}`;
-   every lobby LiveView `push_navigate`s to `/game/:id/play` simultaneously.
-4. **Race** — `GameLive.Play` subscribes to completed/archived/answer_submitted/
-   answer_flagged/user-ban topics. Feed rebuilt from ETS, usernames batch-loaded
-   (`Accounts.get_users_by_ids/1`), streamed with `limit: 100`.
-   `Gameplay.submit_answer/3` guard chain: not banned → game live → not already
-   solved → non-empty and ≤500 chars → 1s per-user cooldown (checked last, since
-   the check mutates). Matching is case-insensitive and
-   trimmed against `riddle.answers`. Answers store a monotonic timestamp +
-   `solve_time_ms` offset from `live_date` and broadcast to every player's feed —
-   **except the text of a correct answer**, which `Answer.for_live_feed/1` strips
-   before it leaves the server. The round outlives the first solve, so an
-   unmasked feed would hand the answer to everyone still guessing. The feed shows
-   "solved it — 2nd" instead; ETS keeps the real text for the reveal.
-   Moderation runs async; flagged answers are `stream_delete`d for everyone.
-   Wrong answers get a random taunt + shake animation.
-5. **Scoring** — placement = count of correct ETS entries with timestamp ≤ yours.
-   Gameplay owns the points table (**1st=10, 2nd=9 … 10th=1, 0 after**) and passes the
-   value to `Accounts.award_game_points/3`, which atomically increments `total_points`,
-   plus `podium_count` for top-3 and `wins_count` for 1st.
-   On placement 1 the winner and their time in milliseconds are recorded via
-   `record_first_solver/3`, whose conditional
-   `update_all ... where is_nil(first_solver_id)` is the concurrency
-   gate. Nothing is broadcast — the round keeps running to `solve_time`.
-6. **Complete** — `Games.transition(id, :completed, stats)` writes `completed`, `first_solver_id`,
-   `first_solve_time`, `completion_rate` (unique solvers / unique answerers), saves every
-   solver to `solves` (from `Gameplay.solve_rows/1`, passed in by `CompleteRiddleWorker`)
-   in the same transaction, and enqueues archive. Results (`/game/:id/results`) reads the
-   board from `Gameplay.list_solves/1` and re-streams answers from ETS — revealing the
-   text masked during the round — in a tabbed Leaderboard / post-game Chat panel.
-   Chat reuses the `answer_submitted` topic with `chat: true`.
-7. **Archive** — `Games.transition(id, :archived)` writes `archived` and drops that riddle's
-   ETS rows via `Gameplay.cleanup_riddle/1` (as does `Games.delete_riddle/1`). Its `solves`
-   stay, so Results still shows the board; the feed is empty.
-
-Every Play status transition goes through one interface, `Games.transition/3`, which
-owns the guards (published + `Riddle.valid_transitions/0`), the write, the follow-on
-job and the post-commit broadcast. It returns `{:ok, riddle}`, `{:error, :not_found}`,
-`{:unpublished, status}`, `{:invalid, from, to}` or `{:error, changeset}`; the workers
-are pure Oban plumbing over it (`Riddlr.Workers.Transition`) and cancel — rather than
-retry — on the three permanent failures.
-
-Every admin write goes through one interface, `Games.save_riddle/2`, which reads the
-persisted state plus the changeset and decides between `:schedule`, `:reschedule`,
-`:unschedule` and a plain write, then writes the row and the jobs in one transaction.
-It returns `{:ok, riddle}` or `{:error, changeset}` — nothing else. A riddle that
-*cannot* be scheduled (draft, past `live_date`, not `closed`) is not an error; it is
-simply not a schedule.
-
-Two topics carry the result:
-
-| Topic | Message | Meaning |
-|---|---|---|
-| `games:riddle:changed` | `{:riddle_saved, riddle}` | any successful admin write (admin index) |
-| `games:riddle:changed` | `{:riddle_deleted, riddle}` | riddle removed |
-| `games:riddle:scheduled` | `{:riddle_scheduled, riddle}` | a riddle became upcoming |
-| `games:riddle:scheduled` | `{:riddle_rescheduled, riddle}` | an upcoming riddle moved |
-| `games:riddle:scheduled` | `{:riddle_unscheduled, riddle}` | an upcoming riddle is no longer upcoming |
-
-## Surfaces (`lib/riddlr_web/router.ex`)
-
-- Player: `/game/:id/lobby`, `/game/:id/play`, `/profile`
-- Admin (`RiddlrWeb.AdminAuth.:require_admin`): `/admin/riddles`, `/admin/categories`
-- Auth: register / log-in (password + magic link) / settings
-
-Design direction: `docs/superpowers/specs/2026-03-10-lobby-play-redesign.md` and
-`design/` — dark, violet-accented "tense social game show" aesthetic, mobile-first.
-
-## Known Gaps / Gotchas
-
-- **No discovery UI.** `/` renders a placeholder; players reach a lobby by direct URL.
-- `hint` / `hint_delay` / `average_solve_time` exist in the schema but no hint-reveal
-  logic exists anywhere in `lib/`.
-- Presence is lobby-only; the play view has no player count.
-- Restarting `Gameplay.EtsOwner` wipes all in-flight answers.
-- The 1s cooldown is non-atomic — UX rate limit only, not a security control.
-- `docs/riddle-lifecycle.md` is **stale**: claims `live → completed` on first correct
-  answer (never true — a round always runs its full `solve_time`), 5-min ready window (actually
-  `ready_before_seconds`, default 600s), `default` queue (actually `game_lifecycle`),
-  and `archive_after_seconds: 3` (schema default 180).
-- Play LiveView's redirect on archive is commented out, so players stay on the page.
+- **Unpublishing a live or completed riddle strands it.** Only scheduled and
+  ready riddles unschedule. A live or completed riddle set to draft is saved,
+  then every later step refuses it, so it never completes or archives. (#40)
+- **Points and placement can drift.** Placement comes from the live guesses;
+  points are saved at once. A crash between the two loses the points for good.
+  The player cannot retry, because they count as having solved.
+- **A server restart wipes live guesses.** Placement, the Feed and Cooldowns
+  are lost; points already awarded stay.
+- **The Cooldown is not exact.** Two guesses sent at the same moment can both
+  pass. It is a convenience, not a security control.
+- **Hints are not shown.** Riddles carry a Hint and a delay, but players never
+  see them.
+- **No way to ban from the app.** Ban works, but no admin page sets it.
+  "Suspended" exists as an account status but blocks nothing. (#41)
+- **Chat skips the outside moderation check.** Only the blocklist runs on it. (#42)
+- **Chat is lost on reload.** A player who reloads Results sees no earlier
+  chat. (#42)
+- **Player counts are Lobby only.** Play shows how many have solved, not how
+  many are present.
+- **Profile shows only username and email**, not the player's totals.

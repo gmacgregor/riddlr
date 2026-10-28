@@ -83,4 +83,4 @@ GitHub Issues on `gmacgregor/riddlr`, via the `gh` CLI. See `@docs/agents/issue-
 Default five-role vocabulary, label strings unchanged. See `@docs/agents/triage-labels.md`.
 
 ### Domain docs
-Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `@docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` at the repo root, `docs/DOMAIN.md`, `docs/adr/`. See `@docs/agents/domain.md`.
