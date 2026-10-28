@@ -1,18 +1,18 @@
-<div class="adm-page">
-  <header class="adm-header">
-    <div class="adm-header__inner">
-      <.link navigate={~p"/"} class="adm-header__brand">Riddlr</.link>
-      <span class="adm-header__badge">Admin</span>
-    </div>
-    <nav class="adm-header__nav">
-      <.link navigate={~p"/admin/riddles"} class="adm-header__link">Riddles</.link>
-      <.link navigate={~p"/admin/categories"} class="adm-header__link">Categories</.link>
-      <.link navigate={~p"/"} class="adm-header__link">Back to Site</.link>
-      <.auth_menu current_scope={@current_scope} />
+<div class="rg-app adm-page">
+  <.topbar current_scope={@current_scope}>
+    <nav class="adm-nav" aria-label="Admin">
+      <span class="adm-nav__badge">Admin</span>
+      <.link navigate={~p"/admin/riddles"} class="adm-nav__link">Riddles</.link>
+      <.link navigate={~p"/admin/categories"} class="adm-nav__link">Categories</.link>
+      <.link navigate={~p"/"} class="adm-nav__link">Site</.link>
     </nav>
-  </header>
-  <main class={["adm-main", "adm-main-#{@live_action}"]}>
-    <.flash_group flash={@flash} />
-    {@inner_content}
+  </.topbar>
+
+  <main class="rg-main">
+    <div class={["adm-main", "adm-main-#{@live_action}"]}>
+      {@inner_content}
+    </div>
   </main>
+
+  <.flash_group flash={@flash} />
 </div>

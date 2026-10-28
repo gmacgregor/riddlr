@@ -1,4 +1,4 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
+<Layouts.game flash={@flash} current_scope={@current_scope}>
   <.auth_shell title="Account Settings">
     <:subtitle>Change the email address you log in with.</:subtitle>
 
@@ -11,7 +11,7 @@
     >
       <input type="hidden" name="action" value="update_email" />
 
-      <.auth_input
+      <.input
         field={f[:email]}
         type="email"
         label="Email"
@@ -27,4 +27,4 @@
       <.link navigate={~p"/"} class="rg-auth__link">Back to the game</.link>
     </p>
   </.auth_shell>
-</Layouts.app>
+</Layouts.game>

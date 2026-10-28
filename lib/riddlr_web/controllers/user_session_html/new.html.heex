@@ -1,4 +1,4 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
+<Layouts.game flash={@flash} current_scope={@current_scope}>
   <.auth_shell title="Log in">
     <:subtitle>
       <%= if @current_scope do %>
@@ -16,7 +16,7 @@
       action={~p"/users/log-in"}
       class="rg-auth__form"
     >
-      <.auth_input
+      <.input
         field={f[:email]}
         type="email"
         label="Email"
@@ -43,4 +43,4 @@
       </span>
     </div>
   </.auth_shell>
-</Layouts.app>
+</Layouts.game>

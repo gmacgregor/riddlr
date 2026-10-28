@@ -1,10 +1,10 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
+<Layouts.game flash={@flash} current_scope={@current_scope}>
   <.auth_shell title="Create your account">
     <:subtitle>Pick a name, add your email, and start solving.</:subtitle>
 
     <.form :let={f} for={@changeset} action={~p"/users/register"} class="rg-auth__form">
-      <.auth_input field={f[:username]} label="Username" placeholder="riddlemaster" required />
-      <.auth_input
+      <.input field={f[:username]} label="Username" placeholder="riddlemaster" required />
+      <.input
         field={f[:email]}
         type="email"
         label="Email"
@@ -23,4 +23,4 @@
       Already registered? <.link navigate={~p"/users/log-in"} class="rg-auth__link">Log in</.link>
     </p>
   </.auth_shell>
-</Layouts.app>
+</Layouts.game>

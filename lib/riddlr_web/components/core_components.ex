@@ -8,16 +8,12 @@ defmodule RiddlrWeb.CoreComponents do
   with doc strings and declarative assigns. You may customize and style
   them in any way you want, based on your application growth and needs.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
+  Components carry the `rg-` classes of the Riddlr design system, defined in
+  `assets/css/game.css` (admin-only parts such as tables live in
+  `assets/css/admin.css`). Here are useful references:
 
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
-
-    * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
-      we build on. You will use it for layout, sizing, flexbox, grid, and
-      spacing.
+    * [Tailwind CSS](https://tailwindcss.com) - utility classes for layout,
+      sizing, flexbox, grid, and spacing.
 
     * [Heroicons](https://heroicons.com) - see `icon/1` for usage.
 
@@ -91,11 +87,11 @@ defmodule RiddlrWeb.CoreComponents do
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    variants = %{"primary" => "rg-btn--hi", nil => nil}
 
     assigns =
       assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
+        ["rg-btn", Map.fetch!(variants, assigns[:variant])]
       end)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
@@ -202,8 +198,8 @@ defmodule RiddlrWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <div class="flex items-center gap-2">
+    <div class="rg-field">
+      <div class="rg-field__check">
         <input
           type="hidden"
           name={@name}
@@ -217,10 +213,10 @@ defmodule RiddlrWeb.CoreComponents do
           name={@name}
           value="true"
           checked={@checked}
-          class={@class || "checkbox checkbox-sm"}
+          class={@class || "rg-check"}
           {@rest}
         />
-        <label :if={@label} for={@id} class="label">{@label}</label>
+        <label :if={@label} for={@id} class="rg-field__label">{@label}</label>
       </div>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -229,12 +225,13 @@ defmodule RiddlrWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label :if={@label} for={@id} class="label mb-1">{@label}</label>
+    <div class="rg-field">
+      <label :if={@label} for={@id} class="rg-field__label">{@label}</label>
       <select
         id={@id}
         name={@name}
-        class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+        class={[@class || "rg-input", @errors != [] && (@error_class || "is-invalid")]}
+        aria-invalid={@errors != [] && "true"}
         multiple={@multiple}
         {@rest}
       >
@@ -248,15 +245,13 @@ defmodule RiddlrWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label :if={@label} for={@id} class="label mb-1">{@label}</label>
+    <div class="rg-field">
+      <label :if={@label} for={@id} class="rg-field__label">{@label}</label>
       <textarea
         id={@id}
         name={@name}
-        class={[
-          @class || "w-full textarea",
-          @errors != [] && (@error_class || "textarea-error")
-        ]}
+        class={[@class || "rg-input", @errors != [] && (@error_class || "is-invalid")]}
+        aria-invalid={@errors != [] && "true"}
         {@rest}
       >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -267,17 +262,15 @@ defmodule RiddlrWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
-      <label :if={@label} for={@id} class="label mb-1">{@label}</label>
+    <div class="rg-field">
+      <label :if={@label} for={@id} class="rg-field__label">{@label}</label>
       <input
         type={@type}
         name={@name}
         id={@id}
         value={Phoenix.HTML.Form.normalize_value(@type, @value)}
-        class={[
-          @class || "w-full input",
-          @errors != [] && (@error_class || "input-error")
-        ]}
+        class={[@class || "rg-input", @errors != [] && (@error_class || "is-invalid")]}
+        aria-invalid={@errors != [] && "true"}
         {@rest}
       />
       <.error :for={msg <- @errors}>{msg}</.error>
@@ -288,8 +281,8 @@ defmodule RiddlrWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
-      <.icon name="hero-exclamation-circle" class="size-5" />
+    <p class="rg-field__error">
+      <.icon name="hero-exclamation-circle" class="size-4" />
       {render_slot(@inner_block)}
     </p>
     """
@@ -304,16 +297,12 @@ defmodule RiddlrWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
+    <header class="rg-pagehead">
       <div>
-        <h1 class="text-lg font-semibold leading-8">
-          {render_slot(@inner_block)}
-        </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
-          {render_slot(@subtitle)}
-        </p>
+        <h1 class="rg-pagehead__h">{render_slot(@inner_block)}</h1>
+        <p :if={@subtitle != []} class="rg-pagehead__sub">{render_slot(@subtitle)}</p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div :if={@actions != []} class="rg-pagehead__actions">{render_slot(@actions)}</div>
     </header>
     """
   end
@@ -350,61 +339,36 @@ defmodule RiddlrWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
-          <th :if={@action != []}>
-            <span class="sr-only">{gettext("Actions")}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
-          <td
-            :for={col <- @col}
-            phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
-          >
-            {render_slot(col, @row_item.(row))}
-          </td>
-          <td :if={@action != []} class="w-0 font-semibold">
-            <div class="flex gap-4">
-              <%= for action <- @action do %>
-                {render_slot(action, @row_item.(row))}
-              <% end %>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    """
-  end
-
-  @doc """
-  Renders a data list.
-
-  ## Examples
-
-      <.list>
-        <:item title="Title">{@post.title}</:item>
-        <:item title="Views">{@post.views}</:item>
-      </.list>
-  """
-  slot :item, required: true do
-    attr :title, :string, required: true
-  end
-
-  def list(assigns) do
-    ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
-          <div class="font-bold">{item.title}</div>
-          <div>{render_slot(item)}</div>
-        </div>
-      </li>
-    </ul>
+    <div class="rg-table-wrap">
+      <table class="rg-table">
+        <thead>
+          <tr>
+            <th :for={col <- @col}>{col[:label]}</th>
+            <th :if={@action != []}>
+              <span class="sr-only">{gettext("Actions")}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
+          <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
+            <td
+              :for={col <- @col}
+              phx-click={@row_click && @row_click.(row)}
+              class={@row_click && "is-clickable"}
+            >
+              {render_slot(col, @row_item.(row))}
+            </td>
+            <td :if={@action != []} class="rg-table__actions">
+              <div>
+                <%= for action <- @action do %>
+                  {render_slot(action, @row_item.(row))}
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     """
   end
 

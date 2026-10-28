@@ -1,13 +1,11 @@
 <.header>
   {@page_title}
   <:actions>
-    <.link patch={~p"/admin/categories/new"}>
-      <.button>New Category</.button>
-    </.link>
+    <.button patch={~p"/admin/categories/new"} variant="primary">New Category</.button>
   </:actions>
 </.header>
 
-<div :if={@live_action in [:new, :edit]} class="adm-form-section mb-8">
+<div :if={@live_action in [:new, :edit]} class="adm-form-section">
   <.live_component
     module={RiddlrWeb.Admin.CategoryLive.FormComponent}
     id={@category.id || :new}

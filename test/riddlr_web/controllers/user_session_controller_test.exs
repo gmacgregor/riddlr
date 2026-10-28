@@ -9,11 +9,22 @@ defmodule RiddlrWeb.UserSessionControllerTest do
   end
 
   describe "GET /users/log-in" do
-    test "keeps the old app shell, not the game shell", %{conn: conn} do
+    test "renders inside the game shell with the topbar", %{conn: conn} do
       response = conn |> get(~p"/users/log-in") |> html_response(200)
 
-      assert response =~ "rg-header"
-      refute response =~ "rg-topbar"
+      assert response =~ "rg-topbar"
+      assert response =~ ~s(id="topbar-brand")
+      refute response =~ "rg-header"
+    end
+
+    test "loads only the new stylesheets and fonts", %{conn: conn} do
+      response = conn |> get(~p"/users/log-in") |> html_response(200)
+
+      refute response =~ "riddlr.css"
+      refute response =~ "DM+Sans"
+      refute response =~ "DM+Serif"
+      refute response =~ "family=Inter"
+      assert response =~ "family=Fraunces"
     end
 
     test "renders login page", %{conn: conn} do

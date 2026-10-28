@@ -61,8 +61,7 @@ config :esbuild,
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ],
   css: [
-    args:
-      ~w(css/riddlr.css css/admin.css css/auth.css css/game.css --bundle --outdir=../priv/static/assets/css),
+    args: ~w(css/game.css css/auth.css css/admin.css --bundle --outdir=../priv/static/assets/css),
     cd: Path.expand("../assets", __DIR__)
   ]
 

@@ -7,7 +7,7 @@ defmodule RiddlrWeb.UserProfileLive.Show do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.game flash={@flash} current_scope={@current_scope}>
       <.auth_shell title="Profile">
         <:subtitle>Your account at a glance.</:subtitle>
 
@@ -26,7 +26,7 @@ defmodule RiddlrWeb.UserProfileLive.Show do
           <.link navigate={~p"/users/settings"} class="rg-auth__link">Edit settings</.link>
         </div>
       </.auth_shell>
-    </Layouts.app>
+    </Layouts.game>
     """
   end
 end

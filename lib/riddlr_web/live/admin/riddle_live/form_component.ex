@@ -25,7 +25,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       </p>
       <.form
         :let={f}
-        class="form"
         for={@form}
         id="riddle-form"
         phx-target={@myself}
@@ -130,10 +129,8 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
           </div>
         </div>
         <div class="adm-form-controls">
-          <.button phx-disable-with="Saving...">Save</.button>
-          <.link patch={@patch}>
-            Cancel
-          </.link>
+          <.button phx-disable-with="Saving..." variant="primary">Save</.button>
+          <.link patch={@patch} class="rg-link-btn">Cancel</.link>
         </div>
       </.form>
     </div>

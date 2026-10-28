@@ -1,10 +1,10 @@
 /* =============================================================================
-   GAME — design system for the player screens (Home, Lobby, Play).
+   GAME — the Riddlr design system ("Midnight Crossword").
 
-   New classes carry the rg- prefix so they cannot clash with daisyUI (.btn).
-   Before you add a class, check that riddlr.css does not already use the
-   name. Base rules hang off .rg-app, the root of Layouts.game/1, so admin
-   and account pages keep their old look.
+   Holds the tokens, base rules, shared parts (buttons, fields, flash, topbar)
+   and the player screens (Home, Lobby, Play, Results). auth.css and admin.css
+   build on these tokens. Classes carry the rg- prefix. Base rules hang off
+   .rg-app, the root of Layouts.game/1 and the admin layout.
    ============================================================================= */
 
 /* ───────────────── Tokens ───────────────── */
@@ -63,10 +63,18 @@
   }
 }
 
+/* ───────────────── Page ───────────────── */
+html,
+body {
+  background: var(--ink);
+  color: var(--paper);
+}
+
 /* ───────────────── Base (scoped to the shell) ───────────────── */
 .rg-app {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
   background-color: var(--ink);
@@ -85,7 +93,7 @@
 .rg-app *::after {
   box-sizing: border-box;
 }
-.rg-app :where(button, input) {
+.rg-app :where(button, input, select, textarea) {
   font: inherit;
   color: inherit;
 }
@@ -262,6 +270,7 @@
   font-weight: 700;
   font-size: var(--fs-md);
   white-space: nowrap;
+  text-decoration: none;
   transition:
     transform var(--t-fast) var(--ease-out),
     background-color var(--t-fast) var(--ease-out),
@@ -323,6 +332,104 @@
   .rg-link-btn:hover {
     color: var(--hi);
   }
+}
+
+/* ───────────────── Fields ───────────────── */
+.rg-field {
+  display: grid;
+  gap: var(--s1);
+  margin-bottom: var(--s4);
+}
+.rg-field__label {
+  font-family: var(--f-label);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rg-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: var(--s2) var(--s4);
+  border-radius: var(--r);
+  border: 2px solid var(--line-2);
+  background: var(--ink-2);
+  color: var(--paper);
+  font-size: var(--fs-md);
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+textarea.rg-input {
+  padding-block: var(--s3);
+  line-height: 1.5;
+  resize: vertical;
+}
+select.rg-input {
+  cursor: pointer;
+}
+select.rg-input option {
+  background: var(--ink-2);
+  color: var(--paper);
+}
+.rg-input::placeholder {
+  color: var(--dim);
+}
+.rg-input:focus {
+  outline: none;
+  border-color: var(--hi);
+}
+.rg-input[readonly] {
+  color: var(--muted);
+  background: var(--ink-3);
+  cursor: not-allowed;
+}
+.rg-input.is-invalid,
+.rg-input[aria-invalid="true"] {
+  border-color: var(--red);
+}
+.rg-field__error {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--fs-sm);
+  color: var(--red);
+}
+.rg-field__check {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.rg-check {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--hi);
+}
+
+/* ───────────────── Page head (core header/1) ───────────────── */
+.rg-pagehead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s5);
+  padding-bottom: var(--s4);
+}
+.rg-pagehead__h {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: var(--fs-xl);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.rg-pagehead__sub {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.rg-pagehead__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
 }
 
 /* ───────────────── Top bar ───────────────── */
@@ -1755,39 +1862,82 @@ a.rg-pill {
   }
 }
 
-/* ───────────────── Flash (restyles the shared flash group in the shell) ───────────────── */
-.rg-app .rg-flash {
+/* ───────────────── Flash ───────────────── */
+.rg-flash-group {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s3) var(--pad);
+  /* Let clicks through the empty space around the messages. */
+  pointer-events: none;
+}
+.rg-flash {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
   background: var(--ink-2);
-  backdrop-filter: none;
   border: 1px solid var(--line-2);
   border-left: 3px solid var(--hi);
   border-radius: var(--r);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   font-family: var(--f-ui);
   font-size: var(--fs-sm);
+  line-height: 1.45;
   color: var(--paper);
+  cursor: pointer;
+  animation: rg-flash-in var(--t-med) var(--ease-out) both;
 }
-.rg-app .rg-flash--error {
+.rg-flash--error {
   border-left-color: var(--red);
 }
-.rg-app .rg-flash__icon {
+.rg-flash__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
   color: var(--hi);
 }
-.rg-app .rg-flash--error .rg-flash__icon {
+.rg-flash--error .rg-flash__icon {
   color: var(--red);
 }
-.rg-app .rg-flash__title {
+.rg-flash__body {
+  flex: 1;
+  min-width: 0;
+}
+.rg-flash__title {
   font-family: var(--f-label);
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--paper);
 }
-.rg-app .rg-flash__close {
+.rg-flash__close {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease-out);
 }
 @media (hover: hover) {
-  .rg-app .rg-flash__close:hover {
+  .rg-flash__close:hover {
     color: var(--hi);
+  }
+}
+@keyframes rg-flash-in {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
   }
 }
 

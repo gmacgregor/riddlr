@@ -22,9 +22,30 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       conn = log_in_user(conn, admin)
       {:ok, _live, html} = live(conn, ~p"/admin/riddles")
 
-      assert html =~ "rg-auth-menu"
+      doc = LazyHTML.from_fragment(html)
+
+      refute LazyHTML.query(doc, ".rg-topbar a#topbar-brand .rg-brand__mark") |> Enum.empty?()
+      refute LazyHTML.query(doc, ".rg-topbar a#topbar-log-out") |> Enum.empty?()
       assert html =~ admin.username
-      assert html =~ "Log out"
+      refute html =~ "rg-auth-menu"
+    end
+
+    test "renders the riddle table and form with design system classes, not daisyUI",
+         %{conn: conn, admin: admin} do
+      GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles")
+      assert has_element?(live, "table.rg-table")
+      refute has_element?(live, ".table, .table-zebra")
+
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles/new")
+      assert has_element?(live, "#riddle-form .rg-field input.rg-input")
+      assert has_element?(live, "#riddle-form .rg-field select.rg-input")
+      assert has_element?(live, "#riddle-form .rg-field textarea.rg-input")
+      assert has_element?(live, "#riddle-form button.rg-btn.rg-btn--hi")
+      assert has_element?(live, "header.rg-pagehead h1")
+      refute has_element?(live, ".fieldset, .input, .select, .textarea, .btn")
     end
 
     test "redirects non-admin", %{conn: conn} do

@@ -23,6 +23,13 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
       refute response =~ "btn btn-primary"
     end
 
+    test "uses the shared field and button classes", %{conn: conn} do
+      doc = conn |> get(~p"/users/register") |> html_response(200) |> LazyHTML.from_document()
+
+      refute LazyHTML.query(doc, ".rg-field input.rg-input#user_email") |> Enum.empty?()
+      refute LazyHTML.query(doc, "button.rg-btn.rg-btn--hi[type=submit]") |> Enum.empty?()
+    end
+
     test "redirects if already logged in", %{conn: conn} do
       conn = conn |> log_in_user(user_fixture()) |> get(~p"/users/register")
 

@@ -87,9 +87,6 @@ defmodule RiddlrWeb do
       # Core UI components
       import RiddlrWeb.CoreComponents
 
-      # Custom components
-      import RiddlrWeb.CustomComponents
-
       # Account screen components
       import RiddlrWeb.AuthComponents
 

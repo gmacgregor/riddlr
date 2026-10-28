@@ -17,11 +17,9 @@ defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
         phx-submit="save"
       >
         <.input field={f[:name]} type="text" label="Name" required />
-        <div class="mt-4 flex gap-2">
-          <.button phx-disable-with="Saving...">Save</.button>
-          <.link patch={@patch} class="btn">
-            Cancel
-          </.link>
+        <div class="adm-form-controls">
+          <.button phx-disable-with="Saving..." variant="primary">Save</.button>
+          <.link patch={@patch} class="rg-link-btn">Cancel</.link>
         </div>
       </.form>
     </div>
