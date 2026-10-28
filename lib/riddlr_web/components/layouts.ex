@@ -176,6 +176,18 @@ defmodule RiddlrWeb.Layouts do
   end
 
   @doc """
+  Returns `"page"` when `current_path` is `section_path` or a page under it,
+  so the admin nav can mark the current section. Returns `nil` otherwise.
+  """
+  @spec admin_nav_current(String.t() | nil, String.t()) :: String.t() | nil
+  def admin_nav_current(current_path, section_path) when is_binary(current_path) do
+    if current_path == section_path or String.starts_with?(current_path, section_path <> "/"),
+      do: "page"
+  end
+
+  def admin_nav_current(_current_path, _section_path), do: nil
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

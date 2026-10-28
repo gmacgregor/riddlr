@@ -30,6 +30,18 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       refute html =~ "rg-auth-menu"
     end
 
+    test "marks Riddles as the current nav item on riddle pages", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles/#{riddle.id}")
+
+      assert has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/riddles"]))
+      refute has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/categories"]))
+
+      live |> element("a", "New Riddle") |> render_click()
+      assert has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/riddles"]))
+    end
+
     test "renders the riddle table and form with design system classes, not daisyUI",
          %{conn: conn, admin: admin} do
       GamesFixtures.riddle_fixture()

@@ -45,6 +45,13 @@
   transition: color var(--t-fast) var(--ease-out);
 }
 
+.adm-nav__link[aria-current="page"] {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
 @media (hover: hover) {
   .adm-nav__link:hover {
     color: var(--accent-text);

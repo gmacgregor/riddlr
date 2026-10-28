@@ -15,6 +15,14 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     assert html =~ category.name
   end
 
+  test "marks Categories as the current nav item", %{conn: conn, admin: admin} do
+    conn = log_in_user(conn, admin)
+    {:ok, live, _html} = live(conn, ~p"/admin/categories")
+
+    assert has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/categories"]))
+    refute has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/riddles"]))
+  end
+
   test "redirects non-admin", %{conn: conn} do
     player = Riddlr.AccountsFixtures.user_fixture(%{role: :player})
     conn = log_in_user(conn, player)

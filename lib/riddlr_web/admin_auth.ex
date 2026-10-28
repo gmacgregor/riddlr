@@ -16,7 +16,7 @@ defmodule RiddlrWeb.AdminAuth do
     socket = mount_current_user(socket, session)
 
     if socket.assigns[:current_user] && Authorization.is_admin?(socket.assigns.current_user) do
-      {:cont, socket}
+      {:cont, attach_hook(socket, :current_path, :handle_params, &assign_current_path/3)}
     else
       socket =
         socket
@@ -36,6 +36,11 @@ defmodule RiddlrWeb.AdminAuth do
       socket = socket |> put_flash(:error, "You don't have permission.") |> redirect(to: ~p"/")
       {:halt, socket}
     end
+  end
+
+  # The admin layout reads :current_path to mark the current nav link.
+  defp assign_current_path(_params, url, socket) do
+    {:cont, assign(socket, :current_path, URI.parse(url).path)}
   end
 
   defp mount_current_user(socket, session) do

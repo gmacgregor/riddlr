@@ -2,8 +2,20 @@
   <.topbar current_scope={@current_scope} theme={@theme}>
     <nav class="adm-nav" aria-label="Admin">
       <span class="adm-nav__badge">Admin</span>
-      <.link navigate={~p"/admin/riddles"} class="adm-nav__link">Riddles</.link>
-      <.link navigate={~p"/admin/categories"} class="adm-nav__link">Categories</.link>
+      <.link
+        navigate={~p"/admin/riddles"}
+        class="adm-nav__link"
+        aria-current={admin_nav_current(@current_path, ~p"/admin/riddles")}
+      >
+        Riddles
+      </.link>
+      <.link
+        navigate={~p"/admin/categories"}
+        class="adm-nav__link"
+        aria-current={admin_nav_current(@current_path, ~p"/admin/categories")}
+      >
+        Categories
+      </.link>
       <.link navigate={~p"/"} class="adm-nav__link">Site</.link>
     </nav>
   </.topbar>
