@@ -1,4 +1,4 @@
-<Layouts.game flash={@flash} current_scope={@current_scope} locked>
+<Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme} locked>
   <:status><GameComponents.status_pill kind={:play} number={@riddle.number} /></:status>
   <section class="rg-view rg-view--play" aria-labelledby="play-h">
     <div id="play-root" class={["rg-play", urgency(@time_remaining)]} phx-hook=".PlayFocus">
@@ -108,7 +108,7 @@
             />
             <button
               id="guess-btn"
-              class="rg-btn rg-btn--hi rg-guess__btn"
+              class="rg-btn rg-btn--accent rg-guess__btn"
               type="submit"
               disabled={@cooling?}
             >

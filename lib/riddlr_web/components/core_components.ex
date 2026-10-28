@@ -87,7 +87,7 @@ defmodule RiddlrWeb.CoreComponents do
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "rg-btn--hi", nil => nil}
+    variants = %{"primary" => "rg-btn--accent", nil => nil}
 
     assigns =
       assign_new(assigns, :class, fn ->

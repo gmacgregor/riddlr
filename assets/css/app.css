@@ -21,5 +21,5 @@
     display: contents;
 }
 
-/* Colours, fonts and components live in game.css (the design system),
-   auth.css (account screens) and admin.css (admin). */
+/* Tokens and colour modes live in themes.css; components in game.css (the
+   design system), auth.css (account screens) and admin.css (admin). */

@@ -7,7 +7,7 @@ defmodule RiddlrWeb.UserProfileLive.Show do
 
   def render(assigns) do
     ~H"""
-    <Layouts.game flash={@flash} current_scope={@current_scope}>
+    <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
       <.auth_shell title="Profile">
         <:subtitle>Your account at a glance.</:subtitle>
 

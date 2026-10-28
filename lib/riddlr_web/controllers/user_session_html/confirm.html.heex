@@ -1,4 +1,4 @@
-<Layouts.game flash={@flash} current_scope={@current_scope}>
+<Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
   <.auth_shell title={"Welcome #{@user.username}"}>
     <:subtitle :if={!@user.confirmed_at}>
       Confirm your account to finish signing up.

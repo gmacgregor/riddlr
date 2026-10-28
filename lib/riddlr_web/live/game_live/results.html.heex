@@ -1,4 +1,4 @@
-<Layouts.game flash={@flash} current_scope={@current_scope}>
+<Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
   <:status><GameComponents.status_pill kind={:results} number={@riddle.number} /></:status>
   <div id="results" class="rg-wrap rg-results rg-view" phx-hook=".ResultsTabs">
     <div class="rg-results__top">
@@ -152,14 +152,14 @@
         <.link
           :if={@next && @next.play_status == "ready"}
           navigate={~p"/game/#{@next.id}/lobby"}
-          class="rg-btn rg-btn--hi rg-btn--wide"
+          class="rg-btn rg-btn--accent rg-btn--wide"
         >
           {GameCopy.next_enter_lobby()} <GameComponents.icon name="arrow" />
         </.link>
         <.link
           :if={@next && @next.play_status == "live"}
           navigate={~p"/game/#{@next.id}/play"}
-          class="rg-btn rg-btn--hi rg-btn--wide"
+          class="rg-btn rg-btn--accent rg-btn--wide"
         >
           {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
         </.link>

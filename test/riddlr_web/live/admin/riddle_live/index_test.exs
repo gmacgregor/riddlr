@@ -43,7 +43,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert has_element?(live, "#riddle-form .rg-field input.rg-input")
       assert has_element?(live, "#riddle-form .rg-field select.rg-input")
       assert has_element?(live, "#riddle-form .rg-field textarea.rg-input")
-      assert has_element?(live, "#riddle-form button.rg-btn.rg-btn--hi")
+      assert has_element?(live, "#riddle-form button.rg-btn.rg-btn--accent")
       assert has_element?(live, "header.rg-pagehead h1")
       refute has_element?(live, ".fieldset, .input, .select, .textarea, .btn")
     end

@@ -8,21 +8,21 @@ defmodule RiddlrWeb.GameComponentsTest do
 
   describe "tone/1" do
     test "picks a tone from the sum of the name's char codes" do
-      # "ab" = 97 + 98 = 195, 195 mod 6 = 3 -> rose
-      assert GameComponents.tone("ab") == "rose"
-      # "a" = 97, 97 mod 6 = 1 -> mint
-      assert GameComponents.tone("a") == "mint"
+      # "ab" = 97 + 98 = 195, 195 mod 6 = 3 -> variant-4
+      assert GameComponents.tone("ab") == "variant-4"
+      # "a" = 97, 97 mod 6 = 1 -> variant-2
+      assert GameComponents.tone("a") == "variant-2"
     end
 
     test "gives the same tone every time for a name" do
       assert GameComponents.tone("gmac") == GameComponents.tone("gmac")
     end
 
-    test "always gives the current user hi" do
-      # "a" alone is mint; as the current user it is hi.
-      assert GameComponents.tone("a", "a") == "hi"
-      assert GameComponents.tone("a", "b") == "mint"
-      assert GameComponents.tone("a", nil) == "mint"
+    test "always gives the current user variant-1" do
+      # "a" alone is variant-2; as the current user it is variant-1.
+      assert GameComponents.tone("a", "a") == "variant-1"
+      assert GameComponents.tone("a", "b") == "variant-2"
+      assert GameComponents.tone("a", nil) == "variant-2"
     end
   end
 
@@ -39,17 +39,17 @@ defmodule RiddlrWeb.GameComponentsTest do
 
   describe "tile/1" do
     test "renders the initial with its tone and size" do
-      html = render_component(&GameComponents.tile/1, initial: "G", tone: "sky", size: "sm")
+      html = render_component(&GameComponents.tile/1, initial: "G", tone: "variant-3", size: "sm")
 
-      assert html =~ ~s(data-tone="sky")
+      assert html =~ ~s(data-tone="variant-3")
       assert html =~ "rg-tile--sm"
       assert html =~ ">G</span>"
     end
 
-    test "defaults to the paper tone at the base size" do
+    test "defaults to variant-5 at the base size" do
       html = render_component(&GameComponents.tile/1, initial: "Q")
 
-      assert html =~ ~s(data-tone="paper")
+      assert html =~ ~s(data-tone="variant-5")
       refute html =~ "rg-tile--"
     end
   end

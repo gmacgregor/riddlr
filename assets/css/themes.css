@@ -1,0 +1,195 @@
+/* =============================================================================
+   THEMES — design tokens and colour modes.
+
+   `:root` holds the tokens no mode changes: fonts, sizes, spacing, radius,
+   motion and layout. Each colour mode is one block that sets every colour
+   token, picked by `data-theme` on <html> (see RiddlrWeb.Theme). Dark is the
+   default. To add a mode, add one block.
+
+   Colour tokens carry role names, not colour names, so they stay true in
+   every mode:
+
+     --surface, -2, -3     page ground, raised panel, higher panel / field
+     --border, -strong     default rule, stronger rule
+     --fg                  strong foreground, solid chips
+     --on-fg               text on --fg fills
+     --fg-muted, -subtle   secondary, tertiary text
+     --grid                background grid line
+     --accent, -press      live + main action fill, pressed
+     --accent-text         accent as text, outline or thin graphic
+     --on-accent           text on bright fills
+     --urgent, -text       urgency + wrong: fill, and as text / outline
+     --success, -text      correct + solved: fill, and as text / outline
+     --info-text           neutral status text (scheduled, notes)
+     --notice-text         second status text (ready)
+     --shadow              drop-shadow colour
+     --tone-N, --on-tone-N tile variant N fill and its text. variant-1 is
+                           always the accent; variant-5 is always --fg.
+
+   Dark and Dusk set each *-text token equal to its fill, and --on-fg equal
+   to --on-accent. Light needs deeper shades for text on a light ground.
+   ============================================================================= */
+
+:root {
+  --f-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --f-ui: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-label: "Jost", "Futura", "Century Gothic", sans-serif;
+
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 24px;
+
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+  --r: 4px;
+  --r-lg: 8px;
+
+  --t-fast: 160ms;
+  --t-med: 240ms;
+  --t-slow: 360ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.9, 0.4);
+
+  --wrap: 1200px;
+  --pad: 16px;
+}
+@media (min-width: 768px) {
+  :root {
+    --pad: 32px;
+  }
+}
+
+/* ───────────────── Dark: "Midnight Crossword" (default) ───────────────── */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface: #0d0f12;
+  --surface-2: #14171c;
+  --surface-3: #1c2027;
+  --border: #2a2f38;
+  --border-strong: #3b414c;
+  --fg: #f3f1ea;
+  --on-fg: #0d0f12;
+  --fg-muted: #a7adb7;
+  --fg-subtle: #8a919c;
+  --grid: rgba(243, 241, 234, 0.035);
+  --shadow: rgba(0, 0, 0, 0.5);
+
+  --accent: #e4ff3a; /* highlighter */
+  --accent-press: #d2ee1f;
+  --accent-text: #e4ff3a;
+  --on-accent: #0d0f12;
+  --urgent: #ff5b3d;
+  --urgent-text: #ff5b3d;
+  --success: #43e3a8;
+  --success-text: #43e3a8;
+  --info-text: #7cc7ff; /* sky */
+  --notice-text: #ff9ec4; /* rose */
+
+  --tone-1: #e4ff3a;
+  --tone-2: #43e3a8;
+  --tone-3: #7cc7ff;
+  --tone-4: #ff9ec4;
+  --tone-5: #f3f1ea;
+  --tone-6: #ff5b3d;
+  --on-tone-1: #0d0f12;
+  --on-tone-2: #0d0f12;
+  --on-tone-3: #0d0f12;
+  --on-tone-4: #0d0f12;
+  --on-tone-5: #0d0f12;
+  --on-tone-6: #0d0f12;
+}
+
+/* ───────────────── Dusk: "Dusk Arcade" ───────────────── */
+[data-theme="dusk"] {
+  color-scheme: dark;
+
+  --surface: #181b30;
+  --surface-2: #202442;
+  --surface-3: #2a2f52;
+  --border: #373d66;
+  --border-strong: #4c5382;
+  --fg: #eceff8;
+  --on-fg: #14172b;
+  --fg-muted: #b4bad8;
+  --fg-subtle: #9aa1c8;
+  --grid: rgba(236, 239, 248, 0.04);
+  --shadow: rgba(0, 0, 0, 0.5);
+
+  --accent: #f6b93b; /* marigold */
+  --accent-press: #e4a424;
+  --accent-text: #f6b93b;
+  --on-accent: #14172b;
+  --urgent: #ff7d6e; /* coral */
+  --urgent-text: #ff7d6e;
+  --success: #86d9ac; /* sage */
+  --success-text: #86d9ac;
+  --info-text: #9fb2ff; /* periwinkle */
+  --notice-text: #d9a3ee; /* orchid */
+
+  --tone-1: #f6b93b;
+  --tone-2: #86d9ac;
+  --tone-3: #9fb2ff;
+  --tone-4: #d9a3ee;
+  --tone-5: #eceff8;
+  --tone-6: #ff7d6e;
+  --on-tone-1: #14172b;
+  --on-tone-2: #14172b;
+  --on-tone-3: #14172b;
+  --on-tone-4: #14172b;
+  --on-tone-5: #14172b;
+  --on-tone-6: #14172b;
+}
+
+/* ───────────────── Light: "Dusk Arcade — Daylight" ─────────────────
+   --fg is dark here, so solid --fg chips carry light --on-fg text. Accents
+   used as text, outlines or thin graphics take the deeper *-text shades; the
+   bright fills stay. */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface: #f5f6fc;
+  --surface-2: #eceef9;
+  --surface-3: #e1e5f4;
+  --border: #cdd2ea;
+  --border-strong: #a9b0d4;
+  --fg: #1b1f3d;
+  --on-fg: #f5f6fc;
+  --fg-muted: #464d7a;
+  --fg-subtle: #575e8c;
+  --grid: rgba(27, 31, 61, 0.05);
+  --shadow: rgba(27, 31, 61, 0.18);
+
+  --accent: #f6b93b; /* marigold */
+  --accent-press: #e4a424;
+  --accent-text: #8a5600; /* deep amber */
+  --on-accent: #14172b;
+  --urgent: #ff7d6e; /* coral */
+  --urgent-text: #b02f1d;
+  --success: #86d9ac; /* sage */
+  --success-text: #1d6e45;
+  --info-text: #3446b0;
+  --notice-text: #7f3a9c;
+
+  --tone-1: #f6b93b;
+  --tone-2: #86d9ac;
+  --tone-3: #9fb2ff;
+  --tone-4: #d9a3ee;
+  --tone-5: #1b1f3d;
+  --tone-6: #ff7d6e;
+  --on-tone-1: #14172b;
+  --on-tone-2: #14172b;
+  --on-tone-3: #14172b;
+  --on-tone-4: #14172b;
+  --on-tone-5: #f5f6fc;
+  --on-tone-6: #14172b;
+}

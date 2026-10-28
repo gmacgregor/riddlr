@@ -16,7 +16,7 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "h1#home-h", "Everyone at once.")
       assert has_element?(live, "h1#home-h em", "First to crack it wins.")
       assert has_element?(live, "#intro h2", "First time here?")
-      assert has_element?(live, "#intro li:nth-child(1) .rg-tile[data-tone='hi']", "1")
+      assert has_element?(live, "#intro li:nth-child(1) .rg-tile[data-tone='variant-1']", "1")
       assert has_element?(live, "#intro li:nth-child(1) .rg-intro__t", "Join the lobby")
 
       assert has_element?(
@@ -406,7 +406,7 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert LazyHTML.text(chip) =~ user.username
 
       tile = LazyHTML.query(chip, ".rg-tile")
-      assert LazyHTML.attribute(tile, "data-tone") == ["hi"]
+      assert LazyHTML.attribute(tile, "data-tone") == ["variant-1"]
       assert LazyHTML.text(tile) == RiddlrWeb.GameComponents.initial(user.username)
 
       logout =

@@ -40,6 +40,37 @@ window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
+// ─── Colour mode switch ─────────────────────────────────────────────────────
+// The topbar button (#theme-switch) steps to the next colour mode on each
+// press. It sets data-theme on <html> and writes the theme cookie, so the
+// server renders the same mode next time (RiddlrWeb.Theme). No server round
+// trip, so a live game keeps its connection, guess field and clock. CSS shows
+// the icon that matches <html data-theme>. The server renders one icon per
+// mode (RiddlrWeb.Theme.themes/0), in step order, each with its button label.
+function syncThemeSwitch(button) {
+  const theme = document.documentElement.dataset.theme
+  const icon = button.querySelector(`[data-theme-icon="${theme}"]`)
+  if (icon) button.setAttribute("aria-label", icon.dataset.label)
+}
+
+document.addEventListener("click", e => {
+  const button = e.target.closest("#theme-switch")
+  if (!button) return
+  const themes = [...button.querySelectorAll("[data-theme-icon]")].map(el => el.dataset.themeIcon)
+  const current = themes.indexOf(document.documentElement.dataset.theme)
+  const next = themes[(current + 1) % themes.length]
+  document.documentElement.dataset.theme = next
+  document.cookie = `theme=${next}; path=/; max-age=31536000; SameSite=Lax`
+  syncThemeSwitch(button)
+})
+
+// A LiveView mount after live navigation renders the label for the mode it had
+// when the page first loaded, so set it again from <html>.
+window.addEventListener("phx:page-loading-stop", () => {
+  const button = document.getElementById("theme-switch")
+  if (button) syncThemeSwitch(button)
+})
+
 // ─── CSS View Transitions for LiveView navigation ────────────────────────────
 // Wraps LiveView page loads in document.startViewTransition so that elements
 // sharing a view-transition-name morph between pages (e.g. the admin header and main).

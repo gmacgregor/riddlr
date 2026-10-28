@@ -8,9 +8,13 @@ defmodule RiddlrWeb.GameComponents do
 
   alias RiddlrWeb.GameCopy
 
-  @tones ~w(hi mint sky rose paper red)
+  @tones ~w(variant-1 variant-2 variant-3 variant-4 variant-5 variant-6)
 
-  @typedoc "A tile colour. Each one maps to a `data-tone` rule in `game.css`."
+  @typedoc """
+  A tile tone, `"variant-1"` to `"variant-6"`. Each one maps to a `data-tone`
+  rule in `game.css`; the colour mode sets the colours. `variant-1` is always the
+  mode's accent and `variant-5` the strong foreground.
+  """
   @type tone :: String.t()
 
   @doc """
@@ -18,12 +22,12 @@ defmodule RiddlrWeb.GameComponents do
 
   Sums the name's char codes and takes the result mod the number of tones,
   so the same name always gets the same tone. Pass the current user's name
-  as `me` to give that player `"hi"`.
+  as `me` to give that player `"variant-1"`.
   """
   @spec tone(String.t(), String.t() | nil) :: tone()
   def tone(name, me \\ nil)
 
-  def tone(name, name) when is_binary(name), do: "hi"
+  def tone(name, name) when is_binary(name), do: "variant-1"
 
   def tone(name, _me) when is_binary(name) do
     sum = name |> String.to_charlist() |> Enum.sum()
@@ -46,7 +50,7 @@ defmodule RiddlrWeb.GameComponents do
   A letter tile: one character on a coloured square.
   """
   attr :initial, :string, required: true
-  attr :tone, :string, default: "paper", values: @tones
+  attr :tone, :string, default: "variant-5", values: @tones
   attr :size, :string, default: nil, values: [nil, "sm", "lg"]
 
   @spec tile(map()) :: Phoenix.LiveView.Rendered.t()

@@ -39,7 +39,7 @@ defmodule RiddlrWeb.AuthComponents do
 
   def auth_submit(assigns) do
     ~H"""
-    <button type="submit" class="rg-btn rg-btn--hi rg-btn--wide rg-auth__submit" {@rest}>
+    <button type="submit" class="rg-btn rg-btn--accent rg-btn--wide rg-auth__submit" {@rest}>
       {render_slot(@inner_block)}
     </button>
     """

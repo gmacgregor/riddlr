@@ -52,6 +52,8 @@ defmodule RiddlrWeb do
     quote do
       use Phoenix.LiveView
 
+      on_mount RiddlrWeb.Theme
+
       unquote(html_helpers())
     end
   end

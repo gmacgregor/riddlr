@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme={@theme}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -9,6 +9,7 @@
     <.live_title default="Riddlr" suffix="">
       {assigns[:page_title]}
     </.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/themes.css"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/admin.css"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/auth.css"} />

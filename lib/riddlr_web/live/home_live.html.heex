@@ -1,4 +1,4 @@
-<Layouts.game flash={@flash} current_scope={@current_scope}>
+<Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
   <:status>
     <GameComponents.status_pill
       :if={@next && @next.play_status == "live"}
@@ -33,7 +33,7 @@
               </span>
             </div>
             <p class="rg-hero__teaser">{GameCopy.hero_teaser(@solved)}</p>
-            <.link navigate={~p"/game/#{@next.id}/play"} class="rg-btn rg-btn--hi">
+            <.link navigate={~p"/game/#{@next.id}/play"} class="rg-btn rg-btn--accent">
               {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
             </.link>
           <% end %>
@@ -52,7 +52,7 @@
             <.link
               :if={@next.play_status == "ready"}
               navigate={~p"/game/#{@next.id}/lobby"}
-              class="rg-btn rg-btn--hi"
+              class="rg-btn rg-btn--accent"
             >
               {GameCopy.next_enter_lobby()} <GameComponents.icon name="arrow" />
             </.link>
@@ -67,7 +67,7 @@
             :for={{step, n} <- Enum.with_index(GameCopy.intro_steps(), 1)}
             class="rg-intro__step"
           >
-            <GameComponents.tile initial={to_string(n)} tone="hi" size="sm" />
+            <GameComponents.tile initial={to_string(n)} tone="variant-1" size="sm" />
             <span class="rg-intro__text">
               <b class="rg-intro__t">{step.title}</b>
               <span class="rg-intro__s">{step.text}</span>
