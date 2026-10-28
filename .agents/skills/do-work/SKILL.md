@@ -55,6 +55,12 @@ Invoke the code-review skill tool and then the phx:review skill tool. If no such
 
 Done when the step is either abandoned or the skills have been successfully invoked and changes validated.
 
+## 6. Update Documentation (optional)
+
+When your task affects the meaning of a term already documented in the project [`GLOSSARY.md`](../../../GLOSSARY.md) then update the file. If it introduces a new glossary term then suggest the term and its definition to the user and let them decide if it should be added. Update [`DOMAIN.md`](../../../docs/DOMAIN.md) when changes are made to how Riddlr works, in domain terms. Ask the user for clarity when its ambiguous if your change merits a glossary or domain document update.
+
+Done when project glossary and domain documents are updated, or skipped, depending on what was just implemented.
+
 ## 6. Commit (optional) & Close Issue (optional)
 
 Ask the user if you should commit your changes and close the issue (assuming the work performed has one or more associated issues). When closing the issue, leave a succinct comment outlining what action was taken and remove any associated labels that no longer make sense given issue closure i.e. "TODO" or "ready-for-agent".
