@@ -6,6 +6,10 @@ defmodule RiddlrWeb.GameLive.Results do
   riddle shows an empty feed. Opening it for a riddle in any other state sends
   the player to the screen for that state.
 
+  While the riddle is completed, a countdown above the chat shows how long
+  until Archive (`Riddlr.GameClock.archive_at/1`). When Archive arrives, chat
+  closes in place: the feed stays and the form gives way to an emoji.
+
   A card under the board points to the next riddle (`Games.next_riddle/0`)
   and follows its state while the page is open. A `scheduled` riddle gets no
   button: its Lobby does not open until the riddle is `ready`.
@@ -13,7 +17,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.{Games, Gameplay}
+  alias Riddlr.{Clock, GameClock, Games, Gameplay}
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
   alias RiddlrWeb.GameLive.Feed
@@ -55,10 +59,15 @@ defmodule RiddlrWeb.GameLive.Results do
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
+    # Subscribed before the riddle is read, so an Archive that lands between
+    # the read and the subscribe still reaches the page.
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
+
     case Games.fetch_riddle(id) do
       {:ok, %{play_status: status} = riddle} when status in ["completed", "archived"] ->
         user = socket.assigns.current_user
-        # Chat closes at archive. A page opened before then keeps its chat.
+        # Chat is open until Archive. An open page closes it when the
+        # `:riddle_archived` broadcast arrives.
         chat_open? = status == "completed"
         board = load_board(riddle.id, user.id)
 
@@ -76,6 +85,10 @@ defmodule RiddlrWeb.GameLive.Results do
          socket
          |> assign(:banned, is_banned?(user))
          |> assign(:chat_open?, chat_open?)
+         # Sent to the countdown hook once. Nil once archived: no countdown.
+         |> assign(:archive_at, if(chat_open?, do: GameClock.archive_at(riddle)))
+         # Set when Archive closes chat on an open page.
+         |> assign(:closed_emoji, nil)
          |> assign(:page_title, "Results — #{riddle.name}")
          |> assign(:riddle, riddle)
          |> assign(:answer, List.first(riddle.answers, ""))
@@ -136,12 +149,18 @@ defmodule RiddlrWeb.GameLive.Results do
     {:noreply, stream_delete(socket, :answers, %{id: answer_id})}
   end
 
-  def handle_info({:riddle_archived, riddle}, socket) do
-    if riddle.id == socket.assigns.riddle.id do
-      {:noreply, put_flash(socket, :info, "This game has been archived.")}
-    else
-      {:noreply, socket}
-    end
+  # Closes chat in place: the feed stays, and the form gives way to an emoji.
+  def handle_info({:riddle_archived, %{id: id}}, %{assigns: %{riddle: %{id: id}}} = socket) do
+    socket =
+      if socket.assigns.chat_open? do
+        socket
+        |> assign(:chat_open?, false)
+        |> assign(:closed_emoji, GameCopy.chat_closed_emoji())
+      else
+        socket
+      end
+
+    {:noreply, put_flash(socket, :info, "This game has been archived.")}
   end
 
   def handle_info({message, _riddle}, socket) when message in @next_messages do
@@ -164,7 +183,6 @@ defmodule RiddlrWeb.GameLive.Results do
 
   @spec subscribe_to_chat(String.t()) :: :ok | {:error, term()}
   defp subscribe_to_chat(riddle_id) do
-    Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
     Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle_id))
     Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(riddle_id))
   end
@@ -172,6 +190,12 @@ defmodule RiddlrWeb.GameLive.Results do
   @spec check_not_banned(map()) :: :ok | {:error, :banned}
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
+
+  # The countdown's first text. The `.ChatCountdown` hook takes over from it.
+  @spec countdown_text(DateTime.t()) :: String.t()
+  defp countdown_text(archive_at) do
+    archive_at |> DateTime.diff(Clock.utc_now()) |> GameCopy.chat_countdown()
+  end
 
   # Every feed item is an answer except the round-ended divider.
   @spec divider?(map()) :: boolean()

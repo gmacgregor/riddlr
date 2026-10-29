@@ -228,6 +228,40 @@ defmodule RiddlrWeb.GameCopy do
   @spec chat_placeholder() :: String.t()
   def chat_placeholder, do: "Say something nice to the winner"
 
+  @doc "The words before the time left on the Results chat countdown."
+  @spec chat_closes_in_lead() :: String.t()
+  def chat_closes_in_lead, do: "Chat closes in"
+
+  @doc "The Results chat countdown, e.g. \"Chat closes in 2:41\"."
+  @spec chat_closes_in(non_neg_integer()) :: String.t()
+  def chat_closes_in(seconds), do: "#{chat_closes_in_lead()} #{m_ss(seconds)}"
+
+  @doc "The Results chat countdown once it reaches 0 and Archive has not yet arrived."
+  @spec chat_closing() :: String.t()
+  def chat_closing, do: "Closing…"
+
+  @doc """
+  The Results chat countdown given the seconds left: the time, or
+  `chat_closing/0` at 0 or below.
+  """
+  @spec chat_countdown(integer()) :: String.t()
+  def chat_countdown(seconds) when seconds > 0, do: chat_closes_in(seconds)
+  def chat_countdown(_seconds), do: chat_closing()
+
+  @chat_closed_emojis ["🔒", "🌙", "👋", "🫡", "🎬", "🧹", "💤", "🚪"]
+
+  @doc "Every emoji that can take the Results chat form's place at Archive."
+  @spec chat_closed_emojis() :: [String.t()]
+  def chat_closed_emojis, do: @chat_closed_emojis
+
+  @doc "A random emoji from `chat_closed_emojis/0`."
+  @spec chat_closed_emoji() :: String.t()
+  def chat_closed_emoji, do: Enum.random(@chat_closed_emojis)
+
+  @doc "The text left of the emoji that replaces the Results chat form at Archive."
+  @spec chat_closed() :: String.t()
+  def chat_closed, do: "Chat closed. See you in the next game!"
+
   @doc "The message when a player sends an empty guess."
   @spec guess_empty() :: String.t()
   def guess_empty, do: "Type an answer first."

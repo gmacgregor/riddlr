@@ -54,6 +54,20 @@ defmodule Riddlr.GameClock do
     end
   end
 
+  @doc """
+  When a riddle is due to be archived: its live date plus its solve time plus
+  its archive delay. The archive job counts its delay from when the riddle
+  actually completes, so the two can drift by a second or so.
+
+  A riddle with no live date has no archive time; returns `nil`.
+  """
+  @spec archive_at(Riddle.t()) :: DateTime.t() | nil
+  def archive_at(%Riddle{live_date: nil}), do: nil
+
+  def archive_at(%Riddle{} = riddle) do
+    DateTime.add(riddle.live_date, riddle.solve_time + riddle.archive_after_seconds, :second)
+  end
+
   def start_link(opts) do
     riddle = Keyword.fetch!(opts, :riddle)
 

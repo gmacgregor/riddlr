@@ -5,6 +5,8 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
   alias Riddlr.Gameplay.Answer
   alias Riddlr.{Games, Gameplay, AccountsFixtures, GamesFixtures}
+  alias Riddlr.Clock.Frozen
+  alias RiddlrWeb.GameCopy
 
   setup do
     user = AccountsFixtures.user_fixture()
@@ -557,6 +559,118 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
     end
   end
 
+  describe "chat countdown" do
+    setup do
+      now = ~U[2026-08-01 12:00:00Z]
+      Frozen.freeze(now)
+      %{now: now}
+    end
+
+    test "a completed riddle counts down to Archive above the chat form", %{
+      conn: conn,
+      user: user,
+      now: now
+    } do
+      # Went live 60s ago with a 60s solve time, so it archives 180s from now.
+      riddle = finished_fixture(now, -60, archive_after_seconds: 180)
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      archive_at = now |> DateTime.add(180, :second) |> DateTime.to_iso8601()
+
+      assert has_element?(
+               live,
+               "#chat-countdown[phx-hook][data-archive-at='#{archive_at}']",
+               GameCopy.chat_closes_in(180)
+             )
+
+      assert has_element?(live, "#chat-countdown + #chat-foot #chat-form")
+    end
+
+    test "says closing, not a negative time, once the archive time has passed", %{
+      conn: conn,
+      user: user,
+      now: now
+    } do
+      # Archive was due 60s ago, but its broadcast has not arrived.
+      riddle = finished_fixture(now, -300, archive_after_seconds: 180)
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#chat-countdown", GameCopy.chat_closing())
+      refute has_element?(live, "#chat-countdown", "-")
+    end
+
+    test "an archived riddle shows no countdown", %{conn: conn, user: user, now: now} do
+      riddle =
+        finished_fixture(now, -60, archive_after_seconds: 180) |> set_play_status("archived")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      refute has_element?(live, "#chat-countdown")
+      assert has_element?(live, "#chat-empty", GameCopy.chat_archived())
+    end
+
+    test "a riddle with no archive delay shows no countdown", %{
+      conn: conn,
+      user: user,
+      now: now
+    } do
+      # With no delay, Archive follows completion at once.
+      riddle = finished_fixture(now, -60, archive_after_seconds: 0) |> set_play_status("archived")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      refute has_element?(live, "#chat-countdown")
+    end
+
+    test "Archive disables the form, shows an emoji and keeps the feed", %{
+      conn: conn,
+      user: user,
+      now: now
+    } do
+      riddle = finished_fixture(now, -60, archive_after_seconds: 180)
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      Gameplay.broadcast_answer(Answer.new(riddle.id, user, "well played", chat: true))
+      send(live.pid, {:riddle_archived, riddle})
+
+      refute has_element?(live, "#chat-countdown")
+      assert has_element?(live, "#chat-foot.is-closed #chat-input[disabled]")
+      assert has_element?(live, "#chat-foot.is-closed button[type=submit][disabled]")
+
+      assert Enum.any?(
+               GameCopy.chat_closed_emojis(),
+               &has_element?(live, "#chat-foot #chat-closed-emoji", &1)
+             )
+
+      # The text sits left of the emoji, and screen readers get only the text.
+      assert has_element?(
+               live,
+               "#chat-closed-emoji > .rg-chat__closed-text:first-child",
+               GameCopy.chat_closed()
+             )
+
+      assert has_element?(live, "#chat-closed-emoji > [aria-hidden=true]:last-child")
+
+      assert has_element?(live, "#chat-feed", "well played")
+      refute has_element?(live, "#chat-empty")
+      assert render(live) =~ "This game has been archived."
+    end
+
+    test "send_chat after Archive does not broadcast", %{conn: conn, user: user, now: now} do
+      riddle = finished_fixture(now, -60, archive_after_seconds: 180)
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle.id))
+
+      send(live.pid, {:riddle_archived, riddle})
+      # A stale client can still push the event after the form is disabled.
+      render_hook(live, "send_chat", %{"message" => "too late"})
+
+      refute_receive {:answer_submitted, _answer}
+    end
+  end
+
   describe "archive" do
     test "shows the saved board for an archived riddle", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
@@ -625,6 +739,18 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
   defp set_play_status(riddle, new_status) do
     riddle
     |> Ecto.Changeset.change(play_status: new_status)
+    |> Riddlr.Repo.update!()
+    |> then(&Games.get_riddle!(&1.id))
+  end
+
+  # A completed riddle that went live `live_in` seconds from `now` (negative
+  # for the past), with a 60s solve time.
+  defp finished_fixture(now, live_in, attrs) do
+    GamesFixtures.riddle_fixture(Map.new(attrs))
+    |> Ecto.Changeset.change(
+      play_status: "completed",
+      live_date: DateTime.add(now, live_in, :second)
+    )
     |> Riddlr.Repo.update!()
     |> then(&Games.get_riddle!(&1.id))
   end

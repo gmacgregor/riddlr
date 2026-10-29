@@ -70,6 +70,18 @@ defmodule Riddlr.GameClockTest do
     end
   end
 
+  describe "archive_at/1" do
+    test "is the live date plus the solve time plus the archive delay", ctx do
+      riddle = %{riddle(ctx, live_in: 10, solve_time: 60) | archive_after_seconds: 180}
+
+      assert GameClock.archive_at(riddle) == DateTime.add(ctx.now, 250, :second)
+    end
+
+    test "is nil for a riddle with no live date" do
+      assert GameClock.archive_at(%Riddle{live_date: nil, solve_time: 60}) == nil
+    end
+  end
+
   describe "keeping up with the riddle" do
     test "counts to the new live date after a reschedule", ctx do
       :ok = GameClock.ensure_started(riddle(ctx, live_in: 10))

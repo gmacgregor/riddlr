@@ -212,34 +212,92 @@
             </span>
           </li>
         <% end %>
-        <li :if={!@chat_open?} id="chat-empty" class="rg-chat__empty">
+        <li :if={!@chat_open? && !@closed_emoji} id="chat-empty" class="rg-chat__empty">
           {GameCopy.chat_archived()}
         </li>
       </ol>
 
-      <form
-        :if={@chat_open?}
-        id="chat-form"
-        class="rg-chat__bar"
-        phx-submit="send_chat"
-        phx-hook=".ChatForm"
+      <%!-- The hook owns the text once mounted, so patches leave it alone. --%>
+      <p
+        :if={@chat_open? && @archive_at}
+        id="chat-countdown"
+        class="rg-chat__countdown"
+        role="timer"
+        aria-live="off"
+        data-archive-at={DateTime.to_iso8601(@archive_at)}
+        data-lead={GameCopy.chat_closes_in_lead()}
+        data-closing={GameCopy.chat_closing()}
+        phx-hook=".ChatCountdown"
+        phx-update="ignore"
       >
-        <label class="rg-sr-only" for="chat-input">Message</label>
-        <input
-          id="chat-input"
-          class="rg-chat__field"
-          type="text"
-          name="message"
-          autocomplete="off"
-          placeholder={GameCopy.chat_placeholder()}
-        />
-        <button class="rg-btn rg-btn--icon" type="submit" aria-label="Send message">
-          <GameComponents.icon name="send" />
-        </button>
-      </form>
+        {countdown_text(@archive_at)}
+      </p>
+
+      <%!-- At Archive the form stays put, disabled, and fades out while the
+      emoji fades in on the same spot. The CSS runs the fades. --%>
+      <div
+        :if={@chat_open? || @closed_emoji}
+        id="chat-foot"
+        class={["rg-chat__foot", @closed_emoji && "is-closed"]}
+      >
+        <form
+          id="chat-form"
+          class="rg-chat__bar"
+          phx-submit="send_chat"
+          phx-hook=".ChatForm"
+        >
+          <label class="rg-sr-only" for="chat-input">Message</label>
+          <input
+            id="chat-input"
+            class="rg-chat__field"
+            type="text"
+            name="message"
+            autocomplete="off"
+            placeholder={GameCopy.chat_placeholder()}
+            disabled={!@chat_open?}
+          />
+          <button
+            class="rg-btn rg-btn--icon"
+            type="submit"
+            aria-label="Send message"
+            disabled={!@chat_open?}
+          >
+            <GameComponents.icon name="send" />
+          </button>
+        </form>
+        <p :if={@closed_emoji} id="chat-closed-emoji" class="rg-chat__closed">
+          <span class="rg-chat__closed-text">{GameCopy.chat_closed()}</span>
+          <span class="rg-chat__closed-emoji" aria-hidden="true">{@closed_emoji}</span>
+        </p>
+      </div>
     </section>
   </div>
 </Layouts.game>
+
+<script :type={Phoenix.LiveView.ColocatedHook} name=".ChatCountdown">
+  // Counts down to the archive time the server sent once. At 0 it holds on
+  // the closing text until the Archive broadcast removes it.
+  //
+  // Mirrors GameCopy.chat_countdown/1 and m_ss/1. Change them together.
+  const mSs = (secs) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`
+
+  export default {
+    mounted() {
+      this.deadline = Date.parse(this.el.dataset.archiveAt)
+      this.render()
+      this.timer = setInterval(() => this.render(), 1000)
+    },
+    destroyed() {
+      clearInterval(this.timer)
+    },
+    render() {
+      const { lead, closing } = this.el.dataset
+      const secs = Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000))
+      this.el.textContent = secs > 0 ? `${lead} ${mSs(secs)}` : closing
+      if (secs === 0) clearInterval(this.timer)
+    }
+  }
+</script>
 
 <script :type={Phoenix.LiveView.ColocatedHook} name=".ChatForm">
   // Clears the field after a send. An empty send only puts focus back, since

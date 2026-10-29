@@ -149,9 +149,10 @@ longer guess or chat.
 
 When the riddle completes, every player moves to Results. Results shows the
 **First solver**, the **Podium** and the **Leaderboard**, and the full Feed with
-correct guesses now shown. During **Post-game** players can **Chat**. At
-**Archive** chat closes, the Feed empties, and the Leaderboard stays. Results
-also points to the Next riddle.
+correct guesses now shown. During **Post-game** players can **Chat**, and a
+countdown shows how long until **Archive**. At Archive chat closes and the
+Leaderboard stays. A page already open keeps its Feed; a page opened after
+Archive shows an empty Feed. Results also points to the Next riddle.
 
 A player who opens Play for a completed riddle goes to Results; for an
 archived riddle, to Home.
