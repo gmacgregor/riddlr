@@ -11,7 +11,7 @@
 .adm-nav {
   display: flex;
   align-items: center;
-  gap: var(--s4);
+  gap: var(--space-s);
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -19,12 +19,12 @@
 
 .adm-nav__badge {
   flex: none;
-  padding: 2px 6px;
+  padding: 0.15em 0.5em;
   border-radius: 2px;
   background: var(--accent);
   color: var(--on-accent);
   font-family: var(--f-label);
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -36,7 +36,7 @@
   align-items: center;
   min-height: 44px;
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -79,26 +79,26 @@
 /* ─── Main ───────────────────────────────────────────────────────────────────── */
 .adm-main {
   width: 100%;
-  max-width: 960px;
+  max-width: 60rem;
   margin-inline: auto;
-  padding: var(--s5) var(--pad) var(--s8);
+  padding: var(--space-m) var(--pad) var(--space-2xl);
 }
 
 .adm-form-section {
-  margin-bottom: var(--s6);
-  padding: var(--s5);
+  margin-bottom: var(--space-l);
+  padding: var(--space-m);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
 }
 
 .adm-form-section > div > p:first-child {
-  margin-bottom: var(--s4);
+  margin-bottom: var(--space-s);
 }
 
 .adm-form-section h4 {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -106,7 +106,7 @@
 }
 
 .adm-note {
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-subtle);
 }
 
@@ -126,7 +126,7 @@
 }
 
 .rg-app .adm-list {
-  padding-left: var(--s5);
+  padding-left: var(--space-m);
   list-style: disc;
 }
 
@@ -134,14 +134,14 @@
 .rg-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 
 .rg-table th {
-  padding: var(--s2) var(--s3);
+  padding: var(--space-2xs) var(--space-xs);
   border-bottom: 1px solid var(--border-strong);
   font-family: var(--f-label);
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-align: left;
@@ -150,7 +150,7 @@
 }
 
 .rg-table td {
-  padding: var(--s3);
+  padding: var(--space-xs);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -177,7 +177,7 @@
 
 .rg-table__actions > div {
   display: flex;
-  gap: var(--s4);
+  gap: var(--space-s);
 }
 
 .rg-table__actions a {
@@ -210,11 +210,11 @@
 .adm-badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
+  padding: 0.25em 0.65em;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   font-family: var(--f-label);
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   font-weight: 600;
   letter-spacing: 0.06em;
   line-height: 1;
@@ -251,18 +251,18 @@
 /* ─── Form fields ────────────────────────────────────────────────────────────── */
 .adm-page .rg-input {
   min-height: 40px;
-  padding: var(--s1) var(--s3);
+  padding: var(--space-3xs) var(--space-xs);
 }
 
 .adm-page textarea.rg-input {
-  padding-block: var(--s2);
+  padding-block: var(--space-2xs);
 }
 
 /* Native select arrows ignore padding and sit on the border, so draw our own
    chevron from two gradients and inset it from the right edge. */
 .adm-page select.rg-input {
   appearance: none;
-  padding-right: var(--s6);
+  padding-right: var(--space-l);
   background-image:
     linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%),
     linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
@@ -276,7 +276,7 @@
 /* ─── Form rows ──────────────────────────────────────────────────────────────── */
 .adm-form-row {
   display: flex;
-  gap: var(--s4);
+  gap: var(--space-s);
 }
 
 .adm-form-row > * {
@@ -315,8 +315,8 @@
   display: grid;
   grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
   align-items: end;
-  gap: var(--s4);
-  margin-bottom: var(--s4);
+  gap: var(--space-s);
+  margin-bottom: var(--space-s);
 }
 
 .adm-name-row .rg-field {
@@ -326,7 +326,7 @@
 .adm-name-row .rg-btn {
   min-height: 40px;
   border-color: var(--border-strong);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 
 @media (hover: hover) {
@@ -338,7 +338,7 @@
 @media (max-width: 767px) {
   .adm-name-row {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--s3);
+    gap: var(--space-xs);
   }
 }
 
@@ -346,8 +346,8 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: var(--s5);
-  margin-top: var(--s5);
+  gap: var(--space-m);
+  margin-top: var(--space-m);
 }
 
 /* ─── View transitions ───────────────────────────────────────────────────────── */

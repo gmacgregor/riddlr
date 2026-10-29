@@ -29,7 +29,7 @@ body {
   background-size: 32px 32px;
   color: var(--fg);
   font-family: var(--f-ui);
-  font-size: var(--fs-md);
+  font-size: var(--step-0);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -79,7 +79,7 @@ body {
 .rg-wrap {
   max-width: var(--wrap);
   margin-inline: auto;
-  padding: var(--s5) var(--pad) var(--s8);
+  padding: var(--space-m) var(--pad) var(--space-2xl);
 }
 .rg-view {
   animation: rg-view-in var(--t-slow) var(--ease-out);
@@ -110,10 +110,10 @@ body {
 .rg-kicker {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
   flex-wrap: wrap;
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -122,23 +122,23 @@ body {
 .rg-kicker__num {
   background: var(--fg);
   color: var(--on-fg);
-  padding: 2px 6px;
+  padding: 0.15em 0.45em;
   border-radius: 2px;
 }
 
 .rg-panel {
   border-top: 1px solid var(--border);
-  padding-top: var(--s4);
+  padding-top: var(--space-s);
 }
 .rg-panel__head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--s3);
+  gap: var(--space-xs);
 }
 .rg-panel__h {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -146,7 +146,7 @@ body {
 }
 .rg-count {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg);
 }
 
@@ -155,25 +155,25 @@ body {
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: 2.1875em;
+  height: 2.1875em;
   border-radius: var(--r);
   font-family: var(--f-label);
   font-weight: 600;
-  font-size: 18px;
+  font-size: var(--step-1);
   line-height: 1;
   background: var(--tone-5);
   color: var(--on-tone-5);
 }
 .rg-tile--sm {
-  width: 32px;
-  height: 32px;
-  font-size: 15px;
+  width: 2.2857em;
+  height: 2.2857em;
+  font-size: var(--step--1);
 }
 .rg-tile--lg {
-  width: 56px;
-  height: 56px;
-  font-size: 24px;
+  width: 2.345em;
+  height: 2.345em;
+  font-size: var(--step-3);
 }
 .rg-tile[data-tone="variant-1"] {
   background: var(--tone-1);
@@ -201,9 +201,9 @@ body {
 }
 .rg-tile__n {
   position: absolute;
-  top: 2px;
-  left: 3px;
-  font-size: 9px;
+  top: 0.2em;
+  left: 0.3em;
+  font-size: 0.5em;
   font-weight: 700;
 }
 
@@ -211,15 +211,15 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
   min-height: 48px;
-  padding: 0 var(--s5);
+  padding: 0 var(--space-m);
   border: 2px solid var(--fg);
   border-radius: var(--r);
   background: transparent;
   color: var(--fg);
   font-weight: 700;
-  font-size: var(--fs-md);
+  font-size: var(--step-0);
   white-space: nowrap;
   text-decoration: none;
   transition:
@@ -270,7 +270,7 @@ body {
   align-items: center;
   background: none;
   border: 0;
-  padding: var(--s3) 0;
+  padding: var(--space-xs) 0;
   min-height: 44px;
   color: var(--fg);
   font-weight: 700;
@@ -288,12 +288,12 @@ body {
 /* ───────────────── Fields ───────────────── */
 .rg-field {
   display: grid;
-  gap: var(--s1);
-  margin-bottom: var(--s4);
+  gap: var(--space-3xs);
+  margin-bottom: var(--space-s);
 }
 .rg-field__label {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -303,16 +303,16 @@ body {
   width: 100%;
   min-width: 0;
   min-height: 48px;
-  padding: var(--s2) var(--s4);
+  padding: var(--space-2xs) var(--space-s);
   border-radius: var(--r);
   border: 2px solid var(--border-strong);
   background: var(--surface-2);
   color: var(--fg);
-  font-size: var(--fs-md);
+  font-size: var(--step-0);
   transition: border-color var(--t-fast) var(--ease-out);
 }
 textarea.rg-input {
-  padding-block: var(--s3);
+  padding-block: var(--space-xs);
   line-height: 1.5;
   resize: vertical;
 }
@@ -342,14 +342,14 @@ select.rg-input option {
 .rg-field__error {
   display: flex;
   align-items: center;
-  gap: var(--s1);
-  font-size: var(--fs-sm);
+  gap: var(--space-3xs);
+  font-size: var(--step--1);
   color: var(--urgent-text);
 }
 .rg-field__check {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
 }
 .rg-check {
   width: 20px;
@@ -363,24 +363,24 @@ select.rg-input option {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--s3) var(--s5);
-  padding-bottom: var(--s4);
+  gap: var(--space-xs) var(--space-m);
+  padding-bottom: var(--space-s);
 }
 .rg-pagehead__h {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: var(--fs-xl);
+  font-size: var(--step-3);
   line-height: 1.15;
   letter-spacing: -0.01em;
 }
 .rg-pagehead__sub {
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 .rg-pagehead__actions {
   display: flex;
   align-items: center;
-  gap: var(--s4);
+  gap: var(--space-s);
 }
 
 /* ───────────────── Top bar ───────────────── */
@@ -395,13 +395,13 @@ select.rg-input option {
   margin-inline: auto;
   display: flex;
   align-items: center;
-  gap: var(--s3);
-  padding: var(--s2) var(--pad);
-  padding-top: max(var(--s2), env(safe-area-inset-top));
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--pad);
+  padding-top: max(var(--space-2xs), env(safe-area-inset-top));
   min-height: 56px;
 }
 .rg-brand {
-  padding: var(--s1) 0;
+  padding: var(--space-3xs) 0;
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -410,22 +410,22 @@ select.rg-input option {
 .rg-brand__mark {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
   color: var(--fg);
 }
 .rg-brand__q {
   display: grid;
   place-items: center;
   flex: none;
-  width: 32px;
-  height: 32px;
+  width: 1.34em;
+  height: 1.34em;
   border-radius: var(--r);
   background: var(--accent);
   color: var(--on-accent);
   font-family: var(--f-display);
   font-style: italic;
   font-weight: 900;
-  font-size: 24px;
+  font-size: var(--step-3);
   line-height: 1;
   transform: rotate(-6deg);
   transition: transform var(--t-med) var(--ease-out);
@@ -434,7 +434,7 @@ select.rg-input option {
   display: block;
   font-family: var(--f-display);
   font-weight: 900;
-  font-size: 26px;
+  font-size: var(--step-3);
   line-height: 1;
   letter-spacing: -0.03em;
   font-variation-settings: "opsz" 144;
@@ -453,7 +453,7 @@ select.rg-input option {
 .rg-topbar__account {
   display: flex;
   align-items: center;
-  gap: var(--s4);
+  gap: var(--space-s);
 }
 
 /* Colour mode switch: one icon button. It holds an icon per mode and shows
@@ -490,7 +490,7 @@ select.rg-input option {
 .rg-me-chip {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
   min-height: 44px;
   color: var(--fg);
   text-decoration: none;
@@ -502,7 +502,7 @@ select.rg-input option {
 .rg-me-chip__name {
   display: block;
   font-weight: 700;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 @media (hover: hover) {
   .rg-me-chip:hover .rg-me-chip__name {
@@ -513,12 +513,12 @@ select.rg-input option {
 .rg-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--s2);
-  padding: 4px 10px;
+  gap: var(--space-2xs);
+  padding: 0.3em 0.7em;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -565,12 +565,11 @@ a.rg-pill {
 .rg-flaps {
   display: flex;
   align-items: center;
-  gap: 6px;
-  --flap-size: clamp(48px, 15vw, 112px);
+  --flap-size: var(--display-flap);
+  gap: calc(var(--flap-size) * 0.1);
 }
 .rg-flaps--long {
-  --flap-size: clamp(30px, 9.5vw, 88px);
-  gap: 4px;
+  --flap-size: var(--display-flap-long);
 }
 .rg-flap {
   position: relative;
@@ -624,19 +623,19 @@ a.rg-pill {
 .rg-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s2);
+  gap: var(--space-2xs);
 }
 .rg-fact {
   display: inline-flex;
   align-items: center;
-  gap: var(--s2);
-  padding: 6px 10px;
+  gap: var(--space-2xs);
+  padding: 0.4em 0.7em;
   border: 1px solid var(--border-strong);
   border-radius: var(--r);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg);
   white-space: nowrap;
-  --rg-icon-size: 16px;
+  --rg-icon-size: 1.15em;
 }
 .rg-fact .rg-icon {
   color: var(--accent-text);
@@ -645,16 +644,16 @@ a.rg-pill {
 /* ───────────────── Home ───────────────── */
 .rg-home {
   display: grid;
-  gap: var(--s6);
+  gap: var(--space-l);
 }
 .rg-hero {
   display: grid;
-  gap: var(--s4);
+  gap: var(--space-s);
 }
 .rg-hero__title {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: clamp(40px, 11vw, 88px);
+  font-size: var(--display-hero);
   line-height: 0.98;
   letter-spacing: -0.02em;
   font-variation-settings: "opsz" 144;
@@ -666,8 +665,8 @@ a.rg-pill {
 }
 .rg-hero__card {
   display: grid;
-  gap: var(--s4);
-  padding: var(--s5);
+  gap: var(--space-s);
+  padding: var(--space-m);
   border-radius: var(--r-lg);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -679,12 +678,12 @@ a.rg-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s3);
+  gap: var(--space-xs);
   flex-wrap: wrap;
 }
 .rg-hero__label {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -693,13 +692,13 @@ a.rg-pill {
 .rg-hero__teaser {
   font-family: var(--f-display);
   font-style: italic;
-  font-size: var(--fs-xl);
+  font-size: var(--step-3);
   line-height: 1.3;
   color: var(--fg);
 }
 .rg-hero__meta {
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 .rg-hero__card .rg-btn {
   width: 100%;
@@ -707,13 +706,13 @@ a.rg-pill {
 
 .rg-intro__steps {
   display: grid;
-  gap: var(--s4);
-  margin-top: var(--s4);
+  gap: var(--space-s);
+  margin-top: var(--space-s);
 }
 .rg-intro__step {
   display: flex;
   align-items: flex-start;
-  gap: var(--s3);
+  gap: var(--space-xs);
 }
 .rg-intro__text {
   display: grid;
@@ -726,25 +725,25 @@ a.rg-pill {
 }
 .rg-intro__s {
   display: block;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
 }
 
 .rg-schedule__empty {
-  margin-top: var(--s3);
+  margin-top: var(--space-xs);
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 .rg-schedule__list {
   display: grid;
-  margin-top: var(--s2);
+  margin-top: var(--space-2xs);
 }
 .rg-sched {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s4);
-  padding: var(--s3) 0;
+  gap: var(--space-s);
+  padding: var(--space-xs) 0;
   border-bottom: 1px dashed var(--border);
 }
 .rg-sched:last-child {
@@ -757,7 +756,7 @@ a.rg-pill {
 }
 .rg-sched__time b {
   display: block;
-  font-size: var(--fs-lg);
+  font-size: var(--step-2);
 }
 .rg-sched__body {
   display: grid;
@@ -768,25 +767,25 @@ a.rg-pill {
 }
 .rg-sched__sub {
   display: block;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
 }
 .rg-sched__solve {
   display: inline-flex;
   align-items: center;
-  gap: var(--s1);
+  gap: var(--space-3xs);
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
   white-space: nowrap;
-  --rg-icon-size: 16px;
+  --rg-icon-size: 1.15em;
 }
 
 .rg-last__empty {
   display: grid;
-  gap: var(--s2);
-  margin-top: var(--s3);
-  padding: var(--s4);
+  gap: var(--space-2xs);
+  margin-top: var(--space-xs);
+  padding: var(--space-s);
   border: 1px dashed var(--border-strong);
   border-radius: var(--r-lg);
 }
@@ -794,44 +793,44 @@ a.rg-pill {
   display: block;
   font-family: var(--f-display);
   font-style: italic;
-  font-size: var(--fs-lg);
+  font-size: var(--step-2);
 }
 .rg-last__empty-s {
   display: block;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
 }
 .rg-lastcard {
   display: grid;
-  gap: var(--s3);
-  margin-top: var(--s3);
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
 }
 .rg-lastcard__q {
   font-family: var(--f-display);
   font-style: italic;
-  font-size: var(--fs-lg);
+  font-size: var(--step-2);
   line-height: 1.35;
 }
 .rg-lastcard__a {
   display: flex;
   align-items: center;
-  gap: var(--s3);
+  gap: var(--space-xs);
   flex-wrap: wrap;
 }
 .rg-lastcard__answer {
   font-family: var(--f-label);
   font-weight: 600;
-  font-size: var(--fs-lg);
+  font-size: var(--step-2);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: var(--success);
   color: var(--on-accent);
-  padding: 2px 8px;
+  padding: 0.1em 0.4em;
   border-radius: 2px;
 }
 .rg-lastcard__win {
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 .rg-lastcard__win b {
   color: var(--fg);
@@ -843,8 +842,8 @@ a.rg-pill {
 @media (min-width: 1024px) {
   .rg-home {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    column-gap: var(--s8);
-    row-gap: var(--s6);
+    column-gap: var(--space-2xl);
+    row-gap: var(--space-l);
     align-items: start;
   }
   .rg-hero {
@@ -872,17 +871,17 @@ a.rg-pill {
 /* ───────────────── Lobby ───────────────── */
 .rg-lobby {
   display: grid;
-  gap: var(--s6);
+  gap: var(--space-l);
 }
 .rg-lobby__clock {
   display: grid;
-  gap: var(--s4);
+  gap: var(--space-s);
   justify-items: start;
 }
 .rg-lobby__h {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: clamp(32px, 8vw, 56px);
+  font-size: var(--display-heading);
   line-height: 1.05;
   letter-spacing: -0.01em;
 }
@@ -907,27 +906,27 @@ a.rg-pill {
 .rg-room__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-  gap: var(--s3);
-  margin-top: var(--s3);
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
 }
 .rg-room__p {
   display: grid;
   justify-items: center;
-  gap: var(--s1);
+  gap: var(--space-3xs);
   min-width: 0;
 }
 .rg-room__p:not(.rg-room__empty) {
   animation: rg-pop-in var(--t-med) var(--ease-out);
 }
 .rg-room__p .rg-tile {
-  width: 48px;
-  height: 48px;
-  font-size: 20px;
+  width: 2.3em;
+  height: 2.3em;
+  font-size: var(--step-2);
 }
 .rg-room__name {
   display: block;
   max-width: 100%;
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   color: var(--fg-muted);
   overflow: hidden;
   white-space: nowrap;
@@ -949,11 +948,11 @@ a.rg-pill {
   align-items: center;
   justify-content: center;
   min-height: 48px;
-  padding: 0 var(--s3);
+  padding: 0 var(--space-xs);
   border: 1px dashed var(--border-strong);
   border-radius: var(--r);
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 600;
   color: var(--fg);
 }
@@ -968,10 +967,10 @@ a.rg-pill {
 .rg-ticker {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
   min-height: 24px;
-  margin-top: var(--s3);
-  font-size: var(--fs-sm);
+  margin-top: var(--space-xs);
+  font-size: var(--step--1);
   color: var(--fg-muted);
 }
 .rg-ticker__dot {
@@ -1002,14 +1001,14 @@ a.rg-pill {
 
 .rg-rules {
   display: grid;
-  gap: var(--s2);
-  margin-top: var(--s3);
+  gap: var(--space-2xs);
+  margin-top: var(--space-xs);
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 .rg-rules li {
   position: relative;
-  padding-left: var(--s5);
+  padding-left: var(--space-m);
 }
 .rg-rules li::before {
   content: "";
@@ -1025,8 +1024,8 @@ a.rg-pill {
 @media (min-width: 1024px) {
   .rg-lobby {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    column-gap: var(--s8);
-    padding-top: var(--s7);
+    column-gap: var(--space-2xl);
+    padding-top: var(--space-xl);
   }
   .rg-lobby__clock {
     grid-row: span 2;
@@ -1053,16 +1052,16 @@ a.rg-pill {
 /* Clockbar. The server sets is-warn (11–20s) and is-crit (≤10s) on .rg-play. */
 .rg-play__clock {
   grid-area: clock;
-  padding: var(--s3) var(--pad) 0;
+  padding: var(--space-xs) var(--pad) 0;
 }
 .rg-clockbar {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
 }
 .rg-clockbar__label {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1071,18 +1070,18 @@ a.rg-pill {
 .rg-clockbar__solved {
   flex: 1 1 0;
   min-width: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
 }
 .rg-clockbar__time {
   font-family: var(--f-label);
   font-weight: 400;
-  font-size: 28px;
+  font-size: var(--display-clock);
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .rg-clockbar__track {
-  margin-top: var(--s2);
+  margin-top: var(--space-2xs);
   height: 4px;
   background: var(--surface-3);
   border-radius: 2px;
@@ -1115,15 +1114,15 @@ a.rg-pill {
 .rg-play__riddle {
   grid-area: riddle;
   display: grid;
-  gap: var(--s3);
-  padding: var(--s4) var(--pad);
+  gap: var(--space-xs);
+  padding: var(--space-s) var(--pad);
   border-bottom: 1px solid var(--border);
 }
 .rg-riddle {
   font-family: var(--f-display);
   font-weight: 600;
   font-style: italic;
-  font-size: clamp(24px, 6.4vw, 32px);
+  font-size: var(--display-riddle);
   line-height: 1.22;
   letter-spacing: -0.01em;
   max-width: 22ch;
@@ -1150,21 +1149,21 @@ a.rg-pill {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: var(--s3) var(--pad) var(--s2);
+  padding: var(--space-xs) var(--pad) var(--space-2xs);
 }
 .rg-feed {
   overflow-y: auto;
   overscroll-behavior: contain;
   min-height: 0;
-  padding: 0 var(--pad) var(--s3);
+  padding: 0 var(--pad) var(--space-xs);
   display: flex;
   flex-direction: column;
-  gap: var(--s1);
+  gap: var(--space-3xs);
 }
 .rg-feed__empty {
   color: var(--fg-subtle);
-  font-size: var(--fs-sm);
-  padding: var(--s4) 0;
+  font-size: var(--step--1);
+  padding: var(--space-s) 0;
 }
 /* The empty line stays in the stream container; hide it once a guess lands. */
 .rg-feed__empty:not(:only-child) {
@@ -1174,8 +1173,8 @@ a.rg-pill {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--s3);
-  padding: var(--s2) 0;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) 0;
   animation: rg-msg-in var(--t-med) var(--ease-out);
 }
 .rg-msg__body {
@@ -1184,7 +1183,7 @@ a.rg-pill {
 }
 .rg-msg__name {
   display: block;
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   font-weight: 700;
   color: var(--fg-muted);
 }
@@ -1194,7 +1193,7 @@ a.rg-pill {
 }
 .rg-msg__t {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-subtle);
   white-space: nowrap;
 }
@@ -1210,19 +1209,19 @@ a.rg-pill {
 .rg-msg__stamp {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.4em;
   justify-self: start;
-  padding: 2px 8px;
+  padding: 0.15em 0.55em;
   border-radius: 2px;
   background: var(--success);
   color: var(--on-accent);
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
-  --rg-icon-size: 14px;
+  --rg-icon-size: 1em;
 }
 .rg-msg.is-solve {
   animation: rg-stamp-in var(--t-slow) var(--ease-out);
@@ -1237,18 +1236,18 @@ a.rg-pill {
 /* Guess form */
 .rg-play__input {
   grid-area: input;
-  padding: var(--s3) var(--pad);
-  padding-bottom: max(var(--s3), env(safe-area-inset-bottom));
+  padding: var(--space-xs) var(--pad);
+  padding-bottom: max(var(--space-xs), env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
 .rg-guess {
   display: grid;
-  gap: var(--s1);
+  gap: var(--space-3xs);
 }
 .rg-guess__label {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1256,17 +1255,17 @@ a.rg-pill {
 }
 .rg-guess__row {
   display: flex;
-  gap: var(--s2);
+  gap: var(--space-2xs);
 }
 .rg-guess__field {
   flex: 1 1 0;
   min-width: 0;
   height: 52px;
-  padding: 0 var(--s4);
+  padding: 0 var(--space-s);
   border-radius: var(--r);
   border: 2px solid var(--border-strong);
   background: var(--surface-2);
-  font-size: 18px;
+  font-size: var(--step-1);
   font-weight: 500;
   transition: border-color var(--t-fast) var(--ease-out);
 }
@@ -1283,7 +1282,7 @@ a.rg-pill {
 }
 .rg-guess__msg {
   min-height: 1.5em;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
 }
 .rg-guess__msg.is-wrong {
@@ -1311,8 +1310,8 @@ a.rg-pill {
 .rg-solved {
   display: flex;
   align-items: center;
-  gap: var(--s4);
-  padding: var(--s2) 0;
+  gap: var(--space-s);
+  padding: var(--space-2xs) 0;
   animation: rg-stamp-in var(--t-slow) var(--ease-out);
 }
 .rg-stamp {
@@ -1321,13 +1320,13 @@ a.rg-pill {
   flex: none;
   min-width: 72px;
   height: 72px;
-  padding: 0 var(--s2);
+  padding: 0 var(--space-2xs);
   border-radius: var(--r);
   background: var(--success);
   color: var(--on-accent);
   font-family: var(--f-label);
   font-weight: 600;
-  font-size: 24px;
+  font-size: var(--step-3);
   transform: rotate(-4deg);
 }
 .rg-stamp.is-none {
@@ -1344,12 +1343,12 @@ a.rg-pill {
 .rg-solved__title {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: var(--fs-xl);
+  font-size: var(--step-3);
   line-height: 1.2;
 }
 .rg-solved__sub {
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 
 @media (min-width: 1024px) {
@@ -1359,14 +1358,11 @@ a.rg-pill {
     grid-template-rows: auto minmax(0, 1fr) auto;
   }
   .rg-play__clock {
-    padding: var(--s6) var(--s7) 0 var(--pad);
-  }
-  .rg-clockbar__time {
-    font-size: 40px;
+    padding: var(--space-l) var(--space-xl) 0 var(--pad);
   }
   .rg-play__riddle {
     border-bottom: 0;
-    padding: var(--s6) var(--s7) var(--s6) var(--pad);
+    padding: var(--space-l) var(--space-xl) var(--space-l) var(--pad);
     align-content: center;
   }
   .rg-play__feed,
@@ -1375,10 +1371,9 @@ a.rg-pill {
     background: var(--surface-2);
   }
   .rg-feed__head {
-    padding-top: var(--s5);
+    padding-top: var(--space-m);
   }
   .rg-riddle {
-    font-size: clamp(26px, 2.4vw, 36px);
     max-width: 28ch;
   }
 }
@@ -1386,16 +1381,16 @@ a.rg-pill {
 /* ───────────────── Results ───────────────── */
 .rg-results {
   display: grid;
-  gap: var(--s5);
+  gap: var(--space-m);
 }
 .rg-results__top {
   display: grid;
-  gap: var(--s3);
+  gap: var(--space-xs);
 }
 .rg-results__riddle {
   font-family: var(--f-display);
   font-style: italic;
-  font-size: var(--fs-lg);
+  font-size: var(--step-2);
   line-height: 1.35;
   color: var(--fg-muted);
   max-width: 40ch;
@@ -1404,13 +1399,13 @@ a.rg-pill {
   justify-self: start;
   font-family: var(--f-label);
   font-weight: 300;
-  font-size: clamp(36px, 11vw, 72px);
+  font-size: var(--display-answer);
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 0.1em;
 }
 .rg-answer__l {
   display: grid;
@@ -1439,8 +1434,8 @@ a.rg-pill {
 .rg-you {
   display: flex;
   align-items: center;
-  gap: var(--s4);
-  padding: var(--s4);
+  gap: var(--space-s);
+  padding: var(--space-s);
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: var(--surface-2);
@@ -1453,12 +1448,12 @@ a.rg-pill {
 .rg-you__t {
   display: block;
   font-weight: 700;
-  font-size: var(--fs-lg);
+  font-size: var(--step-2);
 }
 .rg-you__s {
   display: block;
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 
 .rg-tabs {
@@ -1476,7 +1471,7 @@ a.rg-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
   cursor: pointer;
 }
 .rg-tab[aria-selected="true"] {
@@ -1489,14 +1484,14 @@ a.rg-pill {
   }
 }
 .rg-tab__badge {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
+  min-width: 1.43em;
+  height: 1.43em;
+  padding: 0 0.43em;
+  border-radius: 999px;
   background: var(--accent);
   color: var(--on-accent);
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   display: inline-grid;
   place-items: center;
 }
@@ -1517,13 +1512,13 @@ a.rg-pill {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
-  gap: var(--s2);
-  margin-block: var(--s4);
+  gap: var(--space-2xs);
+  margin-block: var(--space-s);
 }
 .rg-pod {
   display: grid;
   justify-items: center;
-  gap: var(--s2);
+  gap: var(--space-2xs);
   min-width: 0;
   animation: rg-rise var(--t-slow) var(--ease-out) both;
 }
@@ -1553,7 +1548,7 @@ a.rg-pill {
   display: block;
   max-width: 100%;
   font-weight: 700;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1561,7 +1556,7 @@ a.rg-pill {
 .rg-pod__t {
   display: block;
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
 }
 .rg-pod__block {
@@ -1579,12 +1574,12 @@ a.rg-pill {
 .rg-pod__place {
   display: block;
   font-weight: 600;
-  font-size: 28px;
+  font-size: var(--step-4);
   line-height: 1;
 }
 .rg-pod__pts {
   display: block;
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   color: var(--fg-muted);
 }
 .rg-pod--1 .rg-pod__block {
@@ -1622,8 +1617,8 @@ a.rg-pill {
   display: grid;
   grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--s3);
-  padding: var(--s2) 0;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) 0;
   border-bottom: 1px solid var(--border);
 }
 .rg-row__place {
@@ -1642,7 +1637,7 @@ a.rg-pill {
 }
 .rg-row__t {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
   white-space: nowrap;
 }
@@ -1657,29 +1652,29 @@ a.rg-pill {
   background: var(--surface-2);
   box-shadow: inset 0 0 0 1px var(--accent-text);
   border-radius: var(--r);
-  padding-inline: var(--s2);
+  padding-inline: var(--space-2xs);
 }
 .rg-row.is-me .rg-row__name {
   color: var(--accent-text);
 }
 .rg-board__empty {
-  padding: var(--s5) 0;
+  padding: var(--space-m) 0;
   color: var(--fg-muted);
 }
 
 .rg-payout {
-  margin-top: var(--s5);
+  margin-top: var(--space-m);
 }
 .rg-points__row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: var(--s3);
+  gap: var(--space-3xs);
+  margin-top: var(--space-xs);
 }
 .rg-pt {
   display: grid;
   gap: 2px;
-  padding: var(--s2);
+  padding: var(--space-2xs);
   border-radius: var(--r);
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -1688,7 +1683,7 @@ a.rg-pill {
 }
 .rg-pt__p {
   display: block;
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
   font-family: var(--f-label);
 }
@@ -1696,11 +1691,11 @@ a.rg-pill {
   display: block;
   font-family: var(--f-label);
   font-weight: 600;
-  font-size: var(--fs-lg);
+  font-size: var(--step-2);
 }
 .rg-pt__who {
   display: block;
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   color: var(--fg-muted);
   overflow: hidden;
   white-space: nowrap;
@@ -1724,16 +1719,16 @@ a.rg-pill {
 
 .rg-next {
   display: grid;
-  gap: var(--s3);
-  margin-top: var(--s5);
-  padding: var(--s4);
+  gap: var(--space-xs);
+  margin-top: var(--space-m);
+  padding: var(--space-s);
   border-radius: var(--r-lg);
   border: 1px dashed var(--border-strong);
 }
 .rg-next__t {
   display: block;
   color: var(--fg-muted);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 .rg-next__t b {
   color: var(--fg);
@@ -1746,16 +1741,16 @@ a.rg-pill {
 .rg-results__chat {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: var(--s2);
+  gap: var(--space-2xs);
 }
 .rg-chat {
   display: flex;
   flex-direction: column;
-  gap: var(--s1);
+  gap: var(--space-3xs);
   max-height: 56vh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-block: var(--s2);
+  padding-block: var(--space-2xs);
 }
 .rg-chat .rg-msg {
   grid-template-columns: auto minmax(0, 1fr);
@@ -1766,10 +1761,10 @@ a.rg-pill {
 .rg-chat__div {
   display: flex;
   align-items: center;
-  gap: var(--s3);
-  padding: var(--s3) 0;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1783,20 +1778,20 @@ a.rg-pill {
   background: var(--border-strong);
 }
 .rg-chat__empty {
-  padding: var(--s4) 0;
+  padding: var(--space-s) 0;
   color: var(--fg-subtle);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
 }
 .rg-chat__bar {
   display: flex;
-  gap: var(--s2);
-  padding-block: var(--s2) max(var(--s2), env(safe-area-inset-bottom));
+  gap: var(--space-2xs);
+  padding-block: var(--space-2xs) max(var(--space-2xs), env(safe-area-inset-bottom));
 }
 .rg-chat__field {
   flex: 1 1 0;
   min-width: 0;
   min-height: 48px;
-  padding: 0 var(--s4);
+  padding: 0 var(--space-s);
   border-radius: var(--r);
   border: 2px solid var(--border-strong);
   background: var(--surface-2);
@@ -1815,10 +1810,10 @@ a.rg-pill {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     grid-template-areas: "top chat" "board chat";
     grid-template-rows: auto 1fr;
-    column-gap: var(--s7);
-    row-gap: var(--s6);
+    column-gap: var(--space-xl);
+    row-gap: var(--space-l);
     align-items: start;
-    padding-top: var(--s7);
+    padding-top: var(--space-xl);
   }
   .rg-results__top {
     grid-area: top;
@@ -1835,8 +1830,8 @@ a.rg-pill {
   .rg-results__chat {
     grid-area: chat;
     position: sticky;
-    top: var(--s5);
-    padding: var(--s4);
+    top: var(--space-m);
+    padding: var(--space-s);
     border: 1px solid var(--border);
     border-radius: var(--r-lg);
     background: var(--surface-2);
@@ -1857,26 +1852,26 @@ a.rg-pill {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s2);
-  padding: var(--s3) var(--pad);
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--pad);
   /* Let clicks through the empty space around the messages. */
   pointer-events: none;
 }
 .rg-flash {
   pointer-events: auto;
   width: 100%;
-  max-width: 420px;
+  max-width: 26.25rem;
   display: flex;
   align-items: flex-start;
-  gap: var(--s2);
-  padding: var(--s3) var(--s4);
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-s);
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
   border-left: 3px solid var(--accent-text);
   border-radius: var(--r);
   box-shadow: 0 12px 32px var(--shadow);
   font-family: var(--f-ui);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   line-height: 1.45;
   color: var(--fg);
   cursor: pointer;

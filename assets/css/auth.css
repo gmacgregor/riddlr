@@ -12,17 +12,17 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: var(--s7) var(--pad) var(--s8);
+  padding: var(--space-xl) var(--pad) var(--space-2xl);
   animation: rg-view-in var(--t-slow) var(--ease-out);
 }
 
 .rg-auth__card {
   width: 100%;
-  max-width: 400px;
+  max-width: 25rem;
   display: flex;
   flex-direction: column;
-  gap: var(--s5);
-  padding: var(--s5);
+  gap: var(--space-m);
+  padding: var(--space-m);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -31,20 +31,20 @@
 /* ─── Header ─────────────────────────────────────────────────────────────────── */
 .rg-auth__header {
   display: grid;
-  gap: var(--s2);
+  gap: var(--space-2xs);
 }
 
 .rg-auth__title {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: clamp(28px, 7vw, 36px);
+  font-size: var(--display-auth);
   line-height: 1.05;
   letter-spacing: -0.02em;
   font-variation-settings: "opsz" 144;
 }
 
 .rg-auth__subtitle {
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   line-height: 1.5;
   color: var(--fg-muted);
   text-wrap: balance;
@@ -53,7 +53,7 @@
 /* ─── Form ───────────────────────────────────────────────────────────────────── */
 .rg-auth__form {
   display: grid;
-  gap: var(--s3);
+  gap: var(--space-xs);
 }
 
 .rg-auth__form .rg-field {
@@ -62,7 +62,7 @@
 
 /* ─── Footer + links ─────────────────────────────────────────────────────────── */
 .rg-auth__footer {
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   color: var(--fg-muted);
   text-align: center;
 }
@@ -85,7 +85,7 @@
 /* ─── Read-only detail rows (profile) ────────────────────────────────────────── */
 .rg-auth__meta {
   display: grid;
-  gap: var(--s3);
+  gap: var(--space-xs);
   margin: 0;
 }
 
@@ -93,14 +93,14 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--s4);
-  padding-bottom: var(--s2);
+  gap: var(--space-s);
+  padding-bottom: var(--space-2xs);
   border-bottom: 1px solid var(--border);
 }
 
 .rg-auth__meta-label {
   font-family: var(--f-label);
-  font-size: var(--fs-sm);
+  font-size: var(--step--1);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -118,11 +118,11 @@
 .rg-auth__note {
   display: flex;
   align-items: flex-start;
-  gap: var(--s2);
-  padding: var(--s3) var(--s4);
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-s);
   border: 1px dashed var(--border-strong);
   border-radius: var(--r);
-  font-size: var(--fs-xs);
+  font-size: var(--step--2);
   line-height: 1.5;
   color: var(--fg-muted);
 }

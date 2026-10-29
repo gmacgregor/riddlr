@@ -1,10 +1,10 @@
 /* =============================================================================
    THEMES — design tokens and colour modes.
 
-   `:root` holds the tokens no mode changes: fonts, sizes, spacing, radius,
-   motion and layout. Each colour mode is one block that sets every colour
-   token, picked by `data-theme` on <html> (see RiddlrWeb.Theme). Dark is the
-   default. To add a mode, add one block.
+   `:root` holds the tokens no mode changes: fonts, fluid type and space
+   scales, radius, motion and layout. Each colour mode is one block that sets
+   every colour token, picked by `data-theme` on <html> (see RiddlrWeb.Theme).
+   Dark is the default. To add a mode, add one block.
 
    Colour tokens carry role names, not colour names, so they stay true in
    every mode:
@@ -35,20 +35,58 @@
   --f-ui: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-label: "Jost", "Futura", "Century Gothic", sans-serif;
 
-  --fs-xs: 12px;
-  --fs-sm: 14px;
-  --fs-md: 16px;
-  --fs-lg: 20px;
-  --fs-xl: 24px;
+  /* ── Fluid type and space (Utopia, https://utopia.fyi) ──────────────────
+     Each size grows in a straight line from a 320px viewport to a 1240px
+     viewport (1200px --wrap plus gutters), then stops. Min and max are in
+     rem and the middle term is rem + vw, so every size follows the player's
+     font-size setting and zoom.
 
-  --s1: 4px;
-  --s2: 8px;
-  --s3: 12px;
-  --s4: 16px;
-  --s5: 24px;
-  --s6: 32px;
-  --s7: 48px;
-  --s8: 64px;
+     Type  https://utopia.fyi/type/calculator?c=320,16,1.1429,1240,17,1.18,4,2
+       320px:  base 16px, ratio 1.1429 (8:7)  → 12 14 16 18 21 24 27
+       1240px: base 17px, ratio 1.18          → 12 14 17 20 24 28 33
+       --step--2 is pinned to 12 → 12.5px so it does not shrink.
+     Space https://utopia.fyi/space/calculator?c=320,16,1.1429,1240,17,1.18,4,2&s=0.75|0.5|0.25,1.5|2|3|4,s-l
+       base 16px → 17px; multipliers 3xs .25, 2xs .5, xs .75, s 1, m 1.5,
+       l 2, xl 3, 2xl 4. A pair (--space-a-b) grows from a at 320px to b
+       at 1240px.
+     Display sizes sit above the type scale. They keep the old min and max.
+
+     Size parts that hold text (tiles, chips, badges, flaps) in em so they
+     follow their own font size.
+
+     Keep these in fixed px: border and outline widths, outline offsets,
+     1-2px hairline gaps, radii, shadows, the background grid, tap-target
+     minimums (44/48px), icons in buttons, small dots and bars, and
+     media-query breakpoints. */
+
+  --step--2: clamp(0.75rem, 0.7391rem + 0.0543vw, 0.7813rem);
+  --step--1: clamp(0.875rem, 0.8662rem + 0.0442vw, 0.9004rem);
+  --step-0: clamp(1rem, 0.9783rem + 0.1087vw, 1.0625rem);
+  --step-1: clamp(1.1429rem, 1.1043rem + 0.1929vw, 1.2537rem);
+  --step-2: clamp(1.3061rem, 1.2458rem + 0.3014vw, 1.4794rem);
+  --step-3: clamp(1.4927rem, 1.4047rem + 0.44vw, 1.7457rem);
+  --step-4: clamp(1.706rem, 1.5828rem + 0.6156vw, 2.06rem);
+
+  --display-auth: clamp(1.75rem, 1.5761rem + 0.8696vw, 2.25rem);
+  --display-riddle: clamp(1.5rem, 1.2391rem + 1.3043vw, 2.25rem);
+  --display-clock: clamp(1.75rem, 1.4891rem + 1.3043vw, 2.5rem);
+  --display-heading: clamp(2rem, 1.4783rem + 2.6087vw, 3.5rem);
+  --display-answer: clamp(2.25rem, 1.4674rem + 3.913vw, 4.5rem);
+  --display-hero: clamp(2.5rem, 1.4565rem + 5.2174vw, 5.5rem);
+  --display-flap: clamp(3rem, 1.6087rem + 6.9565vw, 7rem);
+  --display-flap-long: clamp(1.875rem, 0.6141rem + 6.3043vw, 5.5rem);
+
+  --space-3xs: clamp(0.25rem, 0.2446rem + 0.0272vw, 0.2656rem);
+  --space-2xs: clamp(0.5rem, 0.4891rem + 0.0543vw, 0.5313rem);
+  --space-xs: clamp(0.75rem, 0.7337rem + 0.0815vw, 0.7969rem);
+  --space-s: clamp(1rem, 0.9783rem + 0.1087vw, 1.0625rem);
+  --space-m: clamp(1.5rem, 1.4674rem + 0.163vw, 1.5938rem);
+  --space-l: clamp(2rem, 1.9565rem + 0.2174vw, 2.125rem);
+  --space-xl: clamp(3rem, 2.9348rem + 0.3261vw, 3.1875rem);
+  --space-2xl: clamp(4rem, 3.913rem + 0.4348vw, 4.25rem);
+
+  --space-s-l: clamp(1rem, 0.6087rem + 1.9565vw, 2.125rem);
+
   --r: 4px;
   --r-lg: 8px;
 
@@ -58,13 +96,8 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in: cubic-bezier(0.5, 0, 0.9, 0.4);
 
-  --wrap: 1200px;
-  --pad: 16px;
-}
-@media (min-width: 768px) {
-  :root {
-    --pad: 32px;
-  }
+  --wrap: 75rem;
+  --pad: var(--space-s-l);
 }
 
 /* ───────────────── Dark: "Midnight Crossword" (default) ───────────────── */
