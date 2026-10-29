@@ -9,7 +9,7 @@ A unit of work moves through four steps, in order. Don't skip ahead to implement
 
 ## 1. Understand the task
 
-Read any referenced plans or specs. Explore the codebase to understand the context of the work. Ask the user clarifying questions if the task or scope is unclear or ambiguous before proceeding.
+Read any referenced plans or specs. Explore the codebase to understand the context of the work. Ask the user clarifying questions if the task or scope is unclear or ambiguous before proceeding. If asking a question with options, provide the user your recommended option and very brief reasoning about why you think it most favourable.
 
 Done when you understand the task and have no further questions.
 
