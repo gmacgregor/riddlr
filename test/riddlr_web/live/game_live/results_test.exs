@@ -41,7 +41,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
   end
 
   describe "answer" do
-    test "spells the riddle's first answer as tiles, with a gap for each space", %{
+    test "spells the riddle's first answer as tiles, grouped into one span per word", %{
       conn: conn,
       user: user
     } do
@@ -52,11 +52,12 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
       assert has_element?(live, "h1.rg-answer[aria-label='Answer: ice cap']")
-      assert has_element?(live, ".rg-answer .rg-answer__l:nth-child(1)", "i")
-      assert has_element?(live, ".rg-answer .rg-answer__l:nth-child(3)", "e")
-      assert has_element?(live, ".rg-answer .rg-answer__gap:nth-child(4)")
-      assert has_element?(live, ".rg-answer .rg-answer__l:nth-child(7)", "p")
-      refute has_element?(live, ".rg-answer :nth-child(8)")
+      assert has_element?(live, "h1.rg-answer[style*='--n: 3']")
+      assert has_element?(live, ".rg-answer__w:nth-child(1) .rg-answer__l:nth-child(1)", "i")
+      assert has_element?(live, ".rg-answer__w:nth-child(1) .rg-answer__l:nth-child(3)", "e")
+      assert has_element?(live, ".rg-answer__w:nth-child(2) .rg-answer__l:nth-child(3)", "p")
+      refute has_element?(live, ".rg-answer__w:nth-child(3)")
+      refute has_element?(live, ".rg-answer__w .rg-answer__l:nth-child(4)")
     end
 
     test "shows dark tiles when nobody solved", %{conn: conn, user: user} do

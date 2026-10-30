@@ -9,16 +9,15 @@
         class={["rg-answer", @board == [] && "is-unsolved"]}
         tabindex="-1"
         aria-label={"Answer: #{@answer}"}
+        style={"--n: #{@answer_longest}"}
       >
-        <%= for {char, i} <- Enum.with_index(String.graphemes(@answer)) do %>
-          <span :if={char == " "} class="rg-answer__gap" aria-hidden="true"></span>
+        <span :for={word <- @answer_words} class="rg-answer__w" aria-hidden="true">
           <span
-            :if={char != " "}
+            :for={{char, i} <- word}
             class="rg-answer__l"
             style={"animation-delay: #{i * 40}ms"}
-            aria-hidden="true"
           >{char}</span>
-        <% end %>
+        </span>
       </h1>
       <p id="res-by" class="rg-results__by">
         <%= if first = List.first(@board) do %>

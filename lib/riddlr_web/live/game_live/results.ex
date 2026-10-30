@@ -92,6 +92,8 @@ defmodule RiddlrWeb.GameLive.Results do
          |> assign(:page_title, "Results — #{riddle.name}")
          |> assign(:riddle, riddle)
          |> assign(:answer, List.first(riddle.answers, ""))
+         |> assign(:answer_words, answer_words(List.first(riddle.answers, "")))
+         |> assign(:answer_longest, longest_word(List.first(riddle.answers, "")))
          |> assign(:board, board)
          |> assign(:you, you_card(board, riddle.id, user.id))
          |> assign(:payout, payout(board))
@@ -195,6 +197,23 @@ defmodule RiddlrWeb.GameLive.Results do
   @spec countdown_text(DateTime.t()) :: String.t()
   defp countdown_text(archive_at) do
     archive_at |> DateTime.diff(Clock.utc_now()) |> GameCopy.chat_countdown()
+  end
+
+  # Splits the answer into words of {letter, index} pairs. The index counts across the
+  # whole answer (spaces included), so the tile pop-in stagger flows through the phrase.
+  @spec answer_words(String.t()) :: [[{String.t(), non_neg_integer()}]]
+  defp answer_words(answer) do
+    answer
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.chunk_by(fn {char, _i} -> char == " " end)
+    |> Enum.reject(fn [{char, _i} | _] -> char == " " end)
+  end
+
+  # Tile size is fitted to this so no word ever overflows the column.
+  @spec longest_word(String.t()) :: pos_integer()
+  defp longest_word(answer) do
+    answer |> String.split() |> Enum.map(&String.length/1) |> Enum.max(fn -> 1 end)
   end
 
   # Every feed item is an answer except the round-ended divider.

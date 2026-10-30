@@ -1386,6 +1386,8 @@ a.rg-pill {
 .rg-results__top {
   display: grid;
   gap: var(--space-xs);
+  /* Lets the answer tiles size to this column, not the viewport. */
+  container-type: inline-size;
 }
 .rg-results__riddle {
   font-family: var(--f-display);
@@ -1399,12 +1401,19 @@ a.rg-pill {
   justify-self: start;
   font-family: var(--f-label);
   font-weight: 300;
-  font-size: var(--display-answer);
+  /* --n is the longest word's letter count. Each tile takes 1.2em with its gap, so
+     the longest word always fits the column and wraps only between words. */
+  font-size: max(1.25rem, min(var(--display-answer), calc(100cqi / (var(--n, 8) * 1.2))));
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   display: flex;
   flex-wrap: wrap;
+  gap: 0.2em 0.5em;
+}
+.rg-answer__w {
+  display: inline-flex;
+  flex-wrap: nowrap;
   gap: 0.1em;
 }
 .rg-answer__l {
@@ -1416,9 +1425,6 @@ a.rg-pill {
   background: var(--fg);
   color: var(--on-fg);
   animation: rg-pop-in var(--t-med) var(--ease-out) both;
-}
-.rg-answer__gap {
-  width: 0.4em;
 }
 .rg-answer.is-unsolved .rg-answer__l {
   background: var(--surface-3);
