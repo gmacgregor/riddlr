@@ -100,6 +100,18 @@ defmodule Riddlr.Games.SaveRiddleTest do
       assert DateTime.compare(live.scheduled_at, live_date) == :eq
     end
 
+    test "queues the 30 min and 1 hour Notification fan-outs before the Live date" do
+      riddle = riddle_fixture(%{publish_status: "published"})
+      live_date = future(7200)
+
+      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => live_date})
+
+      assert %{"min_30" => min_30, "min_60" => min_60} = fan_out_jobs(saved.id)
+      assert DateTime.diff(min_30.scheduled_at, live_date, :second) == -30 * 60
+      assert DateTime.diff(min_60.scheduled_at, live_date, :second) == -60 * 60
+      assert min_30.queue == "notifications"
+    end
+
     test "schedules when the same save also publishes the riddle" do
       riddle = riddle_fixture()
       live_date = future(3600)
@@ -111,7 +123,8 @@ defmodule Riddlr.Games.SaveRiddleTest do
                })
 
       assert saved.play_status == "scheduled"
-      assert length(pending_jobs(saved.id)) == 2
+      assert [_] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
+      assert [_] = pending_jobs(saved.id, Riddlr.Workers.LiveRiddleTransitionWorker)
     end
 
     test "broadcasts :riddle_scheduled with the category preloaded" do
@@ -169,7 +182,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
 
     test "moves the jobs when the live date changes" do
       riddle = scheduled_riddle_fixture(%{live_date: future(3600)})
-      [old_ready, old_live] = pending_jobs(riddle.id) |> Enum.sort_by(& &1.id)
+      old_ids = riddle.id |> pending_jobs() |> Enum.map(& &1.id)
       new_live_date = future(7200)
 
       assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => new_live_date})
@@ -177,12 +190,38 @@ defmodule Riddlr.Games.SaveRiddleTest do
 
       assert [ready] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
       assert [live] = pending_jobs(saved.id, Riddlr.Workers.LiveRiddleTransitionWorker)
-      refute ready.id in [old_ready.id, old_live.id]
+      refute ready.id in old_ids
+      refute live.id in old_ids
 
       assert DateTime.diff(ready.scheduled_at, new_live_date, :second) ==
                -saved.ready_before_seconds
 
       assert DateTime.compare(live.scheduled_at, new_live_date) == :eq
+    end
+
+    test "moves the 30 min and 1 hour Notification fan-outs" do
+      riddle = scheduled_riddle_fixture(%{live_date: future(7200)})
+      old = fan_out_jobs(riddle.id)
+      new_live_date = future(10_800)
+
+      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => new_live_date})
+
+      assert [_, _] = pending_jobs(saved.id, Riddlr.Workers.NotificationFanOutWorker)
+      assert %{"min_30" => min_30, "min_60" => min_60} = fan_out_jobs(saved.id)
+      assert DateTime.diff(min_30.scheduled_at, new_live_date, :second) == -30 * 60
+      assert DateTime.diff(min_60.scheduled_at, new_live_date, :second) == -60 * 60
+
+      for {_lead_time, job} <- old do
+        assert Repo.reload!(job).state == "cancelled"
+      end
+    end
+
+    test "a past Live date queues no 30 min or 1 hour fan-outs" do
+      riddle = scheduled_riddle_fixture(%{live_date: future(7200)})
+
+      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(-60)})
+
+      assert fan_out_jobs(saved.id) == %{}
     end
 
     test "moves the ready job when only the lead time changes" do
@@ -204,7 +243,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       assert saved.play_status == "ready"
       assert [_ready] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
       assert [_live] = pending_jobs(saved.id, Riddlr.Workers.LiveRiddleTransitionWorker)
-      assert [_kept] = pending_jobs(saved.id, Riddlr.Workers.NotificationFanOutWorker)
+      assert %{"lobby_open" => _kept, "min_30" => _, "min_60" => _} = fan_out_jobs(saved.id)
     end
 
     test "leaves the jobs alone when nothing about the schedule changed" do
@@ -290,6 +329,13 @@ defmodule Riddlr.Games.SaveRiddleTest do
 
   defp future(seconds),
     do: DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.truncate(:second)
+
+  # Pending Notification fan-out jobs, keyed by lead time.
+  defp fan_out_jobs(riddle_id) do
+    riddle_id
+    |> pending_jobs(Riddlr.Workers.NotificationFanOutWorker)
+    |> Map.new(&{&1.args["lead_time"], &1})
+  end
 
   defp pending_jobs(riddle_id, worker \\ nil) do
     Oban.Job

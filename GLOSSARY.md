@@ -155,5 +155,4 @@ _Avoid_: alert, reminder
 
 **Notification lead time**:
 When a player wants their Notification: when the Lobby opens (the default),
-30 min or 1 hour before the Live date. One setting covers all riddles. Only
-"when the Lobby opens" sends for now.
+30 min or 1 hour before the Live date. One setting covers all riddles.

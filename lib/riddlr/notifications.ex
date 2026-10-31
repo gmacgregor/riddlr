@@ -22,12 +22,52 @@ defmodule Riddlr.Notifications do
   alias Riddlr.Mailer
   alias Riddlr.Notifications.{Email, RiddleNotification}
   alias Riddlr.Repo
-  alias Riddlr.Workers.SendNotificationWorker
+  alias Riddlr.Workers.{NotificationFanOutWorker, SendNotificationWorker}
 
   # A riddle in any other Play status has no Live date ahead of it.
   @upcoming ["scheduled", "ready"]
 
+  # Lead times tied to the clock, not to the Lobby opening, and how many
+  # seconds before the Live date each one sends. Keys are strings, as they
+  # appear in job args.
+  @timed_lead_times %{"min_30" => 30 * 60, "min_60" => 60 * 60}
+
   @unsubscribe_salt "unsubscribe notifications"
+
+  @doc """
+  Replaces a riddle's 30 min and 1 hour fan-out jobs. Schedule and Reschedule
+  call this inside their transaction, so the cancel and the insert commit
+  with the riddle save or not at all.
+
+  Cancels any pending ones, then queues one per lead time, due that long
+  before the Live date. A send moment already past is due at once. A Live
+  date already past queues none: no one should hear about a riddle that has
+  gone live. Rows already written stay, so a player already notified gets
+  nothing more.
+  """
+  @spec replace_timed_fan_outs(Ecto.Repo.t(), Riddle.t()) :: {:ok, [Oban.Job.t()]}
+  def replace_timed_fan_outs(repo, %Riddle{id: id, live_date: live_date}) do
+    Oban.Job
+    |> where([j], j.state in ["available", "scheduled", "retryable"])
+    |> where([j], j.worker == ^inspect(NotificationFanOutWorker))
+    |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(id)))
+    |> where([j], fragment("?->>'lead_time'", j.args) in ^Map.keys(@timed_lead_times))
+    |> repo.update_all(set: [state: "cancelled", cancelled_at: Clock.utc_now()])
+
+    now = Clock.utc_now()
+
+    jobs =
+      for {lead_time, seconds} <- @timed_lead_times, DateTime.after?(live_date, now) do
+        send_at = DateTime.add(live_date, -seconds, :second)
+        opts = if DateTime.after?(send_at, now), do: [scheduled_at: send_at], else: []
+
+        %{"riddle_id" => id, "lead_time" => lead_time}
+        |> NotificationFanOutWorker.new(opts)
+        |> repo.insert!()
+      end
+
+    {:ok, jobs}
+  end
 
   @doc """
   Writes a Notification row for every player who wants one at `lead_time` and
@@ -43,23 +83,30 @@ defmodule Riddlr.Notifications do
   @spec fan_out(integer(), :lobby_open | :min_30 | :min_60) ::
           {:ok, non_neg_integer()} | {:skip, String.t()} | {:error, term()}
   def fan_out(riddle_id, lead_time) do
-    with {:ok, riddle} <- fetch_upcoming(riddle_id) do
-      Multi.new()
-      |> Multi.insert_all(:rows, RiddleNotification, eligible_rows(riddle, lead_time),
-        on_conflict: :nothing,
-        returning: [:id]
-      )
-      |> Multi.run(:send_jobs, fn _repo, %{rows: {_count, rows}} ->
-        rows
-        |> Enum.map(&SendNotificationWorker.new(%{"notification_id" => &1.id}))
-        |> Oban.insert_all()
-        |> then(&{:ok, &1})
-      end)
-      |> Repo.transaction()
-      |> case do
-        {:ok, %{rows: {count, _rows}}} -> {:ok, count}
-        {:error, _step, reason, _changes} -> {:error, reason}
-      end
+    # The share lock on the riddle makes a Reschedule or Unschedule wait until
+    # this fan-out commits, and makes this fan-out wait for theirs. Without it,
+    # rows written after an Unschedule's `drop_unsent/2` would stay unsent and
+    # block a later Schedule from notifying those players.
+    Multi.new()
+    |> Multi.run(:riddle, fn _repo, _changes -> lock_upcoming(riddle_id) end)
+    |> Multi.insert_all(
+      :rows,
+      RiddleNotification,
+      fn %{riddle: riddle} -> eligible_rows(riddle, lead_time) end,
+      on_conflict: :nothing,
+      returning: [:id]
+    )
+    |> Multi.run(:send_jobs, fn _repo, %{rows: {_count, rows}} ->
+      rows
+      |> Enum.map(&SendNotificationWorker.new(%{"notification_id" => &1.id}))
+      |> Oban.insert_all()
+      |> then(&{:ok, &1})
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{rows: {count, _rows}}} -> {:ok, count}
+      {:error, :riddle, {:skip, reason}, _changes} -> {:skip, reason}
+      {:error, _step, reason, _changes} -> {:error, reason}
     end
   end
 
@@ -82,12 +129,21 @@ defmodule Riddlr.Notifications do
       }
   end
 
-  @spec fetch_upcoming(integer()) :: {:ok, Riddle.t()} | {:skip, String.t()}
-  defp fetch_upcoming(riddle_id) do
-    case Repo.get(Riddle, riddle_id) do
-      nil -> {:skip, "riddle #{riddle_id} not found"}
-      %Riddle{publish_status: "published", play_status: s} = r when s in @upcoming -> {:ok, r}
-      %Riddle{play_status: s} -> {:skip, "riddle #{riddle_id} is #{s}, not upcoming"}
+  @spec lock_upcoming(integer()) :: {:ok, Riddle.t()} | {:error, {:skip, String.t()}}
+  defp lock_upcoming(riddle_id) do
+    Riddle
+    |> where([r], r.id == ^riddle_id)
+    |> lock("FOR SHARE")
+    |> Repo.one()
+    |> case do
+      nil ->
+        {:error, {:skip, "riddle #{riddle_id} not found"}}
+
+      %Riddle{publish_status: "published", play_status: s} = r when s in @upcoming ->
+        {:ok, r}
+
+      %Riddle{play_status: s} ->
+        {:error, {:skip, "riddle #{riddle_id} is #{s}, not upcoming"}}
     end
   end
 
@@ -137,7 +193,7 @@ defmodule Riddlr.Notifications do
            :ok <- check_riddle(riddle, now),
            :ok <- check_player(row.user),
            token = unsubscribe_token(row.user),
-           email = Email.lobby_open(riddle, row.user, token, now),
+           email = Email.notification(riddle, row.user, token, now),
            {:ok, _meta} <- Mailer.deliver(email, opts[:mailer_config] || []),
            {:ok, sent} <- mark_sent(row, now) do
         sent

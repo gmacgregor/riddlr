@@ -7,6 +7,22 @@ defmodule RiddlrWeb.ProfileControllerTest do
   setup :register_and_log_in_user
 
   describe "GET /profile" do
+    test "sums up the notification choice", %{conn: conn, user: user} do
+      off = conn |> get(~p"/profile") |> html_response(200) |> summary()
+
+      {:ok, _} =
+        Accounts.update_user_notifications(user, %{
+          notify_email: true,
+          notification_lead_time: :min_30
+        })
+
+      on = conn |> get(~p"/profile") |> html_response(200) |> summary()
+
+      assert off =~ "Off"
+      assert on =~ "Email"
+      assert on =~ "30 min"
+    end
+
     test "renders the current user's profile", %{conn: conn, user: user} do
       conn = get(conn, ~p"/profile")
       response = html_response(conn, 200)
@@ -164,7 +180,22 @@ defmodule RiddlrWeb.ProfileControllerTest do
              )
 
       refute has_selector?(response, "[name='user[notify_sms]']")
-      refute has_selector?(response, "[name='user[notification_lead_time]']")
+
+      assert has_selector?(
+               response,
+               "#update_notifications select[name='user[notification_lead_time]'] option[value=lobby_open][selected]"
+             )
+    end
+
+    test "saves the lead time", %{conn: conn, user: user} do
+      conn =
+        put(conn, ~p"/profile", %{
+          "action" => "update_notifications",
+          "user" => %{"notify_email" => "true", "notification_lead_time" => "min_60"}
+        })
+
+      assert redirected_to(conn) == ~p"/profile"
+      assert Accounts.get_user!(user.id).notification_lead_time == :min_60
     end
 
     @tag token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
@@ -237,5 +268,12 @@ defmodule RiddlrWeb.ProfileControllerTest do
       conn = get(conn, ~p"/profile/confirm-email/#{token}")
       assert redirected_to(conn) == ~p"/users/log-in"
     end
+  end
+
+  defp summary(html) do
+    html
+    |> LazyHTML.from_document()
+    |> LazyHTML.query("#profile-notifications")
+    |> LazyHTML.text()
   end
 end

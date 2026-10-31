@@ -11,6 +11,7 @@ defmodule Riddlr.Games do
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
   alias Riddlr.Games.PracticeRiddle
+  alias Riddlr.Notifications
 
   alias Riddlr.Workers.{
     ArchiveRiddleTransitionWorker,
@@ -37,9 +38,11 @@ defmodule Riddlr.Games do
                     &inspect/1
                   )
 
-  # Unschedule and delete also drop a pending Notification fan-out: the riddle
-  # will not go live, so no one should hear that it will. Reschedule leaves it
-  # be — the Lobby has opened, and the send job reads the new Live date.
+  # Unschedule and delete also drop every pending Notification fan-out: the
+  # riddle will not go live, so no one should hear that it will. Schedule and
+  # Reschedule replace only the 30 min and 1 hour fan-outs (see
+  # `Notifications.replace_timed_fan_outs/2`); a pending Lobby-open fan-out
+  # stays, and the send job reads the new Live date.
   @drop_workers @riddle_workers ++ [inspect(NotificationFanOutWorker)]
 
   # A job in any other state has already run, been cancelled or been discarded,
@@ -234,6 +237,9 @@ defmodule Riddlr.Games do
         scheduled_at: riddle.live_date
       )
     end)
+    |> Multi.run(:timed_fan_out_jobs, fn repo, %{riddle: riddle} ->
+      Notifications.replace_timed_fan_outs(repo, riddle)
+    end)
   end
 
   defp write_jobs(multi, :unschedule) do
@@ -242,7 +248,7 @@ defmodule Riddlr.Games do
       cancel_jobs(repo, riddle.id, @drop_workers)
     end)
     |> Multi.run(:drop_notifications, fn repo, %{riddle: riddle} ->
-      Riddlr.Notifications.drop_unsent(repo, riddle.id)
+      Notifications.drop_unsent(repo, riddle.id)
     end)
   end
 

@@ -67,11 +67,18 @@ defmodule Riddlr.Accounts.UserTest do
       changeset =
         User.notification_changeset(%User{}, %{
           "notify_sms" => "true",
-          "notification_lead_time" => "min_30",
           "role" => "super_admin"
         })
 
       assert changeset.changes == %{}
+    end
+
+    test "notification_changeset/2 sets the lead time" do
+      changeset = User.notification_changeset(%User{}, %{"notification_lead_time" => "min_30"})
+      assert changeset.changes == %{notification_lead_time: :min_30}
+
+      changeset = User.notification_changeset(%User{}, %{"notification_lead_time" => "min_5"})
+      assert %{notification_lead_time: [_]} = errors_on(changeset)
     end
   end
 end

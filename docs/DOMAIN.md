@@ -37,7 +37,9 @@ shows their username and email and holds the account forms. Changing email
 needs a log-in in the last 10 minutes; other forms need only a log-in.
 
 A player can opt in to email **Notifications** at sign-up or on their profile.
-It is off by default. See [Notifications](#notifications).
+It is off by default. On their profile they also pick a **Notification lead
+time**, and the page sums up their choice, e.g. "Email, 30 min before". See
+[Notifications](#notifications).
 
 ## Riddle lifecycle
 
@@ -76,14 +78,16 @@ All admin edits go through one save. On each save the system compares the
 stored riddle with the edit and decides which of four things happened:
 
 1. **Unschedule** — a scheduled or ready riddle is set back to draft. Its
-   pending steps are dropped and it returns to closed. Its Live date stays but
+   pending steps and Notification sends are dropped and it returns to closed. Its Live date stays but
    means nothing until it is scheduled again. This is the only way to
    unschedule.
 2. **Schedule** — a closed riddle is published with a Live date in the
-   future. It becomes scheduled and its ready and live steps are set up.
+   future. It becomes scheduled and its ready and live steps are set up,
+   along with the 30 min and 1 hour Notification sends.
 3. **Reschedule** — a scheduled or ready riddle's Live date or Ready window
-   changes. Its pending steps are replaced to match. A past Live date is
-   allowed here: the riddle goes ready and live at once.
+   changes. Its pending steps and its pending 30 min and 1 hour Notification
+   sends are replaced to match. A past Live date is allowed here: the riddle
+   goes ready and live at once.
 4. **Plain edit** — anything else. The riddle is saved and nothing is
    scheduled.
 
@@ -120,17 +124,26 @@ player in the Lobby moves to Play at the same moment.
 
 ### Notifications
 
-When a riddle turns ready, every player who wants a **Notification** when the
-Lobby opens gets one email: "Riddle No. N goes live in X min". It names the
-category and the Live date (in the display time zone, Toronto by default),
-links to the Lobby and never shows the riddle text. Only active players with a
-confirmed email who turned email on get it.
+Each player picks when their **Notification** comes, their **Notification
+lead time**:
 
-A player gets at most one email per riddle. A repeat ready step or a retry
-does not send again. Just before sending, the system checks again: no email
-goes out if the riddle was unscheduled, its Live date has passed, or the
-player turned email off or was banned since. An Unschedule drops unsent
-Notifications, so a later Schedule can send them. Reschedule sends nothing new.
+- *When the Lobby opens* (the default): sent when the riddle turns ready.
+- *30 min* or *1 hour* before the Live date: sent at that moment, set up on
+  Schedule. A Reschedule moves it; an Unschedule drops it. If that moment has
+  already passed when the riddle is scheduled or rescheduled but the Live
+  date is still ahead, it goes out at once.
+
+The email says "Riddle No. N goes live in X min". It names the category and
+the Live date (in the display time zone, Toronto by default) and never shows
+the riddle text. If the Lobby is open it links there; if not, it says when the
+Lobby opens and links to Home. Only active players with a confirmed email who
+turned email on get it.
+
+A player gets at most one email per riddle. A repeat ready step, a retry, a
+Reschedule or a change of lead time does not send again. Just before sending,
+the system checks again: no email goes out if the riddle was unscheduled, its
+Live date has passed, or the player turned email off or was banned since. An
+Unschedule drops unsent Notifications, so a later Schedule can send them.
 
 Each email has an unsubscribe link that needs no log-in. The link opens a
 page with one button that turns email off. Mail clients that offer one-click
@@ -250,6 +263,3 @@ more.
 - **Player counts are Lobby only.** Play shows how many have solved, not how
   many are present.
 - **Profile shows no totals**: no points, wins or podiums.
-- **Notifications send only when the Lobby opens.** The 30 min and 1 hour
-  lead times do not exist yet, and a Reschedule does not move a pending
-  send. (#59)

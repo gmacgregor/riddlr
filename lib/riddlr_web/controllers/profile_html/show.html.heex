@@ -11,6 +11,12 @@
         <dt class="rg-auth__meta-label">Email</dt>
         <dd id="profile-email" class="rg-auth__meta-value">{@current_scope.user.email}</dd>
       </div>
+      <div class="rg-auth__meta-row">
+        <dt class="rg-auth__meta-label">Notifications</dt>
+        <dd id="profile-notifications" class="rg-auth__meta-value">
+          {notification_summary(@current_scope.user)}
+        </dd>
+      </div>
     </dl>
 
     <.form
@@ -44,6 +50,17 @@
       <input type="hidden" name="action" value="update_notifications" />
 
       <.input field={f[:notify_email]} type="checkbox" label="Email me before riddles go live" />
+
+      <.input
+        field={f[:notification_lead_time]}
+        type="select"
+        label="When"
+        options={[
+          {"When the Lobby opens", :lobby_open},
+          {"30 min before", :min_30},
+          {"1 hour before", :min_60}
+        ]}
+      />
 
       <.auth_submit phx-disable-with="Saving...">Save notifications</.auth_submit>
     </.form>

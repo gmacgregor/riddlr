@@ -3,6 +3,7 @@ defmodule Riddlr.Accounts.User do
   import Ecto.Changeset
 
   @type t :: %__MODULE__{}
+  @type notification_lead_time :: :lobby_open | :min_30 | :min_60
 
   schema "users" do
     field :email, :string
@@ -55,11 +56,12 @@ defmodule Riddlr.Accounts.User do
   @doc """
   A changeset for a player's own notification choices.
 
-  Casts only `notify_email`. SMS and lead time join when players can set them.
+  Casts `notify_email` and `notification_lead_time`. SMS joins when players
+  can set it.
   """
   @spec notification_changeset(t(), map()) :: Ecto.Changeset.t()
   def notification_changeset(user, attrs) do
-    cast(user, attrs, [:notify_email])
+    cast(user, attrs, [:notify_email, :notification_lead_time])
   end
 
   @doc """

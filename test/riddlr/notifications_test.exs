@@ -91,6 +91,78 @@ defmodule Riddlr.NotificationsTest do
     end
   end
 
+  describe "timed lead times" do
+    test "a riddle scheduled 20 min out sends 30 min and 1 hour Notifications at once" do
+      min_30 = opted_in(%{notification_lead_time: :min_30})
+      min_60 = opted_in(%{notification_lead_time: :min_60})
+      riddle = scheduled_riddle_fixture(%{live_date: from_now(20 * 60)})
+
+      due_now = due_fan_outs(riddle.id)
+      assert due_now |> Enum.map(& &1.args["lead_time"]) |> Enum.sort() == ["min_30", "min_60"]
+
+      run_fan_outs_and_sends(due_now)
+
+      assert_received {:email, %{subject: "Riddle No. " <> _, to: [{_, email_a}]}}
+      assert_received {:email, %{subject: "Riddle No. " <> _, to: [{_, email_b}]}}
+      assert Enum.sort([email_a, email_b]) == Enum.sort([min_30.email, min_60.email])
+    end
+
+    test "before the Lobby opens, the email links Home, not the Lobby" do
+      opted_in(%{notification_lead_time: :min_60})
+      riddle = scheduled_riddle_fixture(%{live_date: from_now(50 * 60)})
+      run_fan_outs_and_sends(due_fan_outs(riddle.id))
+
+      assert_received {:email, %{subject: "Riddle No. " <> _} = email}
+      assert email.subject =~ "50 min"
+      refute email.text_body =~ "/lobby"
+      assert email.text_body =~ RiddlrWeb.Endpoint.url() <> "/\n"
+    end
+
+    test "a player notified when the Lobby opened gets nothing after switching to 30 min" do
+      user = opted_in()
+      riddle = ready_riddle()
+      assert {:ok, 1} = Notifications.fan_out(riddle.id, :lobby_open)
+
+      {:ok, _} =
+        Riddlr.Accounts.update_user_notifications(user, %{notification_lead_time: :min_30})
+
+      assert {:ok, 0} = Notifications.fan_out(riddle.id, :min_30)
+    end
+
+    test "a player already notified gets nothing after a Reschedule" do
+      opted_in(%{notification_lead_time: :min_60})
+      riddle = scheduled_riddle_fixture(%{live_date: from_now(20 * 60)})
+      run_fan_outs_and_sends(due_fan_outs(riddle.id))
+      assert_received {:email, %{subject: "Riddle No. " <> _}}
+
+      {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"live_date" => from_now(25 * 60)})
+
+      run_fan_outs_and_sends(due_fan_outs(riddle.id))
+      refute_received {:email, %{subject: "Riddle No. " <> _}}
+    end
+  end
+
+  defp from_now(seconds),
+    do: DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.truncate(:second)
+
+  # Fan-out jobs for the riddle that are due now.
+  defp due_fan_outs(riddle_id) do
+    now = DateTime.utc_now()
+
+    all_enqueued(worker: Riddlr.Workers.NotificationFanOutWorker, args: %{riddle_id: riddle_id})
+    |> Enum.filter(&(DateTime.compare(&1.scheduled_at, now) != :gt))
+  end
+
+  defp run_fan_outs_and_sends(fan_outs) do
+    for job <- fan_outs do
+      assert :ok = perform_job(Riddlr.Workers.NotificationFanOutWorker, job.args)
+    end
+
+    for job <- all_enqueued(worker: SendNotificationWorker) do
+      perform_job(SendNotificationWorker, job.args)
+    end
+  end
+
   describe "unsubscribe/1" do
     test "turns email off for the player in the token" do
       user = opted_in()

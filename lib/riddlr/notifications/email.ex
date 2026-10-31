@@ -14,13 +14,17 @@ defmodule Riddlr.Notifications.Email do
   alias Riddlr.Games.Riddle
 
   @doc """
-  The email sent when a riddle's Lobby opens. The riddle needs its category
-  loaded. `unsubscribe_token` goes in the unsubscribe link; `now` sets the
-  minutes left in the subject.
+  The Notification email for one player and one riddle. The riddle needs its
+  category loaded. `unsubscribe_token` goes in the unsubscribe link; `now`
+  sets the minutes left in the subject.
+
+  A `ready` riddle's email links to its Lobby. A `scheduled` riddle has no
+  Lobby yet, so its email says when the Lobby opens and links to Home.
   """
-  @spec lobby_open(Riddle.t(), User.t(), String.t(), DateTime.t()) :: Swoosh.Email.t()
-  def lobby_open(%Riddle{} = riddle, %User{} = user, unsubscribe_token, %DateTime{} = now) do
+  @spec notification(Riddle.t(), User.t(), String.t(), DateTime.t()) :: Swoosh.Email.t()
+  def notification(%Riddle{} = riddle, %User{} = user, unsubscribe_token, %DateTime{} = now) do
     unsubscribe_url = url(~p"/notifications/unsubscribe/#{unsubscribe_token}")
+    {intro, link} = intro_and_link(riddle)
 
     new()
     |> to(user.email)
@@ -31,11 +35,9 @@ defmodule Riddlr.Notifications.Email do
     |> text_body("""
     Hi #{user.username},
 
-    Get ready! The lobby is open for Kriddle No. #{riddle.number} (#{riddle.category.name}). It goes live on #{display_time(riddle.live_date)}.
+    #{intro}
 
-    Join here:
-
-    #{url(~p"/game/#{riddle.id}/lobby")}
+    #{link}
 
     Have fun and thanks for being a part of the Kriddle community!
 
@@ -44,6 +46,31 @@ defmodule Riddlr.Notifications.Email do
     ---
     You received this update because you turned on email notifications for new Kriddle games. You may disable email notifications here: #{unsubscribe_url}
     """)
+  end
+
+  # What the email says before its link, and the link. Only a ready riddle
+  # has a Lobby to join.
+  @spec intro_and_link(Riddle.t()) :: {String.t(), String.t()}
+  defp intro_and_link(%Riddle{play_status: "ready"} = riddle) do
+    intro = """
+    Get ready! The lobby is open for Kriddle No. #{riddle.number} (#{riddle.category.name}). It goes live on #{display_time(riddle.live_date)}.
+
+    Join here:\
+    """
+
+    {intro, url(~p"/game/#{riddle.id}/lobby")}
+  end
+
+  defp intro_and_link(%Riddle{} = riddle) do
+    lobby_opens = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
+
+    intro = """
+    Kriddle No. #{riddle.number} (#{riddle.category.name}) goes live on #{display_time(riddle.live_date)}. The lobby opens on #{display_time(lobby_opens)}.
+
+    Find it here:\
+    """
+
+    {intro, url(~p"/")}
   end
 
   # Rounded up, so a send a few seconds late still says the full lead time.

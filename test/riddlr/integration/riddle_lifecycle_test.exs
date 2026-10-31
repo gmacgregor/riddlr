@@ -116,8 +116,10 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
   defp future(seconds),
     do: DateTime.utc_now() |> DateTime.add(seconds, :second) |> DateTime.truncate(:second)
 
+  # Play status jobs only; Notification jobs live on their own queue.
   defp ordered_pending_jobs(riddle_id) do
     Oban.Job
+    |> where([j], j.queue == "game_lifecycle")
     |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
     |> where([j], j.state in ["scheduled", "available"])
     |> order_by([j], asc: j.scheduled_at)

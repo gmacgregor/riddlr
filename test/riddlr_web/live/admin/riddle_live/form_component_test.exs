@@ -181,6 +181,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       jobs =
         Oban.Job
+        |> where([j], j.queue == "game_lifecycle")
         |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle.id)))
         |> where([j], j.state in ["scheduled", "available"])
         |> Riddlr.Repo.all()
@@ -372,8 +373,10 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   # Helper to format datetime for datetime-local input.
   # Converts UTC to Eastern time first, mimicking what a browser sends
   # when the admin's timezone is America/New_York.
+  # Play status jobs only; Notification jobs live on their own queue.
   defp pending_jobs(riddle_id) do
     Oban.Job
+    |> where([j], j.queue == "game_lifecycle")
     |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
     |> where([j], j.state in ["available", "scheduled", "retryable"])
     |> Riddlr.Repo.all()
