@@ -10,9 +10,11 @@ defmodule RiddlrWeb.HomeLiveTest do
   alias RiddlrWeb.GameCopy
 
   describe "heading" do
-    test "shows today's date and a margin note when a riddle is next", %{conn: conn} do
+    test "shows the next riddle's drop date and a margin note when a riddle is next", %{
+      conn: conn
+    } do
       Frozen.freeze(~U[2030-01-01 09:00:00Z])
-      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+      upcoming_fixture("scheduled", ~U[2030-01-02 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
@@ -20,7 +22,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       assert has_element?(
                live,
-               "#hero-date time[data-format='date'][datetime='2030-01-01T09:00:00Z']"
+               "#hero-date time[data-format='date'][datetime='2030-01-02T14:05:00Z']"
              )
 
       assert has_element?(live, ".rg-hero__aside")

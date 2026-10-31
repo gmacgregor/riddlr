@@ -22,8 +22,8 @@
           </h1>
           <p :if={@hero != :none} id="hero-date" class="rg-hero__date">
             <GameComponents.local_time
-              id={"hero-date-#{Date.to_iso8601(@today)}"}
-              at={@today}
+              id={"hero-date-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
+              at={@next.live_date}
               format="date"
             />
           </p>

@@ -15,12 +15,12 @@ defmodule RiddlrWeb.GameCopy do
   # ─── Home ─────────────────────────────────────────────────────────────────────
 
   @doc """
-  The Home heading, given the hero state. With nothing next it reads as a
-  listing, so it promises no riddle.
+  The Home heading, given the hero state. It names no time of day, since a
+  riddle can drop at any hour. With nothing next it promises no riddle.
   """
   @spec hero_heading(hero_state()) :: String.t()
-  def hero_heading(:none), do: "Tonight's listing"
-  def hero_heading(_state), do: "Tonight's riddle"
+  def hero_heading(:none), do: "Nothing listed"
+  def hero_heading(_state), do: "Up next"
 
   @doc "The margin note that points at the Home hero card."
   @spec hero_aside() :: String.t()

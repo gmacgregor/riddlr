@@ -1,18 +1,21 @@
 defmodule RiddlrWeb.HomeLive do
   @moduledoc """
-  The public Home page: a "Tonight's riddle" hero card for the next riddle
+  The public Home page: an "Up next" hero card for the next riddle
   (`Games.next_riddle/0`), a timeline of a round, and two notes.
 
   The hero card has one state for each Next riddle case, set as `data-state`
   on the hero sheet:
 
-    * `none`: no next riddle. The heading reads "Tonight's listing", with no
+    * `none`: no next riddle. The heading reads "Nothing listed", with no
       date.
     * `future`: scheduled, Lobby not open. A countdown and the drop time, with
       no button.
     * `lobby`: ready. A countdown, how many players wait in the Lobby, and a
       button to it.
     * `live`: the time left, how many have solved it, and a button to Play.
+
+  In the other states, the date under the heading is the next riddle's drop
+  date.
 
   With nothing next, the card also shows a blank clock and a link to Coming
   up, and a "While you wait" practice note (`GameComponents.practice_note/1`)
