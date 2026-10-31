@@ -100,21 +100,26 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
+  # ## Mailer
   #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
+  # No mail provider is chosen yet, so the adapter comes from the env.
+  # MAILER_ADAPTER names an API adapter under Swoosh.Adapters, e.g.
+  # "Postmark", "Mailgun" or "Brevo". SMTP is not supported: it needs the
+  # gen_smtp dep. MAILER_API_KEY and MAILER_DOMAIN are passed only when set;
+  # check the adapter's docs for which it needs. With no MAILER_ADAPTER, the
+  # mailer keeps the default from config.exs.
   #
-  #     config :riddlr, Riddlr.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
+  # The API client (Req) is set in config/prod.exs.
+  if adapter = System.get_env("MAILER_ADAPTER") do
+    mailer_opts =
+      [
+        api_key: System.get_env("MAILER_API_KEY"),
+        domain: System.get_env("MAILER_DOMAIN")
+      ]
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+    config :riddlr,
+           Riddlr.Mailer,
+           [adapter: Module.concat(Swoosh.Adapters, adapter)] ++ mailer_opts
+  end
 end

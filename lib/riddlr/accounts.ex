@@ -182,6 +182,25 @@ defmodule Riddlr.Accounts do
     |> update_user_and_delete_all_tokens()
   end
 
+  @doc """
+  Returns a changeset for the user's notification choices.
+  """
+  @spec change_user_notifications(User.t(), map()) :: Ecto.Changeset.t()
+  def change_user_notifications(%User{} = user, attrs \\ %{}) do
+    User.notification_changeset(user, attrs)
+  end
+
+  @doc """
+  Saves the user's notification choices.
+  """
+  @spec update_user_notifications(User.t(), map()) ::
+          {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user_notifications(%User{} = user, attrs) do
+    user
+    |> User.notification_changeset(attrs)
+    |> Repo.update()
+  end
+
   ## Session
 
   @doc """

@@ -144,3 +144,9 @@ Share of players who guessed a riddle that also solved it.
 
 **Leaderboard**:
 A riddle's solves in placement order, shown on its results page.
+
+## Account
+
+**Notification**:
+A message that tells a player a riddle is about to go live. Players opt in;
+it is off by default. Email only for now; SMS later.

@@ -149,6 +149,52 @@ defmodule RiddlrWeb.ProfileControllerTest do
     end
   end
 
+  describe "PUT /profile (notifications form)" do
+    test "renders an email toggle that is off by default", %{conn: conn} do
+      response = conn |> get(~p"/profile") |> html_response(200)
+
+      assert has_selector?(
+               response,
+               "#update_notifications input[type=checkbox][name='user[notify_email]']"
+             )
+
+      refute has_selector?(
+               response,
+               "#update_notifications input[name='user[notify_email]'][checked]"
+             )
+
+      refute has_selector?(response, "[name='user[notify_sms]']")
+      refute has_selector?(response, "[name='user[notification_lead_time]']")
+    end
+
+    @tag token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
+    test "turns email notifications on and off without sudo mode", %{conn: conn, user: user} do
+      on_conn =
+        put(conn, ~p"/profile", %{
+          "action" => "update_notifications",
+          "user" => %{"notify_email" => "true"}
+        })
+
+      assert redirected_to(on_conn) == ~p"/profile"
+      assert Phoenix.Flash.get(on_conn.assigns.flash, :info)
+      assert Accounts.get_user!(user.id).notify_email
+
+      response = conn |> get(~p"/profile") |> html_response(200)
+
+      assert has_selector?(
+               response,
+               "#update_notifications input[name='user[notify_email]'][checked]"
+             )
+
+      put(conn, ~p"/profile", %{
+        "action" => "update_notifications",
+        "user" => %{"notify_email" => "false"}
+      })
+
+      refute Accounts.get_user!(user.id).notify_email
+    end
+  end
+
   describe "GET /profile/confirm-email/:token" do
     setup %{user: user} do
       email = unique_user_email()

@@ -2,6 +2,8 @@ defmodule Riddlr.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   schema "users" do
     field :email, :string
     field :username, :string
@@ -18,6 +20,13 @@ defmodule Riddlr.Accounts.User do
     field :total_points, :integer, default: 0
     field :wins_count, :integer, default: 0
     field :podium_count, :integer, default: 0
+
+    field :notify_email, :boolean, default: false
+    field :notify_sms, :boolean, default: false
+
+    field :notification_lead_time, Ecto.Enum,
+      values: [:lobby_open, :min_30, :min_60],
+      default: :lobby_open
 
     timestamps(type: :utc_datetime)
   end
@@ -44,6 +53,16 @@ defmodule Riddlr.Accounts.User do
   end
 
   @doc """
+  A changeset for a player's own notification choices.
+
+  Casts only `notify_email`. SMS and lead time join when players can set them.
+  """
+  @spec notification_changeset(t(), map()) :: Ecto.Changeset.t()
+  def notification_changeset(user, attrs) do
+    cast(user, attrs, [:notify_email])
+  end
+
+  @doc """
   A user changeset for registering or changing the email.
 
   It requires the email to change otherwise an error is added.
@@ -64,6 +83,7 @@ defmodule Riddlr.Accounts.User do
   A user changeset for registration.
 
   It requires email and username. Password is optional (used for password-based auth).
+  The player may opt in to email notifications here; it stays off unless sent.
 
   ## Options
 
@@ -73,7 +93,7 @@ defmodule Riddlr.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :username])
+    |> cast(attrs, [:email, :username, :notify_email])
     |> validate_username(opts)
     |> validate_email(opts)
   end

@@ -44,4 +44,34 @@ defmodule Riddlr.Accounts.UserTest do
       refute changeset.valid?
     end
   end
+
+  describe "notification preferences" do
+    test "default to off with lobby_open lead time" do
+      user = user_fixture()
+
+      assert %User{notify_email: false, notify_sms: false, notification_lead_time: :lobby_open} =
+               Riddlr.Repo.reload!(user)
+    end
+
+    test "update_user_notifications/2 toggles email on and off" do
+      user = user_fixture()
+
+      assert {:ok, %User{notify_email: true} = user} =
+               Accounts.update_user_notifications(user, %{"notify_email" => "true"})
+
+      assert {:ok, %User{notify_email: false}} =
+               Accounts.update_user_notifications(user, %{"notify_email" => "false"})
+    end
+
+    test "notification_changeset/2 ignores fields players cannot set yet" do
+      changeset =
+        User.notification_changeset(%User{}, %{
+          "notify_sms" => "true",
+          "notification_lead_time" => "min_30",
+          "role" => "super_admin"
+        })
+
+      assert changeset.changes == %{}
+    end
+  end
 end

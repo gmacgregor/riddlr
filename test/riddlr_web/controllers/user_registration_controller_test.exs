@@ -29,6 +29,13 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
       refute LazyHTML.query(doc, "button.rg-btn.rg-btn--accent[type=submit]") |> Enum.empty?()
     end
 
+    test "offers an email notification opt-in, unchecked", %{conn: conn} do
+      response = conn |> get(~p"/users/register") |> html_response(200)
+
+      assert has_selector?(response, "input[type=checkbox][name='user[notify_email]']")
+      refute has_selector?(response, "input[name='user[notify_email]'][checked]")
+    end
+
     test "redirects if already logged in", %{conn: conn} do
       conn = conn |> log_in_user(user_fixture()) |> get(~p"/users/register")
 
@@ -50,6 +57,28 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
       assert redirected_to(conn) == ~p"/users/log-in"
 
       assert conn.assigns.flash["info"] =~ email
+    end
+
+    @tag :capture_log
+    test "opt-in checkbox sets notify_email", %{conn: conn} do
+      email = unique_user_email()
+
+      post(conn, ~p"/users/register", %{
+        "user" => valid_user_attributes(email: email, notify_email: "true")
+      })
+
+      assert Riddlr.Accounts.get_user_by_email(email).notify_email
+    end
+
+    @tag :capture_log
+    test "leaves notify_email off when unchecked", %{conn: conn} do
+      email = unique_user_email()
+
+      post(conn, ~p"/users/register", %{
+        "user" => valid_user_attributes(email: email, notify_email: "false")
+      })
+
+      refute Riddlr.Accounts.get_user_by_email(email).notify_email
     end
 
     test "render errors for invalid data", %{conn: conn} do

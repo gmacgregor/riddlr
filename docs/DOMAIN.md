@@ -30,6 +30,15 @@ Every account is a **Player**. Some players also hold a role:
 Roles do not stack: a moderator cannot edit riddles, and an editor cannot
 moderate. **Admin** means super admin, moderator or editor.
 
+### Profile
+
+Each player has one account page, `/profile`, and sees only their own. It
+shows their username and email and holds the account forms. Changing email
+needs a log-in in the last 10 minutes; other forms need only a log-in.
+
+A player can opt in to email **Notifications** at sign-up or on their profile.
+It is off by default. Nothing sends yet.
+
 ## Riddle lifecycle
 
 A riddle has a **Play status** and a **Publish status**. They are separate:
@@ -222,4 +231,5 @@ more.
   chat. (#42)
 - **Player counts are Lobby only.** Play shows how many have solved, not how
   many are present.
-- **Profile shows only username and email**, not the player's totals.
+- **Profile shows no totals**: no points, wins or podiums.
+- **Notifications do not send.** Players can opt in, but no email goes out yet. (#59)

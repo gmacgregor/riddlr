@@ -34,6 +34,20 @@
       <.auth_submit phx-disable-with="Changing...">Change email</.auth_submit>
     </.form>
 
+    <.form
+      :let={f}
+      for={@notifications_changeset}
+      action={~p"/profile"}
+      id="update_notifications"
+      class="rg-auth__form"
+    >
+      <input type="hidden" name="action" value="update_notifications" />
+
+      <.input field={f[:notify_email]} type="checkbox" label="Email me before riddles go live" />
+
+      <.auth_submit phx-disable-with="Saving...">Save notifications</.auth_submit>
+    </.form>
+
     <p class="rg-auth__footer">
       <.link navigate={~p"/"} class="rg-auth__link">Back to the game</.link>
     </p>

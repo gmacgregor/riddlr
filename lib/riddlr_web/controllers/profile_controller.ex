@@ -21,7 +21,7 @@ defmodule RiddlrWeb.ProfileController do
 
   @doc """
   Saves one profile form. The hidden `action` param names the form:
-  `update_email` or `update_password`.
+  `update_email`, `update_password` or `update_notifications`.
   """
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"action" => "update_email"} = params) do
@@ -64,6 +64,21 @@ defmodule RiddlrWeb.ProfileController do
     end
   end
 
+  def update(conn, %{"action" => "update_notifications"} = params) do
+    %{"user" => user_params} = params
+    user = conn.assigns.current_scope.user
+
+    case Accounts.update_user_notifications(user, user_params) do
+      {:ok, _user} ->
+        conn
+        |> put_flash(:info, "Notification settings saved.")
+        |> redirect(to: ~p"/profile")
+
+      {:error, changeset} ->
+        render(conn, :show, notifications_changeset: changeset)
+    end
+  end
+
   def update(conn, _params) do
     conn
     |> put_flash(:error, "Unknown form.")
@@ -101,5 +116,6 @@ defmodule RiddlrWeb.ProfileController do
     conn
     |> assign(:email_changeset, Accounts.change_user_email(user))
     |> assign(:password_changeset, Accounts.change_user_password(user))
+    |> assign(:notifications_changeset, Accounts.change_user_notifications(user))
   end
 end

@@ -14,6 +14,7 @@
         required
         phx-mounted={JS.focus()}
       />
+      <.input field={f[:notify_email]} type="checkbox" label="Email me before riddles go live" />
       <.auth_submit phx-disable-with="Creating account...">
         Create an account <span aria-hidden="true">→</span>
       </.auth_submit>
