@@ -14,6 +14,11 @@ defmodule RiddlrWeb.HomeLive do
       button to it.
     * `live`: the time left, how many have solved it, and a button to Play.
 
+  With nothing next, the card also shows a blank clock and a link to Coming
+  up. The "While you wait" practice note (`GameComponents.practice_note/1`)
+  shows when `@practice` is set; it stays hidden until practice riddles
+  exist.
+
   The timeline ("A round, start to finish") ends at the next riddle's solve
   time. Below it, "Coming up" lists the riddles after the next one
   (`Games.list_upcoming_riddles/1`), with no riddle text, and "Previously"
@@ -69,6 +74,10 @@ defmodule RiddlrWeb.HomeLive do
     {:ok,
      socket
      |> assign(:page_title, "Home")
+     # The practice riddle for the "While you wait" note, as
+     # `%{riddle: riddle, n: n, total: total}`. Always nil until practice
+     # riddles exist (#46), which hides the note.
+     |> assign(:practice, nil)
      |> assign_next(next)
      |> assign_panels()}
   end

@@ -45,6 +45,10 @@ defmodule RiddlrWeb.GameCopy do
   @spec hero_back_lead() :: String.t()
   def hero_back_lead, do: "Nothing to do till then. Come back at"
 
+  @doc "The stamp on the Home card when nothing is next."
+  @spec hero_none_stamp() :: String.t()
+  def hero_none_stamp, do: "No game scheduled"
+
   @doc """
   The Home card's heading when nothing is next. It reads "Nothing's
   dropping. Yet.", with the tail on its own so the card can set it apart.
@@ -60,6 +64,29 @@ defmodule RiddlrWeb.GameCopy do
   @spec hero_none_text() :: String.t()
   def hero_none_text,
     do: "No riddle is scheduled right now, and the next one hasn't been announced."
+
+  @doc """
+  The words before the next drop's time on the Home card when nothing is
+  next. The line reads "Next drop: to be announced".
+  """
+  @spec hero_none_tbc_lead() :: String.t()
+  def hero_none_tbc_lead, do: "Next drop:"
+
+  @doc "The next drop's time on the Home card when nothing is next."
+  @spec hero_none_tbc() :: String.t()
+  def hero_none_tbc, do: "to be announced"
+
+  @doc """
+  The words before the link to Coming up in the Home card's note when
+  nothing is next. The note reads "New riddles appear in Coming up once
+  they're scheduled."
+  """
+  @spec hero_none_note_lead() :: String.t()
+  def hero_none_note_lead, do: "New riddles appear in"
+
+  @doc "The words after the link to Coming up in the Home card's note when nothing is next."
+  @spec hero_none_note_tail() :: String.t()
+  def hero_none_note_tail, do: "once they're scheduled."
 
   @doc "The heading of the Home timeline."
   @spec timeline_heading() :: String.t()
@@ -247,6 +274,44 @@ defmodule RiddlrWeb.GameCopy do
     ]
   end
 
+  # ─── Practice note ────────────────────────────────────────────────────────────
+
+  @doc "The heading of the practice note on Home when nothing is next."
+  @spec practice_heading() :: String.t()
+  def practice_heading, do: "While you wait"
+
+  @doc ~S(The practice note's tag, e.g. "Practice riddle 2 of 5".)
+  @spec practice_tag(pos_integer(), pos_integer()) :: String.t()
+  def practice_tag(n, total), do: "Practice riddle #{delimit(n)} of #{delimit(total)}"
+
+  @doc "The practice note's reminder that it scores nothing."
+  @spec practice_note() :: String.t()
+  def practice_note, do: "Doesn't count. No one's racing."
+
+  @doc "The button that shows a practice riddle's answer."
+  @spec practice_peek() :: String.t()
+  def practice_peek, do: "Peek at the answer"
+
+  @doc "The button that hides a practice riddle's answer again."
+  @spec practice_hide() :: String.t()
+  def practice_hide, do: "Hide it again"
+
+  @doc "What a screen reader hears when the practice answer shows."
+  @spec practice_status_shown(String.t()) :: String.t()
+  def practice_status_shown(answer), do: "Answer: #{String.downcase(answer)}."
+
+  @doc """
+  What a screen reader hears while the practice answer is hidden: how many
+  letters and digits it has. Spaces and punctuation do not count.
+  """
+  @spec practice_status_hidden(String.t()) :: String.t()
+  def practice_status_hidden(answer) do
+    case ~r/[\p{L}\p{N}]/u |> Regex.scan(answer) |> length() do
+      1 -> "Answer hidden, 1 letter."
+      count -> "Answer hidden, #{count} letters."
+    end
+  end
+
   # ─── Clock ────────────────────────────────────────────────────────────────────
 
   @doc """
@@ -255,6 +320,10 @@ defmodule RiddlrWeb.GameCopy do
   """
   @spec clock_label_tail() :: String.t()
   def clock_label_tail, do: "until the riddle starts"
+
+  @doc "The screen-reader label of a blank split-flap clock: nothing is scheduled."
+  @spec clock_blank_label() :: String.t()
+  def clock_blank_label, do: "No riddle scheduled, so no countdown"
 
   # ─── Play ─────────────────────────────────────────────────────────────────────
 

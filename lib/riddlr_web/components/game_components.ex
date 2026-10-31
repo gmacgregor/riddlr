@@ -6,6 +6,7 @@ defmodule RiddlrWeb.GameComponents do
   """
   use Phoenix.Component
 
+  alias Phoenix.LiveView.JS
   alias RiddlrWeb.GameCopy
 
   @tones ~w(variant-1 variant-2 variant-3 variant-4 variant-5 variant-6)
@@ -149,11 +150,30 @@ defmodule RiddlrWeb.GameComponents do
   `countdown-tick` push event, and flips only the digits that change. The
   container is `phx-update="ignore"`, so LiveView still patches
   `data-seconds` but leaves the digits to the hook.
+
+  With `blank` set the clock shows `––:––` on empty tiles, labelled as no
+  countdown, with no hook and no `seconds`. Home shows it when nothing is
+  scheduled.
   """
   attr :id, :string, required: true
-  attr :seconds, :integer, required: true
+  attr :seconds, :integer, default: nil, doc: "seconds to count down; required unless `blank`"
+  attr :blank, :boolean, default: false, doc: "a clock with no countdown"
 
   @spec flaps(map()) :: Phoenix.LiveView.Rendered.t()
+  def flaps(%{blank: true} = assigns) do
+    ~H"""
+    <div id={@id} class="rg-flaps" role="img" aria-label={GameCopy.clock_blank_label()}>
+      <%= for char <- String.graphemes("––:––") do %>
+        <span
+          :if={char == ":"}
+          class="rg-flaps__sep"
+          aria-hidden="true"
+        >:</span><span :if={char != ":"} class="rg-flap rg-flap--empty" aria-hidden="true">{char}</span>
+      <% end %>
+    </div>
+    """
+  end
+
   def flaps(assigns) do
     assigns = assign(assigns, :clock, clock_str(assigns.seconds))
 
@@ -294,6 +314,73 @@ defmodule RiddlrWeb.GameComponents do
         }
       }
     </script>
+    """
+  end
+
+  @doc """
+  The "While you wait" note on Home when nothing is scheduled: a practice
+  riddle with its answer hidden as blank tiles.
+
+  The answer letters are in the DOM; a practice riddle scores nothing, so
+  that is fine. "Peek at the answer" toggles all on the client with `JS`
+  commands, which LiveView keeps across patches:
+
+    * `is-open` on the tiles, which CSS reads to show the letters
+    * `aria-expanded` on the button, which CSS reads to swap its text
+    * `hidden` on the two lines of the polite status, so a screen reader
+      hears the answer, or its letter count once hidden again
+
+  `riddle` is any map with a `description` and an `answer`. `n` and `total`
+  give its place in the set ("Practice riddle N of M").
+  """
+  attr :id, :string, required: true
+  attr :riddle, :map, required: true, doc: "a map with `description` and `answer`"
+  attr :n, :integer, required: true
+  attr :total, :integer, required: true
+
+  @spec practice_note(map()) :: Phoenix.LiveView.Rendered.t()
+  def practice_note(assigns) do
+    assigns =
+      assign(assigns, :chars, assigns.riddle.answer |> String.upcase() |> String.graphemes())
+
+    ~H"""
+    <section id={@id} class="rg-peek" aria-labelledby={"#{@id}-h"}>
+      <div class="rg-peek__head">
+        <h3 id={"#{@id}-h"} class="rg-peek__h">{GameCopy.practice_heading()}</h3>
+        <span class="rg-peek__tag">{GameCopy.practice_tag(@n, @total)}</span>
+      </div>
+      <p class="rg-peek__q">“{@riddle.description}”</p>
+      <div id={"#{@id}-answer"} class="rg-peek__a">
+        <%= for char <- @chars do %>
+          <span :if={char == " "} class="rg-pk-gap" aria-hidden="true"></span>
+          <span :if={char != " "} class="rg-pk" aria-hidden="true">
+            <span>{char}</span>
+          </span>
+        <% end %>
+      </div>
+      <span class="rg-sr-only" role="status">
+        <span id={"#{@id}-sr-hidden"}>{GameCopy.practice_status_hidden(@riddle.answer)}</span>
+        <span id={"#{@id}-sr-shown"} hidden>{GameCopy.practice_status_shown(@riddle.answer)}</span>
+      </span>
+      <div class="rg-peek__bar">
+        <button
+          type="button"
+          class="rg-btn rg-peek__btn"
+          aria-expanded="false"
+          aria-controls={"#{@id}-answer"}
+          phx-click={
+            JS.toggle_class("is-open", to: "##{@id}-answer")
+            |> JS.toggle_attribute({"aria-expanded", "true", "false"})
+            |> JS.toggle_attribute({"hidden", ""}, to: "##{@id}-sr-hidden")
+            |> JS.toggle_attribute({"hidden", ""}, to: "##{@id}-sr-shown")
+          }
+        >
+          <span class="rg-peek__show">{GameCopy.practice_peek()}</span>
+          <span class="rg-peek__hide">{GameCopy.practice_hide()}</span>
+        </button>
+        <p class="rg-peek__note">{GameCopy.practice_note()}</p>
+      </div>
+    </section>
     """
   end
 

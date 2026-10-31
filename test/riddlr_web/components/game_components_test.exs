@@ -110,12 +110,74 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert classes.(0) =~ "is-crit"
     end
 
+    test "renders a blank clock with empty tiles and no countdown" do
+      html = render_component(&GameComponents.flaps/1, id: "clock", blank: true)
+
+      # It never counts, so it is a picture with a label, not a timer.
+      assert html =~ ~s(role="img")
+      refute html =~ ~s(role="timer")
+      assert html =~ ~s(aria-label="#{GameCopy.clock_blank_label()}")
+      assert length(Regex.scan(~r/class="rg-flap rg-flap--empty"/, html)) == 4
+      assert length(Regex.scan(~r/class="rg-flaps__sep"/, html)) == 1
+      refute html =~ "data-seconds"
+      refute html =~ "phx-hook"
+    end
+
     test "uses the long style from one hour up" do
       html = render_component(&GameComponents.flaps/1, id: "clock", seconds: 3600)
 
       assert html =~ "rg-flaps--long"
       assert length(Regex.scan(~r/class="rg-flap"/, html)) == 6
     end
+  end
+
+  describe "practice_note/1" do
+    @riddle %{description: "What has hands but can't clap?", answer: "Big Ben"}
+
+    test "shows the riddle, its place in the set and a hidden answer" do
+      html =
+        render_component(&GameComponents.practice_note/1,
+          id: "practice",
+          riddle: @riddle,
+          n: 2,
+          total: 5
+        )
+
+      assert html =~ GameCopy.practice_heading()
+      assert html =~ GameCopy.practice_tag(2, 5)
+      assert html =~ escape(GameCopy.practice_note())
+      assert html =~ escape(@riddle.description)
+      # One tile per letter and a gap for the space; the answer starts closed.
+      assert length(Regex.scan(~r/class="rg-pk"/, html)) == 6
+      assert length(Regex.scan(~r/class="rg-pk-gap"/, html)) == 1
+      refute html =~ "rg-peek__a is-open"
+      assert html =~ ~s(aria-expanded="false")
+      assert html =~ ~s(aria-controls="practice-answer")
+      assert html =~ GameCopy.practice_peek()
+      assert html =~ ~s(role="status")
+    end
+
+    test "puts both button texts and both status lines on the peek button for the JS toggle" do
+      html =
+        render_component(&GameComponents.practice_note/1,
+          id: "practice",
+          riddle: @riddle,
+          n: 1,
+          total: 1
+        )
+
+      assert html =~ GameCopy.practice_hide()
+      assert html =~ GameCopy.practice_status_shown("Big Ben")
+      assert html =~ GameCopy.practice_status_hidden("Big Ben")
+    end
+
+    test "counts only letters and digits in the hidden answer's status" do
+      assert GameCopy.practice_status_hidden("Big Ben") == "Answer hidden, 6 letters."
+      assert GameCopy.practice_status_hidden("R2-D2!") == "Answer hidden, 4 letters."
+      assert GameCopy.practice_status_hidden("I") == "Answer hidden, 1 letter."
+    end
+
+    defp escape(text), do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
   end
 
   describe "local_time/1" do

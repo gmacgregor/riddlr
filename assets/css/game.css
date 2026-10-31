@@ -1037,6 +1037,174 @@ a.rg-pill {
 .rg-none__h span {
   color: var(--urgent-text);
 }
+/* The card is no taller than its content, and the stamp and struck-out date
+   share a row. */
+.rg-hero__sheet[data-state="none"] .rg-hero__card {
+  min-block-size: 0;
+  gap: var(--space-s);
+}
+.rg-hero__sheet[data-state="none"] .rg-hero__meta {
+  max-inline-size: 40ch;
+}
+.rg-none__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  inline-size: 100%;
+}
+.rg-void-stamp {
+  padding: var(--space-3xs) var(--space-s);
+  border: 3px double var(--urgent);
+  border-radius: var(--wob-sm);
+  color: var(--urgent-text);
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: var(--step-0);
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(-3deg);
+}
+.rg-none__date {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-m);
+  line-height: 1;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  text-decoration: line-through wavy var(--urgent);
+  text-decoration-thickness: 3px;
+  transform: rotate(2deg);
+}
+.rg-none__clock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs) var(--space-s);
+}
+.rg-hero .rg-none__clock .rg-flaps {
+  --flap-size: var(--display-flap-sm);
+}
+.rg-none__tbc {
+  font-family: var(--f-label);
+  font-size: var(--step-0);
+  color: var(--fg-muted);
+  transform: rotate(-1.5deg);
+}
+.rg-none__tbc b {
+  color: var(--fg);
+  font-weight: 700;
+}
+/* A blank clock: dashes on tiles with no crease. */
+.rg-flap--empty {
+  color: var(--fg-subtle);
+}
+.rg-flap--empty::after {
+  display: none;
+}
+
+/* "While you wait": the one thing to do here, so it gets the colour. */
+.rg-peek {
+  position: relative;
+  inline-size: 100%;
+  container-type: inline-size;
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-s);
+  background: var(--surface-practice);
+  color: var(--fg);
+  border: var(--stroke-note) solid var(--fg);
+  border-radius: var(--wob-box-2);
+  box-shadow: var(--shadow-note);
+  transform: rotate(0.6deg);
+}
+.rg-peek__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3xs) var(--space-xs);
+}
+.rg-peek__h {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-m);
+  line-height: 1.1;
+}
+.rg-peek__tag {
+  padding: 0 var(--space-xs);
+  border: 1.5px solid var(--fg);
+  border-radius: var(--wob-pill);
+  font-family: var(--f-label);
+  font-size: var(--step--1);
+  background: var(--surface-2);
+}
+.rg-peek__q {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-question);
+  line-height: 1.2;
+  max-inline-size: 30ch;
+}
+.rg-peek__a {
+  display: flex;
+  gap: clamp(0.1875rem, 1.2cqi, 0.5rem);
+}
+.rg-pk,
+.rg-pk-gap {
+  flex: 1 1 0;
+  max-inline-size: 3.5rem;
+}
+.rg-pk-gap {
+  max-inline-size: 1.25rem;
+}
+.rg-pk {
+  aspect-ratio: 3 / 4;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  color: var(--fg);
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-sm);
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: clamp(0.875rem, 5.4cqi, 1.875rem);
+  line-height: 1;
+}
+.rg-pk:nth-child(odd) {
+  transform: rotate(-1.4deg);
+}
+.rg-pk:nth-child(even) {
+  transform: rotate(1.1deg);
+}
+.rg-peek__a:not(.is-open) .rg-pk {
+  background: transparent;
+  border-style: dashed;
+}
+.rg-peek__a:not(.is-open) .rg-pk > span {
+  visibility: hidden;
+}
+.rg-peek__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs) var(--space-s);
+}
+.rg-hero__card .rg-peek__btn {
+  min-inline-size: 0;
+  inline-size: auto;
+}
+/* The button holds both labels; aria-expanded picks the one to show. */
+.rg-peek__btn[aria-expanded="true"] .rg-peek__show,
+.rg-peek__btn:not([aria-expanded="true"]) .rg-peek__hide {
+  display: none;
+}
+.rg-peek__note {
+  font-family: var(--f-label);
+  font-size: var(--step-0);
+}
 
 /* Clock sizes: 4 tiles can go big; 6 (HH:MM:SS) must fit at any width. */
 .rg-hero .rg-flaps {

@@ -100,6 +100,39 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, "#hero-card .rg-btn")
     end
 
+    test "stamps the card and strikes out today's date when nothing is next", %{conn: conn} do
+      Frozen.freeze(~U[2030-01-01 09:00:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-card .rg-void-stamp", GameCopy.hero_none_stamp())
+
+      assert has_element?(
+               live,
+               "#hero-card s.rg-none__date time[data-format='date'][datetime='2030-01-01T09:00:00Z']"
+             )
+    end
+
+    test "shows a blank clock and an unknown next drop when nothing is next", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-card #hero-blank-flaps .rg-flap--empty")
+      refute has_element?(live, "#hero-card #hero-blank-flaps[phx-hook]")
+      assert has_element?(live, "#hero-card .rg-none__tbc b", GameCopy.hero_none_tbc())
+    end
+
+    test "points to Coming up when nothing is next", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-card .rg-hero__note a[href='#sched-h']")
+      assert has_element?(live, "#sched-h")
+    end
+
+    test "hides the practice note when there are no practice riddles", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      refute has_element?(live, "#practice")
+    end
+
     test "shows a live riddle's time left and solves, and links to Play", %{conn: conn} do
       live_date = ~U[2030-01-01 14:05:00Z]
       Frozen.freeze(DateTime.add(live_date, 10, :second))
