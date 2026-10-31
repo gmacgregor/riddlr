@@ -168,7 +168,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
 
       # Now do a logged in request
       conn = get(conn, ~p"/")
-      assert html_response(conn, 200) =~ "First time here?"
+      assert html_response(conn, 200) =~ ~s(id="topbar-log-out")
     end
 
     test "logs the user in with remember me", %{conn: conn, user: user} do
@@ -240,7 +240,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
 
       # Now do a logged in request
       conn = get(conn, ~p"/")
-      assert html_response(conn, 200) =~ "First time here?"
+      assert html_response(conn, 200) =~ ~s(id="topbar-log-out")
     end
 
     test "confirms unconfirmed user", %{conn: conn, unconfirmed_user: user} do
@@ -261,7 +261,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
 
       # Now do a logged in request
       conn = get(conn, ~p"/")
-      assert html_response(conn, 200) =~ "First time here?"
+      assert html_response(conn, 200) =~ ~s(id="topbar-log-out")
     end
 
     test "emits error message when magic link is invalid", %{conn: conn} do

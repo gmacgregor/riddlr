@@ -6,11 +6,109 @@ defmodule RiddlrWeb.GameCopy do
   happens in one place and the tests follow it.
   """
 
+  @typedoc """
+  The Home hero card's state, one per Next riddle case: nothing next, a
+  scheduled riddle whose Lobby is not open, a ready riddle, or a live one.
+  """
+  @type hero_state :: :none | :future | :lobby | :live
+
   # ─── Home ─────────────────────────────────────────────────────────────────────
 
-  @doc "The heading of the Home intro."
-  @spec intro_heading() :: String.t()
-  def intro_heading, do: "First time here?"
+  @doc """
+  The Home heading, given the hero state. With nothing next it reads as a
+  listing, so it promises no riddle.
+  """
+  @spec hero_heading(hero_state()) :: String.t()
+  def hero_heading(:none), do: "Tonight's listing"
+  def hero_heading(_state), do: "Tonight's riddle"
+
+  @doc "The margin note that points at the Home hero card."
+  @spec hero_aside() :: String.t()
+  def hero_aside, do: "this one"
+
+  @doc """
+  The words before the drop time on the Home card when the Lobby is not open
+  yet. The line reads "Drops at 21:00, your local time. The lobby isn't open
+  yet."
+  """
+  @spec hero_future_lead() :: String.t()
+  def hero_future_lead, do: "Drops at"
+
+  @doc "The words after the drop time on the Home card when the Lobby is not open yet."
+  @spec hero_future_tail() :: String.t()
+  def hero_future_tail, do: ", your local time. The lobby isn't open yet."
+
+  @doc """
+  The words before the drop time in the Home card's note when the Lobby is
+  not open yet, e.g. "Nothing to do till then. Come back at 21:00."
+  """
+  @spec hero_back_lead() :: String.t()
+  def hero_back_lead, do: "Nothing to do till then. Come back at"
+
+  @doc """
+  The Home card's heading when nothing is next. It reads "Nothing's
+  dropping. Yet.", with the tail on its own so the card can set it apart.
+  """
+  @spec hero_none_heading() :: String.t()
+  def hero_none_heading, do: "Nothing's dropping."
+
+  @doc "The tail of the Home card's heading when nothing is next."
+  @spec hero_none_heading_tail() :: String.t()
+  def hero_none_heading_tail, do: "Yet."
+
+  @doc "The Home card's line when nothing is next."
+  @spec hero_none_text() :: String.t()
+  def hero_none_text,
+    do: "No riddle is scheduled right now, and the next one hasn't been announced."
+
+  @doc "The heading of the Home timeline."
+  @spec timeline_heading() :: String.t()
+  def timeline_heading, do: "A round, start to finish"
+
+  @doc """
+  The note beside the Home timeline heading: words struck out, then the one
+  kept, read as "~~streaks~~ ~~feeds~~ riddles".
+  """
+  @spec timeline_aside() :: %{struck: [String.t()], kept: String.t()}
+  def timeline_aside, do: %{struck: ["streaks", "feeds"], kept: "riddles"}
+
+  @doc """
+  The last time on the Home timeline when there is no next riddle. Matches
+  the default solve time in `Riddlr.Games.Riddle`.
+  """
+  @spec timeline_end_default() :: String.t()
+  def timeline_end_default, do: "2:00"
+
+  @doc """
+  The Home timeline's rows, given the time the round ends (e.g. "2:00"). The
+  rows must match the real rules: the 1s cooldown, the exact answer match and
+  the points table in `Riddlr.Gameplay`.
+  """
+  @spec timeline_steps(String.t()) :: [
+          %{time: String.t(), title: String.t(), text: String.t(), note: String.t()}
+        ]
+  def timeline_steps(end_time) do
+    [
+      %{
+        time: "0:00",
+        title: "The riddle appears",
+        text: "Everyone sees it at the same second.",
+        note: "no head starts"
+      },
+      %{
+        time: "0:01",
+        title: "Guess",
+        text: "As often as you like, once a second.",
+        note: "spelling counts"
+      },
+      %{
+        time: end_time,
+        title: "Time",
+        text: "The ten fastest correct answers score, 10 points down to 1.",
+        note: "everyone else gets the story"
+      }
+    ]
+  end
 
   @doc "The heading of the Home schedule."
   @spec schedule_heading() :: String.t()
@@ -22,11 +120,11 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The Home schedule's line when nothing comes after the next riddle."
   @spec schedule_empty() :: String.t()
-  def schedule_empty, do: "Nothing else scheduled yet."
+  def schedule_empty, do: "Nothing scheduled yet."
 
-  @doc "The heading of the Home last riddle card."
+  @doc "The heading of the Home card with the last finished riddle."
   @spec last_heading() :: String.t()
-  def last_heading, do: "Last riddle"
+  def last_heading, do: "Previously"
 
   @doc "The last riddle card's line when nobody solved the riddle."
   @spec last_unsolved() :: String.t()
@@ -56,31 +154,21 @@ defmodule RiddlrWeb.GameCopy do
   @spec hero_left() :: String.t()
   def hero_left, do: "left"
 
-  @doc "The Home card's line on a live riddle, given how many have solved it."
-  @spec hero_teaser(non_neg_integer()) :: String.t()
-  def hero_teaser(solved), do: "The race is on. #{delimit(solved)} solved so far."
-
   @doc """
-  The Home intro's steps, as title and text. The last step must match the
-  points table in `Riddlr.Gameplay`.
+  The words before the solved count on the Home card's live line. The line
+  reads "The race is on. 3 solved so far."; the count stands alone so the
+  card can underline it.
   """
-  @spec intro_steps() :: [%{title: String.t(), text: String.t()}]
-  def intro_steps do
-    [
-      %{
-        title: "Join the lobby",
-        text: "Each riddle drops at a set time. Wait in the lobby with everyone else."
-      },
-      %{
-        title: "Race to answer",
-        text: "The riddle appears for all players at once. Guess as often as you like."
-      },
-      %{
-        title: "Beat the clock",
-        text: "The ten fastest correct answers score, from 10 points down to 1."
-      }
-    ]
-  end
+  @spec hero_teaser_lead() :: String.t()
+  def hero_teaser_lead, do: "The race is on."
+
+  @doc "The solved count on the Home card's live line, e.g. \"1,204\"."
+  @spec hero_teaser_count(non_neg_integer()) :: String.t()
+  def hero_teaser_count(solved), do: delimit(solved)
+
+  @doc "The words after the solved count on the Home card's live line."
+  @spec hero_teaser_tail() :: String.t()
+  def hero_teaser_tail, do: "solved so far."
 
   # ─── Lobby ────────────────────────────────────────────────────────────────────
 

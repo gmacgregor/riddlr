@@ -16,64 +16,138 @@
   <section class="rg-view" aria-labelledby="home-h">
     <div class="rg-wrap rg-home">
       <section class="rg-hero" aria-labelledby="home-h">
-        <h1 id="home-h" class="rg-hero__title" tabindex="-1">
-          One riddle.<br />Everyone at once.<br /><em>First to crack it wins.</em>
-        </h1>
-        <div
-          id="hero-card"
-          class={["rg-hero__card", @next && @next.play_status == "live" && "is-live"]}
-        >
-          <p :if={!@next} class="rg-hero__teaser">{GameCopy.next_none()}</p>
-          <%= if @next && @next.play_status == "live" do %>
-            <div class="rg-hero__row">
-              <span class="rg-hero__label">{GameCopy.hero_live(@next.category.name)}</span>
-              <span class="rg-pill rg-pill--live">
-                <span class="rg-live-dot" aria-hidden="true"></span>
-                <span id="hero-left">{GameCopy.m_ss(@seconds)}</span>&nbsp;{GameCopy.hero_left()}
-              </span>
-            </div>
-            <p class="rg-hero__teaser">{GameCopy.hero_teaser(@solved)}</p>
-            <.link navigate={~p"/game/#{@next.id}/play"} class="rg-btn rg-btn--accent">
-              {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
-            </.link>
-          <% end %>
-          <%= if @next && @next.play_status != "live" do %>
-            <div class="rg-hero__row">
-              <span class="rg-hero__label">
-                {@next.category.name} · {GameCopy.next_drops_at()}
-                <GameComponents.local_time
-                  id={"hero-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
-                  at={@next.live_date}
-                />
-              </span>
-            </div>
-            <GameComponents.flaps id="hero-flaps" seconds={@seconds} />
-            <p id="hero-count" class="rg-hero__meta">{GameCopy.hero_waiting(@waiting)}</p>
-            <.link
-              :if={@next.play_status == "ready"}
-              navigate={~p"/game/#{@next.id}/lobby"}
-              class="rg-btn rg-btn--accent"
-            >
-              {GameCopy.next_enter_lobby()} <GameComponents.icon name="arrow" />
-            </.link>
-          <% end %>
+        <div class="rg-hero__head">
+          <h1 id="home-h" class="rg-hero__eyebrow" tabindex="-1">
+            <span class="rg-hl">{GameCopy.hero_heading(@hero)}</span>
+          </h1>
+          <p :if={@hero != :none} id="hero-date" class="rg-hero__date">
+            <GameComponents.local_time
+              id={"hero-date-#{Date.to_iso8601(@today)}"}
+              at={@today}
+              format="date"
+            />
+          </p>
+          <p :if={@hero != :none} class="rg-hero__aside" aria-hidden="true">
+            {GameCopy.hero_aside()}
+            <svg class="rg-doodle" viewBox="0 0 72 56">
+              <path d="M5 6 C26 0 56 10 62 40" /><path d="M50 33 L62 44 L68 27" />
+            </svg>
+          </p>
+        </div>
+        <div id="hero-sheet" class="rg-hero__sheet" data-state={@hero}>
+          <svg class="rg-doodle rg-doodle--burst" viewBox="0 0 100 100" aria-hidden="true">
+            <path d="M50.0 4.9 L58.1 19.8 L73.4 9.5 L71.8 28.2 L90.0 26.9 L81.2 41.6 L93.8 50.0 L81.9 58.6 L87.8 71.8 L73.1 73.1 L71.9 88.0 L58.0 79.9 L50.0 95.6 L41.0 83.5 L27.9 88.2 L27.6 72.4 L9.6 73.3 L16.0 59.1 L3.6 50.0 L18.6 41.6 L8.1 25.8 L28.3 28.3 L26.1 8.6 L41.7 19.1 Z" />
+            <text x="50" y="65" text-anchor="middle">?</text>
+          </svg>
+          <div id="hero-card" class="rg-hero__card">
+            <%= case @hero do %>
+              <% :none -> %>
+                <h2 class="rg-none__h">
+                  {GameCopy.hero_none_heading()} <span>{GameCopy.hero_none_heading_tail()}</span>
+                </h2>
+                <p class="rg-hero__meta">{GameCopy.hero_none_text()}</p>
+              <% :live -> %>
+                <div class="rg-hero__row">
+                  <span class="rg-hero__label">{GameCopy.hero_live(@next.category.name)}</span>
+                  <span class="rg-pill rg-pill--live">
+                    <span class="rg-live-dot" aria-hidden="true"></span>
+                    <span id="hero-left">{GameCopy.m_ss(@seconds)}</span>&nbsp;{GameCopy.hero_left()}
+                  </span>
+                </div>
+                <p class="rg-hero__teaser">
+                  {GameCopy.hero_teaser_lead()}
+                  <b>{GameCopy.hero_teaser_count(@solved)}</b> {GameCopy.hero_teaser_tail()}
+                </p>
+                <.link navigate={~p"/game/#{@next.id}/play"} class="rg-btn rg-btn--accent">
+                  {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
+                </.link>
+              <% :lobby -> %>
+                <.drop riddle={@next} seconds={@seconds} />
+                <p id="hero-count" class="rg-hero__meta">{GameCopy.hero_waiting(@waiting)}</p>
+                <.link navigate={~p"/game/#{@next.id}/lobby"} class="rg-btn rg-btn--accent">
+                  {GameCopy.next_enter_lobby()} <GameComponents.icon name="arrow" />
+                </.link>
+              <% :future -> %>
+                <.drop riddle={@next} seconds={@seconds} />
+                <p class="rg-hero__meta">
+                  {GameCopy.hero_future_lead()}
+                  <GameComponents.local_time
+                    id={"hero-future-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
+                    at={@next.live_date}
+                  />{GameCopy.hero_future_tail()}
+                </p>
+                <p class="rg-hero__note">
+                  <span>
+                    {GameCopy.hero_back_lead()}
+                    <GameComponents.local_time
+                      id={"hero-back-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
+                      at={@next.live_date}
+                    />.
+                  </span>
+                </p>
+            <% end %>
+          </div>
         </div>
       </section>
 
-      <section id="intro" class="rg-panel rg-intro" aria-labelledby="intro-h">
-        <h2 id="intro-h" class="rg-panel__h">{GameCopy.intro_heading()}</h2>
-        <ol class="rg-intro__steps">
+      <section id="timeline" class="rg-panel rg-intro" aria-labelledby="timeline-h">
+        <div class="rg-intro__head">
+          <h2 id="timeline-h" class="rg-panel__h">{GameCopy.timeline_heading()}</h2>
+          <p class="rg-intro__aside" aria-hidden="true">
+            <%= for word <- GameCopy.timeline_aside().struck do %>
+              <s>{word}</s>
+            <% end %>
+            {GameCopy.timeline_aside().kept}
+          </p>
+        </div>
+        <ol id="timeline-reel" class="rg-reel" phx-hook=".Reel">
           <li
-            :for={{step, n} <- Enum.with_index(GameCopy.intro_steps(), 1)}
-            class="rg-intro__step"
+            :for={{step, row} <- Enum.with_index(GameCopy.timeline_steps(@round_end))}
+            class={["rg-reel__row", row == 2 && "rg-reel__row--time"]}
+            style={"--row: #{row}"}
           >
-            <GameComponents.tile initial={to_string(n)} tone="variant-1" size="sm" />
-            <span class="rg-intro__text">
-              <b class="rg-intro__t">{step.title}</b>
-              <span class="rg-intro__s">{step.text}</span>
-            </span>
+            <span class="rg-reel__t">{step.time}</span>
+            <div class="rg-reel__body">
+              <h3 class="rg-reel__h">{step.title}</h3>
+              <p class="rg-reel__s">{step.text}</p>
+              <p class="rg-reel__note">{step.note}</p>
+            </div>
+            <svg
+              :if={row == 2}
+              class="rg-doodle rg-doodle--watch"
+              viewBox="0 0 64 72"
+              aria-hidden="true"
+            >
+              <path d="M10 42 C10 29 20 20 32 20 C45 20 54 30 54 42 C54 55 44 64 32 64 C19 64 10 54 10 42 Z" />
+              <path d="M26 11 H38" /><path d="M32 11 V20" /><path d="M49 24 L54 19" />
+              <path d="M32 42 V31" /><path d="M32 42 L40 47" />
+            </svg>
           </li>
         </ol>
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".Reel">
+          // Flips the timeline in once it scrolls into view. Both classes go on
+          // through JS commands, so LiveView patches keep them. Without
+          // IntersectionObserver the timeline shows at once.
+          export default {
+            mounted() {
+              if (!("IntersectionObserver" in window)) {
+                this.js().addClass(this.el, "is-flipped")
+                return
+              }
+              this.js().addClass(this.el, "is-armed")
+              this.observer = new IntersectionObserver((entries) => {
+                if (entries.some((e) => e.isIntersecting)) {
+                  this.js().addClass(this.el, "is-flipped")
+                  this.observer.disconnect()
+                }
+              }, { threshold: 0.35 })
+              this.observer.observe(this.el)
+            },
+            destroyed() {
+              this.observer && this.observer.disconnect()
+            }
+          }
+        </script>
       </section>
 
       <section id="schedule" class="rg-panel rg-schedule" aria-labelledby="sched-h">
@@ -109,7 +183,7 @@
         <div :if={@last} class="rg-lastcard">
           <p class="rg-lastcard__q">“{@last.description}”</p>
           <div class="rg-lastcard__a">
-            <span class="rg-lastcard__answer">{@last_answer}</span>
+            <span class="rg-lastcard__answer"><span>{@last_answer}</span></span>
             <span class="rg-lastcard__win">
               <%= if @last_win do %>
                 {GameCopy.results_by_lead()} <b>{@last_win.name}</b>

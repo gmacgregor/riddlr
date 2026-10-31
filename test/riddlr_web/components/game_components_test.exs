@@ -118,6 +118,29 @@ defmodule RiddlrWeb.GameComponentsTest do
     end
   end
 
+  describe "local_time/1" do
+    test "renders a time of day by default" do
+      html =
+        render_component(&GameComponents.local_time/1, id: "t", at: ~U[2030-01-01 14:05:00Z])
+
+      assert html =~ ~s(datetime="2030-01-01T14:05:00Z")
+      assert html =~ ~s(data-format="time")
+      assert html =~ ">14:05</time>"
+    end
+
+    test "renders a short date with the date format" do
+      html =
+        render_component(&GameComponents.local_time/1,
+          id: "t",
+          at: ~U[2030-01-01 14:05:00Z],
+          format: "date"
+        )
+
+      assert html =~ ~s(data-format="date")
+      assert html =~ ">Tue 1 Jan</time>"
+    end
+  end
+
   describe "kicker/1" do
     test "shows the riddle number, then the category" do
       html = render_component(&GameComponents.kicker/1, number: 66, category: "Classics")
@@ -219,10 +242,10 @@ defmodule RiddlrWeb.GameComponentsTest do
   end
 
   describe "status_pill/1 countdown dot" do
-    test "in the Lobby, is far above 30s, warn from 30s and urgent from 10s" do
+    test "in the Lobby, is future above 30s, warn from 30s and urgent from 10s" do
       count = fn seconds -> pill_count(kind: :lobby, number: 66, seconds: seconds) end
 
-      assert count.(31) == "far"
+      assert count.(31) == "future"
       assert count.(30) == "warn"
       assert count.(11) == "warn"
       assert count.(10) == "urgent"
@@ -234,7 +257,7 @@ defmodule RiddlrWeb.GameComponentsTest do
         pill_count(kind: :home_next, id: "pill-clock", seconds: seconds, href: href)
       end
 
-      assert count.(31, nil) == "far"
+      assert count.(31, nil) == "future"
       assert count.(30, "/game/7/lobby") == "warn"
       assert count.(11, "/game/7/lobby") == "warn"
       assert count.(10, "/game/7/lobby") == "urgent"

@@ -250,7 +250,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='far']")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='future']")
 
       send(live.pid, {:countdown_tick, :lobby, 30})
       assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='warn']")

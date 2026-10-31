@@ -1,15 +1,22 @@
 defmodule RiddlrWeb.HomeLive do
   @moduledoc """
-  The public Home page: what Riddlr is, and a card for the next riddle
-  (`Games.next_riddle/0`).
+  The public Home page: a "Tonight's riddle" hero card for the next riddle
+  (`Games.next_riddle/0`), a timeline of a round, and two notes.
 
-  The card has three modes. With no next riddle it says so. Before the drop
-  it counts down and shows how many players wait in the Lobby; only a `ready`
-  riddle gets a button, since a `scheduled` riddle's Lobby is not open yet.
-  Once live it shows the time left and how many have solved it.
+  The hero card has one state for each Next riddle case, set as `data-state`
+  on the hero sheet:
 
-  Below the card, "Coming up" lists the riddles after the next one
-  (`Games.list_upcoming_riddles/1`), with no riddle text, and "Last riddle"
+    * `none`: no next riddle. The heading reads "Tonight's listing", with no
+      date.
+    * `future`: scheduled, Lobby not open. A countdown and the drop time, with
+      no button.
+    * `lobby`: ready. A countdown, how many players wait in the Lobby, and a
+      button to it.
+    * `live`: the time left, how many have solved it, and a button to Play.
+
+  The timeline ("A round, start to finish") ends at the next riddle's solve
+  time. Below it, "Coming up" lists the riddles after the next one
+  (`Games.list_upcoming_riddles/1`), with no riddle text, and "Previously"
   shows the most recent finished riddle with its answer and first solver
   (`Games.last_finished_riddle/0`).
 
@@ -20,7 +27,7 @@ defmodule RiddlrWeb.HomeLive do
   The page follows the riddle's state while open. It listens to the riddle
   state topics, and to the next riddle's clock, Lobby presence and answers.
   When the next riddle changes, the per-riddle topics move with it. Any state
-  message reloads the card and both panels.
+  message reloads the card and both notes.
   """
 
   use RiddlrWeb, :live_view
@@ -104,11 +111,34 @@ defmodule RiddlrWeb.HomeLive do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
+  # The hero card's top for a riddle not yet live: its category, drop time and
+  # countdown. The lobby and future states share it.
+  attr :riddle, Games.Riddle, required: true
+  attr :seconds, :integer, required: true
+
+  defp drop(assigns) do
+    ~H"""
+    <div class="rg-hero__row">
+      <span class="rg-hero__label">
+        {@riddle.category.name} · {GameCopy.next_drops_at()}
+        <GameComponents.local_time
+          id={"hero-at-#{@riddle.id}-#{DateTime.to_unix(@riddle.live_date)}"}
+          at={@riddle.live_date}
+        />
+      </span>
+    </div>
+    <GameComponents.flaps id="hero-flaps" seconds={@seconds} />
+    """
+  end
+
   @spec assign_next(Phoenix.LiveView.Socket.t(), Games.Riddle.t() | nil) ::
           Phoenix.LiveView.Socket.t()
   defp assign_next(socket, next) do
     socket
     |> assign(:next, next)
+    |> assign(:hero, hero_state(next))
+    |> assign(:today, Riddlr.Clock.utc_now())
+    |> assign(:round_end, round_end(next))
     |> assign(:seconds, seconds_left(next))
     |> assign(:waiting, waiting(next))
     |> assign(:solved, solved(next))
@@ -186,6 +216,19 @@ defmodule RiddlrWeb.HomeLive do
       {_status, {:play, _seconds}} -> 0
     end
   end
+
+  # The hero card's state, one per Next riddle case. A `scheduled` riddle is
+  # `future`: its Lobby is not open yet.
+  @spec hero_state(Games.Riddle.t() | nil) :: GameCopy.hero_state()
+  defp hero_state(nil), do: :none
+  defp hero_state(%{play_status: "live"}), do: :live
+  defp hero_state(%{play_status: "ready"}), do: :lobby
+  defp hero_state(_riddle), do: :future
+
+  # The last time on the timeline: when the next riddle's round ends.
+  @spec round_end(Games.Riddle.t() | nil) :: String.t()
+  defp round_end(nil), do: GameCopy.timeline_end_default()
+  defp round_end(riddle), do: GameCopy.m_ss(riddle.solve_time)
 
   @spec waiting(Games.Riddle.t() | nil) :: non_neg_integer()
   defp waiting(nil), do: 0

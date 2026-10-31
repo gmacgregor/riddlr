@@ -261,28 +261,36 @@ defmodule RiddlrWeb.GameComponents do
   defp urgency(_seconds), do: nil
 
   @doc """
-  A time of day in the viewer's own time zone, as `HH:MM`.
+  A time of day (`HH:MM`) or a short date (`Tue 1 Jan`) in the viewer's own
+  time zone.
 
-  The server cannot know the viewer's zone, so it renders the UTC time and the
-  `.LocalTime` hook rewrites it in the browser's locale.
+  The server cannot know the viewer's zone, so it renders the UTC value and
+  the `.LocalTime` hook rewrites it in the browser's locale.
   """
   attr :id, :string, required: true
   attr :at, DateTime, required: true
+  attr :format, :string, default: "time", values: ~w(time date)
 
   @spec local_time(map()) :: Phoenix.LiveView.Rendered.t()
   def local_time(assigns) do
     ~H"""
+    <%!-- The script sits flush against </time>: a gap would render as a space before any punctuation that follows. --%>
     <time
       id={@id}
       datetime={DateTime.to_iso8601(@at)}
+      data-format={@format}
       phx-hook=".LocalTime"
       phx-update="ignore"
-    >{Calendar.strftime(@at, "%H:%M")}</time>
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".LocalTime">
+    >{Calendar.strftime(@at, if(@format == "date", do: "%a %-d %b", else: "%H:%M"))}</time><script
+      :type={Phoenix.LiveView.ColocatedHook}
+      name=".LocalTime"
+    >
       export default {
         mounted() {
           const at = new Date(this.el.getAttribute("datetime"))
-          this.el.textContent = at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          this.el.textContent = this.el.dataset.format === "date"
+            ? at.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })
+            : at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         }
       }
     </script>
@@ -355,7 +363,7 @@ defmodule RiddlrWeb.GameComponents do
   riddle number, the number part is left out.
 
   `:home_next` and `:lobby` take the `seconds` until the drop and render it as
-  `data-count` for the countdown dot: `far` above 30s, `warn` from 30s and
+  `data-count` for the countdown dot: `future` above 30s, `warn` from 30s and
   `urgent` from 10s. With no `seconds` there is no dot.
   """
   attr :kind, :atom, required: true, values: [:play, :lobby, :results, :home_live, :home_next]
@@ -423,7 +431,7 @@ defmodule RiddlrWeb.GameComponents do
   # 30s, red from 10s.
   @spec count_level(integer() | nil) :: String.t() | nil
   defp count_level(nil), do: nil
-  defp count_level(seconds) when seconds > 30, do: "far"
+  defp count_level(seconds) when seconds > 30, do: "future"
   defp count_level(seconds) when seconds > 10, do: "warn"
   defp count_level(_seconds), do: "urgent"
 

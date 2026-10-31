@@ -7,55 +7,96 @@ defmodule RiddlrWeb.HomeLiveTest do
   alias Riddlr.Clock.Frozen
   alias Riddlr.{Gameplay, Games, GamesFixtures}
   alias Riddlr.Gameplay.Presence
+  alias RiddlrWeb.GameCopy
 
-  describe "hero and intro" do
-    test "shows the hero and the intro to a logged-out visitor", %{conn: conn} do
+  describe "heading" do
+    test "shows today's date and a margin note when a riddle is next", %{conn: conn} do
+      Frozen.freeze(~U[2030-01-01 09:00:00Z])
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "h1#home-h", "One riddle.")
-      assert has_element?(live, "h1#home-h", "Everyone at once.")
-      assert has_element?(live, "h1#home-h em", "First to crack it wins.")
-      assert has_element?(live, "#intro h2", "First time here?")
-      assert has_element?(live, "#intro li:nth-child(1) .rg-tile[data-tone='variant-1']", "1")
-      assert has_element?(live, "#intro li:nth-child(1) .rg-intro__t", "Join the lobby")
+      assert has_element?(live, "h1#home-h", GameCopy.hero_heading(:future))
 
       assert has_element?(
                live,
-               "#intro li:nth-child(1) .rg-intro__s",
-               "Each riddle drops at a set time. Wait in the lobby with everyone else."
+               "#hero-date time[data-format='date'][datetime='2030-01-01T09:00:00Z']"
              )
 
-      assert has_element?(live, "#intro li:nth-child(2) .rg-intro__t", "Race to answer")
-
-      assert has_element?(
-               live,
-               "#intro li:nth-child(2) .rg-intro__s",
-               "The riddle appears for all players at once. Guess as often as you like."
-             )
-
-      assert has_element?(live, "#intro li:nth-child(3) .rg-tile", "3")
-      assert has_element?(live, "#intro li:nth-child(3) .rg-intro__t", "Beat the clock")
-
-      assert has_element?(
-               live,
-               "#intro li:nth-child(3) .rg-intro__s",
-               "The ten fastest correct answers score, from 10 points down to 1."
-             )
+      assert has_element?(live, ".rg-hero__aside")
     end
 
-    test "shows the hero and the intro to a logged-in player", %{conn: conn} do
+    test "shows no date or margin note when nothing is next", %{conn: conn} do
       {:ok, live, _html} = conn |> log_in_user(user_fixture()) |> live(~p"/")
 
-      assert has_element?(live, "h1#home-h em", "First to crack it wins.")
-      assert has_element?(live, "#intro h2", "First time here?")
+      assert has_element?(live, "h1#home-h", GameCopy.hero_heading(:none))
+      refute has_element?(live, "#hero-date")
+      refute has_element?(live, ".rg-hero__aside")
+    end
+  end
+
+  describe "timeline" do
+    test "shows a round in three rows, ending at the next riddle's solve time", %{conn: conn} do
+      next = upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+      Ecto.Changeset.change(next, solve_time: 90) |> Riddlr.Repo.update!()
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#timeline-reel[phx-hook]")
+
+      for {step, n} <- Enum.with_index(GameCopy.timeline_steps("1:30"), 1) do
+        row = "#timeline li:nth-child(#{n})"
+        assert has_element?(live, "#{row} .rg-reel__t", step.time)
+        assert has_element?(live, "#{row} .rg-reel__h", step.title)
+        assert has_element?(live, "#{row} .rg-reel__s", step.text)
+        assert has_element?(live, "#{row} .rg-reel__note", step.note)
+      end
+
+      assert has_element?(live, "#timeline li:nth-child(3) .rg-reel__t", "1:30")
+      refute has_element?(live, "#timeline li:nth-child(4)")
+    end
+
+    test "ends at the default solve time when nothing is next", %{conn: conn} do
+      {:ok, live, _html} = conn |> log_in_user(user_fixture()) |> live(~p"/")
+
+      assert has_element?(
+               live,
+               "#timeline li:nth-child(3) .rg-reel__t",
+               GameCopy.timeline_end_default()
+             )
+    end
+  end
+
+  describe "hero state" do
+    test "is none with no next riddle", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-sheet[data-state='none']")
+    end
+
+    test "is future, lobby or live from the next riddle's state", %{conn: conn} do
+      next = upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+      assert has_element?(live, "#hero-sheet[data-state='future']")
+
+      {:ok, _} = Games.transition(next.id, :ready)
+      assert has_element?(live, "#hero-sheet[data-state='lobby']")
+
+      {:ok, _} = Games.transition(next.id, :live)
+      assert has_element?(live, "#hero-sheet[data-state='live']")
+
+      {:ok, _} = Games.transition(next.id, :completed)
+      assert has_element?(live, "#hero-sheet[data-state='none']")
     end
   end
 
   describe "hero card" do
-    test "says nothing is scheduled when there is no next riddle", %{conn: conn} do
+    test "shows a heading and no clock or button when there is no next riddle", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-card", "No riddle on the schedule yet.")
+      assert has_element?(live, "#hero-card h2")
+      assert has_element?(live, "#hero-card .rg-hero__meta")
+      refute has_element?(live, "#hero-flaps")
       refute has_element?(live, "#hero-card .rg-btn")
     end
 
@@ -67,19 +108,13 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-card.is-live")
-      assert has_element?(live, "#hero-card .rg-hero__label", "Live now · #{next.category.name}")
+      assert has_element?(live, "#hero-sheet[data-state='live']")
+      assert has_element?(live, "#hero-card .rg-hero__label", next.category.name)
       assert has_element?(live, "#hero-card .rg-pill--live .rg-live-dot")
       assert has_element?(live, "#hero-left", "0:50")
-      assert has_element?(live, "#hero-card .rg-pill--live", "left")
-      assert has_element?(live, "#hero-card .rg-hero__teaser", "The race is on. 1 solved so far.")
+      assert has_element?(live, "#hero-card .rg-hero__teaser b", "1")
       refute has_element?(live, "#hero-flaps")
-
-      assert has_element?(
-               live,
-               "#hero-card a.rg-btn[href='/game/#{next.id}/play']",
-               "Jump in"
-             )
+      assert has_element?(live, "#hero-card a.rg-btn[href='/game/#{next.id}/play']")
     end
 
     test "counts down to a ready riddle and links to its lobby", %{conn: conn} do
@@ -90,18 +125,18 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-card .rg-hero__label", "#{next.category.name} · drops at")
-      assert has_element?(live, "#hero-card time[datetime='2030-01-01T14:05:00Z']", "14:05")
-      assert has_element?(live, "#hero-card #hero-flaps[data-seconds='90']")
-      assert has_element?(live, "#hero-count", "1 waiting in the lobby")
+      assert has_element?(live, "#hero-card .rg-hero__label", next.category.name)
 
       assert has_element?(
                live,
-               "#hero-card a.rg-btn[href='/game/#{next.id}/lobby']",
-               "Enter the lobby"
+               "#hero-card .rg-hero__label time[datetime='2030-01-01T14:05:00Z']"
              )
 
-      refute has_element?(live, "#hero-card.is-live")
+      assert has_element?(live, "#hero-card #hero-flaps[data-seconds='90']")
+      assert has_element?(live, "#hero-count", GameCopy.hero_waiting(1))
+      assert has_element?(live, "#hero-card a.rg-btn[href='/game/#{next.id}/lobby']")
+
+      refute has_element?(live, "#hero-sheet[data-state='live']")
     end
 
     test "shows a scheduled riddle's drop time with no lobby button", %{conn: conn} do
@@ -109,21 +144,25 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-card .rg-hero__label", "#{next.category.name} · drops at")
+      assert has_element?(live, "#hero-card .rg-hero__label", next.category.name)
       assert has_element?(live, "#hero-card #hero-flaps")
-      assert has_element?(live, "#hero-count", "0 waiting in the lobby")
+
+      for part <- [".rg-hero__label", ".rg-hero__meta", ".rg-hero__note"] do
+        assert has_element?(live, "#hero-card #{part} time[datetime='2030-01-01T14:05:00Z']")
+      end
+
+      refute has_element?(live, "#hero-count")
       refute has_element?(live, "#hero-card .rg-btn")
     end
   end
 
   describe "coming up" do
-    test "says nothing else is scheduled when there is no upcoming riddle", %{conn: conn} do
+    test "shows the empty line when there is no upcoming riddle", %{conn: conn} do
       upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#schedule h2", "Coming up")
-      assert has_element?(live, "#schedule", "Nothing else scheduled yet.")
+      assert has_element?(live, "#schedule .rg-schedule__empty")
       refute has_element?(live, "#schedule .rg-sched")
     end
 
@@ -140,7 +179,6 @@ defmodule RiddlrWeb.HomeLiveTest do
       first = "#schedule li.rg-sched:nth-child(1)"
       assert has_element?(live, "#{first} time[datetime='2030-01-01T15:00:00Z']", "15:00")
       assert has_element?(live, "#{first} .rg-sched__cat", sooner.category.name)
-      assert has_element?(live, "#{first} .rg-sched__sub", "Riddle hidden until it drops")
       assert has_element?(live, "#{first} .rg-sched__solve .rg-icon")
       assert has_element?(live, "#{first} .rg-sched__solve", "01:30")
 
@@ -149,26 +187,18 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#{second} .rg-sched__solve", "01:00")
 
       refute has_element?(live, "#schedule li.rg-sched:nth-child(3)")
-      refute has_element?(live, "#schedule", "Nothing else scheduled yet.")
+      refute has_element?(live, "#schedule .rg-schedule__empty")
       refute html =~ later.description
     end
   end
 
-  describe "last riddle" do
-    test "says no riddle has been solved when none has finished", %{conn: conn} do
+  describe "previously" do
+    test "shows the empty note when no riddle has finished", %{conn: conn} do
       upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#last h2", "Last riddle")
-      assert has_element?(live, "#last .rg-last__empty-t", "No riddles solved yet.")
-
-      assert has_element?(
-               live,
-               "#last .rg-last__empty-s",
-               "Answers and winners show here once the first riddle closes."
-             )
-
+      assert has_element?(live, "#last .rg-last__empty")
       refute has_element?(live, "#last .rg-lastcard")
     end
 
@@ -181,20 +211,14 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       assert has_element?(live, "#last .rg-lastcard__q", "“#{last.description}”")
       assert has_element?(live, "#last .rg-lastcard__answer", "keyboard")
-      assert has_element?(live, "#last .rg-lastcard__win", "Cracked first by")
       assert has_element?(live, "#last .rg-lastcard__win b", user.username)
-      assert has_element?(live, "#last .rg-lastcard__win", "in 12.34s")
-
-      assert has_element?(
-               live,
-               "#last a[href='/game/#{last.id}/results']",
-               "See the board and chat"
-             )
+      assert has_element?(live, "#last .rg-lastcard__win", GameCopy.solve_secs(12_340))
+      assert has_element?(live, "#last a[href='/game/#{last.id}/results']")
 
       refute has_element?(live, "#last .rg-last__empty")
     end
 
-    test "names a deleted first solver as Player", %{conn: conn} do
+    test "names a deleted first solver as a gone player", %{conn: conn} do
       last = upcoming_fixture("archived", ~U[2030-01-01 14:05:00Z])
 
       Riddlr.Repo.insert!(%Riddlr.Gameplay.Solve{
@@ -206,8 +230,8 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#last .rg-lastcard__win b", "Player")
-      assert has_element?(live, "#last .rg-lastcard__win", "in 5.00s")
+      assert has_element?(live, "#last .rg-lastcard__win b", GameCopy.gone_player())
+      assert has_element?(live, "#last .rg-lastcard__win", GameCopy.solve_secs(5_000))
     end
 
     test "says nobody cracked an archived riddle with no solver", %{conn: conn} do
@@ -215,7 +239,8 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#last .rg-lastcard__win", "Nobody cracked it")
+      assert has_element?(live, "#last .rg-lastcard__win", GameCopy.last_unsolved())
+      refute has_element?(live, "#last .rg-lastcard__win b")
       assert has_element?(live, "#last a[href='/game/#{last.id}/results']")
     end
 
@@ -234,24 +259,24 @@ defmodule RiddlrWeb.HomeLiveTest do
     test "flips the card to live when the riddle goes live", %{conn: conn} do
       next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
-      refute has_element?(live, "#hero-card.is-live")
+      refute has_element?(live, "#hero-sheet[data-state='live']")
 
       {:ok, _} = Games.transition(next.id, :live)
 
-      assert has_element?(live, "#hero-card.is-live")
-      assert has_element?(live, "#hero-card a.rg-btn[href='/game/#{next.id}/play']", "Jump in")
+      assert has_element?(live, "#hero-sheet[data-state='live']")
+      assert has_element?(live, "#hero-card a.rg-btn[href='/game/#{next.id}/play']")
     end
 
     test "counts players as they join the lobby", %{conn: conn} do
       next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, "#hero-count", "0 waiting in the lobby")
+      assert has_element?(live, "#hero-count", GameCopy.hero_waiting(0))
 
       Phoenix.PubSub.subscribe(Riddlr.PubSub, Presence.lobby_topic(next.id))
       track_player(next, 7, "ada")
       assert_receive %Phoenix.Socket.Broadcast{event: "presence_diff"}
 
-      assert has_element?(live, "#hero-count", "1 waiting in the lobby")
+      assert has_element?(live, "#hero-count", GameCopy.hero_waiting(1))
     end
 
     test "syncs the clock to the next riddle on each tick", %{conn: conn} do
@@ -293,14 +318,14 @@ defmodule RiddlrWeb.HomeLiveTest do
       Frozen.freeze(DateTime.add(live_date, 10, :second))
       next = upcoming_fixture("live", live_date)
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, "#hero-card .rg-hero__teaser", "0 solved so far.")
+      assert has_element?(live, "#hero-card .rg-hero__teaser b", "0")
 
       Frozen.advance(20, :second)
       send(live.pid, {:countdown_tick, :play, 30})
       assert has_element?(live, "#hero-left", "0:30")
 
       {:correct, 1, _} = Gameplay.submit_answer(next, user_fixture(), "keyboard")
-      assert has_element?(live, "#hero-card .rg-hero__teaser", "1 solved so far.")
+      assert has_element?(live, "#hero-card .rg-hero__teaser b", "1")
     end
 
     test "moves the clock when the riddle is rescheduled", %{conn: conn} do
@@ -317,27 +342,27 @@ defmodule RiddlrWeb.HomeLiveTest do
     test "drops a riddle from the card when it completes", %{conn: conn} do
       next = upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, "#hero-card.is-live")
+      assert has_element?(live, "#hero-sheet[data-state='live']")
 
       {:ok, _} = Games.transition(next.id, :completed)
 
-      assert has_element?(live, "#hero-card", "No riddle on the schedule yet.")
-      refute has_element?(live, "#hero-card.is-live")
+      assert has_element?(live, "#hero-sheet[data-state='none']")
     end
 
     test "shows a riddle once it is scheduled", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, "#hero-card", "No riddle on the schedule yet.")
+      assert has_element?(live, "#hero-sheet[data-state='none']")
 
       next = GamesFixtures.scheduled_riddle_fixture()
 
-      assert has_element?(live, "#hero-card .rg-hero__label", "#{next.category.name} · drops at")
+      assert has_element?(live, "#hero-sheet[data-state='future']")
+      assert has_element?(live, "#hero-card .rg-hero__label", next.category.name)
     end
 
     test "adds a riddle to Coming up once it is scheduled", %{conn: conn} do
       upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, "#schedule", "Nothing else scheduled yet.")
+      assert has_element?(live, "#schedule .rg-schedule__empty")
 
       later = GamesFixtures.scheduled_riddle_fixture(%{live_date: ~U[2030-01-01 15:00:00Z]})
 
@@ -352,7 +377,7 @@ defmodule RiddlrWeb.HomeLiveTest do
       {:ok, _} = Games.transition(next.id, :completed)
 
       assert has_element?(live, "#last .rg-lastcard__q", next.description)
-      assert has_element?(live, "#last .rg-lastcard__win", "Nobody cracked it")
+      assert has_element?(live, "#last .rg-lastcard__win", GameCopy.last_unsolved())
     end
 
     test "updates the last riddle card when an admin edits it", %{conn: conn} do
@@ -387,9 +412,9 @@ defmodule RiddlrWeb.HomeLiveTest do
       doc = conn |> get(~p"/") |> html_response(200) |> LazyHTML.from_document()
 
       login = LazyHTML.query(doc, ~s(a#topbar-log-in[href="/users/log-in"]))
-      assert LazyHTML.text(login) =~ "Log in"
+      refute Enum.empty?(login)
       assert LazyHTML.query(doc, "#topbar-me-chip") |> Enum.empty?()
-      refute LazyHTML.text(doc) =~ "Log out"
+      assert LazyHTML.query(doc, "#topbar-log-out") |> Enum.empty?()
     end
 
     test "shows a name chip and a log out link when logged in", %{conn: conn} do
@@ -412,8 +437,8 @@ defmodule RiddlrWeb.HomeLiveTest do
       logout =
         LazyHTML.query(doc, ~s(a#topbar-log-out[href="/users/log-out"][data-method="delete"]))
 
-      assert LazyHTML.text(logout) =~ "Log out"
-      refute LazyHTML.text(doc) =~ "Log in"
+      refute Enum.empty?(logout)
+      assert LazyHTML.query(doc, "#topbar-log-in") |> Enum.empty?()
     end
   end
 
@@ -424,18 +449,14 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, ".rg-topbar__mid .rg-pill")
     end
 
-    test "says Live now and links to Play while a riddle is live", %{conn: conn} do
+    test "shows the live pill and links to Play while a riddle is live", %{conn: conn} do
       live_date = ~U[2030-01-01 14:05:00Z]
       Frozen.freeze(DateTime.add(live_date, 10, :second))
       next = upcoming_fixture("live", live_date)
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(
-               live,
-               ".rg-topbar__mid a.rg-pill--live[href='/game/#{next.id}/play']",
-               "Live now"
-             )
+      assert has_element?(live, ".rg-topbar__mid a.rg-pill--live[href='/game/#{next.id}/play']")
 
       assert has_element?(live, ".rg-topbar__mid .rg-pill--live .rg-live-dot")
     end
@@ -446,11 +467,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(
-               live,
-               ".rg-topbar__mid a.rg-pill--soon[href='/game/#{next.id}/lobby']",
-               "Next"
-             )
+      assert has_element?(live, ".rg-topbar__mid a.rg-pill--soon[href='/game/#{next.id}/lobby']")
 
       assert has_element?(live, ".rg-topbar__mid [role=timer][data-seconds='90']", "01:30")
     end
@@ -461,19 +478,21 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, ".rg-topbar__mid span.rg-pill--soon", "Next")
+      assert has_element?(live, ".rg-topbar__mid span.rg-pill--soon")
       assert has_element?(live, ".rg-topbar__mid [role=timer]", "01:30")
       refute has_element?(live, ".rg-topbar__mid a")
     end
 
-    test "switches from Next to Live now when the riddle goes live", %{conn: conn} do
+    test "switches from the countdown pill to the live pill when the riddle goes live", %{
+      conn: conn
+    } do
       next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon", "Next")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon")
 
       {:ok, _} = Games.transition(next.id, :live)
 
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--live", "Live now")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--live")
       refute has_element?(live, ".rg-topbar__mid .rg-pill--soon")
     end
   end

@@ -90,10 +90,14 @@ Deleting a riddle drops its pending steps, its guesses and its solves.
 ### Home
 
 Home shows the **Next riddle**. Before it goes live, Home counts down to the
-Live date and shows how many players wait in the Lobby. Once live, it shows
-the time left and how many have solved it. Only a ready riddle offers a way
-into its Lobby. Below that, Home lists riddles coming up (without their text)
-and the last finished riddle with its Answer and First solver.
+Live date. A ready riddle also shows how many players wait in the Lobby, and
+only a ready riddle offers a way into it. A scheduled riddle tells players to
+come back at the Live date. Once live, Home shows the time left and how many
+have solved it. With no Next riddle, Home says nothing is scheduled.
+
+Below that, a timeline walks through a round, ending at the Next riddle's
+Solve time. Home then lists riddles coming up (without their text) and, as
+"Previously", the last finished riddle with its Answer and First solver.
 
 ### Lobby
 

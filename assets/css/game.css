@@ -15,6 +15,7 @@
 :root {
   --art-wave-h: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='8' viewBox='0 0 120 8'><path d='M0 4 C10 1 16 7 28 4 S46 1 58 4 S78 7 90 4 S108 2 120 4' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/></svg>");
   --art-wave-pen: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='10' viewBox='0 0 64 10'><path d='M0 5 C6 1 10 9 16 5 S26 1 32 5 S42 9 48 5 S58 2 64 5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/></svg>");
+  --art-wave-v: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='120' viewBox='0 0 10 120'><path d='M5 0 C2 12 8 24 5 36 S2 60 5 72 S8 96 5 120' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/></svg>");
   /* Link squiggle: a seamless tile, so sliding it sideways reads as a moving wave. */
   --art-wave-link: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='6' viewBox='0 0 16 6'><path d='M0 3 Q4 0 8 3 T16 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/></svg>");
   /* Heading underline: a loose two-stroke marker line. Not a wave, so it never reads as a link. */
@@ -789,132 +790,475 @@ a.rg-pill {
   color: var(--fg);
 }
 
-/* ───────────────── Home ───────────────── */
+/* ───────────────── Home ─────────────────
+   One narrow column at every width: the hero note, the timeline, then the
+   Coming up and Previously notes. */
 .rg-home {
   display: grid;
-  gap: var(--space-l);
+  grid-template-columns: minmax(0, 1fr);
+  max-inline-size: var(--wrap-narrow);
+  gap: var(--space-xl);
+  padding-block-start: var(--space-m);
 }
+@media (min-width: 1024px) {
+  .rg-home {
+    padding-block-start: var(--space-l);
+  }
+}
+
+.rg-doodle {
+  display: block;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Hero: a heading, then the card as a taped sticky note. */
 .rg-hero {
+  position: relative;
   display: grid;
-  gap: var(--space-s);
+  gap: var(--space-m);
 }
-.rg-hero__title {
+.rg-hero__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: var(--space-s);
+}
+.rg-hero__eyebrow {
+  grid-column: 1;
   font-family: var(--f-display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: var(--display-hero);
-  line-height: 0.98;
-  letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 144;
+  line-height: 1;
+  color: var(--fg);
 }
-.rg-hero__title em {
-  font-style: italic;
-  font-weight: 500;
-  color: var(--action);
+.rg-hl {
+  padding: 0 0.12em;
+  margin-inline-start: -0.12em;
+  background: linear-gradient(transparent 58%, var(--accent-swipe) 58% 92%, transparent 92%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
-.rg-hero__card {
-  display: grid;
-  gap: var(--space-s);
+.rg-hero__date {
+  grid-column: 1;
+  margin-block-start: var(--space-3xs);
+  font-family: var(--f-display);
+  font-size: var(--display-s);
+  line-height: 1;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+/* "this one", with an arrow at the card. */
+.rg-hero__aside {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--urgent-text);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-s);
+  line-height: 1;
+  transform: rotate(-4deg);
+}
+.rg-hero__aside .rg-doodle {
+  inline-size: 3.5rem;
+  block-size: 2.75rem;
+  margin-inline-end: var(--space-xs);
+}
+@media (max-width: 420px) {
+  .rg-hero__head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rg-hero__aside {
+    display: none;
+  }
+}
+
+.rg-hero__sheet {
+  position: relative;
+  isolation: isolate;
   padding: var(--space-m);
-  border-radius: var(--r-lg);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: var(--surface-feature);
+  color: var(--fg);
+  border: var(--stroke-note) solid var(--fg);
+  border-radius: var(--wob-box);
+  box-shadow: var(--shadow-sheet);
+  transform: rotate(-0.5deg);
 }
-.rg-hero__card.is-live {
-  border-color: var(--action);
+.rg-hero__sheet::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  inset-block-start: -0.9375rem;
+  inset-inline-start: 50%;
+  inline-size: 6.5rem;
+  block-size: 1.75rem;
+  background: var(--tape-2);
+  border-inline: 2px dotted var(--shadow-soft);
+  transform: translateX(-50%) rotate(-3deg);
+}
+/* Far away or empty, the note goes plain paper. */
+.rg-hero__sheet[data-state="future"],
+.rg-hero__sheet[data-state="none"] {
+  background: var(--surface-2);
+}
+.rg-hero__sheet[data-state="none"] {
+  border-style: dashed;
+  box-shadow: none;
+  transform: rotate(0.4deg);
+}
+.rg-hero__sheet[data-state="none"]::before {
+  background: var(--tape-4);
+}
+
+.rg-doodle--burst {
+  --burst-size: clamp(4rem, 3.5652rem + 2.1739vw, 5.25rem);
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  inset-inline-end: calc(var(--burst-size) * -0.16);
+  inset-block-end: calc(var(--burst-size) * -0.35);
+  inline-size: var(--burst-size);
+  block-size: var(--burst-size);
+  color: var(--fg);
+  fill: var(--surface-2);
+  transform: rotate(12deg);
+}
+.rg-doodle--burst text {
+  fill: var(--fg);
+  stroke: none;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 44px;
+}
+.rg-hero__sheet[data-state="none"] .rg-doodle--burst {
+  display: none;
+}
+
+.rg-hero__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-s);
+  min-block-size: 14rem;
+}
+/* Last child is the action slot: a button or a plain note, at the bottom. */
+.rg-hero__card > :last-child {
+  margin-block-start: auto;
 }
 .rg-hero__row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-xs);
   flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-s);
+  inline-size: 100%;
 }
 .rg-hero__label {
   font-family: var(--f-label);
   font-size: var(--step--1);
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--fg-muted);
-}
-.rg-hero__teaser {
-  font-family: var(--f-display);
-  font-style: italic;
-  font-size: var(--step-3);
-  line-height: 1.3;
   color: var(--fg);
 }
 .rg-hero__meta {
-  color: var(--fg-muted);
-  font-size: var(--step--1);
+  max-inline-size: 44ch;
+  font-size: var(--step-0);
+  color: var(--fg);
+}
+.rg-hero__teaser {
+  max-inline-size: 16ch;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-teaser);
+  line-height: 1;
+  color: var(--fg);
+}
+/* The solved count is one short token, so it carries its own underline. */
+.rg-hero__teaser b {
+  position: relative;
+  display: inline-block;
+  padding-block-end: 0.14em;
+}
+.rg-hero__teaser b::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  block-size: 0.2em;
+  background: var(--underline);
+  mask: var(--art-hand-line) no-repeat 0 0 / 100% 100%;
 }
 .rg-hero__card .rg-btn {
-  width: 100%;
+  min-inline-size: 14rem;
+}
+.rg-hero__sheet .rg-btn--accent {
+  background: var(--fg);
+  color: var(--on-fg);
+  box-shadow: 3px 4px 0 var(--shadow-soft);
+}
+@media (hover: hover) {
+  .rg-hero__sheet .rg-btn--accent:hover {
+    background: var(--surface-2);
+    color: var(--fg);
+  }
+}
+.rg-hero__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2xs);
+  min-block-size: 48px;
+  font-size: var(--step-0);
+  color: var(--fg);
+}
+.rg-hero__note::before {
+  content: "";
+  flex: none;
+  inline-size: 10px;
+  block-size: 10px;
+  border: 2px solid var(--fg);
+  border-radius: var(--wob-ring);
+}
+/* Nothing next: the message leads. */
+.rg-none__h {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-teaser);
+  line-height: 1;
+  color: var(--fg);
+}
+.rg-none__h span {
+  color: var(--urgent-text);
 }
 
-.rg-intro__steps {
-  display: grid;
-  gap: var(--space-s);
-  margin-top: var(--space-s);
+/* Clock sizes: 4 tiles can go big; 6 (HH:MM:SS) must fit at any width. */
+.rg-hero .rg-flaps {
+  gap: calc(var(--flap-size) * 0.06);
 }
-.rg-intro__step {
+.rg-hero .rg-flaps--long {
+  gap: calc(var(--flap-size) * 0.07);
+}
+
+/* "A round, start to finish": a hand-drawn timeline. */
+.rg-intro__head {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-xs);
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3xs) var(--space-s);
 }
-.rg-intro__text {
+.rg-intro__aside {
+  color: var(--success-text);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-s);
+  line-height: 1.1;
+  transform: rotate(-2deg);
+}
+.rg-intro__aside s {
+  text-decoration: line-through wavy var(--urgent);
+  text-decoration-thickness: 2px;
+}
+
+.rg-reel {
+  --col: var(--space-time-col);
+  position: relative;
+  display: grid;
+  margin-block-start: var(--space-s);
+}
+.rg-reel::before {
+  content: "";
+  position: absolute;
+  inset-block: 1.5rem;
+  inset-inline-start: calc(var(--col) / 2 - 0.3125rem);
+  inline-size: 0.625rem;
+  background: var(--fg);
+  mask: var(--art-wave-v) repeat-y center top / 0.625rem 7.5rem;
+  transform-origin: top;
+}
+.rg-reel__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--col) minmax(0, 1fr);
+  column-gap: var(--space-s);
+  align-items: start;
+  padding-block: var(--space-s);
+}
+.rg-reel__t {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: var(--col);
+  block-size: 3rem;
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-ring);
+  background: var(--tone-7);
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: var(--step-1);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  transform: rotate(-4deg);
+}
+.rg-reel__row:nth-child(even) .rg-reel__t {
+  background: var(--tone-8);
+  border-radius: 48% 52% 44% 56% / 55% 45% 55% 45%;
+  transform: rotate(3deg);
+}
+.rg-reel__row:last-child .rg-reel__t {
+  background: var(--tone-3);
+}
+.rg-reel__body {
   display: grid;
   gap: 2px;
-  min-width: 0;
+  min-inline-size: 0;
 }
-.rg-intro__t {
-  display: block;
+.rg-reel__h {
+  font-family: var(--f-display);
   font-weight: 700;
+  font-size: var(--display-l);
+  line-height: 1.05;
 }
-.rg-intro__s {
-  display: block;
-  font-size: var(--step--1);
+.rg-reel__s {
+  max-inline-size: 46ch;
+  font-size: var(--step-0);
+  line-height: 1.5;
   color: var(--fg-muted);
+}
+.rg-reel__note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  margin-block-start: var(--space-3xs);
+  color: var(--info-text);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-s);
+  line-height: 1.1;
+  transform: rotate(-1.5deg);
+  transform-origin: left center;
+}
+.rg-reel__note::before {
+  content: "";
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 0.625rem;
+  background: var(--action);
+  mask: var(--art-wave-pen) repeat-x center / 4rem 0.625rem;
+}
+.rg-reel__row--time .rg-reel__body {
+  padding-inline-end: 4.5rem;
+}
+.rg-doodle--watch {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: var(--space-xs);
+  inline-size: 3.5rem;
+  block-size: 4rem;
+  color: var(--fg);
+  transform: rotate(8deg);
 }
 
+/* Coming up and Previously: taped notes, so the grid only shows around them. */
+.rg-schedule,
+.rg-last {
+  isolation: isolate;
+  padding: var(--space-m);
+  background: var(--surface-2);
+  color: var(--fg);
+  border: var(--stroke-note) solid var(--fg);
+  border-radius: var(--wob-box-2);
+  box-shadow: var(--shadow-note);
+}
+.rg-schedule::before,
+.rg-last::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  inset: -0.9375rem auto auto 50%;
+  inline-size: 5.5rem;
+  block-size: 1.625rem;
+  background: var(--tape-3);
+  border-inline: 2px dotted var(--shadow-soft);
+  opacity: 1;
+  mask: none;
+  transform: translateX(-50%) rotate(-3deg);
+}
+.rg-last::before {
+  background: var(--tape-4);
+  transform: translateX(-50%) rotate(2.5deg);
+}
+
+/* Coming up: a notebook list with a big handwritten time. */
 .rg-schedule__empty {
-  margin-top: var(--space-xs);
+  margin-block-start: var(--space-xs);
+  font-size: var(--step-0);
   color: var(--fg-muted);
-  font-size: var(--step--1);
+}
+.rg-schedule__empty::before {
+  content: "– ";
 }
 .rg-schedule__list {
   display: grid;
-  margin-top: var(--space-2xs);
+  margin-block-start: var(--space-xs);
 }
 .rg-sched {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: var(--space-time-col) minmax(0, 1fr) auto;
+  align-items: start;
   gap: var(--space-s);
   padding: var(--space-xs) 0;
-  border-bottom: 1px dashed var(--border);
-}
-.rg-sched:last-child {
-  border-bottom: 0;
-}
-.rg-sched__time {
-  display: grid;
-  font-family: var(--f-label);
-  line-height: 1.2;
 }
 .rg-sched__time b {
   display: block;
-  font-size: var(--step-2);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-l);
+  line-height: 1;
+}
+.rg-sched:nth-child(3n + 1) .rg-sched__time b {
+  color: var(--info-text);
+}
+.rg-sched:nth-child(3n + 2) .rg-sched__time b {
+  color: var(--success-text);
+}
+.rg-sched:nth-child(3n) .rg-sched__time b {
+  color: var(--urgent-text);
 }
 .rg-sched__body {
   display: grid;
+  min-inline-size: 0;
 }
 .rg-sched__cat {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--f-display);
   font-weight: 700;
+  font-size: var(--display-m);
+  line-height: 1.1;
+}
+.rg-sched__cat::after {
+  content: "";
+  flex: 1;
+  min-inline-size: var(--space-m);
+  block-size: 0.625rem;
+  background: var(--fg);
+  mask: var(--art-wave-h) repeat-x left center / 7.5rem 0.5rem;
+  opacity: 0.6;
 }
 .rg-sched__sub {
   display: block;
+  margin-block-start: 2px;
   font-size: var(--step--1);
   color: var(--fg-muted);
 }
@@ -922,26 +1266,28 @@ a.rg-pill {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3xs);
+  padding-block-start: var(--space-3xs);
   font-family: var(--f-label);
   font-size: var(--step--1);
-  color: var(--fg-muted);
+  color: var(--fg);
   white-space: nowrap;
   --rg-icon-size: 1.15em;
 }
 
+/* Previously: the answer, circled in highlighter. */
 .rg-last__empty {
   display: grid;
   gap: var(--space-2xs);
-  margin-top: var(--space-xs);
+  margin-block-start: var(--space-xs);
   padding: var(--space-s);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-lg);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--wob-box-2);
 }
 .rg-last__empty-t {
   display: block;
   font-family: var(--f-display);
-  font-style: italic;
-  font-size: var(--step-2);
+  font-weight: 700;
+  font-size: var(--display-m);
 }
 .rg-last__empty-s {
   display: block;
@@ -950,35 +1296,52 @@ a.rg-pill {
 }
 .rg-lastcard {
   display: grid;
-  gap: var(--space-xs);
-  margin-top: var(--space-xs);
+  gap: var(--space-m);
+  margin-block-start: var(--space-xs);
 }
 .rg-lastcard__q {
+  max-inline-size: 38ch;
   font-family: var(--f-display);
-  font-style: italic;
-  font-size: var(--step-2);
-  line-height: 1.35;
+  font-size: var(--display-m);
+  line-height: 1.15;
+  color: var(--fg-muted);
 }
 .rg-lastcard__a {
   display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-s);
 }
 .rg-lastcard__answer {
-  font-family: var(--f-label);
-  font-weight: 600;
-  font-size: var(--step-2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  background: var(--success);
-  color: var(--on-accent);
-  padding: 0.1em 0.4em;
-  border-radius: 2px;
+  position: relative;
+  display: inline-block;
+  padding: 0 0.3em;
+  margin-inline-start: 0.2em;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-answer);
+  line-height: 1.05;
+  color: var(--fg);
+}
+/* The highlighter runs line by line, so a long answer that wraps still
+   reads as swiped text, not a block. */
+.rg-lastcard__answer > span {
+  background: linear-gradient(transparent 52%, var(--tone-4) 52% 94%, transparent 94%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.rg-lastcard__answer::after {
+  content: "";
+  position: absolute;
+  inset: -6px -10px -4px -8px;
+  pointer-events: none;
+  border: 3px solid var(--fg);
+  border-radius: var(--wob-ring);
+  transform: rotate(-2deg);
 }
 .rg-lastcard__win {
+  font-size: var(--step-0);
   color: var(--fg-muted);
-  font-size: var(--step--1);
 }
 .rg-lastcard__win b {
   color: var(--fg);
@@ -987,32 +1350,85 @@ a.rg-pill {
   justify-self: start;
 }
 
-@media (min-width: 1024px) {
-  .rg-home {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    column-gap: var(--space-2xl);
-    row-gap: var(--space-l);
-    align-items: start;
+/* Motion: pens draw once, and the timeline flips in when it scrolls into
+   view. The .Reel hook sets is-armed, then is-flipped. */
+@media (prefers-reduced-motion: no-preference) {
+  .rg-hero .rg-doodle:not(.rg-doodle--burst) {
+    animation: rg-pen 800ms var(--ease-out) 300ms backwards;
   }
-  .rg-hero {
-    grid-row: span 2;
+  .rg-doodle--burst {
+    animation: rg-stamp 420ms var(--ease-out) 600ms backwards;
   }
-  .rg-intro,
-  .rg-last {
-    grid-column: 2;
+  .rg-hl {
+    animation: rg-swipe 600ms var(--ease-out) 150ms backwards;
+    background-size: 100% 100%;
   }
-  /* Fill the right column beside the hero, not under the schedule. */
-  .rg-last {
-    grid-row: 2;
+  .rg-hero .rg-flaps {
+    animation: rg-tile-in 480ms var(--ease-out) 120ms backwards;
   }
-  .rg-schedule {
-    grid-column: 1;
-    grid-row: 3;
+
+  .rg-reel.is-armed:not(.is-flipped) .rg-reel__t,
+  .rg-reel.is-armed:not(.is-flipped) .rg-reel__body,
+  .rg-reel.is-armed:not(.is-flipped) .rg-doodle--watch {
+    opacity: 0;
+  }
+  .rg-reel.is-armed:not(.is-flipped)::before {
+    transform: scaleY(0);
+  }
+  .rg-reel.is-armed.is-flipped::before {
+    animation: rg-reel-draw 900ms var(--ease-out) backwards;
+  }
+  .rg-reel.is-armed.is-flipped .rg-reel__t {
+    animation: rg-pop 420ms var(--ease-out) calc(120ms + var(--row, 0) * 280ms) backwards;
+  }
+  .rg-reel.is-armed.is-flipped .rg-reel__body {
+    animation: rg-body-in 420ms var(--ease-out) calc(220ms + var(--row, 0) * 280ms) backwards;
+  }
+  .rg-reel.is-armed.is-flipped .rg-doodle--watch {
+    animation: rg-pen 700ms var(--ease-out) 1100ms backwards;
   }
 }
-@media (min-width: 768px) and (max-width: 1023px) {
-  .rg-intro__steps {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@keyframes rg-pen {
+  from {
+    clip-path: inset(-4px 100% -4px -4px);
+  }
+  to {
+    clip-path: inset(-4px -4px -4px -4px);
+  }
+}
+@keyframes rg-swipe {
+  from {
+    background-size: 0 100%;
+    background-repeat: no-repeat;
+  }
+}
+@keyframes rg-stamp {
+  from {
+    transform: rotate(12deg) scale(1.5);
+    opacity: 0;
+  }
+}
+@keyframes rg-pop {
+  from {
+    transform: rotate(-12deg) scale(0.6);
+    opacity: 0;
+  }
+}
+@keyframes rg-tile-in {
+  from {
+    transform: perspective(300px) rotateX(-90deg);
+    opacity: 0;
+  }
+}
+@keyframes rg-body-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+}
+@keyframes rg-reel-draw {
+  from {
+    transform: scaleY(0);
   }
 }
 
