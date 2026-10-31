@@ -247,6 +247,38 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__t", "4.25s")
       refute has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(1)")
     end
+
+    # The medal colours hang off the Podium place classes and the first
+    # three board rows, so those must hold places 1–3 in order.
+    test "fills places 1–3 on the Podium and the first three board rows", %{
+      conn: conn,
+      user: user
+    } do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      first = AccountsFixtures.user_fixture()
+      second = AccountsFixtures.user_fixture()
+      GamesFixtures.solve_fixture(riddle, first, %{placement: 1, solve_time_ms: 3_000})
+      GamesFixtures.solve_fixture(riddle, second, %{placement: 2, solve_time_ms: 4_000})
+      GamesFixtures.solve_fixture(riddle, user, %{placement: 3, solve_time_ms: 5_000})
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      refute has_element?(live, ".rg-pod--empty")
+      assert has_element?(live, ".rg-pod--1 .rg-pod__name", first.username)
+      assert has_element?(live, ".rg-pod--2 .rg-pod__name", second.username)
+      assert has_element?(live, ".rg-pod--3 .rg-pod__name", "you")
+
+      for place <- 1..3 do
+        assert has_element?(
+                 live,
+                 "ol.rg-board > li.rg-row:nth-child(#{place}) .rg-row__place",
+                 "#{place}"
+               )
+      end
+
+      assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(3)")
+      assert has_element?(live, ".rg-pt.is-taken.is-me:nth-child(3)")
+    end
   end
 
   describe "payout" do
