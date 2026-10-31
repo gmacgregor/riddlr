@@ -161,6 +161,12 @@ countdown shows how long until **Archive**. At Archive chat closes and the
 Leaderboard stays. A page already open keeps its Feed; a page opened after
 Archive shows an empty Feed. Results also points to the Next riddle.
 
+A player moved from Play to Results when the riddle completes sees one
+celebration: confetti, fireworks or balloons when someone got the Win; a sad
+trombone, a poof or a tumbleweed when nobody solved it. Each list takes its
+turn. Opening Results any other way (Home, a link, a reload) plays nothing,
+and neither does reduced motion.
+
 A player who opens Play for a completed riddle goes to Results; for an
 archived riddle, to Home.
 

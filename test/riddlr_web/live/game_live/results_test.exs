@@ -154,6 +154,53 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
     end
   end
 
+  describe "celebrate" do
+    test "asks for a win when the riddle has a Solve, then drops the param", %{
+      conn: conn,
+      user: user
+    } do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      GamesFixtures.solve_fixture(riddle, AccountsFixtures.user_fixture())
+
+      {:ok, live, _html} =
+        live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results?celebrate=1")
+
+      assert_patch(live, ~p"/game/#{riddle.id}/results")
+      assert has_element?(live, "#celebrate[data-celebrate='win']")
+    end
+
+    test "asks for a loss when nobody solved the riddle", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} =
+        live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results?celebrate=1")
+
+      assert_patch(live, ~p"/game/#{riddle.id}/results")
+      assert has_element?(live, "#celebrate[data-celebrate='lose']")
+    end
+
+    test "a direct visit asks for nothing", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      GamesFixtures.solve_fixture(riddle, AccountsFixtures.user_fixture())
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#celebrate")
+      refute has_element?(live, "#celebrate[data-celebrate]")
+    end
+
+    test "an archived riddle asks for nothing, even with the param", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("archived")
+      GamesFixtures.solve_fixture(riddle, AccountsFixtures.user_fixture())
+
+      {:ok, live, _html} =
+        live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results?celebrate=1")
+
+      assert_patch(live, ~p"/game/#{riddle.id}/results")
+      refute has_element?(live, "#celebrate[data-celebrate]")
+    end
+  end
+
   describe "mount redirects" do
     test "redirects unauthenticated user to login", %{conn: conn} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")

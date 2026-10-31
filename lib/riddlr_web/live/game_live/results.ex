@@ -98,6 +98,8 @@ defmodule RiddlrWeb.GameLive.Results do
          |> assign(:you, you_card(board, riddle.id, user.id))
          |> assign(:payout, payout(board))
          |> assign(:next, Games.next_riddle())
+         # "win", "lose" or nil. Set by handle_params/3.
+         |> assign(:celebrate, nil)
          # Negative: chat joins at the bottom, so the oldest rows drop first.
          |> stream(:answers, feed, limit: -@feed_limit)}
 
@@ -111,6 +113,25 @@ defmodule RiddlrWeb.GameLive.Results do
         {:ok, push_navigate(socket, to: ~p"/")}
     end
   end
+
+  # Play adds `celebrate` when the riddle ends while the player watches. It
+  # picks the effect once, then the URL drops the param, so a reload plays
+  # nothing. The clean URL comes back through here with no param and leaves
+  # the pick alone. Only a connected mount reads it, so the dead render does
+  # not patch. The patch waits for a message: LiveView would send a patch made
+  # during mount, but a message makes it an ordinary patch.
+  @impl true
+  def handle_params(%{"celebrate" => _}, _uri, socket) do
+    if connected?(socket) do
+      %{riddle: riddle, board: board} = socket.assigns
+      send(self(), :drop_celebrate_param)
+      {:noreply, assign(socket, :celebrate, celebration(riddle, board))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("send_chat", _params, %{assigns: %{chat_open?: false}} = socket) do
@@ -165,6 +186,11 @@ defmodule RiddlrWeb.GameLive.Results do
     {:noreply, put_flash(socket, :info, "This game has been archived.")}
   end
 
+  def handle_info(:drop_celebrate_param, socket) do
+    {:noreply,
+     push_patch(socket, to: ~p"/game/#{socket.assigns.riddle.id}/results", replace: true)}
+  end
+
   def handle_info({message, _riddle}, socket) when message in @next_messages do
     {:noreply, assign(socket, :next, Games.next_riddle())}
   end
@@ -192,6 +218,13 @@ defmodule RiddlrWeb.GameLive.Results do
   @spec check_not_banned(map()) :: :ok | {:error, :banned}
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
+
+  # A Win when anyone solved the riddle. An archived riddle ended long ago,
+  # so it gets nothing.
+  @spec celebration(Riddlr.Games.Riddle.t(), [board_entry()]) :: String.t() | nil
+  defp celebration(%{play_status: "completed"}, []), do: "lose"
+  defp celebration(%{play_status: "completed"}, _board), do: "win"
+  defp celebration(_riddle, _board), do: nil
 
   # The countdown's first text. The `.ChatCountdown` hook takes over from it.
   @spec countdown_text(DateTime.t()) :: String.t()

@@ -132,9 +132,11 @@ defmodule RiddlrWeb.GameLive.Play do
      |> stream_delete(:answers, %{id: answer_id})}
   end
 
+  # The riddle ended while the player watched, so Results opens with a
+  # celebration. Results drops the param once read, so a reload doesn't replay it.
   def handle_info({:riddle_completed, riddle}, socket) do
     if riddle.id == socket.assigns.riddle.id do
-      {:noreply, push_navigate(socket, to: ~p"/game/#{riddle.id}/results")}
+      {:noreply, push_navigate(socket, to: ~p"/game/#{riddle.id}/results?celebrate=1")}
     else
       {:noreply, socket}
     end

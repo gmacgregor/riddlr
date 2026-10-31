@@ -687,7 +687,10 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   end
 
   describe "game state transitions via PubSub" do
-    test "moves the player to results when the round ends", %{conn: conn, user: user} do
+    test "moves the player to results, asking for a celebration, when the round ends", %{
+      conn: conn,
+      user: user
+    } do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       conn = log_in_user(conn, user)
 
@@ -695,7 +698,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       send(live.pid, {:riddle_completed, riddle})
 
-      assert_redirect(live, "/game/#{riddle.id}/results")
+      assert_redirect(live, "/game/#{riddle.id}/results?celebrate=1")
     end
 
     test "ignores :riddle_completed for a different riddle", %{conn: conn, user: user} do
