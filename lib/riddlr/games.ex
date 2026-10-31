@@ -16,6 +16,7 @@ defmodule Riddlr.Games do
     ArchiveRiddleTransitionWorker,
     CompleteRiddleWorker,
     LiveRiddleTransitionWorker,
+    NotificationFanOutWorker,
     ReadyRiddleTransitionWorker
   }
 
@@ -35,6 +36,11 @@ defmodule Riddlr.Games do
                     ],
                     &inspect/1
                   )
+
+  # Unschedule and delete also drop a pending Notification fan-out: the riddle
+  # will not go live, so no one should hear that it will. Reschedule leaves it
+  # be — the Lobby has opened, and the send job reads the new Live date.
+  @drop_workers @riddle_workers ++ [inspect(NotificationFanOutWorker)]
 
   # A job in any other state has already run, been cancelled or been discarded,
   # so there is nothing left to cancel.
@@ -231,8 +237,12 @@ defmodule Riddlr.Games do
   end
 
   defp write_jobs(multi, :unschedule) do
-    Multi.run(multi, :cancel_jobs, fn repo, %{riddle: riddle} ->
-      cancel_jobs(repo, riddle.id, @riddle_workers)
+    multi
+    |> Multi.run(:cancel_jobs, fn repo, %{riddle: riddle} ->
+      cancel_jobs(repo, riddle.id, @drop_workers)
+    end)
+    |> Multi.run(:drop_notifications, fn repo, %{riddle: riddle} ->
+      Riddlr.Notifications.drop_unsent(repo, riddle.id)
     end)
   end
 
@@ -296,7 +306,7 @@ defmodule Riddlr.Games do
   def delete_riddle(%Riddle{} = riddle) do
     Multi.new()
     |> Multi.run(:cancel_jobs, fn repo, _changes ->
-      cancel_jobs(repo, riddle.id, @riddle_workers)
+      cancel_jobs(repo, riddle.id, @drop_workers)
     end)
     |> Multi.delete(:riddle, riddle)
     |> Repo.transaction()
@@ -398,6 +408,15 @@ defmodule Riddlr.Games do
   end
 
   defp save_solves(multi, _to, _stats), do: multi
+
+  defp enqueue_next_job(multi, :ready) do
+    Multi.insert(multi, :fan_out_job, fn %{riddle: riddle} ->
+      NotificationFanOutWorker.new(%{
+        "riddle_id" => riddle.id,
+        "lead_time" => "lobby_open"
+      })
+    end)
+  end
 
   defp enqueue_next_job(multi, :live) do
     Multi.insert(multi, :complete_job, fn %{riddle: riddle} ->

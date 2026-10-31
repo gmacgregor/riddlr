@@ -149,4 +149,11 @@ A riddle's solves in placement order, shown on its results page.
 
 **Notification**:
 A message that tells a player a riddle is about to go live. Players opt in;
-it is off by default. Email only for now; SMS later.
+it is off by default. At most one per player, riddle and channel. Email only
+for now; SMS later.
+_Avoid_: alert, reminder
+
+**Notification lead time**:
+When a player wants their Notification: when the Lobby opens (the default),
+30 min or 1 hour before the Live date. One setting covers all riddles. Only
+"when the Lobby opens" sends for now.

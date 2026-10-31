@@ -202,7 +202,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
 
       assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(7200)})
       assert saved.play_status == "ready"
-      assert length(pending_jobs(saved.id)) == 2
+      assert [_ready] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
+      assert [_live] = pending_jobs(saved.id, Riddlr.Workers.LiveRiddleTransitionWorker)
+      assert [_kept] = pending_jobs(saved.id, Riddlr.Workers.NotificationFanOutWorker)
     end
 
     test "leaves the jobs alone when nothing about the schedule changed" do

@@ -4,12 +4,18 @@ defmodule RiddlrWeb.Router do
   import RiddlrWeb.UserAuth
 
   pipeline :browser do
+    plug :browser_without_csrf
+    plug :protect_from_forgery
+  end
+
+  # Everything in :browser but the CSRF check. Only the one-click unsubscribe
+  # POST uses it on its own: mail clients send that with no CSRF token.
+  pipeline :browser_without_csrf do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
     plug RiddlrWeb.Theme
     plug :put_root_layout, html: {RiddlrWeb.Layouts, :root}
-    plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_scope_for_user
   end
@@ -85,6 +91,17 @@ defmodule RiddlrWeb.Router do
     get "/users/log-in/:token", UserSessionController, :confirm
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+
+    get "/notifications/unsubscribe/:token", UnsubscribeController, :show
+  end
+
+  # Mail clients POST here for one-click unsubscribe (RFC 8058) with no CSRF
+  # token. The signed token in the path is the only proof needed, and it can
+  # only turn email off.
+  scope "/", RiddlrWeb do
+    pipe_through [:browser_without_csrf]
+
+    post "/notifications/unsubscribe/:token", UnsubscribeController, :create
   end
 
   ## Admin routes

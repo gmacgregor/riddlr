@@ -158,6 +158,7 @@ defmodule Riddlr.GamesTest do
 
     test "delete_riddle/1 cancels the riddle's pending jobs" do
       riddle = scheduled_riddle_fixture()
+      {:ok, _} = Games.transition(riddle.id, :ready)
 
       assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
 
@@ -356,6 +357,22 @@ defmodule Riddlr.GamesTest do
       [job] = all_enqueued(worker: Riddlr.Workers.CompleteRiddleWorker)
       diff = DateTime.diff(job.scheduled_at, DateTime.utc_now())
       assert diff >= 115 and diff <= 125
+    end
+  end
+
+  describe "transition/3 to ready" do
+    import Riddlr.GamesFixtures
+
+    test "queues the Lobby-open notification fan-out" do
+      riddle = riddle_fixture(%{play_status: "scheduled", publish_status: "published"})
+
+      {:ok, _riddle} = Games.transition(riddle.id, :ready)
+
+      assert_enqueued(
+        worker: Riddlr.Workers.NotificationFanOutWorker,
+        args: %{"riddle_id" => riddle.id, "lead_time" => "lobby_open"},
+        queue: :notifications
+      )
     end
   end
 

@@ -37,7 +37,7 @@ shows their username and email and holds the account forms. Changing email
 needs a log-in in the last 10 minutes; other forms need only a log-in.
 
 A player can opt in to email **Notifications** at sign-up or on their profile.
-It is off by default. Nothing sends yet.
+It is off by default. See [Notifications](#notifications).
 
 ## Riddle lifecycle
 
@@ -117,6 +117,24 @@ The **Lobby** opens when a riddle turns ready and closes when it goes live. A
 scheduled riddle has no Lobby yet. Players in the Lobby see who else is there
 and a shared countdown to the Live date. When the riddle goes live, every
 player in the Lobby moves to Play at the same moment.
+
+### Notifications
+
+When a riddle turns ready, every player who wants a **Notification** when the
+Lobby opens gets one email: "Riddle No. N goes live in X min". It names the
+category and the Live date (in the display time zone, Toronto by default),
+links to the Lobby and never shows the riddle text. Only active players with a
+confirmed email who turned email on get it.
+
+A player gets at most one email per riddle. A repeat ready step or a retry
+does not send again. Just before sending, the system checks again: no email
+goes out if the riddle was unscheduled, its Live date has passed, or the
+player turned email off or was banned since. An Unschedule drops unsent
+Notifications, so a later Schedule can send them. Reschedule sends nothing new.
+
+Each email has an unsubscribe link that needs no log-in. The link opens a
+page with one button that turns email off. Mail clients that offer one-click
+unsubscribe turn it off at once.
 
 ### Game clock
 
@@ -232,4 +250,6 @@ more.
 - **Player counts are Lobby only.** Play shows how many have solved, not how
   many are present.
 - **Profile shows no totals**: no points, wins or podiums.
-- **Notifications do not send.** Players can opt in, but no email goes out yet. (#59)
+- **Notifications send only when the Lobby opens.** The 30 min and 1 hour
+  lead times do not exist yet, and a Reschedule does not move a pending
+  send. (#59)

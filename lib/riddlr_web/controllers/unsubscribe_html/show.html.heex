@@ -1,0 +1,21 @@
+<Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
+  <.auth_shell :if={@valid?} title="Turn off riddle emails?">
+    <:subtitle>You will stop getting emails before riddles go live.</:subtitle>
+
+    <.form
+      for={%{}}
+      id="unsubscribe_form"
+      action={~p"/notifications/unsubscribe/#{@token}"}
+      method="post"
+      class="rg-auth__form"
+    >
+      <.auth_submit phx-disable-with="Turning off...">Turn off emails</.auth_submit>
+    </.form>
+  </.auth_shell>
+
+  <.auth_shell :if={!@valid?} title="This link does not work">
+    <:subtitle>
+      Log in and turn off emails on your <.link href={~p"/profile"}>profile</.link>.
+    </:subtitle>
+  </.auth_shell>
+</Layouts.game>

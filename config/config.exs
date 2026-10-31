@@ -23,13 +23,15 @@ config :riddlr, :scopes,
 config :riddlr,
   ecto_repos: [Riddlr.Repo],
   generators: [timestamp_type: :utc_datetime],
-  clock: Riddlr.Clock.System
+  clock: Riddlr.Clock.System,
+  # Live dates in emails show in this zone.
+  display_time_zone: "America/Toronto"
 
 # Configure Oban
 config :riddlr, Oban,
   repo: Riddlr.Repo,
   plugins: [Oban.Plugins.Pruner],
-  queues: [game_lifecycle: 5, mailers: 3, default: 5]
+  queues: [game_lifecycle: 5, notifications: 10, mailers: 3, default: 5]
 
 # Configure the endpoint
 config :riddlr, RiddlrWeb.Endpoint,
