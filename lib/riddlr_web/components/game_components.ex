@@ -13,7 +13,7 @@ defmodule RiddlrWeb.GameComponents do
   @typedoc """
   A tile tone, `"variant-1"` to `"variant-6"`. Each one maps to a `data-tone`
   rule in `game.css`; the colour mode sets the colours. `variant-1` is always the
-  mode's accent and `variant-5` the strong foreground.
+  mode's accent and `variant-5` the paper tile (page surface with ink text).
   """
   @type tone :: String.t()
 

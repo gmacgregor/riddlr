@@ -1,7 +1,6 @@
 defmodule RiddlrWeb.Theme do
   @moduledoc """
-  The colour mode a player picked: `"dark"` (the default), `"dusk"` or
-  `"light"`.
+  The colour mode a player picked: `"light"` (the default) or `"dark"`.
 
   The choice lives in a `theme` cookie that the browser writes when the
   player picks a mode in the topbar (see `assets/js/app.js`). It holds no
@@ -16,8 +15,9 @@ defmodule RiddlrWeb.Theme do
 
   import Plug.Conn
 
-  @themes ~w(dark dusk light)
-  @default "dark"
+  @themes ~w(light dark)
+  @default "light"
+  @colors %{"light" => "#f5f7fb", "dark" => "#0d1526"}
   @cookie "theme"
 
   @typedoc "A colour mode name."
@@ -28,8 +28,7 @@ defmodule RiddlrWeb.Theme do
   def themes, do: @themes
 
   @doc """
-  The mode after `theme` in `themes/0`, wrapping from the last to the first.
-  The topbar switch steps through the modes in this order.
+  The other mode. The topbar switch flips between the two.
   """
   @spec next(t()) :: t()
   def next(theme) when theme in @themes do
@@ -37,9 +36,16 @@ defmodule RiddlrWeb.Theme do
     Enum.at(@themes, rem(index + 1, length(@themes)))
   end
 
-  @doc "The name players see for a mode, such as `\"Dusk\"`."
+  @doc "The name players see for a mode, such as `\"Dark\"`."
   @spec label(t()) :: String.t()
   def label(theme) when theme in @themes, do: String.capitalize(theme)
+
+  @doc """
+  The browser bar colour for a mode, for the `theme-color` meta tag. It
+  matches the page ground (`--surface`) in `assets/css/themes.css`.
+  """
+  @spec theme_color(t()) :: String.t()
+  def theme_color(theme) when theme in @themes, do: Map.fetch!(@colors, theme)
 
   @impl Plug
   def init(opts), do: opts

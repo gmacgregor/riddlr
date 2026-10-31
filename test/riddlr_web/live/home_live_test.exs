@@ -369,8 +369,8 @@ defmodule RiddlrWeb.HomeLiveTest do
     response = conn |> get(~p"/") |> html_response(200)
 
     assert response =~ ~s(href="/assets/css/game.css")
-    assert response =~ "family=Fraunces"
-    assert response =~ "family=Jost"
+    assert response =~ "family=Caveat"
+    assert response =~ "family=Kalam"
     assert response =~ "family=Familjen+Grotesk"
   end
 

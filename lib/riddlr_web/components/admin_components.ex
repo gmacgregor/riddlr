@@ -432,13 +432,13 @@ defmodule RiddlrWeb.AdminComponents do
     """
   end
 
-  # The colour mode switch: one button that steps to the next mode on each
-  # press (see `assets/js/app.js`). It sets `data-theme` on <html> and writes
-  # the `theme` cookie in the browser, so the admin and player screens share
-  # one choice. The button holds one icon per mode and CSS shows the one that
-  # matches <html data-theme>. Each icon carries the button label for its
-  # mode, which JS copies onto the button. `phx-update="ignore"` keeps
-  # LiveView from undoing the pick.
+  # The colour mode switch: one button that flips between light and dark on
+  # each press (see `assets/js/app.js`). It sets `data-theme` on <html> and
+  # writes the `theme` cookie in the browser, so the admin and player screens
+  # share one choice. The button holds one icon per mode and CSS shows the one
+  # that matches <html data-theme>. Each icon carries the button label and
+  # browser bar colour for its mode, which JS copies onto the page.
+  # `phx-update="ignore"` keeps LiveView from undoing the pick.
   attr :theme, :string, required: true
 
   @spec theme_switch(map()) :: Phoenix.LiveView.Rendered.t()
@@ -458,6 +458,7 @@ defmodule RiddlrWeb.AdminComponents do
         class={["rg-theme__icon", "rg-theme__icon--#{theme}"]}
         data-theme-icon={theme}
         data-label={theme_switch_label(theme)}
+        data-color={Theme.theme_color(theme)}
         width="15"
         height="15"
         viewBox="0 0 15 15"
@@ -475,16 +476,12 @@ defmodule RiddlrWeb.AdminComponents do
     "Colour mode: #{Theme.label(theme)}. Switch to #{Theme.label(Theme.next(theme))}"
   end
 
-  # Radix icons (https://www.radix-ui.com/icons): eye closed, eye none and
-  # eye open, from darkest mode to lightest.
+  # Radix icons (https://www.radix-ui.com/icons): eye closed for dark, eye
+  # open for light.
   @spec theme_icon_path(Theme.t()) :: String.t()
   defp theme_icon_path("dark"),
     do:
       "M5.58284 12.5867C5.5113 12.8531 5.23703 13.0113 4.97054 12.9402C4.70421 12.8686 4.54496 12.5943 4.61605 12.3279L5.58284 12.5867ZM10.3826 12.3279C10.4539 12.5945 10.2956 12.8686 10.0291 12.9402C9.76261 13.0113 9.48834 12.8531 9.41681 12.5867L10.3826 12.3279ZM14.1375 6.15505C14.2977 5.98633 14.5595 5.94799 14.7644 6.07595C14.9692 6.20395 15.0496 6.45576 14.9685 6.6736L14.9236 6.76442C14.4845 7.46696 13.962 8.1052 13.3689 8.66188L14.5711 9.86402L14.6355 9.94214C14.7636 10.1362 14.7419 10.4002 14.5711 10.571C14.4003 10.7419 14.1363 10.7636 13.9422 10.6355L13.8641 10.571L12.5994 9.3064C11.8032 9.90116 10.9077 10.3602 9.93243 10.6492L10.3826 12.3279L9.89923 12.4568L9.41681 12.5867L8.95783 10.8777C8.48648 10.958 7.99975 10.9998 7.49983 10.9998C6.9991 10.9998 6.51194 10.9563 6.03987 10.8757L5.58284 12.5867L5.09945 12.4568L4.61605 12.3279L5.06527 10.6492C4.09036 10.3601 3.19423 9.90202 2.39829 9.30738L1.1356 10.571C0.940342 10.7662 0.623806 10.7662 0.428567 10.571C0.233426 10.3758 0.233415 10.0593 0.428567 9.86402L1.62973 8.66188C1.10375 8.1681 0.633248 7.61 0.227396 6.99977L0.0760295 6.76442L0.0311078 6.6736C-0.0498844 6.45577 0.0304399 6.20394 0.235208 6.07595C0.440189 5.94795 0.701937 5.98637 0.862159 6.15505L0.923682 6.23513L1.20102 6.65114C2.63903 8.68678 4.86748 9.99974 7.49983 9.99976C10.3076 9.99976 12.6564 8.50638 14.076 6.23513L14.1375 6.15505Z"
-
-  defp theme_icon_path("dusk"),
-    do:
-      "M12.6465 1.64651C12.8418 1.45125 13.1583 1.45125 13.3535 1.64651C13.5488 1.84177 13.5488 2.15828 13.3535 2.35354L11.6377 4.06838C12.9756 4.81468 14.0967 5.91192 14.9239 7.23537C15.0124 7.37719 15.0235 7.55204 14.9571 7.70217L14.9239 7.76467C13.3435 10.2933 10.6922 12 7.50002 12C6.36232 12 5.29371 11.7822 4.31741 11.3887L2.35354 13.3535C2.15828 13.5488 1.84177 13.5488 1.64651 13.3535C1.45125 13.1583 1.45125 12.8418 1.64651 12.6465L3.36135 10.9307C2.02399 10.1844 0.903113 9.08773 0.0761963 7.76467C-0.0249881 7.60262 -0.0249956 7.39742 0.0761963 7.23537L0.227563 7.00002C1.82294 4.60124 4.4078 3.00002 7.50002 3.00002C8.63727 3.00002 9.70568 3.21714 10.6817 3.61037L12.6465 1.64651ZM5.09573 10.6104C5.84657 10.8632 6.65217 11 7.50002 11C10.1963 11 12.4661 9.62071 13.8994 7.50002C13.1227 6.35087 12.0992 5.42186 10.8965 4.80959L5.09573 10.6104ZM7.50002 4.00002C4.80354 4.00002 2.53299 5.37907 1.09963 7.50002C1.87617 8.64906 2.89999 9.57724 4.10256 10.1895L9.90335 4.3887C9.15289 4.13599 8.34748 4.00002 7.50002 4.00002Z"
 
   defp theme_icon_path("light"),
     do:

@@ -24,7 +24,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       refute response =~ "DM+Sans"
       refute response =~ "DM+Serif"
       refute response =~ "family=Inter"
-      assert response =~ "family=Fraunces"
+      assert response =~ "family=Caveat"
     end
 
     test "renders login page", %{conn: conn} do

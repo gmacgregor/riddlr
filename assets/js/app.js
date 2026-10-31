@@ -41,16 +41,20 @@ window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 liveSocket.connect()
 
 // ─── Colour mode switch ─────────────────────────────────────────────────────
-// The topbar button (#theme-switch) steps to the next colour mode on each
-// press. It sets data-theme on <html> and writes the theme cookie, so the
-// server renders the same mode next time (RiddlrWeb.Theme). No server round
-// trip, so a live game keeps its connection, guess field and clock. CSS shows
-// the icon that matches <html data-theme>. The server renders one icon per
-// mode (RiddlrWeb.Theme.themes/0), in step order, each with its button label.
+// The topbar button (#theme-switch) flips between light and dark on each
+// press. It sets data-theme on <html>, writes the theme cookie so the server
+// renders the same mode next time (RiddlrWeb.Theme), and sets the
+// theme-color meta so the browser bar matches. No server round trip, so a
+// live game keeps its connection, guess field and clock. CSS shows the
+// drawing that matches <html data-theme>. The server renders one drawing per
+// mode (RiddlrWeb.Theme.themes/0), each with its button label and colour.
 function syncThemeSwitch(button) {
   const theme = document.documentElement.dataset.theme
   const icon = button.querySelector(`[data-theme-icon="${theme}"]`)
-  if (icon) button.setAttribute("aria-label", icon.dataset.label)
+  if (!icon) return
+  button.setAttribute("aria-label", icon.dataset.label)
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta && icon.dataset.color) meta.setAttribute("content", icon.dataset.color)
 }
 
 document.addEventListener("click", e => {

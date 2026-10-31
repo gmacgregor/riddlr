@@ -434,7 +434,6 @@ select.rg-input option {
   height: 20px;
 }
 [data-theme="dark"] .rg-theme__icon--dark,
-[data-theme="dusk"] .rg-theme__icon--dusk,
 [data-theme="light"] .rg-theme__icon--light {
   display: block;
 }

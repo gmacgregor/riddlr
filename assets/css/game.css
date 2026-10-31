@@ -54,7 +54,7 @@ body {
   list-style: none;
 }
 .rg-app :focus-visible {
-  outline: 2px solid var(--accent-text);
+  outline: 2px solid var(--action);
   outline-offset: 2px;
 }
 .rg-app [tabindex="-1"]:focus {
@@ -276,13 +276,13 @@ body {
   color: var(--fg);
   font-weight: 700;
   text-decoration: underline;
-  text-decoration-color: var(--accent-text);
+  text-decoration-color: var(--action);
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
 }
 @media (hover: hover) {
   .rg-link-btn:hover {
-    color: var(--accent-text);
+    color: var(--action);
   }
 }
 
@@ -329,7 +329,7 @@ select.rg-input option {
 }
 .rg-input:focus {
   outline: none;
-  border-color: var(--accent-text);
+  border-color: var(--action);
 }
 .rg-input[readonly] {
   color: var(--fg-muted);
@@ -457,8 +457,8 @@ select.rg-input option {
   gap: var(--space-s);
 }
 
-/* Colour mode switch: one icon button. It holds an icon per mode and shows
-   the one that matches <html data-theme>. */
+/* Colour mode switch: a doodled eye. Open is light, shut is dark. Both
+   drawings sit in one SVG and the one that matches <html data-theme> shows. */
 .rg-theme {
   display: inline-grid;
   place-items: center;
@@ -467,24 +467,57 @@ select.rg-input option {
   height: 44px;
   padding: 0;
   border: 0;
-  border-radius: var(--r);
+  border-radius: var(--wob-sm);
   background: none;
-  color: var(--fg-muted);
-  transition: color var(--t-fast) var(--ease-out);
+  color: var(--fg);
+  cursor: pointer;
 }
-.rg-theme__icon {
-  display: none;
-  width: 20px;
-  height: 20px;
+.rg-theme__eye {
+  inline-size: 2rem;
+  block-size: auto;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-[data-theme="dark"] .rg-theme__icon--dark,
-[data-theme="dusk"] .rg-theme__icon--dusk,
-[data-theme="light"] .rg-theme__icon--light {
-  display: block;
+.rg-theme__pupil {
+  fill: currentColor;
 }
-@media (hover: hover) {
-  .rg-theme:hover {
-    color: var(--fg);
+.rg-theme__glint {
+  fill: var(--surface-2);
+  stroke: none;
+}
+.rg-theme__eye--light,
+.rg-theme__eye--dark {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+.rg-theme__eye--dark {
+  opacity: 0;
+}
+[data-theme="dark"] .rg-theme__eye--light {
+  opacity: 0;
+  transform: scaleY(0.1);
+}
+[data-theme="dark"] .rg-theme__eye--dark {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rg-theme__eye--light,
+  .rg-theme__eye--dark {
+    transition:
+      opacity var(--t-fast) var(--ease-out),
+      transform var(--t-fast) var(--ease-out);
+  }
+  .rg-theme__eye {
+    transition: transform var(--t-med) var(--ease-out);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .rg-theme:hover .rg-theme__eye {
+    transform: rotate(-5deg) scale(1.08);
   }
 }
 
@@ -507,7 +540,7 @@ select.rg-input option {
 }
 @media (hover: hover) {
   .rg-me-chip:hover .rg-me-chip__name {
-    color: var(--accent-text);
+    color: var(--action);
   }
 }
 
@@ -526,8 +559,8 @@ select.rg-input option {
   white-space: nowrap;
 }
 .rg-pill--live {
-  border-color: var(--accent-text);
-  color: var(--accent-text);
+  border-color: var(--action);
+  color: var(--action);
 }
 .rg-pill--soon {
   color: var(--fg);
@@ -537,14 +570,14 @@ a.rg-pill {
 }
 @media (hover: hover) {
   a.rg-pill:hover {
-    border-color: var(--accent-text);
+    border-color: var(--action);
   }
 }
 .rg-live-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent-text);
+  background: var(--live);
   flex: none;
   animation: rg-blink 1.2s steps(2, jump-none) infinite;
 }
@@ -613,7 +646,7 @@ a.rg-pill {
   color: var(--fg-subtle);
 }
 .rg-flaps.is-warn .rg-flap {
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-flaps.is-crit .rg-flap {
   color: var(--on-accent);
@@ -639,7 +672,7 @@ a.rg-pill {
   --rg-icon-size: 1.15em;
 }
 .rg-fact .rg-icon {
-  color: var(--accent-text);
+  color: var(--action);
 }
 
 /* ───────────────── Home ───────────────── */
@@ -662,7 +695,7 @@ a.rg-pill {
 .rg-hero__title em {
   font-style: italic;
   font-weight: 500;
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-hero__card {
   display: grid;
@@ -673,7 +706,7 @@ a.rg-pill {
   border: 1px solid var(--border);
 }
 .rg-hero__card.is-live {
-  border-color: var(--accent-text);
+  border-color: var(--action);
 }
 .rg-hero__row {
   display: flex;
@@ -934,7 +967,7 @@ a.rg-pill {
   text-overflow: ellipsis;
 }
 .rg-room__p.is-me .rg-room__name {
-  color: var(--accent-text);
+  color: var(--action);
   font-weight: 700;
 }
 .rg-room__empty .rg-tile {
@@ -1066,7 +1099,7 @@ a.rg-pill {
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-clockbar__solved {
   flex: 1 1 0;
@@ -1091,12 +1124,12 @@ a.rg-pill {
 .rg-clockbar__fill {
   display: block;
   height: 100%;
-  background: var(--accent-text);
+  background: var(--action);
   transform-origin: left;
   transition: transform 1s linear;
 }
 .rg-play.is-warn .rg-clockbar__time {
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-play.is-crit .rg-clockbar__time {
   color: var(--urgent-text);
@@ -1199,7 +1232,7 @@ a.rg-pill {
   white-space: nowrap;
 }
 .rg-msg.is-me .rg-msg__name {
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-msg.is-wrong .rg-msg__text {
   text-decoration: line-through;
@@ -1272,7 +1305,7 @@ a.rg-pill {
 }
 .rg-guess__field:focus {
   outline: none;
-  border-color: var(--accent-text);
+  border-color: var(--action);
 }
 .rg-guess__field[aria-invalid="true"] {
   border-color: var(--urgent-text);
@@ -1483,7 +1516,7 @@ a.rg-pill {
 }
 .rg-tab[aria-selected="true"] {
   color: var(--fg);
-  border-bottom-color: var(--accent-text);
+  border-bottom-color: var(--action);
 }
 @media (hover: hover) {
   .rg-tab:hover {
@@ -1657,12 +1690,12 @@ a.rg-pill {
 }
 .rg-row.is-me {
   background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--accent-text);
+  box-shadow: inset 0 0 0 1px var(--action);
   border-radius: var(--r);
   padding-inline: var(--space-2xs);
 }
 .rg-row.is-me .rg-row__name {
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-board__empty {
   padding: var(--space-m) 0;
@@ -1717,10 +1750,10 @@ a.rg-pill {
   color: var(--fg-subtle);
 }
 .rg-pt.is-me {
-  border-color: var(--accent-text);
+  border-color: var(--action);
 }
 .rg-pt.is-me .rg-pt__who {
-  color: var(--accent-text);
+  color: var(--action);
   font-weight: 700;
 }
 
@@ -1775,7 +1808,7 @@ a.rg-pill {
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-chat__div::before,
 .rg-chat__div::after {
@@ -1857,7 +1890,7 @@ a.rg-pill {
 }
 .rg-chat__field:focus {
   outline: none;
-  border-color: var(--accent-text);
+  border-color: var(--action);
 }
 
 @media (min-width: 1024px) {
@@ -1922,7 +1955,7 @@ a.rg-pill {
   padding: var(--space-xs) var(--space-s);
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--accent-text);
+  border-left: 3px solid var(--action);
   border-radius: var(--r);
   box-shadow: 0 12px 32px var(--shadow);
   font-family: var(--f-ui);
@@ -1940,7 +1973,7 @@ a.rg-pill {
   width: 18px;
   height: 18px;
   margin-top: 1px;
-  color: var(--accent-text);
+  color: var(--action);
 }
 .rg-flash--error .rg-flash__icon {
   color: var(--urgent-text);
@@ -1966,7 +1999,7 @@ a.rg-pill {
 }
 @media (hover: hover) {
   .rg-flash__close:hover {
-    color: var(--accent-text);
+    color: var(--action);
   }
 }
 @keyframes rg-flash-in {

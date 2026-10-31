@@ -71,14 +71,14 @@
   color: var(--fg);
   font-weight: 700;
   text-decoration: underline;
-  text-decoration-color: var(--accent-text);
+  text-decoration-color: var(--action);
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
 }
 
 @media (hover: hover) {
   .rg-auth__link:hover {
-    color: var(--accent-text);
+    color: var(--action);
   }
 }
 

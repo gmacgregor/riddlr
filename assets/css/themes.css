@@ -1,63 +1,68 @@
 /* =============================================================================
-   THEMES — design tokens and colour modes.
+   THEMES — design tokens and colour modes for the player and account screens.
+
+   The v9 notebook look (#47). The admin has its own frozen copy in
+   admin-tokens.css, so tokens here can change without moving the admin.
 
    `:root` holds the tokens no mode changes: fonts, fluid type and space
-   scales, radius, motion and layout. Each colour mode is one block that sets
-   every colour token, picked by `data-theme` on <html> (see RiddlrWeb.Theme).
-   Dark is the default. To add a mode, add one block.
+   scales, radius, motion, layout and pen shapes. Each colour mode is one
+   block that sets every colour token, picked by `data-theme` on <html> (see
+   RiddlrWeb.Theme). Two modes: "light" (the default, cool paper and pen ink)
+   and "dark" (night ink: the same notebook, lights off). Light sits on
+   `:root` too and comes first, so the [data-theme] block wins over the
+   default at equal specificity. To add a mode, add one block after dark, and
+   its browser bar colour to RiddlrWeb.Theme.
 
-   Colour tokens carry role names, not colour names, so they stay true in
-   every mode:
+   Colour tokens carry role names, not colour names, so a palette change
+   never renames anything:
 
-     --surface, -2, -3     page ground, raised panel, higher panel / field
+     --surface, -2, -3     page ground, raised note, higher panel / field
+     --surface-feature     hero note, the "do something here" fill
+     --surface-practice    practice-riddle note
      --border, -strong     default rule, stronger rule
-     --fg                  strong foreground, solid chips
+     --fg                  pen ink: text, borders, hard shadows
      --on-fg               text on --fg fills
      --fg-muted, -subtle   secondary, tertiary text
      --grid                background grid line
-     --accent, -press      live + main action fill, pressed
-     --accent-text         accent as text, outline or thin graphic
+     --hairline, -strong   faint pen lines (row dividers, flap crease, tape edge)
+     --accent, -press      the highlighter: kicker badge, logo
+     --accent-swipe        the highlighter as a swipe behind text
      --on-accent           text on bright fills
+     --action, --on-action buttons, links, underlines, focus; text on it
+     --underline           one colour for every link / heading underline + hover
      --urgent, -text       urgency + wrong: fill, and as text / outline
      --success, -text      correct + solved: fill, and as text / outline
-     --info-text           neutral status text (scheduled, notes)
-     --notice-text         second status text (ready)
-     --shadow              drop-shadow colour
-     --tone-N, --on-tone-N tile variant N fill and its text. variant-1 is
-                           always the accent; variant-5 is always --fg.
+     --info-text           neutral status text (margin notes, times)
+     --live                "live now" dot
+     --count-calm, -warn   topbar countdown dot; it goes --urgent at 10s
+     --tone-N, --on-tone-N tile / marker variant N fill and its text. Tones
+                           1-6 are tiles (variant-1 is the accent, variant-5
+                           the paper tile); 7-9 are page fills only.
+     --tape-N              strips of tape on notes
+     --medal-N, --on-medal 1st, 2nd and 3rd place, and text on them
+     --shadow, -soft       hard pen shadow colour, softened
 
-   Dark and Dusk set each *-text token equal to its fill, and --on-fg equal
-   to --on-accent. Light needs deeper shades for text on a light ground.
+   Fluid scales follow Utopia (https://utopia.fyi): every size grows in a
+   straight line from a 320px viewport to a 1240px viewport, then stops.
+   Sizes are rem + vw, so they follow the player's font-size setting and
+   zoom. Size parts that hold text (tiles, chips, badges, flaps) in em so
+   they follow their own font size.
+
+   Keep these in fixed px: border and outline widths, hairline gaps, radii,
+   pen shadows, the background grid, tap-target minimums (44/48px) and
+   media-query breakpoints.
    ============================================================================= */
 
 :root {
-  --f-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --f-display: "Caveat", "Segoe Print", "Bradley Hand", cursive;
   --f-ui: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-label: "Jost", "Futura", "Century Gothic", sans-serif;
+  --f-label: "Kalam", "Caveat", "Segoe Print", cursive;
 
-  /* ── Fluid type and space (Utopia, https://utopia.fyi) ──────────────────
-     Each size grows in a straight line from a 320px viewport to a 1240px
-     viewport (1200px --wrap plus gutters), then stops. Min and max are in
-     rem and the middle term is rem + vw, so every size follows the player's
-     font-size setting and zoom.
-
+  /* ── Fluid type and space (Utopia) ──────────────────────────────────────
      Type  https://utopia.fyi/type/calculator?c=320,16,1.1429,1240,17,1.18,4,2
-       320px:  base 16px, ratio 1.1429 (8:7)  → 12 14 16 18 21 24 27
-       1240px: base 17px, ratio 1.18          → 12 14 17 20 24 28 33
-       --step--2 is pinned to 12 → 12.5px so it does not shrink.
      Space https://utopia.fyi/space/calculator?c=320,16,1.1429,1240,17,1.18,4,2&s=0.75|0.5|0.25,1.5|2|3|4,s-l
-       base 16px → 17px; multipliers 3xs .25, 2xs .5, xs .75, s 1, m 1.5,
-       l 2, xl 3, 2xl 4. A pair (--space-a-b) grows from a at 320px to b
-       at 1240px.
-     Display sizes sit above the type scale. They keep the old min and max.
-
-     Size parts that hold text (tiles, chips, badges, flaps) in em so they
-     follow their own font size.
-
-     Keep these in fixed px: border and outline widths, outline offsets,
-     1-2px hairline gaps, radii, shadows, the background grid, tap-target
-     minimums (44/48px), icons in buttons, small dots and bars, and
-     media-query breakpoints. */
+     Display sizes sit above the type scale: they use the same 320 to 1240
+     range with their own min and max. */
 
   --step--2: clamp(0.75rem, 0.7391rem + 0.0543vw, 0.7813rem);
   --step--1: clamp(0.875rem, 0.8662rem + 0.0442vw, 0.9004rem);
@@ -67,14 +72,23 @@
   --step-3: clamp(1.4927rem, 1.4047rem + 0.44vw, 1.7457rem);
   --step-4: clamp(1.706rem, 1.5828rem + 0.6156vw, 2.06rem);
 
-  --display-auth: clamp(1.75rem, 1.5761rem + 0.8696vw, 2.25rem);
-  --display-riddle: clamp(1.5rem, 1.2391rem + 1.3043vw, 2.25rem);
+  --display-s: clamp(1.5rem, 1.413rem + 0.4348vw, 1.75rem);
+  --display-m: clamp(1.75rem, 1.663rem + 0.4348vw, 2rem);
+  --display-l: clamp(2rem, 1.913rem + 0.4348vw, 2.25rem);
+  --display-question: clamp(1.625rem, 1.4511rem + 0.8696vw, 2.125rem);
+  --display-teaser: clamp(2.375rem, 1.8967rem + 2.3913vw, 3.75rem);
+  --display-hero: clamp(2.75rem, 2.1413rem + 3.0435vw, 4.5rem);
+  --display-answer: clamp(3rem, 2.3043rem + 3.4783vw, 5rem);
+  --display-riddle: clamp(1.75rem, 1.4022rem + 1.7391vw, 2.75rem);
+  --display-flap: clamp(3.5rem, 2.5435rem + 4.7826vw, 6.25rem);
+  --display-flap-long: clamp(1.75rem, 1.0543rem + 3.4783vw, 3.75rem);
+  --display-flap-sm: clamp(2.25rem, 1.8152rem + 2.1739vw, 3.5rem);
+
+  /* Carried over from the old look until later slices of #47 redraw the
+     parts that read them: the Play clock, page headings and account title. */
   --display-clock: clamp(1.75rem, 1.4891rem + 1.3043vw, 2.5rem);
   --display-heading: clamp(2rem, 1.4783rem + 2.6087vw, 3.5rem);
-  --display-answer: clamp(2.25rem, 1.4674rem + 3.913vw, 4.5rem);
-  --display-hero: clamp(2.5rem, 1.4565rem + 5.2174vw, 5.5rem);
-  --display-flap: clamp(3rem, 1.6087rem + 6.9565vw, 7rem);
-  --display-flap-long: clamp(1.875rem, 0.6141rem + 6.3043vw, 5.5rem);
+  --display-auth: clamp(1.75rem, 1.5761rem + 0.8696vw, 2.25rem);
 
   --space-3xs: clamp(0.25rem, 0.2446rem + 0.0272vw, 0.2656rem);
   --space-2xs: clamp(0.5rem, 0.4891rem + 0.0543vw, 0.5313rem);
@@ -87,6 +101,9 @@
 
   --space-s-l: clamp(1rem, 0.6087rem + 1.9565vw, 2.125rem);
 
+  /* Width of the time column in the timeline and the schedule. */
+  --space-time-col: clamp(4.25rem, 3.9022rem + 1.7391vw, 5.25rem);
+
   --r: 4px;
   --r-lg: 8px;
 
@@ -97,132 +114,159 @@
   --ease-in: cubic-bezier(0.5, 0, 0.9, 0.4);
 
   --wrap: 75rem;
+  --wrap-narrow: 46rem;
   --pad: var(--space-s-l);
+
+  /* Pen shapes. Irregular corners: big on one axis, small on the other,
+     never symmetrical. */
+  --stroke: 2.5px;
+  --stroke-note: 3px;
+  --shadow-pen: 3px 4px 0 var(--shadow);
+  --shadow-note: 4px 5px 0 var(--shadow);
+  --shadow-sheet: 5px 6px 0 var(--shadow);
+  --wob-box: 255px 14px 225px 14px / 14px 225px 14px 255px;
+  --wob-box-2: 14px 240px 14px 220px / 230px 14px 250px 14px;
+  --wob-sm: 7px 11px 8px 12px / 11px 7px 12px 8px;
+  --wob-pill: 40px 26px 36px 28px / 28px 38px 26px 40px;
+  --wob-ring: 52% 48% 55% 45% / 48% 56% 44% 52%;
 }
 
-/* ───────────────── Dark: "Midnight Crossword" (default) ───────────────── */
+/* ───────────────── Light (default): cool paper, pen ink, highlighter ───────────────── */
 :root,
-[data-theme="dark"] {
-  color-scheme: dark;
-
-  --surface: #0d0f12;
-  --surface-2: #14171c;
-  --surface-3: #1c2027;
-  --border: #2a2f38;
-  --border-strong: #3b414c;
-  --fg: #f3f1ea;
-  --on-fg: #0d0f12;
-  --fg-muted: #a7adb7;
-  --fg-subtle: #8a919c;
-  --grid: rgba(243, 241, 234, 0.035);
-  --shadow: rgba(0, 0, 0, 0.5);
-
-  --accent: #e4ff3a; /* highlighter */
-  --accent-press: #d2ee1f;
-  --accent-text: #e4ff3a;
-  --on-accent: #0d0f12;
-  --urgent: #ff5b3d;
-  --urgent-text: #ff5b3d;
-  --success: #43e3a8;
-  --success-text: #43e3a8;
-  --info-text: #7cc7ff; /* sky */
-  --notice-text: #ff9ec4; /* rose */
-
-  --tone-1: #e4ff3a;
-  --tone-2: #43e3a8;
-  --tone-3: #7cc7ff;
-  --tone-4: #ff9ec4;
-  --tone-5: #f3f1ea;
-  --tone-6: #ff5b3d;
-  --on-tone-1: #0d0f12;
-  --on-tone-2: #0d0f12;
-  --on-tone-3: #0d0f12;
-  --on-tone-4: #0d0f12;
-  --on-tone-5: #0d0f12;
-  --on-tone-6: #0d0f12;
-}
-
-/* ───────────────── Dusk: "Dusk Arcade" ───────────────── */
-[data-theme="dusk"] {
-  color-scheme: dark;
-
-  --surface: #181b30;
-  --surface-2: #202442;
-  --surface-3: #2a2f52;
-  --border: #373d66;
-  --border-strong: #4c5382;
-  --fg: #eceff8;
-  --on-fg: #14172b;
-  --fg-muted: #b4bad8;
-  --fg-subtle: #9aa1c8;
-  --grid: rgba(236, 239, 248, 0.04);
-  --shadow: rgba(0, 0, 0, 0.5);
-
-  --accent: #f6b93b; /* marigold */
-  --accent-press: #e4a424;
-  --accent-text: #f6b93b;
-  --on-accent: #14172b;
-  --urgent: #ff7d6e; /* coral */
-  --urgent-text: #ff7d6e;
-  --success: #86d9ac; /* sage */
-  --success-text: #86d9ac;
-  --info-text: #9fb2ff; /* periwinkle */
-  --notice-text: #d9a3ee; /* orchid */
-
-  --tone-1: #f6b93b;
-  --tone-2: #86d9ac;
-  --tone-3: #9fb2ff;
-  --tone-4: #d9a3ee;
-  --tone-5: #eceff8;
-  --tone-6: #ff7d6e;
-  --on-tone-1: #14172b;
-  --on-tone-2: #14172b;
-  --on-tone-3: #14172b;
-  --on-tone-4: #14172b;
-  --on-tone-5: #14172b;
-  --on-tone-6: #14172b;
-}
-
-/* ───────────────── Light: "Dusk Arcade — Daylight" ─────────────────
-   --fg is dark here, so solid --fg chips carry light --on-fg text. Accents
-   used as text, outlines or thin graphics take the deeper *-text shades; the
-   bright fills stay. */
 [data-theme="light"] {
   color-scheme: light;
 
-  --surface: #f5f6fc;
-  --surface-2: #eceef9;
-  --surface-3: #e1e5f4;
-  --border: #cdd2ea;
-  --border-strong: #a9b0d4;
-  --fg: #1b1f3d;
-  --on-fg: #f5f6fc;
-  --fg-muted: #464d7a;
-  --fg-subtle: #575e8c;
-  --grid: rgba(27, 31, 61, 0.05);
-  --shadow: rgba(27, 31, 61, 0.18);
+  --surface: #f5f7fb;
+  --surface-2: #f5f7fb;
+  --surface-3: #e8ebf3;
+  --surface-feature: var(--tone-7);
+  --surface-practice: var(--tone-9);
+  --border: #c7c9cf;
+  --border-strong: #4c566c;
+  --fg: #172440;
+  --on-fg: #f5f7fb;
+  --fg-muted: #4c566c;
+  --fg-subtle: #4c566c;
+  --grid: color-mix(in srgb, var(--border) 50%, transparent);
+  --hairline: color-mix(in srgb, var(--fg) 12%, transparent);
+  --hairline-strong: color-mix(in srgb, var(--fg) 20%, transparent);
+  --shadow: var(--fg);
+  --shadow-soft: color-mix(in srgb, var(--fg) 35%, transparent);
 
-  --accent: #f6b93b; /* marigold */
-  --accent-press: #e4a424;
-  --accent-text: #8a5600; /* deep amber */
-  --on-accent: #14172b;
-  --urgent: #ff7d6e; /* coral */
-  --urgent-text: #b02f1d;
-  --success: #86d9ac; /* sage */
-  --success-text: #1d6e45;
-  --info-text: #3446b0;
-  --notice-text: #7f3a9c;
+  --accent: #fee434;
+  --accent-press: #e6cc1a;
+  --accent-swipe: var(--accent);
+  --on-accent: #172440;
+  --action: #364159;
+  --on-action: #fff;
+  --underline: var(--action);
+  --urgent: #c0301a;
+  --urgent-text: #a82814;
+  --success: #3aae6a;
+  --success-text: #14703f;
+  --info-text: var(--action);
+  --live: #1fa05a;
+  --count-calm: #7fb4f0;
+  --count-warn: #f2a516;
 
-  --tone-1: #f6b93b;
-  --tone-2: #86d9ac;
-  --tone-3: #9fb2ff;
-  --tone-4: #d9a3ee;
-  --tone-5: #1b1f3d;
-  --tone-6: #ff7d6e;
-  --on-tone-1: #14172b;
-  --on-tone-2: #14172b;
-  --on-tone-3: #14172b;
-  --on-tone-4: #14172b;
-  --on-tone-5: #f5f6fc;
-  --on-tone-6: #14172b;
+  --tone-1: var(--accent);
+  --tone-2: var(--success);
+  --tone-3: #ee9a33;
+  --tone-4: #e5543d;
+  --tone-5: var(--surface-2);
+  --tone-6: var(--urgent);
+  --tone-7: #a794ee;
+  --tone-8: #5cc487;
+  --tone-9: #9bbcf0;
+  --on-tone-1: var(--on-accent);
+  --on-tone-2: var(--on-accent);
+  --on-tone-3: var(--on-accent);
+  --on-tone-4: var(--on-accent);
+  --on-tone-5: var(--fg);
+  --on-tone-6: #fff;
+  --on-tone-7: var(--fg);
+  --on-tone-8: var(--fg);
+  --on-tone-9: var(--fg);
+
+  --tape-1: color-mix(in srgb, var(--action) 80%, transparent);
+  --tape-2: rgb(110 85 215 / 0.75);
+  --tape-3: rgb(30 143 85 / 0.75);
+  --tape-4: color-mix(in srgb, var(--urgent) 70%, transparent);
+  --tape-5: color-mix(in srgb, var(--tone-3) 85%, transparent);
+
+  --medal-1: #f2c230;
+  --medal-2: #c9ced8;
+  --medal-3: #cf8a4f;
+  --on-medal: var(--fg);
+}
+
+/* ───────────────── Dark: night ink on deep prussian paper ─────────────────
+   Pen ink flips to light, so borders and text read as chalk. Fills that carry
+   text in --fg go deep (tones 3, 4, 7, 8, 9) so light text stays readable on
+   them; fills that carry dark text stay bright (accent, success, medals). */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface: #0d1526;
+  --surface-2: #172440;
+  --surface-3: #223156;
+  --surface-feature: var(--tone-7);
+  --surface-practice: var(--tone-9);
+  --border: #2f3b57;
+  --border-strong: #6b7792;
+  --fg: #f5f7fb;
+  --on-fg: #172440;
+  --fg-muted: #c7c9cf;
+  --fg-subtle: #9ba4b9;
+  --grid: color-mix(in srgb, var(--border) 45%, transparent);
+  --hairline: color-mix(in srgb, var(--fg) 14%, transparent);
+  --hairline-strong: color-mix(in srgb, var(--fg) 24%, transparent);
+  --shadow: #050a15;
+  --shadow-soft: rgb(0 0 0 / 0.5);
+
+  --accent: #fee434;
+  --accent-press: #e6cc1a;
+  --accent-swipe: color-mix(in srgb, var(--accent) 38%, transparent);
+  --on-accent: #172440;
+  --action: #8fb0f2;
+  --on-action: #0d1526;
+  --underline: var(--action);
+  --urgent: #e5543d;
+  --urgent-text: #ff7d68;
+  --success: #3aae6a;
+  --success-text: #6fdc9d;
+  --info-text: var(--action);
+  --live: #3ddc84;
+  --count-calm: #7fb4f0;
+  --count-warn: #f2a516;
+
+  --tone-1: var(--accent);
+  --tone-2: var(--success);
+  --tone-3: #b85a12;
+  --tone-4: #c2402b;
+  --tone-5: var(--surface-2);
+  --tone-6: var(--urgent);
+  --tone-7: #5645b5;
+  --tone-8: #1f7d4d;
+  --tone-9: #2c4f9c;
+  --on-tone-1: var(--on-accent);
+  --on-tone-2: var(--on-accent);
+  --on-tone-3: #f5f7fb;
+  --on-tone-4: #f5f7fb;
+  --on-tone-5: var(--fg);
+  --on-tone-6: #0d1526;
+  --on-tone-7: #f5f7fb;
+  --on-tone-8: #f5f7fb;
+  --on-tone-9: #f5f7fb;
+
+  --tape-1: color-mix(in srgb, var(--action) 70%, transparent);
+  --tape-2: rgb(150 125 240 / 0.75);
+  --tape-3: rgb(60 180 115 / 0.7);
+  --tape-4: color-mix(in srgb, var(--urgent) 75%, transparent);
+  --tape-5: color-mix(in srgb, var(--tone-3) 85%, transparent);
+
+  --medal-1: #f2c230;
+  --medal-2: #c9ced8;
+  --medal-3: #cf8a4f;
+  --on-medal: #172440;
 }

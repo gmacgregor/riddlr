@@ -9,7 +9,8 @@
    `:root` holds the tokens no mode changes: fonts, fluid type and space
    scales, radius, motion and layout. Each colour mode is one block that sets
    every colour token, picked by `data-theme` on <html> (see RiddlrWeb.Theme).
-   Dark is the default.
+   The server always sets `data-theme`, light by default; `:root` falls back
+   to dark only if it is missing. Dusk was dropped with the v9 redesign (#49).
 
    Colour tokens carry role names, not colour names, so they stay true in
    every mode:
@@ -31,7 +32,7 @@
      --tone-N, --on-tone-N tile variant N fill and its text. variant-1 is
                            always the accent; variant-5 is always --fg.
 
-   Dark and Dusk set each *-text token equal to its fill, and --on-fg equal
+   Dark sets each *-text token equal to its fill, and --on-fg equal
    to --on-accent. Light needs deeper shades for text on a light ground.
    ============================================================================= */
 
@@ -147,48 +148,7 @@
   --on-tone-6: #0d0f12;
 }
 
-/* ───────────────── Dusk: "Dusk Arcade" ───────────────── */
-[data-theme="dusk"] {
-  color-scheme: dark;
-
-  --surface: #181b30;
-  --surface-2: #202442;
-  --surface-3: #2a2f52;
-  --border: #373d66;
-  --border-strong: #4c5382;
-  --fg: #eceff8;
-  --on-fg: #14172b;
-  --fg-muted: #b4bad8;
-  --fg-subtle: #9aa1c8;
-  --grid: rgba(236, 239, 248, 0.04);
-  --shadow: rgba(0, 0, 0, 0.5);
-
-  --accent: #f6b93b; /* marigold */
-  --accent-press: #e4a424;
-  --accent-text: #f6b93b;
-  --on-accent: #14172b;
-  --urgent: #ff7d6e; /* coral */
-  --urgent-text: #ff7d6e;
-  --success: #86d9ac; /* sage */
-  --success-text: #86d9ac;
-  --info-text: #9fb2ff; /* periwinkle */
-  --notice-text: #d9a3ee; /* orchid */
-
-  --tone-1: #f6b93b;
-  --tone-2: #86d9ac;
-  --tone-3: #9fb2ff;
-  --tone-4: #d9a3ee;
-  --tone-5: #eceff8;
-  --tone-6: #ff7d6e;
-  --on-tone-1: #14172b;
-  --on-tone-2: #14172b;
-  --on-tone-3: #14172b;
-  --on-tone-4: #14172b;
-  --on-tone-5: #14172b;
-  --on-tone-6: #14172b;
-}
-
-/* ───────────────── Light: "Dusk Arcade — Daylight" ─────────────────
+/* ───────────────── Light: "Daylight" ─────────────────
    --fg is dark here, so solid --fg chips carry light --on-fg text. Accents
    used as text, outlines or thin graphics take the deeper *-text shades; the
    bright fills stay. */
