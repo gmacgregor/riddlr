@@ -127,13 +127,21 @@ defmodule Riddlr.Accounts.User do
     end
   end
 
+  defp trim_username(username) when is_binary(username), do: String.trim(username)
+  defp trim_username(username), do: username
+
+  # Words of letters, numbers, underscores and dashes, one space between
+  # words. A single space only, so "a b" and "a  b" cannot both be taken.
+  @username_format ~r/^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$/
+
   defp validate_username(changeset, opts) do
     changeset =
       changeset
+      |> update_change(:username, &trim_username/1)
       |> validate_required([:username])
-      |> validate_length(:username, min: 3, max: 20)
-      |> validate_format(:username, ~r/^[a-zA-Z0-9_]+$/,
-        message: "must contain only letters, numbers, and underscores"
+      |> validate_length(:username, min: 3, max: 25)
+      |> validate_format(:username, @username_format,
+        message: "must contain only letters, numbers, spaces, dashes and underscores"
       )
 
     if Keyword.get(opts, :validate_unique, true) do

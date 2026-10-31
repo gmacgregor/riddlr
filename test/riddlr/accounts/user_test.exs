@@ -28,6 +28,53 @@ defmodule Riddlr.Accounts.UserTest do
       changeset = User.registration_changeset(%User{}, attrs)
       assert changeset.valid?
     end
+
+    test "accepts spaces and dashes" do
+      for name <- ["Riddle Master", "riddle-master", "the_riddle - master 2"] do
+        changeset =
+          User.registration_changeset(%User{}, valid_user_attributes(%{username: name}))
+
+        assert changeset.valid?, "expected #{inspect(name)} to be valid"
+      end
+    end
+
+    test "trims spaces from the ends" do
+      changeset =
+        User.registration_changeset(
+          %User{},
+          valid_user_attributes(%{username: "  Riddle Master "})
+        )
+
+      assert changeset.valid?
+      assert Ecto.Changeset.get_change(changeset, :username) == "Riddle Master"
+    end
+
+    test "rejects double spaces and other symbols" do
+      for name <- ["riddle  master", "riddle.master", "riddle!", "   "] do
+        changeset =
+          User.registration_changeset(%User{}, valid_user_attributes(%{username: name}))
+
+        assert %{username: [_ | _]} = errors_on(changeset), "expected #{inspect(name)} to fail"
+      end
+    end
+
+    test "allows up to 25 characters" do
+      ok =
+        User.registration_changeset(
+          %User{},
+          valid_user_attributes(%{username: String.duplicate("a", 25)})
+        )
+
+      assert ok.valid?
+
+      too_long =
+        User.registration_changeset(
+          %User{},
+          valid_user_attributes(%{username: String.duplicate("a", 26)})
+        )
+
+      assert %{username: [_]} = errors_on(too_long)
+    end
   end
 
   describe "role" do
