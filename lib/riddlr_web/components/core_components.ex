@@ -9,8 +9,8 @@ defmodule RiddlrWeb.CoreComponents do
   them in any way you want, based on your application growth and needs.
 
   Components carry the `rg-` classes of the Riddlr design system, defined in
-  `assets/css/game.css` (admin-only parts such as tables live in
-  `assets/css/admin.css`). Here are useful references:
+  `assets/css/game.css`. The admin uses a frozen copy of these components,
+  `RiddlrWeb.AdminComponents`. Here are useful references:
 
     * [Tailwind CSS](https://tailwindcss.com) - utility classes for layout,
       sizing, flexbox, grid, and spacing.

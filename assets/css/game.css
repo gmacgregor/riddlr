@@ -3,9 +3,10 @@
 
    Holds the base rules, shared parts (buttons, fields, flash, topbar) and the
    player screens (Home, Lobby, Play, Results). The tokens and colour modes
-   live in themes.css; this file, auth.css and admin.css build on them.
-   Classes carry the rg- prefix. Base rules hang off .rg-app, the root of
-   Layouts.game/1 and the admin layout.
+   live in themes.css; this file and auth.css build on them. Classes carry
+   the rg- prefix. Base rules hang off .rg-app, the root of Layouts.game/1.
+   The admin does not load this file: it has a frozen copy of the parts it
+   uses in admin-base.css.
    ============================================================================= */
 
 /* ───────────────── Page ───────────────── */

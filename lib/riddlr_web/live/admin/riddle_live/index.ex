@@ -1,5 +1,5 @@
 defmodule RiddlrWeb.Admin.RiddleLive.Index do
-  use RiddlrWeb, :live_view
+  use RiddlrWeb, :admin_live_view
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
   alias Riddlr.Authorization

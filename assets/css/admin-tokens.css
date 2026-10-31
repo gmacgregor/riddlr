@@ -1,0 +1,233 @@
+/* =============================================================================
+   ADMIN TOKENS — frozen copy of the design tokens and colour modes.
+
+   A snapshot of themes.css as it stood before the v9 player redesign (#47).
+   Only the admin root layout loads it (RiddlrWeb.AdminLayouts), so the player
+   tokens in themes.css can change without moving the admin. Do not follow
+   changes in themes.css here.
+
+   `:root` holds the tokens no mode changes: fonts, fluid type and space
+   scales, radius, motion and layout. Each colour mode is one block that sets
+   every colour token, picked by `data-theme` on <html> (see RiddlrWeb.Theme).
+   Dark is the default.
+
+   Colour tokens carry role names, not colour names, so they stay true in
+   every mode:
+
+     --surface, -2, -3     page ground, raised panel, higher panel / field
+     --border, -strong     default rule, stronger rule
+     --fg                  strong foreground, solid chips
+     --on-fg               text on --fg fills
+     --fg-muted, -subtle   secondary, tertiary text
+     --grid                background grid line
+     --accent, -press      live + main action fill, pressed
+     --accent-text         accent as text, outline or thin graphic
+     --on-accent           text on bright fills
+     --urgent, -text       urgency + wrong: fill, and as text / outline
+     --success, -text      correct + solved: fill, and as text / outline
+     --info-text           neutral status text (scheduled, notes)
+     --notice-text         second status text (ready)
+     --shadow              drop-shadow colour
+     --tone-N, --on-tone-N tile variant N fill and its text. variant-1 is
+                           always the accent; variant-5 is always --fg.
+
+   Dark and Dusk set each *-text token equal to its fill, and --on-fg equal
+   to --on-accent. Light needs deeper shades for text on a light ground.
+   ============================================================================= */
+
+:root {
+  --f-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --f-ui: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-label: "Jost", "Futura", "Century Gothic", sans-serif;
+
+  /* ── Fluid type and space (Utopia, https://utopia.fyi) ──────────────────
+     Each size grows in a straight line from a 320px viewport to a 1240px
+     viewport (1200px --wrap plus gutters), then stops. Min and max are in
+     rem and the middle term is rem + vw, so every size follows the player's
+     font-size setting and zoom.
+
+     Type  https://utopia.fyi/type/calculator?c=320,16,1.1429,1240,17,1.18,4,2
+       320px:  base 16px, ratio 1.1429 (8:7)  → 12 14 16 18 21 24 27
+       1240px: base 17px, ratio 1.18          → 12 14 17 20 24 28 33
+       --step--2 is pinned to 12 → 12.5px so it does not shrink.
+     Space https://utopia.fyi/space/calculator?c=320,16,1.1429,1240,17,1.18,4,2&s=0.75|0.5|0.25,1.5|2|3|4,s-l
+       base 16px → 17px; multipliers 3xs .25, 2xs .5, xs .75, s 1, m 1.5,
+       l 2, xl 3, 2xl 4. A pair (--space-a-b) grows from a at 320px to b
+       at 1240px.
+     Display sizes sit above the type scale. They keep the old min and max.
+
+     Size parts that hold text (tiles, chips, badges, flaps) in em so they
+     follow their own font size.
+
+     Keep these in fixed px: border and outline widths, outline offsets,
+     1-2px hairline gaps, radii, shadows, the background grid, tap-target
+     minimums (44/48px), icons in buttons, small dots and bars, and
+     media-query breakpoints. */
+
+  --step--2: clamp(0.75rem, 0.7391rem + 0.0543vw, 0.7813rem);
+  --step--1: clamp(0.875rem, 0.8662rem + 0.0442vw, 0.9004rem);
+  --step-0: clamp(1rem, 0.9783rem + 0.1087vw, 1.0625rem);
+  --step-1: clamp(1.1429rem, 1.1043rem + 0.1929vw, 1.2537rem);
+  --step-2: clamp(1.3061rem, 1.2458rem + 0.3014vw, 1.4794rem);
+  --step-3: clamp(1.4927rem, 1.4047rem + 0.44vw, 1.7457rem);
+  --step-4: clamp(1.706rem, 1.5828rem + 0.6156vw, 2.06rem);
+
+  --display-auth: clamp(1.75rem, 1.5761rem + 0.8696vw, 2.25rem);
+  --display-riddle: clamp(1.5rem, 1.2391rem + 1.3043vw, 2.25rem);
+  --display-clock: clamp(1.75rem, 1.4891rem + 1.3043vw, 2.5rem);
+  --display-heading: clamp(2rem, 1.4783rem + 2.6087vw, 3.5rem);
+  --display-answer: clamp(2.25rem, 1.4674rem + 3.913vw, 4.5rem);
+  --display-hero: clamp(2.5rem, 1.4565rem + 5.2174vw, 5.5rem);
+  --display-flap: clamp(3rem, 1.6087rem + 6.9565vw, 7rem);
+  --display-flap-long: clamp(1.875rem, 0.6141rem + 6.3043vw, 5.5rem);
+
+  --space-3xs: clamp(0.25rem, 0.2446rem + 0.0272vw, 0.2656rem);
+  --space-2xs: clamp(0.5rem, 0.4891rem + 0.0543vw, 0.5313rem);
+  --space-xs: clamp(0.75rem, 0.7337rem + 0.0815vw, 0.7969rem);
+  --space-s: clamp(1rem, 0.9783rem + 0.1087vw, 1.0625rem);
+  --space-m: clamp(1.5rem, 1.4674rem + 0.163vw, 1.5938rem);
+  --space-l: clamp(2rem, 1.9565rem + 0.2174vw, 2.125rem);
+  --space-xl: clamp(3rem, 2.9348rem + 0.3261vw, 3.1875rem);
+  --space-2xl: clamp(4rem, 3.913rem + 0.4348vw, 4.25rem);
+
+  --space-s-l: clamp(1rem, 0.6087rem + 1.9565vw, 2.125rem);
+
+  --r: 4px;
+  --r-lg: 8px;
+
+  --t-fast: 160ms;
+  --t-med: 240ms;
+  --t-slow: 360ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.9, 0.4);
+
+  --wrap: 75rem;
+  --pad: var(--space-s-l);
+}
+
+/* ───────────────── Dark: "Midnight Crossword" (default) ───────────────── */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface: #0d0f12;
+  --surface-2: #14171c;
+  --surface-3: #1c2027;
+  --border: #2a2f38;
+  --border-strong: #3b414c;
+  --fg: #f3f1ea;
+  --on-fg: #0d0f12;
+  --fg-muted: #a7adb7;
+  --fg-subtle: #8a919c;
+  --grid: rgba(243, 241, 234, 0.035);
+  --shadow: rgba(0, 0, 0, 0.5);
+
+  --accent: #e4ff3a; /* highlighter */
+  --accent-press: #d2ee1f;
+  --accent-text: #e4ff3a;
+  --on-accent: #0d0f12;
+  --urgent: #ff5b3d;
+  --urgent-text: #ff5b3d;
+  --success: #43e3a8;
+  --success-text: #43e3a8;
+  --info-text: #7cc7ff; /* sky */
+  --notice-text: #ff9ec4; /* rose */
+
+  --tone-1: #e4ff3a;
+  --tone-2: #43e3a8;
+  --tone-3: #7cc7ff;
+  --tone-4: #ff9ec4;
+  --tone-5: #f3f1ea;
+  --tone-6: #ff5b3d;
+  --on-tone-1: #0d0f12;
+  --on-tone-2: #0d0f12;
+  --on-tone-3: #0d0f12;
+  --on-tone-4: #0d0f12;
+  --on-tone-5: #0d0f12;
+  --on-tone-6: #0d0f12;
+}
+
+/* ───────────────── Dusk: "Dusk Arcade" ───────────────── */
+[data-theme="dusk"] {
+  color-scheme: dark;
+
+  --surface: #181b30;
+  --surface-2: #202442;
+  --surface-3: #2a2f52;
+  --border: #373d66;
+  --border-strong: #4c5382;
+  --fg: #eceff8;
+  --on-fg: #14172b;
+  --fg-muted: #b4bad8;
+  --fg-subtle: #9aa1c8;
+  --grid: rgba(236, 239, 248, 0.04);
+  --shadow: rgba(0, 0, 0, 0.5);
+
+  --accent: #f6b93b; /* marigold */
+  --accent-press: #e4a424;
+  --accent-text: #f6b93b;
+  --on-accent: #14172b;
+  --urgent: #ff7d6e; /* coral */
+  --urgent-text: #ff7d6e;
+  --success: #86d9ac; /* sage */
+  --success-text: #86d9ac;
+  --info-text: #9fb2ff; /* periwinkle */
+  --notice-text: #d9a3ee; /* orchid */
+
+  --tone-1: #f6b93b;
+  --tone-2: #86d9ac;
+  --tone-3: #9fb2ff;
+  --tone-4: #d9a3ee;
+  --tone-5: #eceff8;
+  --tone-6: #ff7d6e;
+  --on-tone-1: #14172b;
+  --on-tone-2: #14172b;
+  --on-tone-3: #14172b;
+  --on-tone-4: #14172b;
+  --on-tone-5: #14172b;
+  --on-tone-6: #14172b;
+}
+
+/* ───────────────── Light: "Dusk Arcade — Daylight" ─────────────────
+   --fg is dark here, so solid --fg chips carry light --on-fg text. Accents
+   used as text, outlines or thin graphics take the deeper *-text shades; the
+   bright fills stay. */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface: #f5f6fc;
+  --surface-2: #eceef9;
+  --surface-3: #e1e5f4;
+  --border: #cdd2ea;
+  --border-strong: #a9b0d4;
+  --fg: #1b1f3d;
+  --on-fg: #f5f6fc;
+  --fg-muted: #464d7a;
+  --fg-subtle: #575e8c;
+  --grid: rgba(27, 31, 61, 0.05);
+  --shadow: rgba(27, 31, 61, 0.18);
+
+  --accent: #f6b93b; /* marigold */
+  --accent-press: #e4a424;
+  --accent-text: #8a5600; /* deep amber */
+  --on-accent: #14172b;
+  --urgent: #ff7d6e; /* coral */
+  --urgent-text: #b02f1d;
+  --success: #86d9ac; /* sage */
+  --success-text: #1d6e45;
+  --info-text: #3446b0;
+  --notice-text: #7f3a9c;
+
+  --tone-1: #f6b93b;
+  --tone-2: #86d9ac;
+  --tone-3: #9fb2ff;
+  --tone-4: #d9a3ee;
+  --tone-5: #1b1f3d;
+  --tone-6: #ff7d6e;
+  --on-tone-1: #14172b;
+  --on-tone-2: #14172b;
+  --on-tone-3: #14172b;
+  --on-tone-4: #14172b;
+  --on-tone-5: #f5f6fc;
+  --on-tone-6: #14172b;
+}

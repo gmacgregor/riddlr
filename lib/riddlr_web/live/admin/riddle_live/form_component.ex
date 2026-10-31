@@ -1,5 +1,5 @@
 defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
-  use RiddlrWeb, :live_component
+  use RiddlrWeb, :admin_live_component
   alias Riddlr.Games
   alias Riddlr.Games.RiddleName
   alias Riddlr.Authorization

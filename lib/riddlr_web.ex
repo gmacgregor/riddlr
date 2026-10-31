@@ -66,6 +66,39 @@ defmodule RiddlrWeb do
     end
   end
 
+  # The admin entry points match the ones above, but bring in the frozen
+  # `RiddlrWeb.AdminComponents` in place of the core and account components,
+  # so the player screens can change without moving the admin.
+
+  def admin_live_view do
+    quote do
+      use Phoenix.LiveView
+
+      on_mount RiddlrWeb.Theme
+
+      unquote(admin_html_helpers())
+    end
+  end
+
+  def admin_live_component do
+    quote do
+      use Phoenix.LiveComponent
+
+      unquote(admin_html_helpers())
+    end
+  end
+
+  def admin_html do
+    quote do
+      use Phoenix.Component
+
+      import Phoenix.Controller,
+        only: [get_csrf_token: 0, view_module: 1, view_template: 1]
+
+      unquote(admin_html_helpers())
+    end
+  end
+
   def html do
     quote do
       use Phoenix.Component
@@ -97,6 +130,33 @@ defmodule RiddlrWeb do
       alias RiddlrWeb.Layouts
 
       # Routes generation with the ~p sigil
+      unquote(verified_routes())
+    end
+  end
+
+  defp admin_html_helpers do
+    quote do
+      use Gettext, backend: RiddlrWeb.Gettext
+
+      import Phoenix.HTML
+
+      # Frozen admin components, plus the core helpers that carry no look
+      import RiddlrWeb.AdminComponents
+
+      import RiddlrWeb.CoreComponents,
+        only: [
+          icon: 1,
+          show: 1,
+          show: 2,
+          hide: 1,
+          hide: 2,
+          translate_error: 1,
+          translate_errors: 2
+        ]
+
+      alias Phoenix.LiveView.JS
+      alias RiddlrWeb.AdminLayouts
+
       unquote(verified_routes())
     end
   end

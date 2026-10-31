@@ -14,6 +14,12 @@ defmodule RiddlrWeb.Router do
     plug :fetch_current_scope_for_user
   end
 
+  # Swaps in the admin root layout, which loads only the frozen admin
+  # stylesheets (see RiddlrWeb.AdminLayouts).
+  pipeline :admin_browser do
+    plug :put_root_layout, html: {RiddlrWeb.AdminLayouts, :root}
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -85,18 +91,19 @@ defmodule RiddlrWeb.Router do
   ## Admin routes
 
   scope "/admin", RiddlrWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :admin_browser, :require_authenticated_user]
 
     # AdminController redirect - requires admin permission via plug in controller
     get "/", AdminController, :redirect_to_riddles
   end
 
   scope "/admin", RiddlrWeb.Admin do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :admin_browser, :require_authenticated_user]
 
     live_session :admin,
       on_mount: [{RiddlrWeb.AdminAuth, :require_admin}],
-      layout: {RiddlrWeb.Layouts, :admin} do
+      root_layout: {RiddlrWeb.AdminLayouts, :root},
+      layout: {RiddlrWeb.AdminLayouts, :admin} do
       live "/riddles", RiddleLive.Index, :index
       live "/riddles/new", RiddleLive.Index, :new
       live "/riddles/:id/edit", RiddleLive.Index, :edit

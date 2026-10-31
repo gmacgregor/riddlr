@@ -62,7 +62,7 @@ config :esbuild,
   ],
   css: [
     args:
-      ~w(css/themes.css css/game.css css/auth.css css/admin.css --bundle --outdir=../priv/static/assets/css),
+      ~w(css/themes.css css/game.css css/auth.css css/admin-tokens.css css/admin-base.css css/admin.css --bundle --outdir=../priv/static/assets/css),
     cd: Path.expand("../assets", __DIR__)
   ]
 
