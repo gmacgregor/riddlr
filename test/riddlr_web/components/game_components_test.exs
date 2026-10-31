@@ -52,6 +52,14 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert html =~ ~s(data-tone="variant-5")
       refute html =~ "rg-tile--"
     end
+
+    test "renders each tile tone as its data-tone" do
+      for n <- 1..6 do
+        tone = "variant-#{n}"
+        html = render_component(&GameComponents.tile/1, initial: "G", tone: tone)
+        assert html =~ ~s(data-tone="#{tone}")
+      end
+    end
   end
 
   describe "clock_str/1" do
@@ -208,6 +216,46 @@ defmodule RiddlrWeb.GameComponentsTest do
       refute_pill(pill, "a")
       assert text(pill, "#pill-clock") == "01:01:40"
     end
+  end
+
+  describe "status_pill/1 countdown dot" do
+    test "in the Lobby, is far above 30s, warn from 30s and urgent from 10s" do
+      count = fn seconds -> pill_count(kind: :lobby, number: 66, seconds: seconds) end
+
+      assert count.(31) == "far"
+      assert count.(30) == "warn"
+      assert count.(11) == "warn"
+      assert count.(10) == "urgent"
+      assert count.(0) == "urgent"
+    end
+
+    test "on Home, follows the same edges, with or without a Lobby link" do
+      count = fn seconds, href ->
+        pill_count(kind: :home_next, id: "pill-clock", seconds: seconds, href: href)
+      end
+
+      assert count.(31, nil) == "far"
+      assert count.(30, "/game/7/lobby") == "warn"
+      assert count.(11, "/game/7/lobby") == "warn"
+      assert count.(10, "/game/7/lobby") == "urgent"
+    end
+
+    test "is left off without seconds, and on the live and final pills" do
+      for attrs <- [
+            [kind: :lobby, number: 66],
+            [kind: :play, number: 66, seconds: 5],
+            [kind: :results, number: 66, seconds: 5],
+            [kind: :home_live, href: "/game/7/play", seconds: 5]
+          ] do
+        refute_pill(render_pill(attrs), "[data-count]")
+      end
+    end
+  end
+
+  defp pill_count(attrs) do
+    pill = render_pill(attrs)
+    [count] = pill |> LazyHTML.query(".rg-pill") |> LazyHTML.attribute("data-count")
+    count
   end
 
   defp render_pill(attrs) do

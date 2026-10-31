@@ -12,8 +12,18 @@ defmodule RiddlrWeb.GameComponents do
 
   @typedoc """
   A tile tone, `"variant-1"` to `"variant-6"`. Each one maps to a `data-tone`
-  rule in `game.css`; the colour mode sets the colours. `variant-1` is always the
-  mode's accent and `variant-5` the paper tile (page surface with ink text).
+  rule in `game.css` that reads `--tone-N`, so the colour mode sets the colours.
+  The v9 design names them:
+
+    * `variant-1` - hi, the highlighter (always the viewer's own tile)
+    * `variant-2` - mint
+    * `variant-3` - sky
+    * `variant-4` - rose
+    * `variant-5` - paper: the page surface with ink text
+    * `variant-6` - red
+
+  Tones 7 to 9 exist in `themes.css` too, but only as page fills (hero,
+  timeline markers, practice note). Tiles never use them.
   """
   @type tone :: String.t()
 
@@ -343,12 +353,19 @@ defmodule RiddlrWeb.GameComponents do
 
   The part after the dot is long: CSS hides it on narrow screens. With no
   riddle number, the number part is left out.
+
+  `:home_next` and `:lobby` take the `seconds` until the drop and render it as
+  `data-count` for the countdown dot: `far` above 30s, `warn` from 30s and
+  `urgent` from 10s. With no `seconds` there is no dot.
   """
   attr :kind, :atom, required: true, values: [:play, :lobby, :results, :home_live, :home_next]
   attr :number, :integer, default: nil
   attr :href, :string, default: nil, doc: "where a Home pill links to"
   attr :id, :string, default: nil, doc: "the `:home_next` clock's id"
-  attr :seconds, :integer, default: 0, doc: "the `:home_next` seconds until the drop"
+
+  attr :seconds, :integer,
+    default: nil,
+    doc: "seconds until the drop, for `:home_next` and `:lobby`; sets the countdown dot"
 
   @spec status_pill(map()) :: Phoenix.LiveView.Rendered.t()
   def status_pill(%{kind: :play} = assigns) do
@@ -374,21 +391,26 @@ defmodule RiddlrWeb.GameComponents do
 
   def status_pill(%{kind: :home_next, href: nil} = assigns) do
     ~H"""
-    <span class="rg-pill rg-pill--soon"><.next_clock id={@id} seconds={@seconds} /></span>
+    <span class="rg-pill rg-pill--soon" data-count={count_level(@seconds)}>
+      <.next_clock id={@id} seconds={@seconds || 0} />
+    </span>
     """
   end
 
   def status_pill(%{kind: :home_next} = assigns) do
     ~H"""
-    <.link navigate={@href} class="rg-pill rg-pill--soon">
-      <.next_clock id={@id} seconds={@seconds} />
+    <.link navigate={@href} class="rg-pill rg-pill--soon" data-count={count_level(@seconds)}>
+      <.next_clock id={@id} seconds={@seconds || 0} />
     </.link>
     """
   end
 
   def status_pill(%{kind: kind} = assigns) when kind in [:lobby, :results] do
     ~H"""
-    <span class={["rg-pill", @kind == :lobby && "rg-pill--soon"]}>
+    <span
+      class={["rg-pill", @kind == :lobby && "rg-pill--soon"]}
+      data-count={@kind == :lobby && count_level(@seconds)}
+    >
       {if @kind == :lobby, do: "Lobby", else: "Final"}<span
         :if={@number}
         class="rg-pill__long"
@@ -396,6 +418,14 @@ defmodule RiddlrWeb.GameComponents do
     </span>
     """
   end
+
+  # How near the drop is, for the countdown dot: calm above 30s, amber from
+  # 30s, red from 10s.
+  @spec count_level(integer() | nil) :: String.t() | nil
+  defp count_level(nil), do: nil
+  defp count_level(seconds) when seconds > 30, do: "far"
+  defp count_level(seconds) when seconds > 10, do: "warn"
+  defp count_level(_seconds), do: "urgent"
 
   # The Home pill's countdown. The server renders the first value. After that
   # the `.PillClock` hook counts down once a second and re-syncs on each

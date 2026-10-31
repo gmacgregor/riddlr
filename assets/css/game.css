@@ -9,7 +9,24 @@
    uses in admin-base.css.
    ============================================================================= */
 
+/* ───────────────── Pen art ─────────────────
+   Single-colour line art is a mask over a token colour, so every stroke
+   follows the colour mode. Sizes are set where each one is used. */
+:root {
+  --art-wave-h: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='8' viewBox='0 0 120 8'><path d='M0 4 C10 1 16 7 28 4 S46 1 58 4 S78 7 90 4 S108 2 120 4' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/></svg>");
+  --art-wave-pen: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='10' viewBox='0 0 64 10'><path d='M0 5 C6 1 10 9 16 5 S26 1 32 5 S42 9 48 5 S58 2 64 5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/></svg>");
+  /* Link squiggle: a seamless tile, so sliding it sideways reads as a moving wave. */
+  --art-wave-link: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='6' viewBox='0 0 16 6'><path d='M0 3 Q4 0 8 3 T16 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/></svg>");
+  /* Heading underline: a loose two-stroke marker line. Not a wave, so it never reads as a link. */
+  --art-hand-line: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='12' viewBox='0 0 200 12' preserveAspectRatio='none'><g fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round'><path d='M2 5 C40 2 80 8 120 4 S180 6 198 3' vector-effect='non-scaling-stroke'/><path d='M14 9.5 C60 7.5 110 10.5 160 8.5' vector-effect='non-scaling-stroke'/></g></svg>");
+  /* A wobbly squiggle drawn all the way round an avatar: marks "you". */
+  --art-ring: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M94.3 50.0 L95.8 52.2 L96.8 54.5 L97.2 56.8 L96.8 59.0 L95.7 61.1 L94.3 63.0 L92.9 64.8 L91.7 66.7 L91.2 68.8 L91.2 71.3 L91.7 74.1 L92.2 77.1 L92.5 80.3 L92.3 83.2 L91.1 85.7 L89.2 87.4 L86.6 88.4 L83.6 88.8 L80.5 88.8 L77.6 88.8 L75.1 89.1 L73.0 89.8 L71.1 91.0 L69.4 92.5 L67.6 93.9 L65.6 95.0 L63.4 95.5 L61.0 95.2 L58.5 94.3 L56.2 93.0 L54.0 91.7 L51.9 90.7 L50.0 90.4 L48.1 90.9 L46.0 92.0 L43.7 93.5 L41.3 95.0 L38.8 96.1 L36.4 96.5 L34.0 96.1 L32.0 95.1 L30.1 93.7 L28.2 92.2 L26.3 91.0 L24.2 90.2 L21.6 89.9 L18.7 89.8 L15.7 89.6 L12.7 89.1 L10.1 88.0 L8.3 86.1 L7.3 83.6 L7.1 80.5 L7.6 77.3 L8.3 74.1 L8.9 71.2 L9.2 68.7 L8.8 66.5 L7.8 64.6 L6.5 62.8 L5.2 60.9 L4.3 58.8 L4.0 56.6 L4.5 54.3 L5.6 52.1 L7.0 50.0 L8.5 48.0 L9.5 46.1 L9.9 44.2 L9.5 42.2 L8.5 39.9 L7.2 37.4 L5.9 34.7 L5.0 32.0 L4.8 29.4 L5.4 27.0 L6.6 25.0 L8.3 23.2 L10.1 21.6 L11.7 19.9 L13.1 18.0 L14.1 15.8 L15.0 13.3 L16.0 10.7 L17.2 8.3 L18.9 6.4 L21.2 5.2 L23.9 4.8 L26.9 5.2 L30.0 6.1 L32.9 7.2 L35.5 8.0 L37.8 8.4 L39.8 8.0 L41.7 7.0 L43.6 5.7 L45.6 4.4 L47.8 3.4 L50.0 3.1 L52.2 3.6 L54.3 4.7 L56.3 6.2 L58.1 7.7 L60.0 8.9 L61.9 9.3 L64.2 9.1 L66.7 8.3 L69.5 7.3 L72.5 6.4 L75.4 6.0 L78.1 6.3 L80.3 7.4 L82.0 9.3 L83.3 11.6 L84.3 14.0 L85.2 16.4 L86.4 18.5 L87.8 20.3 L89.6 21.8 L91.5 23.3 L93.4 25.0 L94.8 26.9 L95.5 29.2 L95.5 31.8 L94.8 34.5 L93.7 37.2 L92.5 39.7 L91.6 42.0 L91.3 44.1 L91.8 46.0 L92.9 48.0 Z' fill='none' stroke='%23000' stroke-width='2.4' stroke-linejoin='round' vector-effect='non-scaling-stroke'/></svg>");
+}
+
 /* ───────────────── Page ───────────────── */
+html {
+  font-synthesis: none;
+}
 html,
 body {
   background: var(--surface);
@@ -25,9 +42,9 @@ body {
   height: 100dvh;
   background-color: var(--surface);
   background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
   color: var(--fg);
   font-family: var(--f-ui);
   font-size: var(--step-0);
@@ -54,8 +71,8 @@ body {
   list-style: none;
 }
 .rg-app :focus-visible {
-  outline: 2px solid var(--action);
-  outline-offset: 2px;
+  outline: 3px solid var(--action);
+  outline-offset: 3px;
 }
 .rg-app [tabindex="-1"]:focus {
   outline: none;
@@ -121,29 +138,53 @@ body {
   color: var(--fg-muted);
 }
 .rg-kicker__num {
-  background: var(--fg);
-  color: var(--on-fg);
+  background: var(--accent);
+  color: var(--on-accent);
   padding: 0.15em 0.45em;
-  border-radius: 2px;
+  border: 1.5px solid var(--fg);
+  border-radius: var(--wob-sm);
+  transform: rotate(-2deg);
 }
 
+/* A panel opens with a wavy pen rule; its heading is handwritten with a
+   marker line under it. */
 .rg-panel {
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-s);
+  position: relative;
+  padding-top: var(--space-m);
+}
+.rg-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.5rem;
+  background: var(--fg);
+  mask: var(--art-wave-h) repeat-x left center / 7.5rem 0.5rem;
+  opacity: 0.55;
 }
 .rg-panel__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-xs);
 }
 .rg-panel__h {
-  font-family: var(--f-label);
-  font-size: var(--step--1);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--fg-muted);
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+  font-family: var(--f-display);
+  font-size: var(--display-m);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--fg);
+}
+.rg-panel__h::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 0.625rem;
+  background: var(--underline);
+  mask: var(--art-hand-line) no-repeat 0 0 / 100% 100%;
+  pointer-events: none;
 }
 .rg-count {
   font-family: var(--f-label);
@@ -158,9 +199,10 @@ body {
   flex: none;
   width: 2.1875em;
   height: 2.1875em;
-  border-radius: var(--r);
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-sm);
   font-family: var(--f-label);
-  font-weight: 600;
+  font-weight: 700;
   font-size: var(--step-1);
   line-height: 1;
   background: var(--tone-5);
@@ -215,9 +257,10 @@ body {
   gap: var(--space-2xs);
   min-height: 48px;
   padding: 0 var(--space-m);
-  border: 2px solid var(--fg);
-  border-radius: var(--r);
-  background: transparent;
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-box-2);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-pen);
   color: var(--fg);
   font-weight: 700;
   font-size: var(--step-0);
@@ -225,25 +268,23 @@ body {
   text-decoration: none;
   transition:
     transform var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out),
     background-color var(--t-fast) var(--ease-out),
     color var(--t-fast) var(--ease-out);
 }
-.rg-btn--accent {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+.rg-btn--accent,
+.rg-btn--icon {
+  background: var(--action);
+  color: var(--on-action);
 }
+/* Pressed: the button drops onto its shadow. */
 .rg-btn:active {
-  transform: translateY(1px);
+  transform: translate(2px, 3px);
+  box-shadow: 1px 1px 0 var(--shadow);
 }
 @media (hover: hover) {
   .rg-btn:hover {
     background: var(--fg);
-    color: var(--on-fg);
-  }
-  .rg-btn--accent:hover {
-    background: var(--fg);
-    border-color: var(--fg);
     color: var(--on-fg);
   }
 }
@@ -251,22 +292,23 @@ body {
 .rg-btn[aria-disabled="true"] {
   cursor: not-allowed;
   background: var(--surface-3);
-  border-color: var(--border-strong);
+  border-style: dashed;
+  box-shadow: none;
   color: var(--fg-muted);
   transform: none;
 }
 .rg-btn--icon {
   min-width: 48px;
   padding: 0;
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
   --rg-icon-size: 22px;
 }
 .rg-btn--wide {
   width: 100%;
 }
+/* Links carry one squiggle in --underline: a masked strip just under the
+   text, so it can slide on hover. */
 .rg-link-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   background: none;
@@ -275,14 +317,34 @@ body {
   min-height: 44px;
   color: var(--fg);
   font-weight: 700;
-  text-decoration: underline;
-  text-decoration-color: var(--action);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+  text-decoration: none;
+}
+.rg-link-btn::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(var(--space-xs) - 2px);
+  height: 0.375rem;
+  background: var(--underline);
+  mask: var(--art-wave-link) repeat-x 0 0 / 1rem 0.375rem;
+  pointer-events: none;
+}
+.rg-link-btn:focus-visible {
+  color: var(--underline);
 }
 @media (hover: hover) {
   .rg-link-btn:hover {
-    color: var(--action);
+    color: var(--underline);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .rg-link-btn:hover::after {
+    animation: rg-wave-slide 700ms linear infinite;
+  }
+}
+@keyframes rg-wave-slide {
+  to {
+    mask-position: 1rem 0;
   }
 }
 
@@ -305,8 +367,8 @@ body {
   min-width: 0;
   min-height: 48px;
   padding: var(--space-2xs) var(--space-s);
-  border-radius: var(--r);
-  border: 2px solid var(--border-strong);
+  border-radius: var(--wob-sm);
+  border: var(--stroke) solid var(--fg);
   background: var(--surface-2);
   color: var(--fg);
   font-size: var(--step-0);
@@ -328,12 +390,12 @@ select.rg-input option {
   color: var(--fg-subtle);
 }
 .rg-input:focus {
-  outline: none;
   border-color: var(--action);
 }
 .rg-input[readonly] {
   color: var(--fg-muted);
   background: var(--surface-3);
+  border-style: dashed;
   cursor: not-allowed;
 }
 .rg-input.is-invalid,
@@ -352,10 +414,25 @@ select.rg-input option {
   align-items: center;
   gap: var(--space-2xs);
 }
+/* A pen-drawn box; checked, it fills with the action colour and a gap of
+   paper round the fill. */
 .rg-check {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--accent);
+  appearance: none;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 2px solid var(--fg);
+  border-radius: var(--wob-sm);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.rg-check:checked {
+  background: var(--action);
+  box-shadow: inset 0 0 0 3px var(--surface-2);
+}
+.rg-check[aria-invalid="true"] {
+  border-color: var(--urgent-text);
 }
 
 /* ───────────────── Page head (core header/1) ───────────────── */
@@ -385,11 +462,19 @@ select.rg-input option {
 }
 
 /* ───────────────── Top bar ───────────────── */
+/* The top of the page: a wavy pen line runs under it. */
 .rg-topbar {
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
   position: relative;
   z-index: 2;
+}
+.rg-topbar::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -4px;
+  height: 0.5rem;
+  background: var(--fg);
+  mask: var(--art-wave-h) repeat-x left center / 7.5rem 0.5rem;
 }
 .rg-topbar__in {
   max-width: var(--wrap);
@@ -420,13 +505,13 @@ select.rg-input option {
   flex: none;
   width: 1.34em;
   height: 1.34em;
-  border-radius: var(--r);
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-sm);
   background: var(--accent);
   color: var(--on-accent);
   font-family: var(--f-display);
-  font-style: italic;
-  font-weight: 900;
-  font-size: var(--step-3);
+  font-weight: 700;
+  font-size: var(--display-s);
   line-height: 1;
   transform: rotate(-6deg);
   transition: transform var(--t-med) var(--ease-out);
@@ -434,11 +519,9 @@ select.rg-input option {
 .rg-brand__word {
   display: block;
   font-family: var(--f-display);
-  font-weight: 900;
-  font-size: var(--step-3);
+  font-weight: 700;
+  font-size: var(--display-l);
   line-height: 1;
-  letter-spacing: -0.03em;
-  font-variation-settings: "opsz" 144;
 }
 @media (hover: hover) {
   .rg-brand:hover .rg-brand__q {
@@ -454,7 +537,7 @@ select.rg-input option {
 .rg-topbar__account {
   display: flex;
   align-items: center;
-  gap: var(--space-s);
+  gap: var(--space-2xs) var(--space-s);
 }
 
 /* Colour mode switch: a doodled eye. Open is light, shut is dark. Both
@@ -549,18 +632,15 @@ select.rg-input option {
   align-items: center;
   gap: var(--space-2xs);
   padding: 0.3em 0.7em;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
+  border-radius: var(--wob-pill);
+  border: 2px solid var(--fg);
+  background: var(--surface-2);
+  color: var(--fg);
   font-family: var(--f-label);
   font-size: var(--step--1);
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
-}
-.rg-pill--live {
-  border-color: var(--action);
-  color: var(--action);
 }
 .rg-pill--soon {
   color: var(--fg);
@@ -574,12 +654,38 @@ a.rg-pill {
   }
 }
 .rg-live-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--live);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--live) 25%, transparent);
   flex: none;
   animation: rg-blink 1.2s steps(2, jump-none) infinite;
+}
+/* Countdown dot (status_pill/1 sets data-count): calm, amber from 30s, then
+   red and blinking from 10s. On Play the live dot takes over. */
+.rg-pill[data-count]::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--count-dot, var(--count-calm));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--count-dot, var(--count-calm)) 30%, transparent);
+  transition:
+    background-color 300ms var(--ease-out),
+    box-shadow 300ms var(--ease-out);
+}
+.rg-pill[data-count="warn"] {
+  --count-dot: var(--count-warn);
+}
+.rg-pill[data-count="urgent"] {
+  --count-dot: var(--urgent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rg-pill[data-count="urgent"]::before {
+    animation: rg-blink 600ms steps(2, jump-none) infinite;
+  }
 }
 @keyframes rg-blink {
   50% {
@@ -610,28 +716,36 @@ a.rg-pill {
   display: block;
   min-width: 0.72em;
   padding: 0.04em 0.1em;
-  border-radius: 6px;
-  background: var(--surface-3);
-  border: 1px solid var(--border-strong);
+  border-radius: var(--wob-sm);
+  background: var(--surface-2);
+  border: var(--stroke) solid var(--fg);
   font-family: var(--f-label);
-  font-weight: 300;
+  font-weight: 700;
   font-size: var(--flap-size);
   line-height: 1.1;
   text-align: center;
   color: var(--fg);
   font-variant-numeric: tabular-nums;
 }
+/* A hand-drawn crease across the middle; the tiles tilt a little each way. */
 .rg-flap::after {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  top: 50%;
-  height: 2px;
-  background: var(--surface);
+  top: 52%;
+  border-top: 1.5px dashed var(--shadow-soft);
 }
-.rg-flap.is-tick {
-  animation: rg-flap var(--t-med) var(--ease-out);
+.rg-flap:nth-child(odd) {
+  rotate: -1.4deg;
+}
+.rg-flap:nth-child(even) {
+  rotate: 1.1deg;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rg-flap.is-tick {
+    animation: rg-flap var(--t-med) var(--ease-out);
+  }
 }
 @keyframes rg-flap {
   from {
@@ -641,17 +755,16 @@ a.rg-pill {
 }
 .rg-flaps__sep {
   font-family: var(--f-label);
-  font-weight: 300;
+  font-weight: 700;
   font-size: calc(var(--flap-size) * 0.7);
-  color: var(--fg-subtle);
+  color: var(--fg);
 }
 .rg-flaps.is-warn .rg-flap {
-  color: var(--action);
+  color: var(--urgent-text);
 }
 .rg-flaps.is-crit .rg-flap {
-  color: var(--on-accent);
+  color: var(--on-tone-6);
   background: var(--urgent);
-  border-color: var(--urgent);
 }
 
 .rg-facts {
@@ -664,15 +777,16 @@ a.rg-pill {
   align-items: center;
   gap: var(--space-2xs);
   padding: 0.4em 0.7em;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r);
+  border: 1.5px solid var(--fg);
+  border-radius: var(--wob-pill);
+  background: var(--surface-2);
   font-size: var(--step--1);
   color: var(--fg);
   white-space: nowrap;
   --rg-icon-size: 1.15em;
 }
 .rg-fact .rg-icon {
-  color: var(--action);
+  color: var(--fg);
 }
 
 /* ───────────────── Home ───────────────── */
@@ -966,13 +1080,10 @@ a.rg-pill {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.rg-room__p.is-me .rg-room__name {
-  color: var(--action);
-  font-weight: 700;
-}
 .rg-room__empty .rg-tile {
   background: transparent;
-  border: 1px dashed var(--border-strong);
+  border-style: dashed;
+  border-color: var(--border-strong);
   color: var(--fg-subtle);
 }
 .rg-room__more {
@@ -983,8 +1094,8 @@ a.rg-pill {
   justify-content: center;
   min-height: 48px;
   padding: 0 var(--space-xs);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--wob-sm);
   font-family: var(--f-label);
   font-size: var(--step--1);
   font-weight: 600;
@@ -1044,15 +1155,17 @@ a.rg-pill {
   position: relative;
   padding-left: var(--space-m);
 }
+/* Pen-dot bullets. */
 .rg-rules li::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 0.5em;
-  width: 10px;
-  height: 10px;
-  background: var(--accent);
-  border-radius: 1px;
+  top: 0.45em;
+  width: 12px;
+  height: 12px;
+  background: var(--action);
+  border: 1.5px solid var(--fg);
+  border-radius: 50%;
 }
 
 @media (min-width: 1024px) {
@@ -1099,7 +1212,8 @@ a.rg-pill {
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--action);
+  color: var(--success-text);
+  font-weight: 700;
 }
 .rg-clockbar__solved {
   flex: 1 1 0;
@@ -1116,9 +1230,10 @@ a.rg-pill {
 }
 .rg-clockbar__track {
   margin-top: var(--space-2xs);
-  height: 4px;
-  background: var(--surface-3);
-  border-radius: 2px;
+  height: 10px;
+  background: var(--surface-2);
+  border: 2px solid var(--fg);
+  border-radius: 6px;
   overflow: hidden;
 }
 .rg-clockbar__fill {
@@ -1129,7 +1244,7 @@ a.rg-pill {
   transition: transform 1s linear;
 }
 .rg-play.is-warn .rg-clockbar__time {
-  color: var(--action);
+  color: var(--urgent-text);
 }
 .rg-play.is-crit .rg-clockbar__time {
   color: var(--urgent-text);
@@ -1155,7 +1270,6 @@ a.rg-pill {
 .rg-riddle {
   font-family: var(--f-display);
   font-weight: 600;
-  font-style: italic;
   font-size: var(--display-riddle);
   line-height: 1.22;
   letter-spacing: -0.01em;
@@ -1231,14 +1345,26 @@ a.rg-pill {
   color: var(--fg-subtle);
   white-space: nowrap;
 }
-.rg-msg.is-me .rg-msg__name {
-  color: var(--action);
-}
 .rg-msg.is-wrong .rg-msg__text {
   text-decoration: line-through;
   text-decoration-color: var(--urgent-text);
   text-decoration-thickness: 2px;
   color: var(--fg-muted);
+}
+/* "You" reads like everyone else, with a pen squiggle drawn round your
+   avatar instead of a highlight: room grid, Feed, Chat and Leaderboard. */
+.rg-msg.is-me .rg-tile::after,
+.rg-room__p.is-me .rg-tile::after,
+.rg-row.is-me .rg-tile::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  background: var(--action);
+  mask: var(--art-ring) center / 100% 100% no-repeat;
+}
+.rg-room__p.is-me .rg-tile::after {
+  inset: -7px;
 }
 .rg-msg__stamp {
   display: inline-flex;
@@ -1257,8 +1383,10 @@ a.rg-pill {
   white-space: nowrap;
   --rg-icon-size: 1em;
 }
-.rg-msg.is-solve {
-  animation: rg-stamp-in var(--t-slow) var(--ease-out);
+@media (prefers-reduced-motion: no-preference) {
+  .rg-msg.is-solve {
+    animation: rg-stamp-in var(--t-slow) var(--ease-out);
+  }
 }
 @keyframes rg-stamp-in {
   from {
@@ -1296,15 +1424,14 @@ a.rg-pill {
   min-width: 0;
   height: 52px;
   padding: 0 var(--space-s);
-  border-radius: var(--r);
-  border: 2px solid var(--border-strong);
+  border-radius: var(--wob-sm);
+  border: var(--stroke) solid var(--fg);
   background: var(--surface-2);
   font-size: var(--step-1);
   font-weight: 500;
   transition: border-color var(--t-fast) var(--ease-out);
 }
 .rg-guess__field:focus {
-  outline: none;
   border-color: var(--action);
 }
 .rg-guess__field[aria-invalid="true"] {
@@ -1346,7 +1473,11 @@ a.rg-pill {
   align-items: center;
   gap: var(--space-s);
   padding: var(--space-2xs) 0;
-  animation: rg-stamp-in var(--t-slow) var(--ease-out);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rg-solved {
+    animation: rg-stamp-in var(--t-slow) var(--ease-out);
+  }
 }
 .rg-stamp {
   display: grid;
@@ -1355,19 +1486,22 @@ a.rg-pill {
   min-width: 72px;
   height: 72px;
   padding: 0 var(--space-2xs);
-  border-radius: var(--r);
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-sm);
+  box-shadow: 2px 3px 0 var(--shadow);
   background: var(--success);
   color: var(--on-accent);
-  font-family: var(--f-label);
-  font-weight: 600;
-  font-size: var(--step-3);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--display-m);
   transform: rotate(-4deg);
 }
 .rg-stamp.is-none {
   background: var(--surface-3);
   color: var(--fg);
-  border: 1px solid var(--border-strong);
-  transform: none;
+  border-style: dashed;
+  box-shadow: none;
+  transform: rotate(3deg);
 }
 .rg-solved__text {
   display: grid;
@@ -1455,15 +1589,15 @@ a.rg-pill {
   place-items: center;
   width: 1.1em;
   height: 1.2em;
-  border-radius: 4px;
-  background: var(--fg);
-  color: var(--on-fg);
+  border: 3px solid var(--fg);
+  border-radius: var(--wob-sm);
+  background: var(--surface-2);
+  color: var(--fg);
+  font-weight: 700;
   animation: rg-pop-in var(--t-med) var(--ease-out) both;
 }
 .rg-answer.is-unsolved .rg-answer__l {
-  background: var(--surface-3);
-  color: var(--fg);
-  border: 1px solid var(--border-strong);
+  border-style: dashed;
 }
 .rg-results__by {
   color: var(--fg-muted);
@@ -1496,17 +1630,23 @@ a.rg-pill {
   font-size: var(--step--1);
 }
 
+/* The tabs double as section headings: the same handwritten face and
+   marker line as .rg-panel__h, the line under the selected one only. */
 .rg-tabs {
   display: flex;
-  border-bottom: 1px solid var(--border);
+  gap: var(--space-m);
 }
 .rg-tab {
-  flex: 1 1 0;
+  position: relative;
+  flex: 0 1 auto;
   min-height: 48px;
+  padding: 0 0 var(--space-xs);
   background: none;
   border: 0;
-  border-bottom: 3px solid transparent;
+  font-family: var(--f-display);
+  font-size: var(--display-m);
   font-weight: 700;
+  line-height: 1.1;
   color: var(--fg-muted);
   display: inline-flex;
   align-items: center;
@@ -1514,9 +1654,21 @@ a.rg-pill {
   gap: var(--space-2xs);
   cursor: pointer;
 }
+.rg-tab::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 0.625rem;
+  background: var(--underline);
+  mask: var(--art-hand-line) no-repeat 0 0 / 100% 100%;
+  opacity: 0;
+  pointer-events: none;
+}
 .rg-tab[aria-selected="true"] {
   color: var(--fg);
-  border-bottom-color: var(--action);
+}
+.rg-tab[aria-selected="true"]::after {
+  opacity: 1;
 }
 @media (hover: hover) {
   .rg-tab:hover {
@@ -1528,8 +1680,8 @@ a.rg-pill {
   height: 1.43em;
   padding: 0 0.43em;
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--action);
+  color: var(--on-action);
   font-family: var(--f-label);
   font-size: var(--step--1);
   display: inline-grid;
@@ -1645,13 +1797,14 @@ a.rg-pill {
 }
 .rg-tile.rg-tile--open {
   background: transparent;
-  border: 1px dashed var(--border-strong);
+  border-style: dashed;
+  border-color: var(--border-strong);
   color: var(--fg-subtle);
 }
 
 .rg-board {
   display: grid;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--hairline-strong);
 }
 .rg-row {
   display: grid;
@@ -1659,7 +1812,7 @@ a.rg-pill {
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-2xs) 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--hairline);
 }
 .rg-row__place {
   font-family: var(--f-label);
@@ -1688,15 +1841,7 @@ a.rg-pill {
   min-width: 52px;
   text-align: right;
 }
-.rg-row.is-me {
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--action);
-  border-radius: var(--r);
-  padding-inline: var(--space-2xs);
-}
-.rg-row.is-me .rg-row__name {
-  color: var(--action);
-}
+
 .rg-board__empty {
   padding: var(--space-m) 0;
   color: var(--fg-muted);
@@ -1715,9 +1860,9 @@ a.rg-pill {
   display: grid;
   gap: 2px;
   padding: var(--space-2xs);
-  border-radius: var(--r);
+  border-radius: var(--wob-sm);
   background: var(--surface-2);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--fg);
   text-align: center;
   min-width: 0;
 }
@@ -1750,11 +1895,7 @@ a.rg-pill {
   color: var(--fg-subtle);
 }
 .rg-pt.is-me {
-  border-color: var(--action);
-}
-.rg-pt.is-me .rg-pt__who {
-  color: var(--action);
-  font-weight: 700;
+  border: 2px solid var(--fg);
 }
 
 .rg-next {
@@ -1808,14 +1949,15 @@ a.rg-pill {
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--action);
+  color: var(--info-text);
 }
 .rg-chat__div::before,
 .rg-chat__div::after {
   content: "";
   flex: 1 1 0;
-  height: 1px;
-  background: var(--border-strong);
+  height: 0.5rem;
+  background: var(--action);
+  mask: var(--art-wave-pen) repeat-x center / 4rem 0.625rem;
 }
 .rg-chat__empty {
   padding: var(--space-s) 0;
@@ -1880,8 +2022,8 @@ a.rg-pill {
   min-width: 0;
   min-height: 48px;
   padding: 0 var(--space-s);
-  border-radius: var(--r);
-  border: 2px solid var(--border-strong);
+  border-radius: var(--wob-sm);
+  border: var(--stroke) solid var(--fg);
   background: var(--surface-2);
   color: var(--fg);
 }
@@ -1889,7 +2031,6 @@ a.rg-pill {
   color: var(--fg-subtle);
 }
 .rg-chat__field:focus {
-  outline: none;
   border-color: var(--action);
 }
 
@@ -1911,6 +2052,9 @@ a.rg-pill {
   }
   .rg-results .rg-desk-only {
     display: block;
+  }
+  .rg-results .rg-panel__h.rg-desk-only {
+    display: inline-block;
   }
   .rg-results__board {
     grid-area: board;
@@ -1954,10 +2098,10 @@ a.rg-pill {
   gap: var(--space-2xs);
   padding: var(--space-xs) var(--space-s);
   background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--action);
-  border-radius: var(--r);
-  box-shadow: 0 12px 32px var(--shadow);
+  border: var(--stroke) solid var(--fg);
+  border-left: 6px solid var(--action);
+  border-radius: var(--wob-sm);
+  box-shadow: var(--shadow-pen);
   font-family: var(--f-ui);
   font-size: var(--step--1);
   line-height: 1.45;

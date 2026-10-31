@@ -1,5 +1,7 @@
 <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
-  <:status><GameComponents.status_pill kind={:lobby} number={@riddle.number} /></:status>
+  <:status>
+    <GameComponents.status_pill kind={:lobby} number={@riddle.number} seconds={@time_remaining} />
+  </:status>
   <section class="rg-view" aria-labelledby="lobby-h">
     <div class="rg-wrap rg-lobby">
       <div class="rg-lobby__clock">

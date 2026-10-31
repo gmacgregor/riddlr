@@ -240,6 +240,24 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       send(live.pid, {:countdown_tick, :lobby, 0})
       refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
     end
+
+    test "sets the topbar countdown dot from the seconds left", %{conn: conn, user: user} do
+      riddle =
+        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(DateTime.utc_now(), 120, :second)})
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='far']")
+
+      send(live.pid, {:countdown_tick, :lobby, 30})
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='warn']")
+
+      send(live.pid, {:countdown_tick, :lobby, 10})
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='urgent']")
+    end
   end
 
   describe "drop time" do
