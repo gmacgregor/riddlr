@@ -527,7 +527,7 @@ defmodule RiddlrWeb.HomeLiveTest do
         |> html_response(200)
         |> LazyHTML.from_document()
 
-      chip = LazyHTML.query(doc, ~s(a#topbar-me-chip[href="/users/settings"]))
+      chip = LazyHTML.query(doc, ~s(a#topbar-me-chip[href="/profile"]))
       assert LazyHTML.text(chip) =~ user.username
 
       tile = LazyHTML.query(chip, ".rg-tile")

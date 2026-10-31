@@ -1,4 +1,4 @@
-defmodule RiddlrWeb.UserSettingsControllerTest do
+defmodule RiddlrWeb.ProfileControllerTest do
   use RiddlrWeb.ConnCase, async: true
 
   alias Riddlr.Accounts
@@ -6,17 +6,18 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
 
   setup :register_and_log_in_user
 
-  describe "GET /users/settings" do
-    test "renders settings page", %{conn: conn} do
-      conn = get(conn, ~p"/users/settings")
+  describe "GET /profile" do
+    test "renders the current user's profile", %{conn: conn, user: user} do
+      conn = get(conn, ~p"/profile")
       response = html_response(conn, 200)
       assert has_selector?(response, "#update_email input[name='user[email]']")
+      assert response =~ user.username
     end
 
     test "renders settings page using the riddlr design system", %{conn: conn} do
       response =
         conn
-        |> get(~p"/users/settings")
+        |> get(~p"/profile")
         |> html_response(200)
 
       assert response =~ ~s(class="rg-auth")
@@ -27,7 +28,7 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
     test "does not offer password management", %{conn: conn} do
       response =
         conn
-        |> get(~p"/users/settings")
+        |> get(~p"/profile")
         |> html_response(200)
 
       refute has_selector?(response, "[name='user[password]']")
@@ -35,23 +36,21 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
 
     test "redirects if user is not logged in" do
       conn = build_conn()
-      conn = get(conn, ~p"/users/settings")
+      conn = get(conn, ~p"/profile")
       assert redirected_to(conn) == ~p"/users/log-in"
     end
 
     @tag token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
-    test "redirects if user is not in sudo mode", %{conn: conn} do
-      conn = get(conn, ~p"/users/settings")
-      assert redirected_to(conn) == ~p"/users/log-in"
-
-      assert Phoenix.Flash.get(conn.assigns.flash, :error)
+    test "renders without sudo mode", %{conn: conn} do
+      conn = get(conn, ~p"/profile")
+      assert has_selector?(html_response(conn, 200), "#update_email")
     end
   end
 
-  describe "PUT /users/settings (change password form)" do
+  describe "PUT /profile (change password form)" do
     test "updates the user password and resets tokens", %{conn: conn, user: user} do
       new_password_conn =
-        put(conn, ~p"/users/settings", %{
+        put(conn, ~p"/profile", %{
           "action" => "update_password",
           "user" => %{
             "password" => "new valid password",
@@ -59,7 +58,7 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
           }
         })
 
-      assert redirected_to(new_password_conn) == ~p"/users/settings"
+      assert redirected_to(new_password_conn) == ~p"/profile"
 
       assert get_session(new_password_conn, :user_token) != get_session(conn, :user_token)
 
@@ -68,9 +67,24 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
       assert Accounts.get_user_by_email_and_password(user.email, "new valid password")
     end
 
+    @tag token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
+    test "requires sudo mode", %{conn: conn, user: user} do
+      conn =
+        put(conn, ~p"/profile", %{
+          "action" => "update_password",
+          "user" => %{
+            "password" => "new valid password",
+            "password_confirmation" => "new valid password"
+          }
+        })
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+      refute Accounts.get_user_by_email_and_password(user.email, "new valid password")
+    end
+
     test "does not update password on invalid data", %{conn: conn, user: user} do
       old_password_conn =
-        put(conn, ~p"/users/settings", %{
+        put(conn, ~p"/profile", %{
           "action" => "update_password",
           "user" => %{
             "password" => "too short",
@@ -84,25 +98,47 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
     end
   end
 
-  describe "PUT /users/settings (change email form)" do
+  describe "PUT /profile (unknown action)" do
+    test "redirects back with an error", %{conn: conn} do
+      conn = put(conn, ~p"/profile", %{"action" => "nope", "user" => %{}})
+
+      assert redirected_to(conn) == ~p"/profile"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
+    end
+  end
+
+  describe "PUT /profile (change email form)" do
     @tag :capture_log
     test "updates the user email", %{conn: conn, user: user} do
       conn =
-        put(conn, ~p"/users/settings", %{
+        put(conn, ~p"/profile", %{
           "action" => "update_email",
           "user" => %{"email" => unique_user_email()}
         })
 
-      assert redirected_to(conn) == ~p"/users/settings"
+      assert redirected_to(conn) == ~p"/profile"
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info)
 
       assert Accounts.get_user_by_email(user.email)
     end
 
+    @tag token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
+    test "requires sudo mode", %{conn: conn, user: user} do
+      conn =
+        put(conn, ~p"/profile", %{
+          "action" => "update_email",
+          "user" => %{"email" => unique_user_email()}
+        })
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
+      assert Accounts.get_user_by_email(user.email)
+    end
+
     test "does not update email on invalid data", %{conn: conn} do
       conn =
-        put(conn, ~p"/users/settings", %{
+        put(conn, ~p"/profile", %{
           "action" => "update_email",
           "user" => %{"email" => "with spaces"}
         })
@@ -113,7 +149,7 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
     end
   end
 
-  describe "GET /users/settings/confirm-email/:token" do
+  describe "GET /profile/confirm-email/:token" do
     setup %{user: user} do
       email = unique_user_email()
 
@@ -126,24 +162,24 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
     end
 
     test "updates the user email once", %{conn: conn, user: user, token: token, email: email} do
-      conn = get(conn, ~p"/users/settings/confirm-email/#{token}")
-      assert redirected_to(conn) == ~p"/users/settings"
+      conn = get(conn, ~p"/profile/confirm-email/#{token}")
+      assert redirected_to(conn) == ~p"/profile"
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info)
 
       refute Accounts.get_user_by_email(user.email)
       assert Accounts.get_user_by_email(email)
 
-      conn = get(conn, ~p"/users/settings/confirm-email/#{token}")
+      conn = get(conn, ~p"/profile/confirm-email/#{token}")
 
-      assert redirected_to(conn) == ~p"/users/settings"
+      assert redirected_to(conn) == ~p"/profile"
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error)
     end
 
     test "does not update email with invalid token", %{conn: conn, user: user} do
-      conn = get(conn, ~p"/users/settings/confirm-email/oops")
-      assert redirected_to(conn) == ~p"/users/settings"
+      conn = get(conn, ~p"/profile/confirm-email/oops")
+      assert redirected_to(conn) == ~p"/profile"
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error)
 
@@ -152,7 +188,7 @@ defmodule RiddlrWeb.UserSettingsControllerTest do
 
     test "redirects if user is not logged in", %{token: token} do
       conn = build_conn()
-      conn = get(conn, ~p"/users/settings/confirm-email/#{token}")
+      conn = get(conn, ~p"/profile/confirm-email/#{token}")
       assert redirected_to(conn) == ~p"/users/log-in"
     end
   end

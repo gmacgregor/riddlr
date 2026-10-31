@@ -496,7 +496,7 @@ defmodule RiddlrWeb.AdminComponents do
     ~H"""
     <nav class="rg-topbar__account" aria-label="Account">
       <%= if user = @current_scope && @current_scope.user do %>
-        <.link id="topbar-me-chip" navigate={~p"/users/settings"} class="rg-me-chip">
+        <.link id="topbar-me-chip" navigate={~p"/profile"} class="rg-me-chip">
           <span class="rg-tile rg-tile--sm" data-tone="variant-1" aria-hidden="true">{GameComponents.initial(
             user.username
           )}</span>

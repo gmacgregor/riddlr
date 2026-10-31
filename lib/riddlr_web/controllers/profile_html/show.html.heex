@@ -1,11 +1,22 @@
 <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
-  <.auth_shell title="Account Settings">
-    <:subtitle>Change the email address you log in with.</:subtitle>
+  <.auth_shell title="Profile">
+    <:subtitle>Your account at a glance.</:subtitle>
+
+    <dl class="rg-auth__meta">
+      <div class="rg-auth__meta-row">
+        <dt class="rg-auth__meta-label">Username</dt>
+        <dd id="profile-username" class="rg-auth__meta-value">{@current_scope.user.username}</dd>
+      </div>
+      <div class="rg-auth__meta-row">
+        <dt class="rg-auth__meta-label">Email</dt>
+        <dd id="profile-email" class="rg-auth__meta-value">{@current_scope.user.email}</dd>
+      </div>
+    </dl>
 
     <.form
       :let={f}
       for={@email_changeset}
-      action={~p"/users/settings"}
+      action={~p"/profile"}
       id="update_email"
       class="rg-auth__form"
     >
@@ -14,7 +25,7 @@
       <.input
         field={f[:email]}
         type="email"
-        label="Email"
+        label="Change email"
         autocomplete="username"
         spellcheck="false"
         required
