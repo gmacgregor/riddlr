@@ -19,7 +19,7 @@ live for its full Solve time so every player can still solve it and earn
 
 Every account is a **Player**. Some players also hold a role:
 
-| Role | Manage riddles and categories | Manage users | Moderate guesses | Ban players | See stats | Admin pages |
+| Role | Manage riddles, categories and practice riddles | Manage users | Moderate guesses | Ban players | See stats | Admin pages |
 |---|---|---|---|---|---|---|
 | **Super admin** | yes | yes | yes | yes | yes | yes |
 | **Moderator** | no | no | yes | yes | yes | yes |
@@ -93,7 +93,10 @@ Home shows the **Next riddle**. Before it goes live, Home counts down to the
 Live date. A ready riddle also shows how many players wait in the Lobby, and
 only a ready riddle offers a way into it. A scheduled riddle tells players to
 come back at the Live date. Once live, Home shows the time left and how many
-have solved it. With no Next riddle, Home says nothing is scheduled.
+have solved it. With no Next riddle, Home says nothing is scheduled and
+offers a random **Practice riddle**. A player can peek at its answer or ask
+for another one. A practice riddle takes no guesses and scores nothing. With
+no practice riddles, Home leaves the note out.
 
 Below that, a timeline walks through a round, ending at the Next riddle's
 Solve time. Home then lists riddles coming up (without their text) and, as

@@ -1,0 +1,38 @@
+<.header>
+  {@page_title}
+  <:actions>
+    <.button patch={~p"/admin/practice-riddles/new"} variant="primary">
+      New practice riddle
+    </.button>
+  </:actions>
+</.header>
+
+<div :if={@live_action in [:new, :edit]} class="adm-form-section">
+  <.live_component
+    module={RiddlrWeb.Admin.PracticeRiddleLive.FormComponent}
+    id={@practice_riddle.id || :new}
+    action={@live_action}
+    practice_riddle={@practice_riddle}
+    current_user={@current_user}
+    patch={~p"/admin/practice-riddles"}
+  />
+</div>
+
+<.table id="practice_riddles" rows={@streams.practice_riddles}>
+  <:col :let={{_id, practice}} label="Riddle">{practice.description}</:col>
+  <:col :let={{_id, practice}} label="Answer">{practice.answer}</:col>
+  <:action :let={{_id, practice}}>
+    <.link patch={~p"/admin/practice-riddles/#{practice}/edit"}>Edit</.link>
+  </:action>
+  <:action :let={{_id, practice}}>
+    <.link
+      phx-click={
+        JS.push("delete", value: %{id: practice.id})
+        |> hide("#practice_riddles-#{practice.id}")
+      }
+      data-confirm="Delete this practice riddle?"
+    >
+      Delete
+    </.link>
+  </:action>
+</.table>

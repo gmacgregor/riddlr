@@ -15,9 +15,9 @@ defmodule RiddlrWeb.HomeLive do
     * `live`: the time left, how many have solved it, and a button to Play.
 
   With nothing next, the card also shows a blank clock and a link to Coming
-  up. The "While you wait" practice note (`GameComponents.practice_note/1`)
-  shows when `@practice` is set; it stays hidden until practice riddles
-  exist.
+  up, and a "While you wait" practice note (`GameComponents.practice_note/1`)
+  with a random practice riddle. "Another riddle" swaps in a different one.
+  The note is hidden when there are no practice riddles.
 
   The timeline ("A round, start to finish") ends at the next riddle's solve
   time. Below it, "Coming up" lists the riddles after the next one
@@ -57,6 +57,13 @@ defmodule RiddlrWeb.HomeLive do
     :riddle_deleted
   ]
 
+  @typedoc "A practice riddle and its place in the set, for the practice note."
+  @type practice :: %{
+          riddle: Games.PracticeRiddle.t(),
+          n: pos_integer(),
+          total: pos_integer()
+        }
+
   # How many riddles the schedule lists after the next one.
   @upcoming_limit 3
 
@@ -74,12 +81,31 @@ defmodule RiddlrWeb.HomeLive do
     {:ok,
      socket
      |> assign(:page_title, "Home")
-     # The practice riddle for the "While you wait" note, as
-     # `%{riddle: riddle, n: n, total: total}`. Always nil until practice
-     # riddles exist (#46), which hides the note.
-     |> assign(:practice, nil)
+     # The "While you wait" note's practice riddle, as
+     # `%{riddle: riddle, n: n, total: total}`, or nil to hide the note.
+     # `assign_next/2` picks one once nothing is next.
+     |> assign(:practice, kept_practice(socket))
      |> assign_next(next)
      |> assign_panels()}
+  end
+
+  # "Another riddle": a different practice riddle from the one on screen. The
+  # view transition event goes out before the patch, so the client can slide
+  # the new riddle in.
+  @impl true
+  def handle_event("another_practice", _params, socket) do
+    exclude_id = socket.assigns.practice && socket.assigns.practice.riddle.id
+
+    case Games.random_practice_riddle(exclude_id) do
+      nil ->
+        {:noreply, socket}
+
+      riddle ->
+        {:noreply,
+         socket
+         |> assign(:practice, practice(riddle))
+         |> push_event("view-transition", %{}, dispatch: :before)}
+    end
   end
 
   @impl true
@@ -151,6 +177,41 @@ defmodule RiddlrWeb.HomeLive do
     |> assign(:seconds, seconds_left(next))
     |> assign(:waiting, waiting(next))
     |> assign(:solved, solved(next))
+    |> assign_practice()
+  end
+
+  # Picks a practice riddle the first time the card shows nothing next, and
+  # keeps it after that, so a state change does not swap it under the player.
+  @spec assign_practice(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp assign_practice(%{assigns: %{hero: :none, practice: nil}} = socket) do
+    assign(socket, :practice, practice(Games.random_practice_riddle()))
+  end
+
+  defp assign_practice(socket), do: socket
+
+  # Each mount picks at random, so the connected mount would swap the riddle
+  # the static page showed. app.js sends that riddle's id as a connect param
+  # (also on reconnect); keep it if it still exists.
+  @spec kept_practice(Phoenix.LiveView.Socket.t()) :: practice() | nil
+  defp kept_practice(socket) do
+    with true <- connected?(socket),
+         %{"practice_id" => id} <- get_connect_params(socket),
+         {id, ""} <- Integer.parse(id) do
+      practice(Games.get_practice_riddle(id))
+    else
+      _ -> nil
+    end
+  end
+
+  @spec practice(Games.PracticeRiddle.t() | nil) :: practice() | nil
+  defp practice(nil), do: nil
+
+  defp practice(riddle) do
+    %{
+      riddle: riddle,
+      n: Games.practice_riddle_number(riddle),
+      total: Games.count_practice_riddles()
+    }
   end
 
   # The schedule under the hero and the last finished riddle.

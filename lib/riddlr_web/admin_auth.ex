@@ -12,6 +12,12 @@ defmodule RiddlrWeb.AdminAuth do
   alias Riddlr.Accounts.Scope
   alias Riddlr.Authorization
 
+  @spec on_mount(
+          :require_admin | {:require_role, [atom()]} | {:require_permission, atom()},
+          map() | :not_mounted_at_router,
+          map(),
+          Phoenix.LiveView.Socket.t()
+        ) :: {:cont | :halt, Phoenix.LiveView.Socket.t()}
   def on_mount(:require_admin, _params, session, socket) do
     socket = mount_current_user(socket, session)
 
@@ -31,6 +37,17 @@ defmodule RiddlrWeb.AdminAuth do
     socket = mount_current_user(socket, session)
 
     if socket.assigns[:current_user] && socket.assigns.current_user.role in allowed_roles do
+      {:cont, socket}
+    else
+      socket = socket |> put_flash(:error, "You don't have permission.") |> redirect(to: ~p"/")
+      {:halt, socket}
+    end
+  end
+
+  # Narrows an admin page to the roles that hold one permission. It runs after
+  # `:require_admin`, which lets every admin role in, including moderators.
+  def on_mount({:require_permission, permission}, _params, _session, socket) do
+    if Authorization.has_permission?(socket.assigns[:current_user], permission) do
       {:cont, socket}
     else
       socket = socket |> put_flash(:error, "You don't have permission.") |> redirect(to: ~p"/")

@@ -296,6 +296,10 @@ defmodule RiddlrWeb.GameCopy do
   @spec practice_hide() :: String.t()
   def practice_hide, do: "Hide it again"
 
+  @doc "The button that swaps in a different practice riddle."
+  @spec practice_another() :: String.t()
+  def practice_another, do: "Another riddle"
+
   @doc "What a screen reader hears when the practice answer shows."
   @spec practice_status_shown(String.t()) :: String.t()
   def practice_status_shown(answer), do: "Answer: #{String.downcase(answer)}."

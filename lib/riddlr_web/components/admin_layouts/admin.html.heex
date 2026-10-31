@@ -16,6 +16,14 @@
       >
         Categories
       </.link>
+      <.link
+        :if={Riddlr.Authorization.has_permission?(@current_user, :manage_riddles)}
+        navigate={~p"/admin/practice-riddles"}
+        class="adm-nav__link"
+        aria-current={admin_nav_current(@current_path, ~p"/admin/practice-riddles")}
+      >
+        Practice riddles
+      </.link>
       <.link navigate={~p"/"} class="adm-nav__link">Site</.link>
     </nav>
   </.topbar>

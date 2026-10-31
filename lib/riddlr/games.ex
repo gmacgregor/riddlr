@@ -10,6 +10,7 @@ defmodule Riddlr.Games do
   alias Riddlr.Repo
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
+  alias Riddlr.Games.PracticeRiddle
 
   alias Riddlr.Workers.{
     ArchiveRiddleTransitionWorker,
@@ -626,5 +627,98 @@ defmodule Riddlr.Games do
   """
   def change_category(%Category{} = category, attrs \\ %{}) do
     Category.changeset(category, attrs)
+  end
+
+  @doc """
+  Returns every practice riddle, oldest first.
+  """
+  @spec list_practice_riddles() :: [PracticeRiddle.t()]
+  def list_practice_riddles do
+    Repo.all(from p in PracticeRiddle, order_by: p.id)
+  end
+
+  @doc """
+  Creates a practice riddle.
+  """
+  @spec create_practice_riddle(map()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
+  def create_practice_riddle(attrs \\ %{}) do
+    %PracticeRiddle{}
+    |> PracticeRiddle.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Gets a practice riddle. Raises `Ecto.NoResultsError` if there is none.
+  """
+  @spec get_practice_riddle!(integer() | String.t()) :: PracticeRiddle.t()
+  def get_practice_riddle!(id), do: Repo.get!(PracticeRiddle, id)
+
+  @doc """
+  Gets a practice riddle, or nil if there is none with that id.
+  """
+  @spec get_practice_riddle(integer()) :: PracticeRiddle.t() | nil
+  def get_practice_riddle(id), do: Repo.get(PracticeRiddle, id)
+
+  @doc """
+  Updates a practice riddle.
+  """
+  @spec update_practice_riddle(PracticeRiddle.t(), map()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
+  def update_practice_riddle(%PracticeRiddle{} = practice_riddle, attrs) do
+    practice_riddle
+    |> PracticeRiddle.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a practice riddle.
+  """
+  @spec delete_practice_riddle(PracticeRiddle.t()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
+  def delete_practice_riddle(%PracticeRiddle{} = practice_riddle) do
+    Repo.delete(practice_riddle)
+  end
+
+  @doc """
+  Returns a changeset for a practice riddle form.
+  """
+  @spec change_practice_riddle(PracticeRiddle.t(), map()) :: Ecto.Changeset.t()
+  def change_practice_riddle(%PracticeRiddle{} = practice_riddle, attrs \\ %{}) do
+    PracticeRiddle.changeset(practice_riddle, attrs)
+  end
+
+  @doc """
+  Picks a practice riddle at random, or returns nil when there are none.
+
+  Pass the id of the one on screen as `exclude_id` to get a different one
+  ("Another riddle"). With only that one left, this returns nil.
+  """
+  @spec random_practice_riddle(integer() | nil) :: PracticeRiddle.t() | nil
+  def random_practice_riddle(exclude_id \\ nil) do
+    PracticeRiddle
+    |> exclude_practice_riddle(exclude_id)
+    |> order_by(fragment("RANDOM()"))
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @spec exclude_practice_riddle(Ecto.Queryable.t(), integer() | nil) :: Ecto.Query.t()
+  defp exclude_practice_riddle(query, nil), do: from(p in query)
+  defp exclude_practice_riddle(query, id), do: from(p in query, where: p.id != ^id)
+
+  @doc """
+  Counts the practice riddles: the M in "Practice riddle N of M".
+  """
+  @spec count_practice_riddles() :: non_neg_integer()
+  def count_practice_riddles, do: Repo.aggregate(PracticeRiddle, :count)
+
+  @doc """
+  The place of a practice riddle among all of them, oldest first, counting
+  from 1: the N in "Practice riddle N of M".
+  """
+  @spec practice_riddle_number(PracticeRiddle.t()) :: non_neg_integer()
+  def practice_riddle_number(%PracticeRiddle{id: id}) do
+    Repo.aggregate(from(p in PracticeRiddle, where: p.id <= ^id), :count)
   end
 end

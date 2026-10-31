@@ -171,6 +171,21 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert html =~ GameCopy.practice_status_hidden("Big Ben")
     end
 
+    test "offers Another riddle only when there is another to show" do
+      note = fn total ->
+        render_component(&GameComponents.practice_note/1,
+          id: "practice",
+          riddle: @riddle,
+          n: 1,
+          total: total,
+          on_another: "another"
+        )
+      end
+
+      assert note.(2) =~ GameCopy.practice_another()
+      refute note.(1) =~ GameCopy.practice_another()
+    end
+
     test "counts only letters and digits in the hidden answer's status" do
       assert GameCopy.practice_status_hidden("Big Ben") == "Answer hidden, 6 letters."
       assert GameCopy.practice_status_hidden("R2-D2!") == "Answer hidden, 4 letters."

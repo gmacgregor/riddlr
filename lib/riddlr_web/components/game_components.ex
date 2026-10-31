@@ -332,11 +332,16 @@ defmodule RiddlrWeb.GameComponents do
 
   `riddle` is any map with a `description` and an `answer`. `n` and `total`
   give its place in the set ("Practice riddle N of M").
+
+  With `on_another` set and more than one riddle in the set, an "Another
+  riddle" button closes the answer and pushes that event to the server.
   """
   attr :id, :string, required: true
   attr :riddle, :map, required: true, doc: "a map with `description` and `answer`"
   attr :n, :integer, required: true
   attr :total, :integer, required: true
+  attr :on_another, :string, default: nil, doc: "the event \"Another riddle\" pushes"
+  attr :rest, :global
 
   @spec practice_note(map()) :: Phoenix.LiveView.Rendered.t()
   def practice_note(assigns) do
@@ -344,7 +349,7 @@ defmodule RiddlrWeb.GameComponents do
       assign(assigns, :chars, assigns.riddle.answer |> String.upcase() |> String.graphemes())
 
     ~H"""
-    <section id={@id} class="rg-peek" aria-labelledby={"#{@id}-h"}>
+    <section id={@id} class="rg-peek" aria-labelledby={"#{@id}-h"} {@rest}>
       <div class="rg-peek__head">
         <h3 id={"#{@id}-h"} class="rg-peek__h">{GameCopy.practice_heading()}</h3>
         <span class="rg-peek__tag">{GameCopy.practice_tag(@n, @total)}</span>
@@ -364,6 +369,7 @@ defmodule RiddlrWeb.GameComponents do
       </span>
       <div class="rg-peek__bar">
         <button
+          id={"#{@id}-peek"}
           type="button"
           class="rg-btn rg-peek__btn"
           aria-expanded="false"
@@ -378,10 +384,28 @@ defmodule RiddlrWeb.GameComponents do
           <span class="rg-peek__show">{GameCopy.practice_peek()}</span>
           <span class="rg-peek__hide">{GameCopy.practice_hide()}</span>
         </button>
+        <button
+          :if={@on_another && @total > 1}
+          type="button"
+          class="rg-btn rg-peek__btn rg-peek__next"
+          phx-click={close_practice(@id) |> JS.push(@on_another)}
+        >
+          {GameCopy.practice_another()}
+        </button>
         <p class="rg-peek__note">{GameCopy.practice_note()}</p>
       </div>
     </section>
     """
+  end
+
+  # The peek toggle's JS commands stick across patches, so the next riddle
+  # would arrive with its answer showing. Close it before asking for one.
+  @spec close_practice(String.t()) :: JS.t()
+  defp close_practice(id) do
+    JS.remove_class("is-open", to: "##{id}-answer")
+    |> JS.set_attribute({"aria-expanded", "false"}, to: "##{id}-peek")
+    |> JS.remove_attribute("hidden", to: "##{id}-sr-hidden")
+    |> JS.set_attribute({"hidden", ""}, to: "##{id}-sr-shown")
   end
 
   @doc """

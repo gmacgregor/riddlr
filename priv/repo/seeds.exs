@@ -86,3 +86,28 @@ Enum.each(riddles, fn riddle_attrs ->
 end)
 
 IO.puts("\nSeeded #{length(riddles)} riddles successfully!")
+
+IO.puts("\nSeeding practice riddles...")
+
+# Shown on Home while nothing is scheduled. Added only to an empty table, so
+# a second run does not double them.
+practice_riddles = [
+  %{description: "The more you take, the more you leave behind. What am I?", answer: "footsteps"},
+  %{
+    description: "I have keys but open no locks. I have space but no room. What am I?",
+    answer: "keyboard"
+  },
+  %{description: "I speak without a mouth and hear without ears. What am I?", answer: "echo"},
+  %{description: "What gets wetter the more it dries?", answer: "towel"},
+  %{description: "What has hands but can’t clap?", answer: "clock"},
+  %{description: "The more of me there is, the less you see. What am I?", answer: "darkness"}
+]
+
+if Games.count_practice_riddles() == 0 do
+  Enum.each(practice_riddles, fn attrs ->
+    {:ok, practice} = Games.create_practice_riddle(attrs)
+    IO.puts("Created practice riddle: #{practice.answer}")
+  end)
+else
+  IO.puts("Practice riddles already exist, skipping.")
+end

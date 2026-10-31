@@ -133,6 +133,60 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, "#practice")
     end
 
+    test "shows a practice riddle and its place in the set when nothing is next", %{conn: conn} do
+      practice = practice_fixture("echo")
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#practice .rg-peek__q", practice.description)
+      assert has_element?(live, "#practice .rg-peek__tag", GameCopy.practice_tag(1, 1))
+    end
+
+    test "keeps the practice riddle the page first showed once it connects", %{conn: conn} do
+      riddles = Enum.map(~w(echo towel clock poof keyboard darkness), &practice_fixture/1)
+      kept = Enum.at(riddles, 3)
+
+      assert conn |> get(~p"/") |> html_response(200) =~ "data-practice-id"
+
+      {:ok, live, _html} =
+        conn
+        |> put_connect_params(%{"practice_id" => to_string(kept.id)})
+        |> live(~p"/")
+
+      assert has_element?(
+               live,
+               "#practice[data-practice-id='#{kept.id}'] .rg-peek__q",
+               kept.description
+             )
+    end
+
+    test "picks a practice riddle when the page sent an unknown one", %{conn: conn} do
+      practice = practice_fixture("echo")
+
+      {:ok, live, _html} =
+        conn |> put_connect_params(%{"practice_id" => "nope"}) |> live(~p"/")
+
+      assert has_element?(live, "#practice .rg-peek__q", practice.description)
+    end
+
+    test "swaps in a different practice riddle on Another riddle", %{conn: conn} do
+      echo = practice_fixture("echo")
+      towel = practice_fixture("towel")
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      {shown, other, other_n} =
+        if has_element?(live, "#practice .rg-peek__q", echo.description),
+          do: {echo, towel, 2},
+          else: {towel, echo, 1}
+
+      live |> element("#practice button", GameCopy.practice_another()) |> render_click()
+
+      refute has_element?(live, "#practice .rg-peek__q", shown.description)
+      assert has_element?(live, "#practice .rg-peek__q", other.description)
+      assert has_element?(live, "#practice .rg-peek__tag", GameCopy.practice_tag(other_n, 2))
+    end
+
     test "shows a live riddle's time left and solves, and links to Play", %{conn: conn} do
       live_date = ~U[2030-01-01 14:05:00Z]
       Frozen.freeze(DateTime.add(live_date, 10, :second))
@@ -382,6 +436,17 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#hero-sheet[data-state='none']")
     end
 
+    test "shows a practice riddle once the card has nothing next", %{conn: conn} do
+      practice = practice_fixture("echo")
+      next = upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+      refute has_element?(live, "#practice")
+
+      {:ok, _} = Games.transition(next.id, :completed)
+
+      assert has_element?(live, "#practice .rg-peek__q", practice.description)
+    end
+
     test "shows a riddle once it is scheduled", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")
       assert has_element?(live, "#hero-sheet[data-state='none']")
@@ -560,5 +625,12 @@ defmodule RiddlrWeb.HomeLiveTest do
 
     assert_receive {:tracked, ^pid}
     pid
+  end
+
+  defp practice_fixture(answer) do
+    {:ok, practice} =
+      Games.create_practice_riddle(%{description: "What am I? (#{answer})", answer: answer})
+
+    practice
   end
 end

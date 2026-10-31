@@ -25,11 +25,34 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/riddlr"
 import topbar from "../vendor/topbar"
 
+// ─── View transitions for in-page swaps ──────────────────────────────────────
+// The server sends "view-transition" before a patch (push_event with
+// dispatch: :before) when the patch should slide, e.g. "Another riddle" on
+// Home. The next patch then runs inside document.startViewTransition, but
+// only when the browser has it and the player allows motion.
+let transitionNext = false
+window.addEventListener("phx:view-transition", () => { transitionNext = true })
+
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+
+function onDocumentPatch(start) {
+  const slide = transitionNext && document.startViewTransition && !reduceMotion.matches
+  transitionNext = false
+  if (slide) document.startViewTransition(start)
+  else start()
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken},
+  // practice_id: the practice riddle Home's static page showed, so the
+  // connected mount keeps it instead of picking another.
+  params: () => ({
+    _csrf_token: csrfToken,
+    practice_id: document.getElementById("practice")?.dataset.practiceId,
+  }),
   hooks: {...colocatedHooks},
+  dom: {onDocumentPatch},
 })
 
 // Show progress bar on live navigation and form submits

@@ -1201,6 +1201,58 @@ a.rg-pill {
 .rg-peek__btn:not([aria-expanded="true"]) .rg-peek__hide {
   display: none;
 }
+/* "Another riddle" is the lesser action: dashed, with no fill or shadow. */
+.rg-hero__card .rg-peek__next {
+  background: transparent;
+  box-shadow: none;
+  border-style: dashed;
+}
+@media (hover: hover) {
+  .rg-hero__card .rg-peek__next:hover {
+    background: var(--fg);
+  }
+}
+/* "Another riddle": the question, tag and answer tiles each slide to the
+   next one. app.js starts the view transition only when motion is allowed. */
+.rg-peek__q {
+  view-transition-name: peek-q;
+}
+.rg-peek__tag {
+  view-transition-name: peek-tag;
+}
+.rg-peek__a {
+  view-transition-name: peek-a;
+}
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(peek-q),
+  ::view-transition-group(peek-a),
+  ::view-transition-group(peek-tag) {
+    animation-duration: 300ms;
+    animation-timing-function: var(--ease-out);
+  }
+  ::view-transition-old(peek-q),
+  ::view-transition-old(peek-a),
+  ::view-transition-old(peek-tag) {
+    animation: rg-peek-out 180ms var(--ease-in) both;
+  }
+  ::view-transition-new(peek-q),
+  ::view-transition-new(peek-a),
+  ::view-transition-new(peek-tag) {
+    animation: rg-peek-in 300ms var(--ease-out) 120ms both;
+  }
+}
+@keyframes rg-peek-out {
+  to {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+@keyframes rg-peek-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
 .rg-peek__note {
   font-family: var(--f-label);
   font-size: var(--step-0);

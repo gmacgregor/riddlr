@@ -598,4 +598,126 @@ defmodule Riddlr.GamesTest do
       assert %{ready_before_seconds: ["must be greater than 0"]} = errors_on(changeset)
     end
   end
+
+  describe "practice riddles" do
+    test "create_practice_riddle/1 saves a description and an answer" do
+      assert {:ok, practice} =
+               Games.create_practice_riddle(%{
+                 description: "What gets wetter the more it dries?",
+                 answer: "towel"
+               })
+
+      assert practice.description == "What gets wetter the more it dries?"
+      assert practice.answer == "towel"
+    end
+
+    test "create_practice_riddle/1 refuses a blank description or answer" do
+      assert {:error, changeset} = Games.create_practice_riddle(%{description: " ", answer: ""})
+
+      assert %{description: ["can't be blank"], answer: ["can't be blank"]} =
+               errors_on(changeset)
+    end
+
+    test "create_practice_riddle/1 refuses an answer too long for the tiles" do
+      assert {:error, changeset} =
+               Games.create_practice_riddle(%{
+                 description: "Too long?",
+                 answer: String.duplicate("a", 21)
+               })
+
+      assert %{answer: ["should be at most 20 character(s)"]} = errors_on(changeset)
+    end
+
+    test "create_practice_riddle/1 refuses a description over 500 characters" do
+      assert {:error, changeset} =
+               Games.create_practice_riddle(%{
+                 description: String.duplicate("a", 501),
+                 answer: "echo"
+               })
+
+      assert %{description: ["should be at most 500 character(s)"]} = errors_on(changeset)
+    end
+
+    test "create_practice_riddle/1 trims the outer spaces of both fields" do
+      assert {:ok, practice} =
+               Games.create_practice_riddle(%{
+                 description: "  What has hands?\n",
+                 answer: " a clock "
+               })
+
+      assert practice.description == "What has hands?"
+      assert practice.answer == "a clock"
+    end
+
+    test "list_practice_riddles/0 returns them in the order they were added" do
+      first = practice_fixture("echo")
+      second = practice_fixture("towel")
+
+      assert Games.list_practice_riddles() == [first, second]
+    end
+
+    test "update_practice_riddle/2 changes the answer, which get_practice_riddle!/1 then returns" do
+      practice = practice_fixture("ecko")
+
+      assert {:ok, _practice} = Games.update_practice_riddle(practice, %{answer: "echo"})
+      assert Games.get_practice_riddle!(practice.id).answer == "echo"
+    end
+
+    test "delete_practice_riddle/1 removes it" do
+      practice = practice_fixture("poof")
+
+      assert {:ok, _practice} = Games.delete_practice_riddle(practice)
+      assert Games.list_practice_riddles() == []
+    end
+
+    test "random_practice_riddle/1 returns nil when there are none" do
+      assert Games.random_practice_riddle() == nil
+    end
+
+    test "random_practice_riddle/1 picks one of the practice riddles" do
+      echo = practice_fixture("echo")
+      towel = practice_fixture("towel")
+
+      assert Games.random_practice_riddle() in [echo, towel]
+    end
+
+    test "random_practice_riddle/1 never picks the excluded one" do
+      echo = practice_fixture("echo")
+      towel = practice_fixture("towel")
+
+      for _ <- 1..10, do: assert(Games.random_practice_riddle(echo.id) == towel)
+    end
+
+    test "random_practice_riddle/1 returns nil when the excluded one is the only one" do
+      echo = practice_fixture("echo")
+
+      assert Games.random_practice_riddle(echo.id) == nil
+    end
+
+    test "count_practice_riddles/0 counts them" do
+      assert Games.count_practice_riddles() == 0
+
+      practice_fixture("echo")
+      practice_fixture("towel")
+
+      assert Games.count_practice_riddles() == 2
+    end
+
+    test "practice_riddle_number/1 gives its place in the order they were added" do
+      echo = practice_fixture("echo")
+      towel = practice_fixture("towel")
+      clock = practice_fixture("clock")
+      {:ok, _} = Games.delete_practice_riddle(towel)
+
+      assert Games.practice_riddle_number(echo) == 1
+      assert Games.practice_riddle_number(clock) == 2
+    end
+
+    defp practice_fixture(answer) do
+      {:ok, practice} =
+        Games.create_practice_riddle(%{description: "What am I? (#{answer})", answer: answer})
+
+      practice
+    end
+  end
 end
