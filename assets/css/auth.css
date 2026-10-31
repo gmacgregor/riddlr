@@ -1,9 +1,12 @@
 /* =============================================================================
    auth.css — account screens (log in, register, confirm, settings, profile).
 
-   Page layout only. Tokens, fields (.rg-field, .rg-input) and buttons
-   (.rg-btn) come from game.css. Every screen renders inside Layouts.game/1,
-   so .rg-auth fills the scrolling main and centres its card.
+   Player-only: loads in the player root layout, never in the admin. The v9
+   notebook look (#47): the card is a taped note, the title is handwritten,
+   links carry the pen squiggle. Tokens come from themes.css; fields
+   (.rg-field, .rg-input), buttons (.rg-btn) and the pen art (--art-*) come
+   from game.css. Every screen renders inside Layouts.game/1, so .rg-auth
+   fills the scrolling main and centres its card.
    ============================================================================= */
 
 /* ─── Shell ──────────────────────────────────────────────────────────────────── */
@@ -13,39 +16,62 @@
   justify-content: center;
   align-items: flex-start;
   padding: var(--space-xl) var(--pad) var(--space-2xl);
-  animation: rg-view-in var(--t-slow) var(--ease-out);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .rg-auth {
+    animation: rg-view-in var(--t-slow) var(--ease-out);
+  }
+}
+
+/* The card: a taped note with a pen border, uneven corners and a hard shadow. */
 .rg-auth__card {
+  position: relative;
+  isolation: isolate;
   width: 100%;
-  max-width: 25rem;
+  max-width: 26rem;
   display: flex;
   flex-direction: column;
   gap: var(--space-m);
-  padding: var(--space-m);
+  padding: var(--space-l) var(--space-m) var(--space-m);
   background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  color: var(--fg);
+  border: var(--stroke-note) solid var(--fg);
+  border-radius: var(--wob-box-2);
+  box-shadow: var(--shadow-note);
+}
+
+.rg-auth__card::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  inset: -0.9375rem auto auto 50%;
+  inline-size: 5.5rem;
+  block-size: 1.625rem;
+  background: var(--tape-1);
+  border-inline: 2px dotted var(--shadow-soft);
+  transform: translateX(-50%) rotate(-3deg);
 }
 
 /* ─── Header ─────────────────────────────────────────────────────────────────── */
 .rg-auth__header {
   display: grid;
-  gap: var(--space-2xs);
+  gap: var(--space-3xs);
 }
 
 .rg-auth__title {
   font-family: var(--f-display);
-  font-weight: 800;
-  font-size: var(--display-auth);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  font-variation-settings: "opsz" 144;
+  font-weight: 700;
+  font-size: var(--display-account);
+  line-height: 1;
+  color: var(--fg);
 }
 
 .rg-auth__subtitle {
-  font-size: var(--step--1);
-  line-height: 1.5;
+  font-family: var(--f-label);
+  font-size: var(--step-0);
+  line-height: 1.4;
   color: var(--fg-muted);
   text-wrap: balance;
 }
@@ -67,25 +93,46 @@
   text-align: center;
 }
 
+/* The link squiggle from game.css (.rg-link-btn): a masked strip in
+   --underline just under the text, so it can slide on hover. */
 .rg-auth__link {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.375rem;
   color: var(--fg);
   font-weight: 700;
-  text-decoration: underline;
-  text-decoration-color: var(--action);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+  text-decoration: none;
+}
+
+.rg-auth__link::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 0.375rem;
+  background: var(--underline);
+  mask: var(--art-wave-link) repeat-x 0 0 / 1rem 0.375rem;
+  pointer-events: none;
+}
+
+.rg-auth__link:focus-visible {
+  color: var(--underline);
 }
 
 @media (hover: hover) {
   .rg-auth__link:hover {
-    color: var(--action);
+    color: var(--underline);
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .rg-auth__link:hover::after {
+    animation: rg-wave-slide 700ms linear infinite;
   }
 }
 
 /* ─── Read-only detail rows (profile) ────────────────────────────────────────── */
 .rg-auth__meta {
   display: grid;
-  gap: var(--space-xs);
   margin: 0;
 }
 
@@ -94,16 +141,17 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-s);
-  padding-bottom: var(--space-2xs);
-  border-bottom: 1px solid var(--border);
+  padding-block: var(--space-2xs);
+  border-bottom: 1.5px solid var(--hairline);
+}
+
+.rg-auth__meta-row:first-child {
+  border-top: 1.5px solid var(--hairline);
 }
 
 .rg-auth__meta-label {
   font-family: var(--f-label);
   font-size: var(--step--1);
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--fg-muted);
 }
 
@@ -114,28 +162,35 @@
   text-align: right;
 }
 
-/* ─── Dev note (local mail adapter) ──────────────────────────────────────────── */
+/* ─── Info note (e.g. local mail adapter) ────────────────────────────────────── */
+/* A small note in a tone fill: it stands out without alarming. */
 .rg-auth__note {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2xs);
   padding: var(--space-xs) var(--space-s);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r);
-  font-size: var(--step--2);
+  background: var(--tone-9);
+  color: var(--on-tone-9);
+  border: 2px solid var(--fg);
+  border-radius: var(--wob-sm);
+  box-shadow: var(--shadow-pen);
+  font-size: var(--step--1);
   line-height: 1.5;
-  color: var(--fg-muted);
+  transform: rotate(-0.6deg);
 }
 
 .rg-auth__note-icon {
   flex: none;
-  width: 16px;
-  height: 16px;
-  margin-top: 1px;
-  color: var(--info-text);
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: currentColor;
 }
 
 .rg-auth__note a {
-  color: var(--info-text);
+  color: inherit;
+  font-weight: 700;
   text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }

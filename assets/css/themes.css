@@ -83,12 +83,12 @@
   --display-flap: clamp(3.5rem, 2.5435rem + 4.7826vw, 6.25rem);
   --display-flap-long: clamp(1.75rem, 1.0543rem + 3.4783vw, 3.75rem);
   --display-flap-sm: clamp(2.25rem, 1.8152rem + 2.1739vw, 3.5rem);
+  --display-account: clamp(2.25rem, 1.9891rem + 1.3043vw, 3rem);
 
   /* Carried over from the old look until later slices of #47 redraw the
-     parts that read them: the Play clock, page headings and account title. */
+     parts that read them: the Play clock and page headings. */
   --display-clock: clamp(1.75rem, 1.4891rem + 1.3043vw, 2.5rem);
   --display-heading: clamp(2rem, 1.4783rem + 2.6087vw, 3.5rem);
-  --display-auth: clamp(1.75rem, 1.5761rem + 0.8696vw, 2.25rem);
 
   --space-3xs: clamp(0.25rem, 0.2446rem + 0.0272vw, 0.2656rem);
   --space-2xs: clamp(0.5rem, 0.4891rem + 0.0543vw, 0.5313rem);
