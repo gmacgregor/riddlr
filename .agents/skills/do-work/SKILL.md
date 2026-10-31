@@ -35,7 +35,7 @@ Work through the plan step by step. Use red/green/refactor, one test at a time i
 4. Repeat from step 1 for the next slice of behaviour
 5. Refactor if needed while keeping tests green
 
-Each test should target one thin vertical slice through the system. Do not write all tests upfront: write one, make it pass then move to the next.
+Each test should target one thin vertical slice through the system. Do not write all tests upfront: write one, make it pass then move to the next. Asserting on specific page element text i.e. the copy in a hero element, creates brittle tests. Avoid doing so.
 
 Done when every slice in the plan is implemented and all tests pass.
 

@@ -1,5 +1,6 @@
 {
   "packages": [
     "git:github.com/oliver-kriska/claude-elixir-phoenix"
-  ]
+  ],
+  "extensions": ["+builtin:mcp"]
 }
