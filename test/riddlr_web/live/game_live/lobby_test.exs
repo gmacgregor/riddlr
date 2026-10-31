@@ -137,7 +137,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert has_element?(live, ".rg-lobby__clock .rg-kicker__num", "No. #{riddle.number}")
+      assert has_element?(live, ".rg-lobby__clock .rg-kicker__num", "#{riddle.number}")
       assert has_element?(live, ".rg-lobby__clock .rg-kicker", riddle.category.name)
       assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.lobby_heading())
     end
@@ -146,8 +146,8 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon", "Lobby")
-      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "No. #{riddle.number}")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "#{riddle.number}")
     end
 
     test "shows the solve time and the scoring rule", %{conn: conn, user: user} do

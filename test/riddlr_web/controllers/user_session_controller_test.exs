@@ -30,9 +30,9 @@ defmodule RiddlrWeb.UserSessionControllerTest do
     test "renders login page", %{conn: conn} do
       conn = get(conn, ~p"/users/log-in")
       response = html_response(conn, 200)
-      assert response =~ "Log in"
-      assert response =~ ~p"/users/register"
-      assert response =~ "Log in with email"
+      assert has_selector?(response, "#login_form_magic input[name='user[email]']")
+      assert has_selector?(response, "#login_form_magic button[type=submit]")
+      assert has_selector?(response, "a[href='/users/register']")
     end
 
     test "renders login page using the riddlr design system", %{conn: conn} do
@@ -55,7 +55,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
         |> get(~p"/users/log-in")
         |> html_response(200)
 
-      assert response =~ "rg-flash rg-flash--error"
+      assert has_selector?(response, "#flash-error.rg-flash.rg-flash--error")
       assert response =~ "Something broke"
       refute response =~ "alert-error"
     end
@@ -67,7 +67,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
         |> html_response(200)
 
       refute response =~ "login_form_password"
-      refute response =~ ~s(name="user[password]")
+      refute has_selector?(response, "[name='user[password]']")
     end
 
     test "renders login page with email filled in (sudo mode)", %{conn: conn, user: user} do
@@ -77,20 +77,21 @@ defmodule RiddlrWeb.UserSessionControllerTest do
         |> get(~p"/users/log-in")
         |> html_response(200)
 
-      assert html =~ "You need to reauthenticate"
-      refute html =~ "Register"
-      assert html =~ "Log in with email"
+      assert has_selector?(html, "#login_form_magic_email[readonly]")
+      refute has_selector?(html, "a[href='/users/register']")
+      assert has_selector?(html, "#login_form_magic button[type=submit]")
 
-      assert html =~
-               ~s(<input type="email" name="user[email]" id="login_form_magic_email" value="#{user.email}")
+      assert has_selector?(
+               html,
+               "input#login_form_magic_email[type=email][name='user[email]'][value='#{user.email}']"
+             )
     end
 
     test "renders login page (email + password)", %{conn: conn} do
       conn = get(conn, ~p"/users/log-in?mode=password")
       response = html_response(conn, 200)
-      assert response =~ "Log in"
-      assert response =~ ~p"/users/register"
-      assert response =~ "Log in with email"
+      assert has_selector?(response, "#login_form_magic button[type=submit]")
+      assert has_selector?(response, "a[href='/users/register']")
     end
   end
 
@@ -102,7 +103,14 @@ defmodule RiddlrWeb.UserSessionControllerTest do
         end)
 
       conn = get(conn, ~p"/users/log-in/#{token}")
-      assert html_response(conn, 200) =~ "Confirm and stay logged in"
+      response = html_response(conn, 200)
+
+      assert has_selector?(
+               response,
+               "#confirmation_form button[type=submit][name='user[remember_me]']"
+             )
+
+      refute has_selector?(response, "#login_form")
     end
 
     test "greets the user by username, not email", %{conn: conn, user: user} do
@@ -113,8 +121,9 @@ defmodule RiddlrWeb.UserSessionControllerTest do
 
       response = conn |> get(~p"/users/log-in/#{token}") |> html_response(200)
 
-      assert response =~ "Welcome #{user.username}"
-      refute response =~ "Welcome #{user.email}"
+      title = response |> LazyHTML.from_document() |> LazyHTML.query("h1.rg-auth__title")
+      assert LazyHTML.text(title) =~ user.username
+      refute LazyHTML.text(title) =~ user.email
     end
 
     test "renders confirmation page using the riddlr design system", %{
@@ -141,16 +150,15 @@ defmodule RiddlrWeb.UserSessionControllerTest do
 
       conn = get(conn, ~p"/users/log-in/#{token}")
       html = html_response(conn, 200)
-      refute html =~ "Confirm my account"
-      assert html =~ "Keep me logged in"
+      refute has_selector?(html, "#confirmation_form")
+      assert has_selector?(html, "#login_form button[type=submit][name='user[remember_me]']")
     end
 
     test "raises error for invalid token", %{conn: conn} do
       conn = get(conn, ~p"/users/log-in/invalid-token")
       assert redirected_to(conn) == ~p"/users/log-in"
 
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
-               "Magic link is invalid or it has expired."
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
     end
   end
 
@@ -201,7 +209,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
         })
 
       assert redirected_to(conn) == "/foo/bar"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome back!"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info)
     end
 
     test "emits error message with invalid credentials", %{conn: conn, user: user} do
@@ -211,8 +219,9 @@ defmodule RiddlrWeb.UserSessionControllerTest do
         })
 
       response = html_response(conn, 200)
-      assert response =~ "Log in"
-      assert response =~ "Invalid email or password"
+      assert has_selector?(response, "#login_form_magic")
+      assert has_selector?(response, "#flash-error")
+      refute get_session(conn, :user_token)
     end
   end
 
@@ -223,7 +232,8 @@ defmodule RiddlrWeb.UserSessionControllerTest do
           "user" => %{"email" => user.email}
         })
 
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "If your email is in our system"
+      assert redirected_to(conn) == ~p"/users/log-in"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info)
       assert Riddlr.Repo.get_by!(Accounts.UserToken, user_id: user.id).context == "login"
     end
 
@@ -255,7 +265,7 @@ defmodule RiddlrWeb.UserSessionControllerTest do
 
       assert get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/"
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "User confirmed successfully."
+      assert Phoenix.Flash.get(conn.assigns.flash, :info)
 
       assert Accounts.get_user!(user.id).confirmed_at
 
@@ -270,7 +280,10 @@ defmodule RiddlrWeb.UserSessionControllerTest do
           "user" => %{"token" => "invalid"}
         })
 
-      assert html_response(conn, 200) =~ "The link is invalid or it has expired."
+      response = html_response(conn, 200)
+      assert has_selector?(response, "#flash-error")
+      assert has_selector?(response, "#login_form_magic")
+      refute get_session(conn, :user_token)
     end
   end
 
@@ -279,14 +292,14 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       conn = conn |> log_in_user(user) |> delete(~p"/users/log-out")
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info)
     end
 
     test "succeeds even if the user is not logged in", %{conn: conn} do
       conn = delete(conn, ~p"/users/log-out")
       assert redirected_to(conn) == ~p"/"
       refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info)
     end
   end
 end

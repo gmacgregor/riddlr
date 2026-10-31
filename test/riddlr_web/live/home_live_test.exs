@@ -298,7 +298,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#last .rg-lastcard__q", "“#{last.description}”")
+      assert has_element?(live, "#last .rg-lastcard__q", last.description)
       assert has_element?(live, "#last .rg-lastcard__answer", "keyboard")
       assert has_element?(live, "#last .rg-lastcard__win b", user.username)
       assert has_element?(live, "#last .rg-lastcard__win", GameCopy.solve_secs(12_340))

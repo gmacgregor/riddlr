@@ -16,25 +16,29 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      assert index_live
-             |> element("a", "New Riddle")
-             |> render_click() =~ "New riddle"
+      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
+      assert_patch(index_live, ~p"/admin/riddles/new")
+      assert has_element?(index_live, "#riddle-form")
 
       # Submit empty form
-      assert index_live
-             |> form("#riddle-form", riddle: %{})
-             |> render_change() =~ "can&#39;t be blank"
+      index_live
+      |> form("#riddle-form", riddle: %{name: ""})
+      |> render_change()
+
+      assert has_element?(index_live, "#riddle-form [name='riddle[name]'][aria-invalid]")
     end
 
     test "validates solve_time minimum", %{conn: conn, admin: admin} do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      index_live |> element("a", "New Riddle") |> render_click()
+      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
 
-      assert index_live
-             |> form("#riddle-form", riddle: %{solve_time: 0})
-             |> render_change() =~ "must be greater than"
+      index_live
+      |> form("#riddle-form", riddle: %{solve_time: 0})
+      |> render_change()
+
+      assert has_element?(index_live, "#riddle-form [name='riddle[solve_time]'][aria-invalid]")
     end
   end
 
@@ -116,7 +120,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      index_live |> element("a", "New Riddle") |> render_click()
+      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
 
       riddle_attrs = %{
         name: "Test Riddle",
@@ -132,9 +136,8 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       assert_patch(index_live, ~p"/admin/riddles")
 
-      html = render(index_live)
-      assert html =~ "Riddle created"
-      assert html =~ "Test Riddle"
+      assert has_element?(index_live, "#flash-info")
+      assert has_element?(index_live, "#riddles", "Test Riddle")
     end
   end
 
@@ -156,7 +159,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
-      index_live |> element("a", "New Riddle") |> render_click()
+      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
 
       index_live
       |> form("#riddle-form",
@@ -194,7 +197,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
-      index_live |> element("a", "New Riddle") |> render_click()
+      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
 
       index_live
       |> form("#riddle-form",
@@ -221,11 +224,10 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      assert index_live
-             |> element("#riddles-#{riddle.id} a", "Edit")
-             |> render_click() =~ "Edit riddle"
+      index_live |> element("#riddles-#{riddle.id} a[href$='/edit']") |> render_click()
 
       assert_patch(index_live, ~p"/admin/riddles/#{riddle.id}/edit")
+      assert has_element?(index_live, "#riddle-form")
 
       updated_attrs = %{
         name: "Updated Riddle Name",
@@ -238,9 +240,8 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       assert_patch(index_live, ~p"/admin/riddles")
 
-      html = render(index_live)
-      assert html =~ "Riddle updated"
-      assert html =~ "Updated Riddle Name"
+      assert has_element?(index_live, "#flash-info")
+      assert has_element?(index_live, "#riddles-#{riddle.id}", "Updated Riddle Name")
     end
 
     test "displays error on invalid data", %{conn: conn, admin: admin} do
@@ -248,11 +249,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      index_live |> element("#riddles-#{riddle.id} a", "Edit") |> render_click()
+      index_live |> element("#riddles-#{riddle.id} a[href$='/edit']") |> render_click()
 
-      assert index_live
-             |> form("#riddle-form", riddle: %{name: ""})
-             |> render_submit() =~ "can&#39;t be blank"
+      index_live
+      |> form("#riddle-form", riddle: %{name: ""})
+      |> render_submit()
+
+      assert has_element?(index_live, "#riddle-form [name='riddle[name]'][aria-invalid]")
     end
   end
 
@@ -301,13 +304,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
-      index_live |> element("#riddles-#{riddle.id} a", "Edit") |> render_click()
+      index_live |> element("#riddles-#{riddle.id} a[href$='/edit']") |> render_click()
 
       index_live
       |> form("#riddle-form", riddle: %{live_date: format_datetime_local(past)})
       |> render_submit()
 
-      assert render(index_live) =~ "Riddle updated"
+      assert has_element?(index_live, "#flash-info")
       assert Riddlr.Games.get_riddle!(riddle.id).play_status == "closed"
       assert pending_jobs(riddle.id) == []
     end
@@ -318,10 +321,9 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       riddle = GamesFixtures.riddle_fixture(%{play_status: "scheduled"})
       conn = log_in_user(conn, admin)
 
-      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+      {:ok, view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Play status"
-      assert html =~ "scheduled"
+      assert has_element?(view, ".adm-badge.adm-badge--scheduled", "scheduled")
       # Should NOT have a select input for play_status
       refute html =~ ~r/<select[^>]*name="riddle\[play_status\]"/
     end
@@ -332,10 +334,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       conn = log_in_user(conn, admin)
 
-      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Post game chat"
-      assert html =~ "5"
+      assert has_element?(
+               view,
+               "#riddle-form input[name='riddle[archive_after_seconds]'][value='5']"
+             )
     end
 
     test "shows post game chat field when riddle is archived", %{conn: conn, admin: admin} do
@@ -344,10 +348,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
 
       conn = log_in_user(conn, admin)
 
-      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Post game chat"
-      assert html =~ "10"
+      assert has_element?(
+               view,
+               "#riddle-form input[name='riddle[archive_after_seconds]'][value='10']"
+             )
     end
 
     test "post game chat field is always visible", %{
@@ -357,9 +363,9 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       riddle = GamesFixtures.riddle_fixture(%{play_status: "live"})
       conn = log_in_user(conn, admin)
 
-      {:ok, _view, html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
-      assert html =~ "Post game chat"
+      assert has_element?(view, "#riddle-form input[name='riddle[archive_after_seconds]']")
     end
   end
 

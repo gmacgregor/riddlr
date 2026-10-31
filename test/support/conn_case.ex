@@ -37,6 +37,16 @@ defmodule RiddlrWeb.ConnCase do
   end
 
   @doc """
+  Returns true when `html` (a full page) has at least one element that
+  matches the CSS `selector`. Lets controller tests check page structure
+  instead of copy.
+  """
+  @spec has_selector?(String.t(), String.t()) :: boolean()
+  def has_selector?(html, selector) do
+    html |> LazyHTML.from_document() |> LazyHTML.query(selector) |> Enum.any?()
+  end
+
+  @doc """
   Setup helper that registers and logs in users.
 
       setup :register_and_log_in_user

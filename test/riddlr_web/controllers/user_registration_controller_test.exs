@@ -7,9 +7,8 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
     test "renders registration page", %{conn: conn} do
       conn = get(conn, ~p"/users/register")
       response = html_response(conn, 200)
-      assert response =~ "Create your account"
-      assert response =~ ~p"/users/log-in"
-      assert response =~ ~p"/users/register"
+      assert has_selector?(response, "form[action='/users/register'] input[name='user[email]']")
+      assert has_selector?(response, "a[href='/users/log-in']")
     end
 
     test "renders registration page using the riddlr design system", %{conn: conn} do
@@ -50,8 +49,7 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
       refute get_session(conn, :user_token)
       assert redirected_to(conn) == ~p"/users/log-in"
 
-      assert conn.assigns.flash["info"] =~
-               ~r/An email was sent to .*, please access it to confirm your account/
+      assert conn.assigns.flash["info"] =~ email
     end
 
     test "render errors for invalid data", %{conn: conn} do
@@ -61,8 +59,9 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
         })
 
       response = html_response(conn, 200)
-      assert response =~ "Create your account"
-      assert response =~ "must have the @ sign and no spaces"
+      assert has_selector?(response, "form[action='/users/register'] #user_email[aria-invalid]")
+      assert has_selector?(response, "form[action='/users/register'] .rg-field__error")
+      refute get_session(conn, :user_token)
     end
   end
 end

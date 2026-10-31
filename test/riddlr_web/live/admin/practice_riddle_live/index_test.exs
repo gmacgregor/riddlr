@@ -62,7 +62,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
   test "creates a practice riddle", %{conn: conn, editor: editor} do
     {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles")
 
-    live |> element("a", "New practice riddle") |> render_click()
+    live |> element("a[href='/admin/practice-riddles/new']") |> render_click()
     assert_patch(live, ~p"/admin/practice-riddles/new")
 
     live
@@ -72,7 +72,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
     |> render_submit()
 
     assert_patch(live, ~p"/admin/practice-riddles")
-    assert render(live) =~ "Practice riddle created"
+    assert has_element?(live, "#flash-info")
     assert [%{answer: "clock"}] = Games.list_practice_riddles()
     assert has_element?(live, "#practice_riddles td", "clock")
   end
@@ -88,7 +88,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
     |> render_submit()
 
     assert_patch(live, ~p"/admin/practice-riddles")
-    assert render(live) =~ "Practice riddle updated"
+    assert has_element?(live, "#flash-info")
     assert has_element?(live, "#practice_riddles-#{practice.id}", "towel")
   end
 
@@ -96,25 +96,31 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
     practice = practice_fixture()
     {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles")
 
-    live |> element("#practice_riddles-#{practice.id} a", "Delete") |> render_click()
+    live |> element("#practice_riddles-#{practice.id} a[data-confirm]") |> render_click()
 
     refute has_element?(live, "#practice_riddles-#{practice.id}")
-    assert render(live) =~ "Practice riddle deleted"
+    assert has_element?(live, "#flash-info")
     assert Games.list_practice_riddles() == []
   end
 
   test "shows errors for a blank description and a long answer", %{conn: conn, editor: editor} do
     {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles/new")
 
-    html =
-      live
-      |> form("#practice-riddle-form",
-        practice_riddle: %{description: "", answer: String.duplicate("a", 21)}
-      )
-      |> render_change()
+    live
+    |> form("#practice-riddle-form",
+      practice_riddle: %{description: "", answer: String.duplicate("a", 21)}
+    )
+    |> render_change()
 
-    assert html =~ "can&#39;t be blank"
-    assert html =~ "should be at most 20 character(s)"
+    assert has_element?(
+             live,
+             "#practice-riddle-form [name='practice_riddle[description]'][aria-invalid]"
+           )
+
+    assert has_element?(
+             live,
+             "#practice-riddle-form [name='practice_riddle[answer]'][aria-invalid]"
+           )
 
     live
     |> form("#practice-riddle-form",

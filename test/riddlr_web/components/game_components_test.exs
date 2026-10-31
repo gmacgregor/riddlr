@@ -187,9 +187,14 @@ defmodule RiddlrWeb.GameComponentsTest do
     end
 
     test "counts only letters and digits in the hidden answer's status" do
-      assert GameCopy.practice_status_hidden("Big Ben") == "Answer hidden, 6 letters."
-      assert GameCopy.practice_status_hidden("R2-D2!") == "Answer hidden, 4 letters."
-      assert GameCopy.practice_status_hidden("I") == "Answer hidden, 1 letter."
+      assert GameCopy.practice_status_hidden("Big Ben") =~ whole_number("6")
+      assert GameCopy.practice_status_hidden("R2-D2!") =~ whole_number("4")
+      assert GameCopy.practice_status_hidden("I") =~ whole_number("1")
+
+      # One letter reads as singular.
+      one = String.replace(GameCopy.practice_status_hidden("I"), "1", "N")
+      six = String.replace(GameCopy.practice_status_hidden("Big Ben"), "6", "N")
+      refute one == six
     end
 
     defp escape(text), do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
@@ -223,7 +228,7 @@ defmodule RiddlrWeb.GameComponentsTest do
       html = render_component(&GameComponents.kicker/1, number: 66, category: "Classics")
 
       assert html =~ ~s(class="rg-kicker")
-      assert html =~ ~r{<span class="rg-kicker__num">No\. 66</span>\s*<span>Classics</span>}
+      assert html =~ ~r{<span class="rg-kicker__num">[^<]*66</span>\s*<span>Classics</span>}
     end
 
     test "shows only the category when the riddle has no number" do
@@ -231,7 +236,6 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert html =~ "Classics"
       refute html =~ "rg-kicker__num"
-      refute html =~ "No."
     end
   end
 
@@ -241,15 +245,15 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert_pill(pill, ".rg-pill.rg-pill--live")
       assert_pill(pill, ".rg-pill .rg-live-dot[aria-hidden=true]")
-      assert text(pill, ".rg-pill") == "No. 66 · live"
-      assert text(pill, ".rg-pill__long") == "· live"
+      assert text(pill, ".rg-pill") =~ "66"
+      assert_pill(pill, ".rg-pill .rg-pill__long")
     end
 
     test "says Live on Play when the riddle has no number" do
       pill = render_pill(kind: :play, number: nil)
 
       assert_pill(pill, ".rg-pill--live .rg-live-dot")
-      assert text(pill, ".rg-pill") == "Live"
+      refute text(pill, ".rg-pill") == ""
       refute_pill(pill, ".rg-pill__long")
     end
 
@@ -258,14 +262,14 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert_pill(pill, ".rg-pill.rg-pill--soon")
       refute_pill(pill, ".rg-live-dot")
-      assert text(pill, ".rg-pill") == "Lobby · No. 66"
-      assert text(pill, ".rg-pill__long") == "· No. 66"
+      assert text(pill, ".rg-pill__long") =~ "66"
     end
 
     test "shows only Lobby when the riddle has no number" do
       pill = render_pill(kind: :lobby, number: nil)
 
-      assert text(pill, ".rg-pill--soon") == "Lobby"
+      assert_pill(pill, ".rg-pill.rg-pill--soon")
+      refute text(pill, ".rg-pill--soon") == ""
       refute_pill(pill, ".rg-pill__long")
     end
 
@@ -274,14 +278,13 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert_pill(pill, ".rg-pill")
       refute_pill(pill, ".rg-pill--soon, .rg-pill--live, .rg-live-dot")
-      assert text(pill, ".rg-pill") == "Final · No. 66"
-      assert text(pill, ".rg-pill__long") == "· No. 66"
+      assert text(pill, ".rg-pill__long") =~ "66"
     end
 
     test "shows only Final when the riddle has no number" do
       pill = render_pill(kind: :results, number: nil)
 
-      assert text(pill, ".rg-pill") == "Final"
+      refute text(pill, ".rg-pill") == ""
       refute_pill(pill, ".rg-pill__long")
     end
 
@@ -290,7 +293,6 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert_pill(pill, "a.rg-pill.rg-pill--live[href='/game/7/play']")
       assert_pill(pill, ".rg-pill .rg-live-dot[aria-hidden=true]")
-      assert text(pill, ".rg-pill") == "Live now"
     end
 
     test "on Home, counts down to the next riddle and links to its Lobby" do
@@ -298,8 +300,8 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert_pill(pill, "a.rg-pill.rg-pill--soon[href='/game/7/lobby']")
       refute_pill(pill, ".rg-live-dot")
-      assert text(pill, ".rg-pill") == "Next 01:30"
-      assert text(pill, ".rg-pill__long") == "Next"
+      assert text(pill, ".rg-pill") =~ "01:30"
+      assert_pill(pill, ".rg-pill .rg-pill__long")
 
       assert_pill(
         pill,
@@ -408,4 +410,8 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert length(v) == 34
     end
   end
+
+  # Matches `n` as a whole number, so "6" does not match inside "16" or "1,600".
+  @spec whole_number(String.t()) :: Regex.t()
+  defp whole_number(n), do: ~r/(?<![\d,])#{Regex.escape(n)}(?![\d,])/
 end

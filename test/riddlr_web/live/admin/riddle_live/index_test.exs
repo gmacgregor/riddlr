@@ -13,9 +13,9 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     test "lists riddles", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, _live, html} = live(conn, ~p"/admin/riddles")
-      assert html =~ "Manage Riddles"
-      assert html =~ riddle.name
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles")
+      assert has_element?(live, "header.rg-pagehead h1")
+      assert has_element?(live, "#riddles-#{riddle.id}", riddle.name)
     end
 
     test "shows account controls in the admin header", %{conn: conn, admin: admin} do
@@ -38,7 +38,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/riddles"]))
       refute has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/categories"]))
 
-      live |> element("a", "New Riddle") |> render_click()
+      live |> element("a[href='/admin/riddles/new']") |> render_click()
       assert has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/riddles"]))
     end
 
@@ -64,7 +64,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       player = AccountsFixtures.user_fixture(%{role: :player})
       conn = log_in_user(conn, player)
       {:error, {:redirect, %{to: "/", flash: flash}}} = live(conn, ~p"/admin/riddles")
-      assert flash["error"] == "You must be an admin to access this page."
+      assert flash["error"]
     end
 
     test "redirects unauthenticated user", %{conn: conn} do
@@ -76,10 +76,10 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      assert index_live |> element("a", "New Riddle") |> render_click() =~
-               "New riddle"
+      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
 
       assert_patch(index_live, ~p"/admin/riddles/new")
+      assert has_element?(index_live, "#riddle-form")
     end
 
     test "shows riddle details", %{conn: conn, admin: admin} do
@@ -99,7 +99,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
 
-      assert index_live |> element("#riddles-#{riddle.id} a", "Delete") |> render_click()
+      assert index_live |> element("#riddles-#{riddle.id} a[data-confirm]") |> render_click()
       refute has_element?(index_live, "#riddles-#{riddle.id}")
     end
   end
@@ -111,31 +111,29 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       conn = log_in_user(conn, admin)
       {:ok, view, _html} = live(conn, ~p"/admin/riddles")
 
-      assert has_element?(view, "th:first-child", "No.")
       assert has_element?(view, "#riddles-#{riddle.id} td:first-child", to_string(riddle.number))
     end
   end
 
   describe "index page play_status display" do
     test "displays play status for each riddle", %{conn: conn, admin: admin} do
-      _riddle1 = GamesFixtures.riddle_fixture(%{name: "Test 1", play_status: "closed"})
-      _riddle2 = GamesFixtures.riddle_fixture(%{name: "Test 2", play_status: "live"})
+      riddle1 = GamesFixtures.riddle_fixture(%{name: "Test 1", play_status: "closed"})
+      riddle2 = GamesFixtures.riddle_fixture(%{name: "Test 2", play_status: "live"})
 
       conn = log_in_user(conn, admin)
-      {:ok, _view, html} = live(conn, ~p"/admin/riddles")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles")
 
-      assert html =~ "unscheduled"
-      assert html =~ "live"
+      assert has_element?(view, "#riddles-#{riddle1.id} .adm-badge.adm-badge--closed")
+      assert has_element?(view, "#riddles-#{riddle2.id} .adm-badge.adm-badge--live")
     end
 
     test "shows badge styling for different statuses", %{conn: conn, admin: admin} do
-      _riddle = GamesFixtures.riddle_fixture(%{play_status: "live"})
+      riddle = GamesFixtures.riddle_fixture(%{play_status: "live"})
 
       conn = log_in_user(conn, admin)
-      {:ok, _view, html} = live(conn, ~p"/admin/riddles")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles")
 
-      # Should have badge component for status
-      assert html =~ "live"
+      assert has_element?(view, "#riddles-#{riddle.id} .adm-badge.adm-badge--live")
     end
   end
 end

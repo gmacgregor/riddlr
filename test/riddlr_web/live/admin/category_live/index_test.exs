@@ -10,9 +10,9 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
   test "lists categories", %{conn: conn, admin: admin} do
     conn = log_in_user(conn, admin)
     {:ok, category} = Riddlr.Games.create_category(%{name: "test category"})
-    {:ok, _live, html} = live(conn, ~p"/admin/categories")
-    assert html =~ "Manage Categories"
-    assert html =~ category.name
+    {:ok, live, _html} = live(conn, ~p"/admin/categories")
+    assert has_element?(live, "header.rg-pagehead h1")
+    assert has_element?(live, "#categories", category.name)
   end
 
   test "marks Categories as the current nav item", %{conn: conn, admin: admin} do
@@ -33,7 +33,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")
 
-    index_live |> element("a", "New Category") |> render_click()
+    index_live |> element("a[href='/admin/categories/new']") |> render_click()
 
     assert index_live
            |> form("#category-form", category: %{name: "New Test Category"})
@@ -41,9 +41,8 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
 
     assert_patch(index_live, ~p"/admin/categories")
 
-    html = render(index_live)
-    assert html =~ "Category created"
-    assert html =~ "New Test Category"
+    assert has_element?(index_live, "#flash-info")
+    assert has_element?(index_live, "#categories", "New Test Category")
   end
 
   test "updates category", %{conn: conn, admin: admin} do
@@ -59,9 +58,8 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
 
     assert_patch(index_live, ~p"/admin/categories")
 
-    html = render(index_live)
-    assert html =~ "Category updated"
-    assert html =~ "updated name"
+    assert has_element?(index_live, "#flash-info")
+    assert has_element?(index_live, "#categories-#{category.id}", "updated name")
   end
 
   test "deletes category", %{conn: conn, admin: admin} do
@@ -69,21 +67,24 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")
 
-    index_live |> element("#categories-#{category.id} a", "Delete") |> render_click()
+    index_live |> element("#categories-#{category.id} a[data-confirm]") |> render_click()
 
     refute has_element?(index_live, "#categories-#{category.id}")
-    assert render(index_live) =~ "Category deleted"
+    assert has_element?(index_live, "#flash-info")
   end
 
   test "validates required name", %{conn: conn, admin: admin} do
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")
 
-    index_live |> element("a", "New Category") |> render_click()
+    index_live |> element("a[href='/admin/categories/new']") |> render_click()
 
-    assert index_live
-           |> form("#category-form", category: %{name: ""})
-           |> render_change() =~ "can&#39;t be blank"
+    index_live
+    |> form("#category-form", category: %{name: ""})
+    |> render_change()
+
+    assert has_element?(index_live, "#category-form [name='category[name]'][aria-invalid]")
+    assert has_element?(index_live, "#category-form .rg-field__error")
   end
 
   test "validates unique name", %{conn: conn, admin: admin} do
@@ -91,12 +92,13 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")
 
-    index_live |> element("a", "New Category") |> render_click()
+    index_live |> element("a[href='/admin/categories/new']") |> render_click()
 
     assert index_live
            |> form("#category-form", category: %{name: "existing"})
            |> render_submit()
 
-    assert render(index_live) =~ "has already been taken"
+    assert has_element?(index_live, "#category-form [name='category[name]'][aria-invalid]")
+    assert has_element?(index_live, "#category-form .rg-field__error")
   end
 end

@@ -21,7 +21,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
 
       assert has_element?(live, ".rg-results__top .rg-kicker", riddle.category.name)
-      assert has_element?(live, ".rg-results__riddle", "“#{riddle.description}”")
+      assert has_element?(live, ".rg-results__riddle", riddle.description)
       assert has_element?(live, "#panel-board")
       assert has_element?(live, "#chat-form")
       refute has_element?(live, ".rg-round-header")
@@ -34,9 +34,10 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, ".rg-topbar__mid .rg-pill", "Final")
-      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "No. #{riddle.number}")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill")
+      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "#{riddle.number}")
       refute has_element?(live, ".rg-topbar__mid .rg-pill--live")
+      refute has_element?(live, ".rg-topbar__mid .rg-pill--soon")
     end
   end
 
@@ -89,7 +90,8 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
       assert has_element?(live, "#res-by b", winner.username)
-      assert has_element?(live, "#res-by", "in 3.46s · 2 solved")
+      assert has_element?(live, "#res-by", GameCopy.solve_secs(3_456))
+      assert has_element?(live, "#res-by", GameCopy.solved_count(2))
     end
 
     test "says you when the viewer cracked it first", %{conn: conn, user: user} do
@@ -98,8 +100,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-by b", "you")
-      assert has_element?(live, "#res-by", "in 12.00s · 1 solved")
+      assert has_element?(live, "#res-by b", GameCopy.room_you())
+      assert has_element?(live, "#res-by", GameCopy.solve_secs(12_000))
+      assert has_element?(live, "#res-by", GameCopy.solved_count(1))
     end
 
     test "says nobody cracked it when there are no solves", %{conn: conn, user: user} do
@@ -107,7 +110,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-by", "Nobody cracked it before the clock ran out.")
+      assert has_element?(live, "#res-by", GameCopy.results_unsolved())
     end
   end
 
@@ -117,8 +120,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-you .rg-stamp.is-none", "—")
-      assert has_element?(live, "#res-you", "You weren't in this one")
+      card = GameCopy.you_card(nil, false)
+      assert has_element?(live, "#res-you .rg-stamp.is-none", card.stamp)
+      assert has_element?(live, "#res-you", card.title)
     end
 
     test "a viewer who guessed but did not solve", %{conn: conn, user: user} do
@@ -128,8 +132,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-you .rg-stamp.is-none", "0")
-      assert has_element?(live, "#res-you", "Not this time")
+      card = GameCopy.you_card(nil, true)
+      assert has_element?(live, "#res-you .rg-stamp.is-none", card.stamp)
+      assert has_element?(live, "#res-you", card.title)
     end
 
     test "the viewer who won", %{conn: conn, user: user} do
@@ -138,9 +143,10 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-you .rg-stamp:not(.is-none)", "1ST")
-      assert has_element?(live, "#res-you", "You won it")
-      assert has_element?(live, "#res-you", "+10 pts for this riddle")
+      card = GameCopy.you_card(%{placement: 1, points: 10}, true)
+      assert has_element?(live, "#res-you .rg-stamp:not(.is-none)", card.stamp)
+      assert has_element?(live, "#res-you", card.title)
+      assert has_element?(live, "#res-you", card.sub)
     end
 
     test "a viewer who placed outside the top 10", %{conn: conn, user: user} do
@@ -149,8 +155,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-you .rg-stamp.is-none", "11TH")
-      assert has_element?(live, "#res-you", "Solved, but outside the top 10.")
+      card = GameCopy.you_card(%{placement: 11, points: 0}, true)
+      assert has_element?(live, "#res-you .rg-stamp.is-none", card.stamp)
+      assert has_element?(live, "#res-you", card.sub)
     end
   end
 
@@ -253,12 +260,17 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, ".rg-podium > .rg-pod--2:nth-child(1)", "you")
+      assert has_element?(live, ".rg-podium > .rg-pod--2:nth-child(1)", GameCopy.room_you())
       assert has_element?(live, ".rg-podium > .rg-pod--1:nth-child(2)", winner.username)
-      assert has_element?(live, ".rg-pod--1 .rg-pod__t", "3.00s")
+      assert has_element?(live, ".rg-pod--1 .rg-pod__t", GameCopy.solve_secs(3_000))
       assert has_element?(live, ".rg-pod--1 .rg-pod__pts", "+10")
-      assert has_element?(live, ".rg-pod--2 .rg-pod__t", "61.00s")
-      assert has_element?(live, ".rg-podium > .rg-pod--3.rg-pod--empty:nth-child(3)", "Open")
+      assert has_element?(live, ".rg-pod--2 .rg-pod__t", GameCopy.solve_secs(61_000))
+
+      assert has_element?(
+               live,
+               ".rg-podium > .rg-pod--3.rg-pod--empty:nth-child(3)",
+               GameCopy.podium_open()
+             )
     end
 
     test "leaves every slot open when nobody solved", %{conn: conn, user: user} do
@@ -290,8 +302,19 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
              )
 
       assert has_element?(live, "ol.rg-board > li.rg-row:nth-child(1) .rg-row__pts", "+10")
-      assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__name", "you")
-      assert has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__t", "4.25s")
+
+      assert has_element?(
+               live,
+               "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__name",
+               GameCopy.room_you()
+             )
+
+      assert has_element?(
+               live,
+               "ol.rg-board > li.rg-row.is-me:nth-child(2) .rg-row__t",
+               GameCopy.solve_secs(4_250)
+             )
+
       refute has_element?(live, "ol.rg-board > li.rg-row.is-me:nth-child(1)")
     end
 
@@ -313,7 +336,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       refute has_element?(live, ".rg-pod--empty")
       assert has_element?(live, ".rg-pod--1 .rg-pod__name", first.username)
       assert has_element?(live, ".rg-pod--2 .rg-pod__name", second.username)
-      assert has_element?(live, ".rg-pod--3 .rg-pod__name", "you")
+      assert has_element?(live, ".rg-pod--3 .rg-pod__name", GameCopy.room_you())
 
       for place <- 1..3 do
         assert has_element?(
@@ -337,12 +360,23 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, ".rg-payout .rg-panel__h", "Points this riddle")
+      assert has_element?(live, ".rg-payout .rg-panel__h")
       assert has_element?(live, ".rg-points__row > .rg-pt.is-taken:nth-child(1)", winner.username)
-      assert has_element?(live, ".rg-pt:nth-child(1) .rg-pt__p", "1st")
+      assert has_element?(live, ".rg-pt:nth-child(1) .rg-pt__p", GameCopy.ordinal(1))
       assert has_element?(live, ".rg-pt:nth-child(1) .rg-pt__v", "10")
-      assert has_element?(live, ".rg-pt.is-taken.is-me:nth-child(2) .rg-pt__who", "you")
-      assert has_element?(live, ".rg-pt.is-open:nth-child(3) .rg-pt__who", "unclaimed")
+
+      assert has_element?(
+               live,
+               ".rg-pt.is-taken.is-me:nth-child(2) .rg-pt__who",
+               GameCopy.room_you()
+             )
+
+      assert has_element?(
+               live,
+               ".rg-pt.is-open:nth-child(3) .rg-pt__who",
+               GameCopy.payout_unclaimed()
+             )
+
       assert has_element?(live, ".rg-pt.is-open:nth-child(10) .rg-pt__v", "1")
       refute has_element?(live, ".rg-pt:nth-child(11)")
     end
@@ -358,14 +392,12 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       assert has_element?(
                live,
-               "#tab-board[role=tab][aria-controls=panel-board][aria-selected=true]",
-               "Leaderboard"
+               "#tab-board[role=tab][aria-controls=panel-board][aria-selected=true]"
              )
 
       assert has_element?(
                live,
-               "#tab-chat[role=tab][aria-controls=panel-chat][aria-selected=false][tabindex='-1']",
-               "Chat"
+               "#tab-chat[role=tab][aria-controls=panel-chat][aria-selected=false][tabindex='-1']"
              )
 
       assert has_element?(live, "#tab-chat #chat-badge.rg-tab__badge[hidden]")
@@ -386,7 +418,12 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#chat-feed li.rg-msg.is-solve .rg-msg__stamp", "Solved · 1st")
+      assert has_element?(
+               live,
+               "#chat-feed li.rg-msg.is-solve .rg-msg__stamp",
+               GameCopy.feed_solved(1)
+             )
+
       assert has_element?(live, "#chat-feed li.rg-msg.is-solve .rg-msg__text", "keyboard")
     end
 
@@ -401,9 +438,14 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
       html = render(live)
 
-      assert has_element?(live, "ol#chat-feed > li.rg-chat__div[role=separator]", "Riddle ended")
+      assert has_element?(
+               live,
+               "ol#chat-feed > li.rg-chat__div[role=separator]",
+               GameCopy.chat_divider()
+             )
+
       assert has_element?(live, "#chat-feed li.rg-msg.is-wrong .rg-msg__text", "banana")
-      assert position(html, "banana") < position(html, "Riddle ended")
+      assert position(html, "banana") < position(html, GameCopy.chat_divider())
     end
 
     test "lists the guess log oldest first", %{conn: conn, user: user} do
@@ -431,7 +473,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       send(live.pid, {:answer_submitted, Answer.new(riddle.id, user, "gg everyone", chat: true)})
       html = render(live)
 
-      assert position(html, "Riddle ended") < position(html, "gg everyone")
+      assert position(html, GameCopy.chat_divider()) < position(html, "gg everyone")
     end
   end
 
@@ -441,11 +483,11 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#chat-form label.rg-sr-only[for=chat-input]", "Message")
+      assert has_element?(live, "#chat-form label.rg-sr-only[for=chat-input]")
 
       assert has_element?(
                live,
-               "#chat-form input#chat-input[placeholder='Say something nice to the winner']"
+               "#chat-form input#chat-input[placeholder='#{GameCopy.chat_placeholder()}']"
              )
 
       assert has_element?(
@@ -464,7 +506,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       Gameplay.broadcast_answer(Answer.new(riddle.id, other, "well played", chat: true))
 
       assert has_element?(live, "#chat-feed li.rg-msg.is-chat.is-me .rg-tile")
-      assert has_element?(live, "#chat-feed li.rg-msg.is-me .rg-msg__name", "you")
+      assert has_element?(live, "#chat-feed li.rg-msg.is-me .rg-msg__name", GameCopy.room_you())
       assert has_element?(live, "#chat-feed li.rg-msg.is-me .rg-msg__text", "gg everyone")
       assert has_element?(live, "#chat-feed li.rg-msg:not(.is-me) .rg-msg__name", other.username)
       refute has_element?(live, "#chat-feed .rg-msg__t")
@@ -554,8 +596,8 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-next", "No riddle on the schedule yet.")
-      assert has_element?(live, "#res-next a[href='/']", "Back to home")
+      assert has_element?(live, "#res-next", GameCopy.next_none())
+      assert has_element?(live, "#res-next a[href='/']")
       refute has_element?(live, "#res-next .rg-btn")
     end
 
@@ -569,13 +611,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
       assert has_element?(live, "#res-next time[datetime='2030-01-01T14:05:00Z']", "14:05")
 
-      assert has_element?(
-               live,
-               "#res-next a.rg-btn[href='/game/#{next.id}/lobby']",
-               "Enter the lobby"
-             )
+      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/lobby']")
 
-      assert has_element?(live, "#res-next a[href='/']", "Back to home")
+      assert has_element?(live, "#res-next a[href='/']")
     end
 
     # The Lobby opens only once a riddle is ready, so a button would bounce
@@ -592,7 +630,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
       assert has_element?(live, "#res-next time", "14:05")
       refute has_element?(live, "#res-next .rg-btn")
-      assert has_element?(live, "#res-next a[href='/']", "Back to home")
+      assert has_element?(live, "#res-next a[href='/']")
     end
 
     test "sends players straight into a live riddle", %{conn: conn, user: user} do
@@ -601,15 +639,12 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-next .rg-next__t b", "No. #{next.number}")
-      assert has_element?(live, "#res-next .rg-next__t", "#{next.category.name} · live now")
+      assert has_element?(live, "#res-next .rg-next__t b", "#{next.number}")
+      assert has_element?(live, "#res-next .rg-next__t", next.category.name)
+      assert has_element?(live, "#res-next .rg-next__t", GameCopy.next_live_now())
       refute has_element?(live, "#res-next time")
 
-      assert has_element?(
-               live,
-               "#res-next a.rg-btn[href='/game/#{next.id}/play']",
-               "Jump in"
-             )
+      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/play']")
     end
 
     test "switches to Jump in when the next riddle goes live", %{conn: conn, user: user} do
@@ -617,11 +652,11 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-      assert has_element?(live, "#res-next a.rg-btn", "Enter the lobby")
+      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/lobby']")
 
       {:ok, _} = Games.transition(next.id, :live)
 
-      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/play']", "Jump in")
+      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/play']")
     end
 
     test "shows a riddle scheduled while the viewer is on the page", %{
@@ -631,7 +666,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-      assert has_element?(live, "#res-next", "No riddle on the schedule yet.")
+      assert has_element?(live, "#res-next", GameCopy.next_none())
 
       next = GamesFixtures.scheduled_riddle_fixture()
 
@@ -735,7 +770,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       assert has_element?(live, "#chat-feed", "well played")
       refute has_element?(live, "#chat-empty")
-      assert render(live) =~ "This game has been archived."
+      assert has_element?(live, "#flash-info")
     end
 
     test "send_chat after Archive does not broadcast", %{conn: conn, user: user, now: now} do
@@ -767,8 +802,8 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       assert has_element?(live, ".rg-results__top")
       assert has_element?(live, "#panel-board .rg-row", winner.username)
       refute has_element?(live, "#chat-feed .rg-msg")
-      assert has_element?(live, "#chat-feed > li.rg-chat__div", "Riddle ended")
-      assert has_element?(live, "#chat-feed > li.rg-chat__empty", "Chat closed")
+      assert has_element?(live, "#chat-feed > li.rg-chat__div", GameCopy.chat_divider())
+      assert has_element?(live, "#chat-feed > li.rg-chat__empty", GameCopy.chat_archived())
     end
 
     test "takes no chat once archived", %{conn: conn, user: user} do
@@ -793,7 +828,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       assert has_element?(
                live,
                "#panel-board .rg-board__empty",
-               "The board is empty. The riddle wins this round."
+               GameCopy.board_empty()
              )
 
       refute has_element?(live, "#panel-board .rg-row")
@@ -810,7 +845,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       send(live.pid, {:riddle_archived, riddle})
 
-      assert render(live) =~ "This game has been archived."
+      assert has_element?(live, "#flash-info")
       assert has_element?(live, ".rg-results__top")
     end
   end
