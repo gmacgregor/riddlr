@@ -1817,8 +1817,8 @@ a.rg-pill {
 }
 
 /* ───────────────── Play ─────────────────
-   Mobile: one column, only the feed scrolls (Layouts.game locks main).
-   Desktop: riddle on the left, feed and input on the right. */
+   One column at every width: clock, riddle, Feed, then the guess field.
+   Only the feed scrolls (Layouts.game locks main). */
 .rg-view--play {
   height: 100%;
 }
@@ -1922,12 +1922,18 @@ a.rg-pill {
   }
 }
 
-/* Feed */
+/* Feed, drawn as a note: pen border, uneven corners and a hard shadow. */
 .rg-play__feed {
   grid-area: feed;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  margin: var(--space-2xs) var(--space-xs) var(--space-xs);
+  background: var(--surface-2);
+  color: var(--fg);
+  border: var(--stroke-note) solid var(--fg);
+  border-radius: var(--wob-box-2);
+  box-shadow: var(--shadow-note);
 }
 .rg-feed__head {
   display: flex;
@@ -1980,12 +1986,6 @@ a.rg-pill {
   font-size: var(--step--1);
   color: var(--fg-subtle);
   white-space: nowrap;
-}
-.rg-msg.is-wrong .rg-msg__text {
-  text-decoration: line-through;
-  text-decoration-color: var(--urgent-text);
-  text-decoration-thickness: 2px;
-  color: var(--fg-muted);
 }
 /* "You" reads like everyone else, with a pen squiggle drawn round your
    avatar instead of a highlight: room grid, Feed, Chat and Leaderboard. */
@@ -2155,30 +2155,26 @@ a.rg-pill {
   font-size: var(--step--1);
 }
 
+/* Wide screens stay one column so the riddle spans the full width; the
+   Feed and guess field sit below it. */
 @media (min-width: 1024px) {
-  .rg-play {
-    grid-template-areas: "clock feed" "riddle feed" "riddle input";
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-  }
   .rg-play__clock {
-    padding: var(--space-l) var(--space-xl) 0 var(--pad);
+    padding: var(--space-m) var(--pad) 0;
   }
   .rg-play__riddle {
     border-bottom: 0;
-    padding: var(--space-l) var(--space-xl) var(--space-l) var(--pad);
-    align-content: center;
-  }
-  .rg-play__feed,
-  .rg-play__input {
-    border-left: 1px solid var(--border);
-    background: var(--surface-2);
-  }
-  .rg-feed__head {
-    padding-top: var(--space-m);
+    padding: var(--space-m) var(--pad);
   }
   .rg-riddle {
-    max-width: 28ch;
+    line-height: 1.18;
+    max-width: none;
+  }
+  .rg-play__feed {
+    margin-inline: var(--pad);
+  }
+  .rg-play__input {
+    border-top: 0;
+    background: transparent;
   }
 }
 
