@@ -8,6 +8,10 @@ defmodule Riddlr.StandingsTest do
 
   defp names(rows), do: Enum.map(rows, & &1.username)
 
+  defp went_live(riddle, at) do
+    riddle |> Ecto.Changeset.change(live_date: at) |> Riddlr.Repo.update!()
+  end
+
   defp set_status(user, status) do
     user |> Ecto.Changeset.change(account_status: status) |> Riddlr.Repo.update!()
   end
@@ -168,6 +172,47 @@ defmodule Riddlr.StandingsTest do
       ranks = Standings.list(:podiums, :all_time) |> Enum.map(&{&1.username, &1.rank})
 
       assert ranks == [{"hal", 1}, {"ivy", 2}, {"jon", 2}, {"kim", 2}]
+    end
+  end
+
+  describe "list(:fastest, window)" do
+    test "shows each player once, with their fastest solve and its riddle" do
+      slow = riddle_fixture(%{name: "Slow Riddle"})
+      quick = riddle_fixture(%{name: "Quick Riddle"})
+      ann = user_fixture(%{username: "ann"})
+
+      solve_fixture(slow, ann, %{placement: 1, solve_time_ms: 9_000})
+      solve_fixture(quick, ann, %{placement: 4, points: 7, solve_time_ms: 2_500})
+
+      assert [row] = Standings.list(:fastest, :all_time)
+      assert %{rank: 1, username: "ann", solve_time_ms: 2_500} = row
+      assert row.riddle_name == "Quick Riddle"
+      assert row.riddle_number == quick.number
+    end
+
+    test "orders by time, then earlier riddle, then A–Z; shares rank only on same time and date" do
+      early = riddle_fixture() |> went_live(~U[2026-10-01 12:00:00Z])
+      late = riddle_fixture() |> went_live(~U[2026-10-05 12:00:00Z])
+
+      [ann, bob, cat, dan, eve] =
+        for n <- ~w(ann bob cat dan eve), do: user_fixture(%{username: n})
+
+      solve_fixture(late, eve, %{placement: 1, solve_time_ms: 1_000})
+      solve_fixture(late, dan, %{placement: 2, solve_time_ms: 2_000})
+      solve_fixture(early, cat, %{placement: 1, solve_time_ms: 2_000})
+      solve_fixture(late, bob, %{placement: 3, solve_time_ms: 2_000})
+      solve_fixture(early, ann, %{placement: 2, solve_time_ms: 5_000})
+
+      ranks = Standings.list(:fastest, :all_time) |> Enum.map(&{&1.username, &1.rank})
+
+      assert ranks == [{"eve", 1}, {"cat", 2}, {"bob", 3}, {"dan", 3}, {"ann", 5}]
+    end
+
+    test "skips solves with no time" do
+      riddle = riddle_fixture()
+      solve_fixture(riddle, user_fixture(), %{solve_time_ms: nil})
+
+      assert Standings.list(:fastest, :all_time) == []
     end
   end
 end

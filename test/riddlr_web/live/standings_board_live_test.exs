@@ -50,4 +50,18 @@ defmodule RiddlrWeb.StandingsBoardLiveTest do
     assert_patch(live, ~p"/standings?board=podiums&window=month")
     assert has_element?(live, "#standings-board-podiums[aria-current]")
   end
+
+  test "?board=fastest shows each player's best time and its riddle", %{conn: conn} do
+    riddle = riddle_fixture(%{name: "Quick Riddle"})
+    fox = user_fixture(%{username: "fox"})
+    solve_fixture(riddle, fox, %{placement: 1, solve_time_ms: 1_230})
+
+    {:ok, live, _html} = live(conn, ~p"/standings?board=fastest")
+
+    assert has_element?(live, "#standings-board-fastest[aria-current]")
+    assert has_element?(live, "#standings-#{fox.id} .rg-stand__rank", "1")
+    assert has_element?(live, "#standings-#{fox.id} .rg-stand__time", "1.23s")
+    assert has_element?(live, "#standings-#{fox.id} .rg-stand__riddle", "Quick Riddle")
+    refute has_element?(live, "#standings-#{fox.id} .rg-stand__pts")
+  end
 end

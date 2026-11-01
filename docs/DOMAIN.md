@@ -220,15 +220,19 @@ archived riddle, to Home.
 
 **Standings** rank players across all riddles, built from their saved
 Solves. Anyone can see them, signed in or not; Home and Results link there.
-There are three boards, each ranking by its own stat first:
+There are four boards, each ranking by its own stat first:
 
 | Board | Order |
 |---|---|
 | Points (default) | points → Wins → podiums |
 | Wins | Wins → podiums → points |
 | Podiums | podiums → Wins → points |
+| Fastest | best solve time → earlier riddle (by Live date) |
 
 Players level on all three share a rank (1, 2, 2, 4) and are listed A–Z.
+Fastest shows each player once, with their best time on any Solve (not only
+Wins) and the riddle it came from; players share a rank there only on the
+same time and the same Live date. Solves with no time don't count.
 The Wins and Podiums boards leave out players with none. Each shows the
 top 50. Banned and suspended players and deleted accounts are left out. A switch
 picks the window: all time (the default) or this month, which counts only

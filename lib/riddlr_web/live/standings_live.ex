@@ -1,12 +1,14 @@
 defmodule RiddlrWeb.StandingsLive do
   @moduledoc """
   The public Standings page: the overall ranking of players across riddles
-  (`Riddlr.Standings.list/2`): rank, player, points, wins and podiums.
+  (`Riddlr.Standings.list/2`): rank, player, points, wins and podiums, or
+  on the Fastest board rank, player, best time and its riddle.
 
   Two URL params pick what it shows, each with a switch on the page that
   patches between values and keeps the other param:
 
-  - `?board=points` (default), `wins` or `podiums`: the stat it ranks by
+  - `?board=points` (default), `wins`, `podiums` or `fastest`: the stat it
+    ranks by
   - `?window=all_time` (default) or `month`: which riddles count
 
   Any other value falls back to the default.
@@ -20,7 +22,7 @@ defmodule RiddlrWeb.StandingsLive do
   alias Riddlr.Standings
   alias RiddlrWeb.{GameComponents, GameCopy}
 
-  @boards [:points, :wins, :podiums]
+  @boards [:points, :wins, :podiums, :fastest]
   @windows [:all_time, :month]
 
   @impl true
@@ -86,15 +88,22 @@ defmodule RiddlrWeb.StandingsLive do
                 <tr>
                   <th scope="col" class="rg-stand__rank">{GameCopy.standings_col(:rank)}</th>
                   <th scope="col" class="rg-stand__player">{GameCopy.standings_col(:player)}</th>
-                  <th scope="col" class="rg-stand__pts" aria-sort={aria_sort(@board, :points)}>
-                    {GameCopy.standings_col(:points)}
-                  </th>
-                  <th scope="col" class="rg-stand__wins" aria-sort={aria_sort(@board, :wins)}>
-                    {GameCopy.standings_col(:wins)}
-                  </th>
-                  <th scope="col" class="rg-stand__pods" aria-sort={aria_sort(@board, :podiums)}>
-                    {GameCopy.standings_col(:podiums)}
-                  </th>
+                  <%= if @board == :fastest do %>
+                    <th scope="col" class="rg-stand__time" aria-sort="ascending">
+                      {GameCopy.standings_col(:time)}
+                    </th>
+                    <th scope="col" class="rg-stand__riddle">{GameCopy.standings_col(:riddle)}</th>
+                  <% else %>
+                    <th scope="col" class="rg-stand__pts" aria-sort={aria_sort(@board, :points)}>
+                      {GameCopy.standings_col(:points)}
+                    </th>
+                    <th scope="col" class="rg-stand__wins" aria-sort={aria_sort(@board, :wins)}>
+                      {GameCopy.standings_col(:wins)}
+                    </th>
+                    <th scope="col" class="rg-stand__pods" aria-sort={aria_sort(@board, :podiums)}>
+                      {GameCopy.standings_col(:podiums)}
+                    </th>
+                  <% end %>
                 </tr>
               </thead>
               <tbody id="standings-rows" phx-update="stream">
@@ -110,9 +119,16 @@ defmodule RiddlrWeb.StandingsLive do
                       <span class="rg-stand__name">{row.username}</span>
                     </span>
                   </th>
-                  <td class="rg-stand__pts">{row.points}</td>
-                  <td class="rg-stand__wins">{row.wins}</td>
-                  <td class="rg-stand__pods">{row.podiums}</td>
+                  <%= if @board == :fastest do %>
+                    <td class="rg-stand__time">{GameCopy.solve_secs(row.solve_time_ms)}</td>
+                    <td class="rg-stand__riddle">
+                      {GameCopy.riddle_name(%{number: row.riddle_number, name: row.riddle_name})}
+                    </td>
+                  <% else %>
+                    <td class="rg-stand__pts">{row.points}</td>
+                    <td class="rg-stand__wins">{row.wins}</td>
+                    <td class="rg-stand__pods">{row.podiums}</td>
+                  <% end %>
                 </tr>
               </tbody>
             </table>
@@ -127,6 +143,7 @@ defmodule RiddlrWeb.StandingsLive do
   @spec parse_board(String.t() | nil) :: Standings.board()
   defp parse_board("wins"), do: :wins
   defp parse_board("podiums"), do: :podiums
+  defp parse_board("fastest"), do: :fastest
   defp parse_board(_), do: :points
 
   # Marks the column the board ranks by, for screen readers.

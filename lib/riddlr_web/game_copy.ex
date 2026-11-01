@@ -596,10 +596,11 @@ defmodule RiddlrWeb.GameCopy do
   def standings_empty(:month), do: "No solves yet this month"
 
   @doc "A label on the Standings board switch."
-  @spec standings_board(:points | :wins | :podiums) :: String.t()
+  @spec standings_board(:points | :wins | :podiums | :fastest) :: String.t()
   def standings_board(:points), do: "Points"
   def standings_board(:wins), do: "Wins"
   def standings_board(:podiums), do: "Podiums"
+  def standings_board(:fastest), do: "Fastest"
 
   @doc "The accessible name of the Standings board switch."
   @spec standings_board_label() :: String.t()
@@ -615,12 +616,15 @@ defmodule RiddlrWeb.GameCopy do
   def standings_window_label, do: "Show standings for"
 
   @doc "A Standings column heading."
-  @spec standings_col(:rank | :player | :points | :wins | :podiums) :: String.t()
+  @spec standings_col(:rank | :player | :points | :wins | :podiums | :time | :riddle) ::
+          String.t()
   def standings_col(:rank), do: "#"
   def standings_col(:player), do: "Player"
   def standings_col(:points), do: "Points"
   def standings_col(:wins), do: "Wins"
   def standings_col(:podiums), do: "Podiums"
+  def standings_col(:time), do: "Time"
+  def standings_col(:riddle), do: "Riddle"
 
   @doc "The link to the Standings page from Home and Results."
   @spec standings_link() :: String.t()

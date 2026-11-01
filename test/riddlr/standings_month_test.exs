@@ -58,4 +58,17 @@ defmodule Riddlr.StandingsMonthTest do
 
     assert [%{username: "ann", wins: 1}] = Standings.list(:wins, :month)
   end
+
+  test "list(:fastest, :month) only counts this month's solves" do
+    Frozen.freeze(~U[2026-11-15 12:00:00Z])
+
+    this_month = riddle_fixture() |> went_live(~U[2026-11-02 12:00:00Z])
+    last_month = riddle_fixture() |> went_live(~U[2026-10-02 12:00:00Z])
+    ann = user_fixture(%{username: "ann"})
+
+    solve_fixture(this_month, ann, %{solve_time_ms: 8_000})
+    solve_fixture(last_month, ann, %{solve_time_ms: 1_000})
+
+    assert [%{solve_time_ms: 8_000}] = Standings.list(:fastest, :month)
+  end
 end

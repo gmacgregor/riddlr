@@ -151,8 +151,8 @@ The overall ranking of players across riddles, built from their solves.
 _Avoid_: leaderboard, rankings
 
 **Board**:
-One ranking within Standings: Points, Wins or Podiums. Each sorts by its
-own stat first.
+One ranking within Standings: Points, Wins, Podiums or Fastest. Each sorts
+by its own stat first; Fastest sorts by each player's best solve time.
 _Avoid_: tab, table, leaderboard (that is one riddle's board)
 
 **Window**:

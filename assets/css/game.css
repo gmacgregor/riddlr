@@ -2731,13 +2731,22 @@ a.rg-pill {
   text-overflow: ellipsis;
   font-weight: 600;
 }
-.rg-stand td.rg-stand__pts {
+.rg-stand td.rg-stand__pts,
+.rg-stand td.rg-stand__time {
   font-family: var(--f-label);
   font-weight: 600;
 }
 .rg-stand td.rg-stand__wins,
 .rg-stand td.rg-stand__pods {
   font-family: var(--f-label);
+  color: var(--fg-muted);
+}
+/* A long riddle name trims so the time stays in view. */
+.rg-stand td.rg-stand__riddle {
+  max-inline-size: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
   color: var(--fg-muted);
 }
 
