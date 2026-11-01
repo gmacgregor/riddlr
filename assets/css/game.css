@@ -2108,6 +2108,10 @@ a.rg-pill {
 .rg-guess__field:focus {
   border-color: var(--action);
 }
+/* The border colour marks focus; the global focus ring would double it. */
+.rg-guess__field:focus-visible {
+  outline: none;
+}
 .rg-guess__field[aria-invalid="true"] {
   border-color: var(--urgent-text);
 }
@@ -2809,6 +2813,10 @@ a.rg-pill {
 }
 .rg-chat__field:focus {
   border-color: var(--action);
+}
+/* The border colour marks focus; the global focus ring would double it. */
+.rg-chat__field:focus-visible {
+  outline: none;
 }
 
 @media (min-width: 1024px) {
