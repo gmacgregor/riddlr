@@ -17,7 +17,8 @@ defmodule Riddlr.Utils.Datetime do
       {:ok, naive_datetime} ->
         # datetime-local input provides time in user's local timezone (America/New_York for admins)
         # Convert from EST/EDT to UTC
-        DateTime.from_naive!(naive_datetime, "America/New_York")
+        naive_datetime
+        |> eastern_instant()
         |> DateTime.shift_zone!("Etc/UTC")
 
       _ ->
@@ -26,6 +27,16 @@ defmodule Riddlr.Utils.Datetime do
   end
 
   def to_utc_datetime(_), do: nil
+
+  # When the clocks go back, an hour happens twice: take the first one. When
+  # they go forward, an hour never happens: take the moment after the jump.
+  defp eastern_instant(naive_datetime) do
+    case DateTime.from_naive(naive_datetime, "America/New_York") do
+      {:ok, datetime} -> datetime
+      {:ambiguous, first, _second} -> first
+      {:gap, _just_before, just_after} -> just_after
+    end
+  end
 
   @doc """
   Converts a UTC datetime to America/New_York timezone for datetime-local input.
