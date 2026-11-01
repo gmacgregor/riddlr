@@ -78,7 +78,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The heading of the Home timeline."
   @spec timeline_heading() :: String.t()
-  def timeline_heading, do: "A round, start to finish"
+  def timeline_heading, do: "How to play"
 
   @doc """
   The last time on the Home timeline when there is no next riddle. Matches
@@ -99,21 +99,21 @@ defmodule RiddlrWeb.GameCopy do
     [
       %{
         time: "0:00",
-        title: "The riddle appears",
-        text: "Everyone sees it at the same second.",
+        title: "The riddle is revealed",
+        text: "Everyone sees it at the same",
         note: "no head starts"
       },
       %{
         time: "0:01",
-        title: "Guess",
-        text: "As often as you like, once a second.",
+        title: "Guess away!",
+        text: "As often as you like, once per second",
         note: "spelling counts"
       },
       %{
         time: end_time,
-        title: "Time",
-        text: "The ten fastest correct answers score, 10 points down to 1.",
-        note: "everyone else gets the story"
+        title: "Tick tock…",
+        text: "The ten fastest correct answers score, 10 points down to 1",
+        note: "think fast, type fast, win points"
       }
     ]
   end
@@ -210,7 +210,8 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The words after the drop time in the Lobby's when line."
   @spec lobby_when_tail() :: String.t()
-  def lobby_when_tail, do: "Stay on this screen — it opens by itself."
+  def lobby_when_tail,
+    do: "Stay on this screen and the countdown will be replaced when it goes live!"
 
   @doc "The fact that gives a riddle's solve time, already formatted as a clock."
   @spec solve_time(String.t()) :: String.t()
@@ -380,7 +381,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The placeholder in the Results chat field."
   @spec chat_placeholder() :: String.t()
-  def chat_placeholder, do: "Say something nice to the winner"
+  def chat_placeholder, do: "Type a message…"
 
   @doc "The words before the time left on the Results chat countdown."
   @spec chat_closes_in_lead() :: String.t()
@@ -452,7 +453,7 @@ defmodule RiddlrWeb.GameCopy do
   @doc "The solved panel's title, given the player's place and points."
   @spec solved_title(pos_integer(), non_neg_integer()) :: String.t()
   def solved_title(1, _points), do: "First! Nobody was faster."
-  def solved_title(_placement, 0), do: "Cracked it — just off the board."
+  def solved_title(_placement, 0), do: "Cracked it, but just off the board."
   def solved_title(placement, _points), do: "Cracked it. #{ordinal(placement)} place."
 
   @doc """
@@ -575,7 +576,7 @@ defmodule RiddlrWeb.GameCopy do
       title: if(placement == 1, do: "You won it", else: "You placed #{ordinal(placement)}"),
       sub:
         if(points > 0,
-          do: "+#{points} pts for this riddle",
+          do: "+#{points} points for this riddle",
           else: "Solved, but outside the top 10."
         )
     }

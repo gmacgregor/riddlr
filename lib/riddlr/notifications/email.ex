@@ -28,8 +28,10 @@ defmodule Riddlr.Notifications.Email do
 
     new()
     |> to(user.email)
-    |> from({"Riddlr", "contact@example.com"})
-    |> subject("Riddle No. #{riddle.number} goes live in #{minutes_left(riddle, now)} min")
+    |> from({"Team Kriddle", "contact@example.com"})
+    |> subject(
+      "Kriddle riddle No. #{riddle.number} goes live in #{minutes_left(riddle, now)} min"
+    )
     |> header("List-Unsubscribe", "<#{unsubscribe_url}>")
     |> header("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
     |> text_body("""
@@ -39,9 +41,10 @@ defmodule Riddlr.Notifications.Email do
 
     #{link}
 
-    Have fun and thanks for being a part of the Kriddle community!
+    Have fun!
 
-    - Team Kriddle
+    ✌️ Team Kriddle
+
 
     ---
     You received this update because you turned on email notifications for new Kriddle games. You may disable email notifications here: #{unsubscribe_url}
@@ -53,9 +56,7 @@ defmodule Riddlr.Notifications.Email do
   @spec intro_and_link(Riddle.t()) :: {String.t(), String.t()}
   defp intro_and_link(%Riddle{play_status: "ready"} = riddle) do
     intro = """
-    Get ready! The lobby is open for Kriddle No. #{riddle.number} (#{riddle.category.name}). It goes live on #{display_time(riddle.live_date)}.
-
-    Join here:\
+    Get ready! The lobby is now open for Kriddle No. #{riddle.number} (#{riddle.category.name}). It goes live on #{display_time(riddle.live_date)}. Join the lobby here:\
     """
 
     {intro, url(~p"/game/#{riddle.id}/lobby")}
@@ -65,9 +66,7 @@ defmodule Riddlr.Notifications.Email do
     lobby_opens = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
 
     intro = """
-    Kriddle No. #{riddle.number} (#{riddle.category.name}) goes live on #{display_time(riddle.live_date)}. The lobby opens on #{display_time(lobby_opens)}.
-
-    Find it here:\
+    Kriddle No. #{riddle.number} (#{riddle.category.name}) goes live on #{display_time(riddle.live_date)}. The lobby opens on #{display_time(lobby_opens)}. Find it here:\
     """
 
     {intro, url(~p"/")}

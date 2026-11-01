@@ -23,8 +23,8 @@ defmodule Riddlr.Workers.NotificationWorkersTest do
     assert :ok = perform_job(SendNotificationWorker, %{"notification_id" => row.id})
     assert {:cancel, _} = perform_job(SendNotificationWorker, %{"notification_id" => row.id})
 
-    assert_received {:email, %{subject: "Riddle No. " <> _}}
-    refute_received {:email, %{subject: "Riddle No. " <> _}}
+    assert_received {:email, %{subject: "Kriddle riddle No. " <> _}}
+    refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
   end
 
   test "a finished fan-out does not block a new one for the same riddle", %{riddle: riddle} do

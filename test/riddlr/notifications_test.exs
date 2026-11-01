@@ -102,8 +102,8 @@ defmodule Riddlr.NotificationsTest do
 
       run_fan_outs_and_sends(due_now)
 
-      assert_received {:email, %{subject: "Riddle No. " <> _, to: [{_, email_a}]}}
-      assert_received {:email, %{subject: "Riddle No. " <> _, to: [{_, email_b}]}}
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _, to: [{_, email_a}]}}
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _, to: [{_, email_b}]}}
       assert Enum.sort([email_a, email_b]) == Enum.sort([min_30.email, min_60.email])
     end
 
@@ -112,7 +112,7 @@ defmodule Riddlr.NotificationsTest do
       riddle = scheduled_riddle_fixture(%{live_date: from_now(50 * 60)})
       run_fan_outs_and_sends(due_fan_outs(riddle.id))
 
-      assert_received {:email, %{subject: "Riddle No. " <> _} = email}
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _} = email}
       assert email.subject =~ "50 min"
       refute email.text_body =~ "/lobby"
       assert email.text_body =~ RiddlrWeb.Endpoint.url() <> "/\n"
@@ -133,12 +133,12 @@ defmodule Riddlr.NotificationsTest do
       opted_in(%{notification_lead_time: :min_60})
       riddle = scheduled_riddle_fixture(%{live_date: from_now(20 * 60)})
       run_fan_outs_and_sends(due_fan_outs(riddle.id))
-      assert_received {:email, %{subject: "Riddle No. " <> _}}
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _}}
 
       {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"live_date" => from_now(25 * 60)})
 
       run_fan_outs_and_sends(due_fan_outs(riddle.id))
-      refute_received {:email, %{subject: "Riddle No. " <> _}}
+      refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
     end
   end
 
@@ -200,9 +200,9 @@ defmodule Riddlr.NotificationsTest do
       assert {:ok, sent} = Notifications.deliver(row.id)
       assert sent.sent_at
 
-      assert_received {:email, %{subject: "Riddle No. " <> _} = email}
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _} = email}
       assert email.to == [{"", user.email}]
-      assert email.subject == "Riddle No. #{riddle.number} goes live in 10 min"
+      assert email.subject == "Kriddle riddle No. #{riddle.number} goes live in 10 min"
       assert email.text_body =~ "/game/#{riddle.id}/lobby"
       assert email.text_body =~ riddle.category.name
       assert email.text_body =~ "/notifications/unsubscribe/"
@@ -216,15 +216,15 @@ defmodule Riddlr.NotificationsTest do
       assert {:ok, _} = Notifications.deliver(row.id)
       assert {:skip, _} = Notifications.deliver(row.id)
 
-      assert_received {:email, %{subject: "Riddle No. " <> _}}
-      refute_received {:email, %{subject: "Riddle No. " <> _}}
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _}}
+      refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
     end
 
     test "skips an unscheduled riddle", %{riddle: riddle, row: row} do
       {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"publish_status" => "draft"})
 
       assert {:skip, _} = Notifications.deliver(row.id)
-      refute_received {:email, %{subject: "Riddle No. " <> _}}
+      refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
     end
 
     test "skips once the Live date has passed", %{riddle: riddle, row: row} do
@@ -268,7 +268,7 @@ defmodule Riddlr.NotificationsTest do
   end
 
   defp refute_sent_notification(row) do
-    refute_received {:email, %{subject: "Riddle No. " <> _}}
+    refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
     assert Repo.reload!(row).sent_at == nil
   end
 end
