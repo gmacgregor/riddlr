@@ -134,11 +134,11 @@ defmodule Riddlr.Standings do
   defp sort_keys(:podiums), do: [desc: :podiums, desc: :wins, desc: :points]
   defp sort_keys(:fastest), do: [asc: :solve_time_ms, asc: :live_date]
 
-  # Fastest: each player's single best solve. DISTINCT ON keeps the first
-  # row per player, so the sort picks the lowest time, then the earlier
-  # riddle.
-  @spec board_query(board(), window()) :: Ecto.Query.t()
-  defp board_query(:fastest, window) do
+  # Solves that count on a board, joined to their riddle and player. Deleted
+  # players drop out with the inner join; banned and suspended players are
+  # left out.
+  @spec counted_solves() :: Ecto.Query.t()
+  defp counted_solves do
     from(s in Solve,
       as: :solve,
       join: r in Riddle,
@@ -147,10 +147,19 @@ defmodule Riddlr.Standings do
       join: u in User,
       as: :user,
       on: u.id == s.user_id,
-      where: u.account_status not in [:banned, :suspended],
+      where: u.account_status not in [:banned, :suspended]
+    )
+  end
+
+  # Fastest: each player's single best solve. DISTINCT ON keeps the first
+  # row per player, so the sort picks the lowest time, then the earlier
+  # riddle; the solve id makes the pick stable when both match.
+  @spec board_query(board(), window()) :: Ecto.Query.t()
+  defp board_query(:fastest, window) do
+    from([solve: s, riddle: r, user: u] in counted_solves(),
       where: not is_nil(s.solve_time_ms),
       distinct: s.user_id,
-      order_by: [asc: s.solve_time_ms, asc: r.live_date],
+      order_by: [asc: s.solve_time_ms, asc: r.live_date, asc: s.id],
       select: %{
         user_id: u.id,
         username: u.username,
@@ -164,15 +173,7 @@ defmodule Riddlr.Standings do
   end
 
   defp board_query(board, window) do
-    from(s in Solve,
-      as: :solve,
-      join: r in Riddle,
-      as: :riddle,
-      on: r.id == s.riddle_id,
-      join: u in User,
-      as: :user,
-      on: u.id == s.user_id,
-      where: u.account_status not in [:banned, :suspended],
+    from([solve: s, user: u] in counted_solves(),
       group_by: [u.id, u.username],
       select: %{
         user_id: u.id,
@@ -204,6 +205,8 @@ defmodule Riddlr.Standings do
     end)
   end
 
+  # How many rows of `schema` (Solve or Entry) each listed player has on the
+  # window's riddles.
   @spec count_by_user(module(), [integer()], window()) :: %{integer() => non_neg_integer()}
   defp count_by_user(schema, ids, window) do
     from(x in schema,
