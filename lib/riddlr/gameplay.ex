@@ -107,7 +107,6 @@ defmodule Riddlr.Gameplay do
 
     if correct? do
       points = points_for_placement(placement)
-      :ok = Riddlr.Accounts.award_game_points(user.id, placement, points)
 
       if placement == 1 do
         Riddlr.Games.record_first_solver(riddle.id, user.id, answer.offset_ms)

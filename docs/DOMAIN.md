@@ -234,9 +234,10 @@ guess arrived. Points by placement:
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Points | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
 
-Points are awarded the moment a player solves, not at completion. Each player
-keeps running totals of points, **Wins** (placement 1) and podiums (placement
-1–3).
+A player's placement and points are fixed the moment they solve, and saved
+as a Solve when the riddle completes. Totals of points, **Wins** (placement
+1) and podiums (placement 1–3) are summed from Solves; nothing on the player
+keeps a running count.
 
 The first player to solve is recorded on the riddle as **First solver**, with
 their time from the Live date. If two players solve at once, only one is
@@ -261,11 +262,9 @@ more.
 - **Unpublishing a live or completed riddle strands it.** Only scheduled and
   ready riddles unschedule. A live or completed riddle set to draft is saved,
   then every later step refuses it, so it never completes or archives. (#40)
-- **Points and placement can drift.** Placement comes from the live guesses;
-  points are saved at once. A crash between the two loses the points for good.
-  The player cannot retry, because they count as having solved.
-- **A server restart wipes live guesses.** Placement, the Feed and Cooldowns
-  are lost; points already awarded stay.
+- **A server restart wipes live guesses.** Placement, points, the Feed and
+  Cooldowns live in memory until the riddle completes, so a restart while it
+  is live loses them; no Solves get saved for that riddle.
 - **The Cooldown is not exact.** Two guesses sent at the same moment can both
   pass. It is a convenience, not a security control.
 - **Hints are not shown.** Riddles carry a Hint and a delay, but players never

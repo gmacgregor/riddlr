@@ -18,9 +18,6 @@ defmodule Riddlr.Accounts.User do
       default: :player
 
     field :account_status, Ecto.Enum, values: [:active, :banned, :suspended], default: :active
-    field :total_points, :integer, default: 0
-    field :wins_count, :integer, default: 0
-    field :podium_count, :integer, default: 0
 
     field :notify_email, :boolean, default: false
     field :notify_sms, :boolean, default: false
@@ -43,14 +40,10 @@ defmodule Riddlr.Accounts.User do
   end
 
   @doc """
-  A changeset for updating player stats (points, counts, account_status).
+  A changeset for a moderator setting `account_status`.
   """
-  def stats_changeset(user, attrs) do
-    user
-    |> cast(attrs, [:total_points, :wins_count, :podium_count, :account_status])
-    |> validate_number(:total_points, greater_than_or_equal_to: 0)
-    |> validate_number(:wins_count, greater_than_or_equal_to: 0)
-    |> validate_number(:podium_count, greater_than_or_equal_to: 0)
+  def status_changeset(user, attrs) do
+    cast(user, attrs, [:account_status])
   end
 
   @doc """

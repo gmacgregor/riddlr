@@ -315,49 +315,6 @@ defmodule Riddlr.Accounts do
     :ok
   end
 
-  ## Player stats
-
-  @doc """
-  Atomically increments a single stat field by the given amount.
-  Broadcasts to leaderboard subscribers on change.
-  """
-  def increment_stats(user_id, field, amount)
-      when field in [:total_points, :wins_count, :podium_count] and is_integer(amount) do
-    {count, _} =
-      from(u in User, where: u.id == ^user_id)
-      |> Repo.update_all(inc: [{field, amount}])
-
-    if count > 0 do
-      Phoenix.PubSub.broadcast(Riddlr.PubSub, "accounts:leaderboard:updated", :stats_changed)
-    end
-
-    :ok
-  end
-
-  @doc """
-  Awards `points` to a user for a game placement.
-
-  The points table is a Gameplay rule, so the caller supplies the value;
-  this function only records it. Updates total_points, podium_count (top 3)
-  and wins_count (1st place) atomically. Returns `:ok`.
-  """
-  def award_game_points(user_id, placement, points) do
-    updates =
-      [total_points: points] ++
-        if(placement <= 3, do: [podium_count: 1], else: []) ++
-        if placement == 1, do: [wins_count: 1], else: []
-
-    {count, _} =
-      from(u in User, where: u.id == ^user_id)
-      |> Repo.update_all(inc: updates)
-
-    if count > 0 do
-      Phoenix.PubSub.broadcast(Riddlr.PubSub, "accounts:leaderboard:updated", :stats_changed)
-    end
-
-    :ok
-  end
-
   ## Moderation
 
   @doc """
@@ -368,7 +325,7 @@ defmodule Riddlr.Accounts do
   """
   def set_user_status(%User{} = user, status) when status in [:active, :banned, :suspended] do
     user
-    |> User.stats_changeset(%{account_status: status})
+    |> User.status_changeset(%{account_status: status})
     |> Repo.update()
     |> case do
       {:ok, _updated} = result ->

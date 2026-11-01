@@ -116,8 +116,6 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
     } do
       assert Gameplay.submit_answer(riddle, user, "keyboard") == {:correct, 1, 10}
 
-      assert Repo.get!(Riddlr.Accounts.User, user.id).total_points == 10
-
       reloaded = Riddlr.Games.get_riddle!(riddle.id)
       assert reloaded.first_solver_id == user.id
       assert reloaded.play_status == "live"
