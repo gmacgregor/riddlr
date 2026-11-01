@@ -27,7 +27,11 @@
       </div>
 
       <div class="rg-play__riddle">
-        <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />
+        <GameComponents.kicker
+          number={@riddle.number}
+          name={@riddle.name}
+          category={@riddle.category.name}
+        />
         <h1 id="play-h" class="rg-riddle" tabindex="-1" aria-label={@riddle.description}>
           <%= for {word, i} <- Enum.with_index(@words) do %>
             <span

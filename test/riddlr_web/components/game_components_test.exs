@@ -267,6 +267,18 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert html =~ ~r{<span class="rg-kicker__num">[^<]*66</span>\s*<span>Classics</span>}
     end
 
+    test "shows the name before the category when given one" do
+      html =
+        render_component(&GameComponents.kicker/1,
+          number: 66,
+          name: "Echo",
+          category: "Classics"
+        )
+
+      assert html =~
+               ~r{<span class="rg-kicker__num">[^<]*66</span>\s*<span>Echo · Classics</span>}
+    end
+
     test "shows only the category when the riddle has no number" do
       html = render_component(&GameComponents.kicker/1, number: nil, category: "Classics")
 

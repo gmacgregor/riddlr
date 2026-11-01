@@ -12,7 +12,11 @@
   </div>
   <div id="results" class="rg-wrap rg-results rg-view" phx-hook=".ResultsTabs">
     <div class="rg-results__top">
-      <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />
+      <GameComponents.kicker
+        number={@riddle.number}
+        name={@riddle.name}
+        category={@riddle.category.name}
+      />
       <p class="rg-results__riddle">“{@riddle.description}”</p>
       <h1
         id="res-h"

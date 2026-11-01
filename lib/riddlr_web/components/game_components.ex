@@ -488,10 +488,12 @@ defmodule RiddlrWeb.GameComponents do
 
   @doc """
   The line above a riddle's title: its number as a "No. N" chip, then its
-  category. Riddles created before numbering began have no number, so they
-  show only the category.
+  category. Given a `name`, it reads "No. N", then "name · category", as
+  the Home hero does. Riddles created before numbering began have no number,
+  so they leave the chip out.
   """
   attr :number, :integer, default: nil
+  attr :name, :string, default: nil
   attr :category, :string, required: true
 
   @spec kicker(map()) :: Phoenix.LiveView.Rendered.t()
@@ -499,7 +501,7 @@ defmodule RiddlrWeb.GameComponents do
     ~H"""
     <p class="rg-kicker">
       <span :if={@number} class="rg-kicker__num">No. {@number}</span>
-      <span>{@category}</span>
+      <span>{if @name, do: "#{@name} · #{@category}", else: @category}</span>
     </p>
     """
   end

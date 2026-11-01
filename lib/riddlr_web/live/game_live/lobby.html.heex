@@ -5,7 +5,11 @@
   <section class="rg-view" aria-labelledby="lobby-h">
     <div class="rg-wrap rg-lobby">
       <div class="rg-lobby__clock">
-        <GameComponents.kicker number={@riddle.number} category={@riddle.category.name} />
+        <GameComponents.kicker
+          number={@riddle.number}
+          name={@riddle.name}
+          category={@riddle.category.name}
+        />
         <h1 id="lobby-h" class="rg-lobby__h" tabindex="-1">{GameCopy.lobby_heading()}</h1>
         <GameComponents.flaps id="lobby-flaps" seconds={@time_remaining} />
         <p :if={@riddle.live_date} class="rg-lobby__when">

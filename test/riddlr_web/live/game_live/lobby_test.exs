@@ -138,7 +138,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
       assert has_element?(live, ".rg-lobby__clock .rg-kicker__num", "#{riddle.number}")
-      assert has_element?(live, ".rg-lobby__clock .rg-kicker", riddle.category.name)
+
+      assert has_element?(
+               live,
+               ".rg-lobby__clock .rg-kicker",
+               "#{riddle.name} · #{riddle.category.name}"
+             )
+
       assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.lobby_heading())
     end
 
