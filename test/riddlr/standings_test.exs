@@ -230,4 +230,51 @@ defmodule Riddlr.StandingsTest do
       end
     end
   end
+
+  describe "player_row(user_id, board, window)" do
+    test "gives the same rank list/2 would, even outside the top 50" do
+      riddle = riddle_fixture()
+      players = for place <- 1..52, do: {place, user_fixture()}
+
+      # Places 50 and 51 tie on points, wins and podiums.
+      for {place, user} <- players do
+        points = if place == 51, do: 100 - 50, else: 100 - place
+        solve_fixture(riddle, user, %{placement: place, points: points})
+      end
+
+      {51, tied} = Enum.at(players, 50)
+      {52, last} = Enum.at(players, 51)
+
+      assert %{rank: 50, user_id: id, points: 50} =
+               Standings.player_row(tied.id, :points, :all_time)
+
+      assert id == tied.id
+      assert %{rank: 52} = Standings.player_row(last.id, :points, :all_time)
+      assert %{solves: 1, entries: 0} = Standings.player_row(last.id, :points, :all_time)
+
+      {1, top} = hd(players)
+
+      assert Standings.player_row(top.id, :points, :all_time) ==
+               hd(Standings.list(:points, :all_time))
+    end
+
+    test "works on the Fastest board" do
+      riddle = riddle_fixture()
+      ann = user_fixture()
+      bob = user_fixture()
+      solve_fixture(riddle, ann, %{placement: 1, solve_time_ms: 1_000})
+      solve_fixture(riddle, bob, %{placement: 2, solve_time_ms: 2_000})
+
+      assert %{rank: 2, solve_time_ms: 2_000} = Standings.player_row(bob.id, :fastest, :all_time)
+    end
+
+    test "is nil for a player not on the board" do
+      riddle = riddle_fixture()
+      ann = user_fixture()
+      solve_fixture(riddle, ann, %{placement: 2, points: 9})
+
+      assert Standings.player_row(ann.id, :wins, :all_time) == nil
+      assert Standings.player_row(user_fixture().id, :points, :all_time) == nil
+    end
+  end
 end

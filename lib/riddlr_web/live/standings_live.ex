@@ -14,6 +14,10 @@ defmodule RiddlrWeb.StandingsLive do
 
   Any other value falls back to the default.
 
+  A signed-in player's own row is marked. When they are on the board but
+  outside the top 50, their row (`Riddlr.Standings.player_row/3`) is pinned
+  below the list with its true rank.
+
   Anyone can open it, signed in or not. With no solves in the window it
   shows an empty note instead of the board.
   """
@@ -44,6 +48,7 @@ defmodule RiddlrWeb.StandingsLive do
     {:noreply,
      socket
      |> assign(board: board, window: window)
+     |> assign(:pinned, pinned_row(rows, socket.assigns.current_user, board, window))
      # A stream can't say whether it is empty, so the empty note reads this.
      |> assign(:empty?, rows == [])
      |> stream(:rows, rows, reset: true)}
@@ -109,30 +114,23 @@ defmodule RiddlrWeb.StandingsLive do
                 </tr>
               </thead>
               <tbody id="standings-rows" phx-update="stream">
-                <tr :for={{dom_id, row} <- @streams.rows} id={dom_id}>
-                  <td class="rg-stand__rank">{row.rank}</td>
-                  <th scope="row" class="rg-stand__player">
-                    <span class="rg-stand__who">
-                      <GameComponents.tile
-                        initial={GameComponents.initial(row.username)}
-                        tone={GameComponents.tone(row.username, viewer_name(@current_user))}
-                        size="sm"
-                      />
-                      <span class="rg-stand__name">{row.username}</span>
-                    </span>
-                  </th>
-                  <%= if @board == :fastest do %>
-                    <td class="rg-stand__time">{GameCopy.solve_secs(row.solve_time_ms)}</td>
-                    <td class="rg-stand__riddle">
-                      {GameCopy.riddle_name(%{number: row.riddle_number, name: row.riddle_name})}
-                    </td>
-                  <% else %>
-                    <td class="rg-stand__pts">{row.points}</td>
-                    <td class="rg-stand__wins">{row.wins}</td>
-                    <td class="rg-stand__pods">{row.podiums}</td>
-                  <% end %>
-                  <td class="rg-stand__rate">{GameCopy.standings_rate(row.solves, row.entries)}</td>
-                </tr>
+                <.board_row
+                  :for={{dom_id, row} <- @streams.rows}
+                  id={dom_id}
+                  row={row}
+                  board={@board}
+                  viewer={viewer_name(@current_user)}
+                  you?={you?(row, @current_user)}
+                />
+              </tbody>
+              <tbody :if={@pinned} class="rg-stand__pinned">
+                <.board_row
+                  id="standings-you"
+                  row={@pinned}
+                  board={@board}
+                  viewer={viewer_name(@current_user)}
+                  you?
+                />
               </tbody>
             </table>
           </section>
@@ -141,6 +139,64 @@ defmodule RiddlrWeb.StandingsLive do
     </Layouts.game>
     """
   end
+
+  attr :id, :string, required: true
+  attr :row, :map, required: true
+  attr :board, :atom, required: true
+  attr :viewer, :string, default: nil, doc: "the viewer's username, for the tile tone"
+  attr :you?, :boolean, default: false, doc: "true on the viewer's own row"
+
+  # One player's line. The viewer's own row carries aria-current.
+  defp board_row(assigns) do
+    ~H"""
+    <tr id={@id} class={@you? && "rg-stand__you"} aria-current={@you? && "true"}>
+      <td class="rg-stand__rank">{@row.rank}</td>
+      <th scope="row" class="rg-stand__player">
+        <span class="rg-stand__who">
+          <GameComponents.tile
+            initial={GameComponents.initial(@row.username)}
+            tone={GameComponents.tone(@row.username, @viewer)}
+            size="sm"
+          />
+          <span class="rg-stand__name">{@row.username}</span>
+        </span>
+      </th>
+      <%= if @board == :fastest do %>
+        <td class="rg-stand__time">{GameCopy.solve_secs(@row.solve_time_ms)}</td>
+        <td class="rg-stand__riddle">
+          {GameCopy.riddle_name(%{number: @row.riddle_number, name: @row.riddle_name})}
+        </td>
+      <% else %>
+        <td class="rg-stand__pts">{@row.points}</td>
+        <td class="rg-stand__wins">{@row.wins}</td>
+        <td class="rg-stand__pods">{@row.podiums}</td>
+      <% end %>
+      <td class="rg-stand__rate">{GameCopy.standings_rate(@row.solves, @row.entries)}</td>
+    </tr>
+    """
+  end
+
+  # The viewer's row when they are on the board but outside the top 50, so
+  # it can be pinned below the list. Nil when signed out, off the board, or
+  # already listed.
+  @spec pinned_row(
+          [Standings.row()],
+          Riddlr.Accounts.User.t() | nil,
+          Standings.board(),
+          Standings.window()
+        ) ::
+          Standings.row() | nil
+  defp pinned_row(_rows, nil, _board, _window), do: nil
+
+  defp pinned_row(rows, user, board, window) do
+    if Enum.any?(rows, &(&1.user_id == user.id)),
+      do: nil,
+      else: Standings.player_row(user.id, board, window)
+  end
+
+  @spec you?(Standings.row(), Riddlr.Accounts.User.t() | nil) :: boolean()
+  defp you?(_row, nil), do: false
+  defp you?(row, user), do: row.user_id == user.id
 
   # Anything but a known board falls back to points.
   @spec parse_board(String.t() | nil) :: Standings.board()

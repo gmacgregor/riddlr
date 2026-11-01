@@ -2742,6 +2742,14 @@ a.rg-pill {
   font-family: var(--f-label);
   color: var(--fg-muted);
 }
+/* The viewer's own row. Pinned below the list when outside the top 50,
+   set apart by a heavier rule. */
+.rg-stand tr.rg-stand__you {
+  background: var(--surface-2);
+}
+.rg-stand__pinned tr:first-child > * {
+  border-top: 2px solid var(--hairline-strong);
+}
 /* A long riddle name trims so the time stays in view. */
 .rg-stand td.rg-stand__riddle {
   max-inline-size: 10rem;

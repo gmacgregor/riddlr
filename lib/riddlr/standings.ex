@@ -5,7 +5,8 @@ defmodule Riddlr.Standings do
   Read-only. Every number comes from saved `solves`, so Standings change
   when a riddle completes, not during play.
 
-  `list/2` returns the top 50 players on a board. Each board sorts by its
+  `list/2` returns the top 50 players on a board; `player_row/3` returns one
+  player's row with the same rank, wherever they place. Each board sorts by its
   own stat first, then the other two:
 
   - Points: points, wins, podiums
@@ -30,17 +31,7 @@ defmodule Riddlr.Standings do
   calendar month, by `Riddlr.Clock`.
   """
 
-  import Ecto.Query,
-    only: [
-      dynamic: 1,
-      dynamic: 2,
-      from: 2,
-      having: 3,
-      limit: 2,
-      order_by: 3,
-      subquery: 1,
-      where: 3
-    ]
+  import Ecto.Query, only: [dynamic: 2, from: 2, having: 3, subquery: 1, where: 3]
 
   alias Riddlr.Accounts.User
   alias Riddlr.Clock
@@ -51,6 +42,7 @@ defmodule Riddlr.Standings do
 
   @limit 50
   @boards [:points, :wins, :podiums, :fastest]
+  @windows [:all_time, :month]
 
   @typedoc "A board to rank by."
   @type board :: :points | :wins | :podiums | :fastest
@@ -82,13 +74,99 @@ defmodule Riddlr.Standings do
   The top #{@limit} players on `board` over `window`, best first.
   """
   @spec list(board(), window()) :: [row()]
-  def list(board, window) when board in @boards and window in [:all_time, :month] do
-    board
-    |> board_query(window)
-    |> limit(@limit)
+  def list(board, window) when board in @boards and window in @windows do
+    from(row in subquery(ranked(board, window)),
+      order_by: [asc: row.rank, asc: row.username],
+      limit: @limit
+    )
     |> Repo.all()
-    |> add_ranks(board)
     |> add_rate(window)
+  end
+
+  @doc """
+  The player's row on `board` over `window`, with the rank `list/2` would
+  give them with no limit, or nil when they are not on the board.
+  """
+  @spec player_row(integer(), board(), window()) :: row() | nil
+  def player_row(user_id, board, window) when board in @boards and window in @windows do
+    from(row in subquery(ranked(board, window)), where: row.user_id == ^user_id)
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      row -> [row] |> add_rate(window) |> hd()
+    end
+  end
+
+  # Every player on the board with their rank. rank() gives players level on
+  # every sort key the same rank and skips the places after them (1, 2, 2, 4).
+  # Ranking must happen before any filter or limit, so callers wrap this in
+  # a subquery.
+  @spec ranked(board(), window()) :: Ecto.Query.t()
+  defp ranked(board, window) do
+    order = Enum.map(sort_keys(board), fn {dir, key} -> {dir, dynamic([b], field(b, ^key))} end)
+
+    from(b in subquery(board_query(board, window)),
+      select: merge(b, %{rank: over(rank(), :board)}),
+      windows: [board: [order_by: ^order]]
+    )
+  end
+
+  @spec sort_keys(board()) :: keyword(atom())
+  defp sort_keys(:points), do: [desc: :points, desc: :wins, desc: :podiums]
+  defp sort_keys(:wins), do: [desc: :wins, desc: :podiums, desc: :points]
+  defp sort_keys(:podiums), do: [desc: :podiums, desc: :wins, desc: :points]
+  defp sort_keys(:fastest), do: [asc: :solve_time_ms, asc: :live_date]
+
+  # Fastest: each player's single best solve. DISTINCT ON keeps the first
+  # row per player, so the sort picks the lowest time, then the earlier
+  # riddle.
+  @spec board_query(board(), window()) :: Ecto.Query.t()
+  defp board_query(:fastest, window) do
+    from(s in Solve,
+      as: :solve,
+      join: r in Riddle,
+      as: :riddle,
+      on: r.id == s.riddle_id,
+      join: u in User,
+      as: :user,
+      on: u.id == s.user_id,
+      where: u.account_status not in [:banned, :suspended],
+      where: not is_nil(s.solve_time_ms),
+      distinct: s.user_id,
+      order_by: [asc: s.solve_time_ms, asc: r.live_date],
+      select: %{
+        user_id: u.id,
+        username: u.username,
+        solve_time_ms: s.solve_time_ms,
+        live_date: r.live_date,
+        riddle_name: r.name,
+        riddle_number: r.number
+      }
+    )
+    |> in_window(window)
+  end
+
+  defp board_query(board, window) do
+    from(s in Solve,
+      as: :solve,
+      join: r in Riddle,
+      as: :riddle,
+      on: r.id == s.riddle_id,
+      join: u in User,
+      as: :user,
+      on: u.id == s.user_id,
+      where: u.account_status not in [:banned, :suspended],
+      group_by: [u.id, u.username],
+      select: %{
+        user_id: u.id,
+        username: u.username,
+        points: s.points |> sum() |> type(:integer),
+        wins: s.id |> count() |> filter(s.placement == 1),
+        podiums: s.id |> count() |> filter(s.placement <= 3)
+      }
+    )
+    |> in_window(window)
+    |> with_some(board)
   end
 
   # Solves and entries for the listed players, both over the window, so the
@@ -124,79 +202,6 @@ defmodule Riddlr.Standings do
     |> Map.new()
   end
 
-  # Fastest: each player's single best solve. DISTINCT ON keeps the first
-  # row per player, so the inner sort picks the lowest time, then the
-  # earlier riddle.
-  @spec board_query(board(), window()) :: Ecto.Query.t()
-  defp board_query(:fastest, window) do
-    best =
-      from(s in Solve,
-        as: :solve,
-        join: r in Riddle,
-        as: :riddle,
-        on: r.id == s.riddle_id,
-        join: u in User,
-        as: :user,
-        on: u.id == s.user_id,
-        where: u.account_status not in [:banned, :suspended],
-        where: not is_nil(s.solve_time_ms),
-        distinct: s.user_id,
-        order_by: [asc: s.solve_time_ms, asc: r.live_date],
-        select: %{
-          user_id: u.id,
-          username: u.username,
-          solve_time_ms: s.solve_time_ms,
-          live_date: r.live_date,
-          riddle_name: r.name,
-          riddle_number: r.number
-        }
-      )
-      |> in_window(window)
-
-    from(b in subquery(best),
-      order_by: [asc: b.solve_time_ms, asc: b.live_date, asc: b.username]
-    )
-  end
-
-  defp board_query(board, window) do
-    from(s in Solve,
-      as: :solve,
-      join: r in Riddle,
-      as: :riddle,
-      on: r.id == s.riddle_id,
-      join: u in User,
-      as: :user,
-      on: u.id == s.user_id,
-      where: u.account_status not in [:banned, :suspended],
-      group_by: [u.id, u.username],
-      select: %{
-        user_id: u.id,
-        username: u.username,
-        points: s.points |> sum() |> type(:integer) |> selected_as(:points),
-        wins: s.id |> count() |> filter(s.placement == 1) |> selected_as(:wins),
-        podiums: s.id |> count() |> filter(s.placement <= 3) |> selected_as(:podiums)
-      }
-    )
-    |> in_window(window)
-    |> rank_by(board)
-  end
-
-  # Sort by the board's own stat, then the other two, then username.
-  @spec rank_by(Ecto.Query.t(), board()) :: Ecto.Query.t()
-  defp rank_by(query, board) do
-    stats = Enum.map(sort_keys(board), &{:desc, dynamic(selected_as(^&1))})
-    name = [asc: dynamic([user: u], u.username)]
-
-    query
-    |> order_by([], ^(stats ++ name))
-    |> with_some(board)
-  end
-
-  @spec sort_keys(board()) :: [:points | :wins | :podiums]
-  defp sort_keys(:points), do: [:points, :wins, :podiums]
-  defp sort_keys(:wins), do: [:wins, :podiums, :points]
-  defp sort_keys(:podiums), do: [:podiums, :wins, :points]
-
   # The Wins and Podiums boards only list players with at least one.
   @spec with_some(Ecto.Query.t(), board()) :: Ecto.Query.t()
   defp with_some(query, :points), do: query
@@ -222,23 +227,4 @@ defmodule Riddlr.Standings do
     next = first |> Date.end_of_month() |> Date.add(1)
     {DateTime.new!(first, ~T[00:00:00]), DateTime.new!(next, ~T[00:00:00])}
   end
-
-  # Rows arrive sorted. A row level with the one above on the board's score
-  # takes its rank; any other row takes its place in the list.
-  @spec add_ranks([map()], board()) :: [row()]
-  defp add_ranks(rows, board) do
-    rows
-    |> Enum.with_index(1)
-    |> Enum.map_reduce(nil, fn {row, place}, prev ->
-      rank = if prev && score(prev, board) == score(row, board), do: prev.rank, else: place
-      row = Map.put(row, :rank, rank)
-      {row, row}
-    end)
-    |> elem(0)
-  end
-
-  # Fastest ties need the same time on the same Live date.
-  @spec score(map(), board()) :: tuple()
-  defp score(row, :fastest), do: {row.solve_time_ms, row.live_date}
-  defp score(row, _board), do: {row.points, row.wins, row.podiums}
 end
