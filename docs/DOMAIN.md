@@ -216,6 +216,15 @@ and neither does reduced motion.
 A player who opens Play for a completed riddle goes to Results; for an
 archived riddle, to Home.
 
+### Standings
+
+**Standings** rank players across all riddles, built from their saved
+Solves. Anyone can see them, signed in or not; Home and Results link there.
+The board ranks by points, then Wins, then podiums. Players level on all
+three share a rank (1, 2, 2, 4) and are listed A–Z. It shows the top 50.
+Banned and suspended players and deleted accounts are left out. With no
+Solves yet, the page says so.
+
 ## Scoring
 
 **Placement** is a solver's order among correct guesses, by the moment each

@@ -1584,6 +1584,9 @@ a.rg-pill {
   font-size: var(--step--1);
   color: var(--fg-muted);
 }
+.rg-last__standings {
+  margin-block-start: var(--space-s);
+}
 .rg-lastcard {
   display: grid;
   gap: var(--space-m);
@@ -2660,6 +2663,68 @@ a.rg-pill {
 
 .rg-board__empty {
   padding: var(--space-m) 0;
+  color: var(--fg-muted);
+}
+
+/* ───────────────── Standings ─────────────────
+   One narrow column, like Home. The board is a real table so screen readers
+   can read each number with its column. */
+.rg-standings {
+  max-inline-size: var(--wrap-narrow);
+  padding-block-start: var(--space-l);
+}
+.rg-stand {
+  inline-size: 100%;
+  margin-block-start: var(--space-s);
+  border-collapse: collapse;
+  border-top: 1px solid var(--hairline-strong);
+}
+.rg-stand th,
+.rg-stand td {
+  padding: var(--space-2xs) var(--space-2xs);
+  border-bottom: 1px solid var(--hairline);
+  text-align: right;
+  white-space: nowrap;
+}
+.rg-stand thead th {
+  font-family: var(--f-label);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.rg-stand .rg-stand__rank {
+  inline-size: 2.5rem;
+  text-align: center;
+  font-family: var(--f-label);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+/* The player column takes the spare width; a long name trims to fit. */
+.rg-stand .rg-stand__player {
+  inline-size: 100%;
+  max-inline-size: 0;
+  text-align: left;
+}
+.rg-stand__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-inline-size: 0;
+}
+.rg-stand__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.rg-stand td.rg-stand__pts {
+  font-family: var(--f-label);
+  font-weight: 600;
+}
+.rg-stand td.rg-stand__wins,
+.rg-stand td.rg-stand__pods {
+  font-family: var(--f-label);
   color: var(--fg-muted);
 }
 

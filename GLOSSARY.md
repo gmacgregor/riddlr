@@ -144,6 +144,11 @@ Share of players who guessed a riddle that also solved it.
 
 **Leaderboard**:
 A riddle's solves in placement order, shown on its results page.
+_Avoid_: using it for the ranking across riddles (say **Standings**)
+
+**Standings**:
+The overall ranking of players across riddles, built from their solves.
+_Avoid_: leaderboard, rankings
 
 ## Account
 

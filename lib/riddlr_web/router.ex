@@ -35,6 +35,7 @@ defmodule RiddlrWeb.Router do
 
     live_session :public, on_mount: [{RiddlrWeb.UserAuth, :mount_current_user}] do
       live "/", HomeLive, :home
+      live "/standings", StandingsLive, :index
     end
   end
 

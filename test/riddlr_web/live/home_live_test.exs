@@ -382,6 +382,12 @@ defmodule RiddlrWeb.HomeLiveTest do
   end
 
   describe "previously" do
+    test "links to the Standings", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last a[href='/standings']")
+    end
+
     test "shows the empty note when no riddle has finished", %{conn: conn} do
       upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
 

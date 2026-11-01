@@ -183,6 +183,9 @@
           {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
         </.link>
         <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.next_home()}</.link>
+        <.link navigate={~p"/standings"} class="rg-link-btn">
+          {GameCopy.standings_link()}
+        </.link>
       </div>
     </section>
 

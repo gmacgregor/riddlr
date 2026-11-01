@@ -582,6 +582,28 @@ defmodule RiddlrWeb.GameCopy do
     }
   end
 
+  # ─── Standings ────────────────────────────────────────────────────────────────────
+
+  @doc "The Standings page heading."
+  @spec standings_heading() :: String.t()
+  def standings_heading, do: "Standings"
+
+  @doc "The Standings line when nobody has solved a riddle yet."
+  @spec standings_empty() :: String.t()
+  def standings_empty, do: "No one has solved a riddle yet. The first solve puts you on top."
+
+  @doc "A Standings column heading."
+  @spec standings_col(:rank | :player | :points | :wins | :podiums) :: String.t()
+  def standings_col(:rank), do: "#"
+  def standings_col(:player), do: "Player"
+  def standings_col(:points), do: "Points"
+  def standings_col(:wins), do: "Wins"
+  def standings_col(:podiums), do: "Podiums"
+
+  @doc "The link to the Standings page from Home and Results."
+  @spec standings_link() :: String.t()
+  def standings_link, do: "See the standings"
+
   # Formats a count with commas between thousands, e.g. 1234 as "1,234".
   @spec delimit(non_neg_integer()) :: String.t()
   defp delimit(n) when is_integer(n) and n >= 0 do

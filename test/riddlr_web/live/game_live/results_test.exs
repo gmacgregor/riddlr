@@ -596,6 +596,14 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
   end
 
   describe "next riddle card" do
+    test "links to the Standings", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-next a[href='/standings']")
+    end
+
     test "says nothing is scheduled when there is no next riddle", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
 

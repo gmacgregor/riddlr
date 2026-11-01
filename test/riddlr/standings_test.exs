@@ -1,0 +1,104 @@
+defmodule Riddlr.StandingsTest do
+  use Riddlr.DataCase, async: true
+
+  import Riddlr.AccountsFixtures
+  import Riddlr.GamesFixtures
+
+  alias Riddlr.Standings
+
+  defp names(rows), do: Enum.map(rows, & &1.username)
+
+  defp set_status(user, status) do
+    user |> Ecto.Changeset.change(account_status: status) |> Riddlr.Repo.update!()
+  end
+
+  describe "list(:points, :all_time)" do
+    test "sums each player's points, wins and podiums across riddles" do
+      [r1, r2, r3] = for _ <- 1..3, do: riddle_fixture()
+      ann = user_fixture(%{username: "ann"})
+
+      solve_fixture(r1, ann, %{placement: 1, points: 10})
+      solve_fixture(r2, ann, %{placement: 3, points: 7})
+      solve_fixture(r3, ann, %{placement: 5, points: 5})
+
+      assert [row] = Standings.list(:points, :all_time)
+
+      assert %{rank: 1, user_id: id, username: "ann", points: 22, wins: 1, podiums: 2} = row
+      assert id == ann.id
+    end
+
+    test "breaks points ties on wins, then podiums, then username A–Z" do
+      riddles = for _ <- 1..4, do: riddle_fixture()
+      [r1, r2, r3, r4] = riddles
+
+      # All on 10 points.
+      winner = user_fixture(%{username: "zed"})
+      podium = user_fixture(%{username: "yan"})
+      bea = user_fixture(%{username: "bea"})
+      abe = user_fixture(%{username: "abe"})
+
+      solve_fixture(r1, winner, %{placement: 1, points: 10})
+      solve_fixture(r2, podium, %{placement: 2, points: 9})
+      solve_fixture(r3, podium, %{placement: 10, points: 1})
+      solve_fixture(r1, bea, %{placement: 4, points: 6})
+      solve_fixture(r2, bea, %{placement: 7, points: 4})
+      solve_fixture(r3, abe, %{placement: 4, points: 6})
+      solve_fixture(r4, abe, %{placement: 7, points: 4})
+
+      assert names(Standings.list(:points, :all_time)) == ~w(zed yan abe bea)
+    end
+
+    test "exact ties share a rank and the next rank skips" do
+      [r1, r2, r3] = for _ <- 1..3, do: riddle_fixture()
+      top = user_fixture(%{username: "top"})
+      amy = user_fixture(%{username: "amy"})
+      bob = user_fixture(%{username: "bob"})
+      low = user_fixture(%{username: "low"})
+
+      solve_fixture(r1, top, %{placement: 1, points: 10})
+      solve_fixture(r2, amy, %{placement: 2, points: 9})
+      solve_fixture(r3, bob, %{placement: 2, points: 9})
+      solve_fixture(r1, low, %{placement: 4, points: 7})
+
+      ranks =
+        Standings.list(:points, :all_time) |> Enum.map(&{&1.username, &1.rank})
+
+      assert ranks == [{"top", 1}, {"amy", 2}, {"bob", 2}, {"low", 4}]
+    end
+
+    test "leaves out deleted, banned and suspended players, but not admins" do
+      riddle = riddle_fixture()
+      admin = user_fixture(%{username: "boss", role: :super_admin})
+      banned = user_fixture(%{username: "banned"})
+      suspended = user_fixture(%{username: "suspended"})
+      gone = user_fixture(%{username: "gone"})
+
+      solve_fixture(riddle, admin, %{placement: 1})
+      solve_fixture(riddle, banned, %{placement: 2})
+      solve_fixture(riddle, suspended, %{placement: 3})
+      solve_fixture(riddle, gone, %{placement: 4})
+
+      set_status(banned, :banned)
+      set_status(suspended, :suspended)
+      Riddlr.Repo.delete!(gone)
+
+      assert names(Standings.list(:points, :all_time)) == ["boss"]
+    end
+
+    test "lists the top 50 only" do
+      riddle = riddle_fixture()
+
+      for place <- 1..51 do
+        solve_fixture(riddle, user_fixture(), %{placement: place, points: 100 - place})
+      end
+
+      board = Standings.list(:points, :all_time)
+      assert length(board) == 50
+      assert List.last(board).points == 50
+    end
+
+    test "is empty when nobody has solved" do
+      assert Standings.list(:points, :all_time) == []
+    end
+  end
+end
