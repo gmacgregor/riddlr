@@ -32,7 +32,12 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
     test "offers an email notification opt-in, unchecked", %{conn: conn} do
       response = conn |> get(~p"/users/register") |> html_response(200)
 
-      assert has_selector?(response, "input[type=checkbox][name='user[notify_email]']")
+      assert has_selector?(
+               response,
+               "fieldset.rg-notify input[type=checkbox][name='user[notify_email]']"
+             )
+
+      assert has_selector?(response, "fieldset.rg-notify > legend")
       refute has_selector?(response, "input[name='user[notify_email]'][checked]")
     end
 

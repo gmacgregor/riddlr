@@ -9,6 +9,8 @@ defmodule RiddlrWeb.AuthComponents do
   """
   use Phoenix.Component
 
+  import RiddlrWeb.CoreComponents, only: [input: 1]
+
   @doc """
   Card shell for an account screen.
 
@@ -54,6 +56,21 @@ defmodule RiddlrWeb.AuthComponents do
     <button type="submit" class="rg-btn rg-btn--wide rg-auth__ghost" {@rest}>
       {render_slot(@inner_block)}
     </button>
+    """
+  end
+
+  @doc """
+  The "Notify me of upcoming games" group: one checkbox per channel the
+  player can turn on. Sign-up and the profile both use it.
+  """
+  attr :form, Phoenix.HTML.Form, required: true
+
+  def notify_me_group(assigns) do
+    ~H"""
+    <fieldset class="rg-notify">
+      <legend class="rg-field__label">Notify me of upcoming games</legend>
+      <.input field={@form[:notify_email]} type="checkbox" label="Email" />
+    </fieldset>
     """
   end
 end

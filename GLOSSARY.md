@@ -179,6 +179,11 @@ it is off by default. At most one per player, riddle and channel. Email only
 for now; SMS later.
 _Avoid_: alert, reminder
 
+**Notification consent**:
+A logged record that a player granted or withdrew a Notification channel, and
+when. Only ever added to; proof of consent under CASL.
+_Avoid_: opt-in record, subscription
+
 **Notification lead time**:
 When a player wants their Notification: when the Lobby opens (the default),
 30 min or 1 hour before the Live date. One setting covers all riddles.

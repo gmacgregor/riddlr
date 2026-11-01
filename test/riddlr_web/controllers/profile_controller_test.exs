@@ -171,8 +171,10 @@ defmodule RiddlrWeb.ProfileControllerTest do
 
       assert has_selector?(
                response,
-               "#update_notifications input[type=checkbox][name='user[notify_email]']"
+               "#update_notifications fieldset.rg-notify input[type=checkbox][name='user[notify_email]']"
              )
+
+      assert has_selector?(response, "#update_notifications fieldset.rg-notify > legend")
 
       refute has_selector?(
                response,

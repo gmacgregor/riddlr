@@ -49,7 +49,7 @@
     >
       <input type="hidden" name="action" value="update_notifications" />
 
-      <.input field={f[:notify_email]} type="checkbox" label="Email me before riddles go live" />
+      <.notify_me_group form={f} />
 
       <.input
         field={f[:notification_lead_time]}

@@ -36,6 +36,14 @@ defmodule RiddlrWeb.UnsubscribeControllerTest do
 
       refute Riddlr.Repo.reload!(user).notify_email
       refute has_selector?(html, "#unsubscribe_form")
+      assert [%{action: :withdrawn}] = consents(user)
+    end
+
+    test "a second unsubscribe logs no more consent", %{conn: conn, user: user, token: token} do
+      post(conn, ~p"/notifications/unsubscribe/#{token}")
+      post(conn, ~p"/notifications/unsubscribe/#{token}")
+
+      assert [%{action: :withdrawn}] = consents(user)
     end
 
     test "accepts a mail client's one-click POST body", %{conn: conn, user: user, token: token} do
@@ -44,6 +52,7 @@ defmodule RiddlrWeb.UnsubscribeControllerTest do
       |> post(~p"/notifications/unsubscribe/#{token}", "List-Unsubscribe=One-Click")
 
       refute Riddlr.Repo.reload!(user).notify_email
+      assert [%{action: :withdrawn}] = consents(user)
     end
 
     # ConnTest always skips the CSRF check, so a request cannot prove mail

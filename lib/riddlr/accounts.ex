@@ -6,7 +6,7 @@ defmodule Riddlr.Accounts do
   import Ecto.Query, warn: false
   alias Riddlr.Repo
 
-  alias Riddlr.Accounts.{User, UserToken, UserNotifier}
+  alias Riddlr.Accounts.{NotificationConsent, User, UserToken, UserNotifier}
 
   ## Database getters
 
@@ -71,7 +71,8 @@ defmodule Riddlr.Accounts do
   ## User registration
 
   @doc """
-  Registers a user.
+  Registers a user. Opting in to email also logs a consent row in the same
+  transaction.
 
   ## Examples
 
@@ -82,10 +83,33 @@ defmodule Riddlr.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec register_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def register_user(attrs) do
-    %User{}
-    |> User.registration_changeset(attrs)
-    |> Repo.insert()
+    save_with_consent(fn -> User.registration_changeset(%User{}, attrs) end, &Repo.insert/1)
+  end
+
+  # Builds the changeset and saves the user inside one transaction, and logs a
+  # consent row when the email opt-in changes. Building inside the transaction
+  # lets callers lock and read the stored row first, so two saves at once
+  # cannot both log the same change.
+  @typep save_result :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  @spec save_with_consent((-> Ecto.Changeset.t()), (Ecto.Changeset.t() -> save_result())) ::
+          save_result()
+  defp save_with_consent(build_changeset, save) do
+    Repo.transaction(fn ->
+      changeset = build_changeset.()
+
+      with {:ok, user} <- save.(changeset) do
+        case NotificationConsent.for_email_change(user, changeset) do
+          nil -> :ok
+          consent -> Repo.insert!(consent)
+        end
+
+        user
+      else
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
   end
 
   ## Settings
@@ -191,14 +215,22 @@ defmodule Riddlr.Accounts do
   end
 
   @doc """
-  Saves the user's notification choices.
+  Saves the user's notification choices. An email on/off change also logs a
+  consent row in the same transaction.
   """
   @spec update_user_notifications(User.t(), map()) ::
           {:ok, User.t()} | {:error, Ecto.Changeset.t()}
-  def update_user_notifications(%User{} = user, attrs) do
-    user
-    |> User.notification_changeset(attrs)
-    |> Repo.update()
+  def update_user_notifications(%User{id: id}, attrs) do
+    save_with_consent(
+      fn ->
+        User
+        |> where(id: ^id)
+        |> lock("FOR UPDATE")
+        |> Repo.one!()
+        |> User.notification_changeset(attrs)
+      end,
+      &Repo.update/1
+    )
   end
 
   ## Session

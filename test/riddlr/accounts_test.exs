@@ -5,7 +5,7 @@ defmodule Riddlr.AccountsTest do
 
   import Riddlr.AccountsFixtures
   alias Riddlr.Clock.Frozen
-  alias Riddlr.Accounts.{User, UserToken}
+  alias Riddlr.Accounts.{NotificationConsent, User, UserToken}
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -99,6 +99,64 @@ defmodule Riddlr.AccountsTest do
       assert is_nil(user.hashed_password)
       assert is_nil(user.confirmed_at)
       assert is_nil(user.password)
+    end
+
+    test "opting in to email writes one granted consent" do
+      {:ok, user} = Accounts.register_user(valid_user_attributes(notify_email: true))
+
+      assert [%NotificationConsent{channel: :email, action: :granted}] = consents(user)
+    end
+
+    test "leaving email off writes no consent" do
+      {:ok, user} = Accounts.register_user(valid_user_attributes(notify_email: false))
+
+      assert consents(user) == []
+    end
+  end
+
+  describe "update_user_notifications/2" do
+    test "writes one consent row per email on/off change" do
+      user = user_fixture()
+
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_email: true})
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_email: false})
+
+      assert [%{action: :granted}, %{action: :withdrawn}] = consents(user)
+    end
+
+    test "writes no consent when email does not change" do
+      user = user_fixture()
+
+      {:ok, user} =
+        Accounts.update_user_notifications(user, %{
+          notify_email: false,
+          notification_lead_time: :min_30
+        })
+
+      assert consents(user) == []
+    end
+
+    test "checks the stored opt-in, not a stale copy" do
+      stale = %{user_fixture() | notify_email: true}
+      Repo.update_all(from(u in User, where: u.id == ^stale.id), set: [notify_email: true])
+
+      {:ok, _} = Accounts.update_user_notifications(stale, %{notify_email: false})
+      {:ok, _} = Accounts.update_user_notifications(stale, %{notify_email: false})
+
+      assert [%{action: :withdrawn}] = consents(stale)
+    end
+
+    test "writes no consent when the save fails" do
+      user = user_fixture()
+
+      {:error, _changeset} =
+        Accounts.update_user_notifications(user, %{
+          notify_email: true,
+          notification_lead_time: "bogus"
+        })
+
+      assert consents(user) == []
+      refute Repo.reload!(user).notify_email
     end
   end
 

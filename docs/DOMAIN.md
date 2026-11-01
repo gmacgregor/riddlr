@@ -155,6 +155,10 @@ Each email has an unsubscribe link that needs no log-in. The link opens a
 page with one button that turns email off. Mail clients that offer one-click
 unsubscribe turn it off at once.
 
+Every time a player turns email on or off (sign-up, profile, unsubscribe),
+the system logs a **Notification consent**: the channel, granted or
+withdrawn, and when. The log is only ever added to, as proof of consent.
+
 ### Game clock
 
 Each riddle has one **Game clock**, shared by every viewer. It ticks once a

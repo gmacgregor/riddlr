@@ -97,4 +97,12 @@ defmodule Riddlr.AccountsFixtures do
       set: [inserted_at: dt, authenticated_at: dt]
     )
   end
+
+  @doc "The player's logged consent rows, oldest first."
+  @spec consents(Accounts.User.t()) :: [Accounts.NotificationConsent.t()]
+  def consents(user) do
+    Riddlr.Repo.all(
+      from c in Accounts.NotificationConsent, where: c.user_id == ^user.id, order_by: c.id
+    )
+  end
 end
