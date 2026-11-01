@@ -15,7 +15,6 @@
 :root {
   --art-wave-h: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='8' viewBox='0 0 120 8'><path d='M0 4 C10 1 16 7 28 4 S46 1 58 4 S78 7 90 4 S108 2 120 4' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/></svg>");
   --art-wave-pen: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='10' viewBox='0 0 64 10'><path d='M0 5 C6 1 10 9 16 5 S26 1 32 5 S42 9 48 5 S58 2 64 5' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/></svg>");
-  --art-wave-v: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='120' viewBox='0 0 10 120'><path d='M5 0 C2 12 8 24 5 36 S2 60 5 72 S8 96 5 120' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/></svg>");
   /* Link squiggle: a seamless tile, so sliding it sideways reads as a moving wave. */
   --art-wave-link: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='6' viewBox='0 0 16 6'><path d='M0 3 Q4 0 8 3 T16 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/></svg>");
   /* Heading underline: a loose two-stroke marker line. Not a wave, so it never reads as a link. */
@@ -1333,23 +1332,14 @@ a.rg-pill {
   min-block-size: 0;
 }
 
-/* "A round, start to finish": a hand-drawn timeline. */
+/* Game - how to play: steps that zigzag down the page. The middle
+   step puts its time on the right, and a pen arrow runs from each time down to the next one. */
 
 .rg-reel {
   --col: var(--space-time-col);
-  position: relative;
+  --blob: 3rem;
   display: grid;
   margin-block-start: var(--space-s);
-}
-.rg-reel::before {
-  content: "";
-  position: absolute;
-  inset-block: 1.5rem;
-  inset-inline-start: calc(var(--col) / 2 - 0.3125rem);
-  inline-size: 0.625rem;
-  background: var(--fg);
-  mask: var(--art-wave-v) repeat-y center top / 0.625rem 7.5rem;
-  transform-origin: top;
 }
 .rg-reel__row {
   position: relative;
@@ -1358,6 +1348,49 @@ a.rg-pill {
   column-gap: var(--space-s);
   align-items: start;
   padding-block: var(--space-s);
+}
+/* Room under a step for its arrow to swing across. */
+.rg-reel__row:has(.rg-reel__arrow) {
+  padding-block-end: var(--space-xl);
+}
+.rg-reel__row:nth-child(even) {
+  grid-template-columns: minmax(0, 1fr) var(--col);
+}
+.rg-reel__row:nth-child(even) .rg-reel__t {
+  grid-column: 2;
+  grid-row: 1;
+}
+.rg-reel__row:nth-child(even) .rg-reel__body {
+  grid-column: 1;
+  grid-row: 1;
+  justify-items: end;
+  text-align: end;
+}
+.rg-reel__row:nth-child(even) .rg-reel__note {
+  transform-origin: right center;
+}
+/* Runs down the empty space under this step's time, then swings across to
+   the next time. The .Reel hook draws it to fit; even rows mirror it. */
+.rg-reel__arrow {
+  position: absolute;
+  inset-block: calc(var(--space-s) + var(--blob) + 0.375rem) calc(0.375rem - var(--space-s));
+  inset-inline: calc(var(--col) / 2) calc(var(--col) / 2);
+  color: var(--fg);
+  pointer-events: none;
+}
+.rg-reel__row:nth-child(even) .rg-reel__arrow {
+  transform: scaleX(-1);
+}
+.rg-reel__arrow svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .rg-reel__t {
   position: relative;
@@ -1626,14 +1659,12 @@ a.rg-pill {
 
   .rg-reel.is-armed:not(.is-flipped) .rg-reel__t,
   .rg-reel.is-armed:not(.is-flipped) .rg-reel__body,
+  .rg-reel.is-armed:not(.is-flipped) .rg-reel__arrow,
   .rg-reel.is-armed:not(.is-flipped) .rg-doodle--watch {
     opacity: 0;
   }
-  .rg-reel.is-armed:not(.is-flipped)::before {
-    transform: scaleY(0);
-  }
-  .rg-reel.is-armed.is-flipped::before {
-    animation: rg-reel-draw 900ms var(--ease-out) backwards;
+  .rg-reel.is-armed.is-flipped .rg-reel__arrow {
+    animation: rg-pen-down 600ms var(--ease-out) calc(420ms + var(--row, 0) * 280ms) backwards;
   }
   .rg-reel.is-armed.is-flipped .rg-reel__t {
     animation: rg-pop 420ms var(--ease-out) calc(120ms + var(--row, 0) * 280ms) backwards;
@@ -1683,9 +1714,12 @@ a.rg-pill {
     opacity: 0;
   }
 }
-@keyframes rg-reel-draw {
+@keyframes rg-pen-down {
   from {
-    transform: scaleY(0);
+    clip-path: inset(-1rem -1rem 100% -1rem);
+  }
+  to {
+    clip-path: inset(-1rem -1rem -1rem -1rem);
   }
 }
 

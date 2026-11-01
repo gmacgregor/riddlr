@@ -62,6 +62,19 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, "#timeline li:nth-child(4)")
     end
 
+    test "links each step to the next with a curved arrow", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      for n <- 1..2 do
+        assert has_element?(
+                 live,
+                 "#timeline li:nth-child(#{n}) .rg-reel__arrow[aria-hidden=true][phx-update=ignore] svg"
+               )
+      end
+
+      refute has_element?(live, "#timeline li:nth-child(3) .rg-reel__arrow")
+    end
+
     test "ends at the default solve time when nothing is next", %{conn: conn} do
       {:ok, live, _html} = conn |> log_in_user(user_fixture()) |> live(~p"/")
 

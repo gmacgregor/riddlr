@@ -115,14 +115,32 @@
               <path d="M26 11 H38" /><path d="M32 11 V20" /><path d="M49 24 L54 19" />
               <path d="M32 42 V31" /><path d="M32 42 L40 47" />
             </svg>
+            <%!-- The .Reel hook draws the arrow to the step's size. --%>
+            <span
+              :if={row < 2}
+              id={"reel-arrow-#{row}"}
+              class="rg-reel__arrow"
+              aria-hidden="true"
+              phx-update="ignore"
+            >
+              <svg><path /></svg>
+            </span>
           </li>
         </ol>
         <script :type={Phoenix.LiveView.ColocatedHook} name=".Reel">
           // Flips the timeline in once it scrolls into view. Both classes go on
           // through JS commands, so LiveView patches keep them. Without
-          // IntersectionObserver the timeline shows at once.
+          // IntersectionObserver the timeline shows at once. It also draws
+          // each step's arrow to the step's size, again when the page resizes.
+          import {reelArrowPath} from "@/js/reel_arrow"
+
           export default {
             mounted() {
+              this.drawArrows()
+              if ("ResizeObserver" in window) {
+                this.resizer = new ResizeObserver(() => this.drawArrows())
+                this.resizer.observe(this.el)
+              }
               if (!("IntersectionObserver" in window)) {
                 this.js().addClass(this.el, "is-flipped")
                 return
@@ -136,8 +154,16 @@
               }, { threshold: 0.35 })
               this.observer.observe(this.el)
             },
+            drawArrows() {
+              this.el.querySelectorAll(".rg-reel__arrow svg").forEach((svg) => {
+                const {width, height} = svg.getBoundingClientRect()
+                svg.setAttribute("viewBox", `0 0 ${width} ${height}`)
+                svg.firstElementChild.setAttribute("d", reelArrowPath(width, height))
+              })
+            },
             destroyed() {
               this.observer && this.observer.disconnect()
+              this.resizer && this.resizer.disconnect()
             }
           }
         </script>
