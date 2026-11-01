@@ -1238,7 +1238,6 @@ a.rg-pill {
 }
 .rg-peek__a:not(.is-open) .rg-pk {
   background: transparent;
-  border-style: dashed;
 }
 .rg-peek__a:not(.is-open) .rg-pk > span {
   visibility: hidden;
@@ -2274,9 +2273,6 @@ a.rg-pill {
   color: var(--fg);
   font-weight: 700;
   animation: rg-pop-in var(--t-med) var(--ease-out) both;
-}
-.rg-answer.is-unsolved .rg-answer__l {
-  border-style: dashed;
 }
 .rg-results__by {
   color: var(--fg-muted);
