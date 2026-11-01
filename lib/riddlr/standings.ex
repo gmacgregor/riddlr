@@ -3,7 +3,8 @@ defmodule Riddlr.Standings do
   **Standings**: the overall ranking of players across riddles.
 
   Read-only. Every number comes from saved `solves`, so Standings change
-  when a riddle completes, not during play.
+  when a riddle completes, not during play. `Riddlr.Games.transition/3`
+  calls `broadcast_changed/0` once that commits; `subscribe/0` listens.
 
   `list/2` returns the top 50 players on a board; `player_row/3` returns one
   player's row with the same rank, wherever they place. Each board sorts by its
@@ -41,6 +42,7 @@ defmodule Riddlr.Standings do
   alias Riddlr.Repo
 
   @limit 50
+  @topic "standings"
   @boards [:points, :wins, :podiums, :fastest]
   @windows [:all_time, :month]
 
@@ -96,6 +98,21 @@ defmodule Riddlr.Standings do
       row -> [row] |> add_rate(window) |> hd()
     end
   end
+
+  @doc """
+  Subscribes the caller to Standings changes. Subscribers get
+  `:standings_changed` after a riddle completes.
+  """
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe, do: Phoenix.PubSub.subscribe(Riddlr.PubSub, @topic)
+
+  @doc """
+  Tells subscribers the Standings changed. Call it only after the
+  completion transaction commits, so no one reloads before the Solves are
+  there.
+  """
+  @spec broadcast_changed() :: :ok | {:error, term()}
+  def broadcast_changed, do: Phoenix.PubSub.broadcast(Riddlr.PubSub, @topic, :standings_changed)
 
   # Every player on the board with their rank. rank() gives players level on
   # every sort key the same rank and skips the places after them (1, 2, 2, 4).

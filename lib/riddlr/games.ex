@@ -470,6 +470,7 @@ defmodule Riddlr.Games do
     {topic, message} = broadcast_for(to)
 
     Phoenix.PubSub.broadcast(Riddlr.PubSub, topic, {message, broadcast_riddle})
+    if to == :completed, do: Riddlr.Standings.broadcast_changed()
 
     {:ok, riddle}
   end

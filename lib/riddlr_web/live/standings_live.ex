@@ -14,6 +14,9 @@ defmodule RiddlrWeb.StandingsLive do
 
   Any other value falls back to the default.
 
+  It reloads the board and pinned row when a riddle completes
+  (`Riddlr.Standings.subscribe/0`).
+
   A signed-in player's own row is marked. When they are on the board but
   outside the top 50, their row (`Riddlr.Standings.player_row/3`) is pinned
   below the list with its true rank.
@@ -32,6 +35,8 @@ defmodule RiddlrWeb.StandingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: Standings.subscribe()
+
     {:ok,
      socket
      |> assign(:page_title, GameCopy.standings_heading())
@@ -41,17 +46,26 @@ defmodule RiddlrWeb.StandingsLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    board = parse_board(params["board"])
-    window = parse_window(params["window"])
-    rows = Standings.list(board, window)
-
     {:noreply,
      socket
-     |> assign(board: board, window: window)
-     |> assign(:pinned, pinned_row(rows, socket.assigns.current_user, board, window))
-     # A stream can't say whether it is empty, so the empty note reads this.
-     |> assign(:empty?, rows == [])
-     |> stream(:rows, rows, reset: true)}
+     |> assign(board: parse_board(params["board"]), window: parse_window(params["window"]))
+     |> load_board()}
+  end
+
+  @impl true
+  def handle_info(:standings_changed, socket), do: {:noreply, load_board(socket)}
+
+  # Reads the current board and window, and the viewer's pinned row.
+  @spec load_board(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp load_board(socket) do
+    %{board: board, window: window, current_user: user} = socket.assigns
+    rows = Standings.list(board, window)
+
+    socket
+    |> assign(:pinned, pinned_row(rows, user, board, window))
+    # A stream can't say whether it is empty, so the empty note reads this.
+    |> assign(:empty?, rows == [])
+    |> stream(:rows, rows, reset: true)
   end
 
   @impl true

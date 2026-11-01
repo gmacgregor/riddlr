@@ -239,7 +239,8 @@ Solves ÷ their Entries, as "7/10 · 70%". Entries were not kept before this
 column existed, so older riddles show a dash when a player has none.
 
 A signed-in player's own row is marked. When they are on the board but
-outside the top 50, their row is pinned below the list with its true rank.
+outside the top 50, their row is pinned below the list with its true rank. The
+page updates by itself when a riddle completes, once its Solves are saved.
 The Wins and Podiums boards leave out players with none. Each shows the
 top 50. Banned and suspended players and deleted accounts are left out. A switch
 picks the window: all time (the default) or this month, which counts only
