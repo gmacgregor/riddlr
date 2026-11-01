@@ -500,39 +500,118 @@ select.rg-input option {
   align-items: center;
   text-decoration: none;
 }
+/* The logo. At rest: a tilted `?` tile with a pen shadow and three "aha"
+   ticks off its corner, then hand lettering. On hover the tile tips, the
+   `?` wiggles, the ticks burst and the letters hop in a wave. */
 .rg-brand__mark {
   display: flex;
   align-items: center;
-  gap: var(--space-2xs);
+  gap: var(--space-s);
   color: var(--fg);
 }
-.rg-brand__q {
+.rg-brand__tile {
+  position: relative;
+  flex: none;
   display: grid;
   place-items: center;
-  flex: none;
   width: 1.34em;
   height: 1.34em;
   border: var(--stroke) solid var(--fg);
   border-radius: var(--wob-sm);
   background: var(--accent);
+  box-shadow: var(--shadow-pen);
+  font-size: var(--display-s);
+  transform: rotate(-6deg);
+  transition:
+    transform var(--t-med) var(--ease-out),
+    box-shadow var(--t-med) var(--ease-out);
+}
+.rg-brand__q {
+  display: block;
   color: var(--on-accent);
   font-family: var(--f-display);
   font-weight: 700;
-  font-size: var(--display-s);
   line-height: 1;
-  transform: rotate(-6deg);
-  transition: transform var(--t-med) var(--ease-out);
+  /* Caveat stops at 700, so a stroke in the ink colour thickens the pen. */
+  -webkit-text-stroke: 0.07em currentColor;
+  paint-order: stroke fill;
+  transform-origin: 50% 80%;
+}
+.rg-brand__ticks {
+  position: absolute;
+  inset: -0.32em -0.72em auto auto;
+  width: 0.66em;
+  height: 0.66em;
+  overflow: visible;
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  transform-origin: 0 100%;
 }
 .rg-brand__word {
-  display: block;
+  display: flex;
+  padding: 0 0.1em;
   font-family: var(--f-display);
   font-weight: 700;
   font-size: var(--display-l);
   line-height: 1;
 }
+.rg-brand__l {
+  display: inline-block;
+  rotate: -3deg;
+}
+.rg-brand__l:nth-child(even) {
+  rotate: 4deg;
+  translate: 0 0.03em;
+}
+.rg-brand__l:nth-child(3n) {
+  rotate: -1deg;
+}
 @media (hover: hover) {
+  .rg-brand:hover .rg-brand__tile {
+    transform: rotate(6deg) translate(-1px, -2px);
+    box-shadow: 5px 6px 0 var(--shadow);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .rg-brand:hover .rg-brand__q {
-    transform: rotate(6deg);
+    animation: rg-brand-wiggle 560ms var(--ease-out);
+  }
+  .rg-brand:hover .rg-brand__ticks {
+    animation: rg-brand-burst 420ms var(--ease-out);
+  }
+  .rg-brand:hover .rg-brand__l {
+    animation: rg-brand-hop 420ms var(--ease-out) calc(var(--i) * 45ms);
+  }
+}
+@keyframes rg-brand-wiggle {
+  20% {
+    transform: translateY(-0.12em) rotate(-16deg);
+  }
+  45% {
+    transform: translateY(-0.06em) rotate(14deg);
+  }
+  70% {
+    transform: rotate(-6deg);
+  }
+}
+@keyframes rg-brand-burst {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+@keyframes rg-brand-hop {
+  40% {
+    transform: translateY(-0.18em);
+  }
+  70% {
+    transform: translateY(0.02em);
   }
 }
 .rg-topbar__mid {

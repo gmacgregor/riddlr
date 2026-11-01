@@ -2,10 +2,11 @@
    ADMIN BASE — frozen copy of the shared parts the admin uses.
 
    A snapshot of game.css as it stood before the v9 player redesign (#47):
-   the base shell, tiles, buttons and link button, fields, page head, topbar
-   and theme switch, and flash. Only the admin root layout loads it, next to
-   admin-tokens.css and admin.css (RiddlrWeb.AdminLayouts), so game.css can
-   change without moving the admin. Do not follow changes in game.css here.
+   the base shell, tiles, buttons and link button, fields, page head and
+   flash. Only the admin root layout loads it, next to admin-tokens.css and
+   admin.css (RiddlrWeb.AdminLayouts), so game.css can change without moving
+   the admin. Do not follow changes in game.css here. The one exception is
+   the topbar: it copies the player topbar, minus the colour mode switch.
    ============================================================================= */
 
 /* ───────────────── Page ───────────────── */
@@ -340,12 +341,54 @@ select.rg-input option {
   gap: var(--space-s);
 }
 
-/* ───────────────── Top bar ───────────────── */
+/* ───────────────── Top bar ─────────────────
+   A copy of the player topbar in game.css, minus the colour mode switch.
+   The bar carries the player look, so it sets the player tokens it needs
+   (from themes.css) on itself. The admin nav in the middle takes them too. */
 .rg-topbar {
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  --f-display: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+  --f-label: "Kalam", "Caveat", "Segoe Print", cursive;
+  --display-s: clamp(1.5rem, 1.413rem + 0.4348vw, 1.75rem);
+  --display-l: clamp(2rem, 1.913rem + 0.4348vw, 2.25rem);
+  --stroke: 2.5px;
+  --shadow-pen: 3px 4px 0 var(--shadow);
+  --wob-sm: 7px 11px 8px 12px / 11px 7px 12px 8px;
+  --wob-pill: 40px 26px 36px 28px / 28px 38px 26px 40px;
+  --art-wave-h: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='8' viewBox='0 0 120 8'><path d='M0 4 C10 1 16 7 28 4 S46 1 58 4 S78 7 90 4 S108 2 120 4' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/></svg>");
+  --art-wave-link: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='6' viewBox='0 0 16 6'><path d='M0 3 Q4 0 8 3 T16 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/></svg>");
+
+  --surface-2: #f5f7fb;
+  --fg: #172440;
+  --fg-muted: #4c566c;
+  --shadow: var(--fg);
+  --accent: #fee434;
+  --accent-text: #364159;
+  --on-accent: #172440;
+  --underline: #364159;
+  --tone-1: var(--accent);
+  --on-tone-1: var(--on-accent);
+
+  background: var(--surface-2);
+  color: var(--fg);
   position: relative;
   z-index: 2;
+}
+[data-theme="dark"] .rg-topbar {
+  --surface-2: #172440;
+  --fg: #f5f7fb;
+  --fg-muted: #c7c9cf;
+  --shadow: #050a15;
+  --accent-text: #8fb0f2;
+  --underline: #8fb0f2;
+}
+/* The wavy pen line under the bar. */
+.rg-topbar::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -4px;
+  height: 0.5rem;
+  background: var(--fg);
+  mask: var(--art-wave-h) repeat-x left center / 7.5rem 0.5rem;
 }
 .rg-topbar__in {
   max-width: var(--wrap);
@@ -364,41 +407,118 @@ select.rg-input option {
   align-items: center;
   text-decoration: none;
 }
+/* The logo. At rest: a tilted `?` tile with a pen shadow and three "aha"
+   ticks off its corner, then hand lettering. On hover the tile tips, the
+   `?` wiggles, the ticks burst and the letters hop in a wave. */
 .rg-brand__mark {
   display: flex;
   align-items: center;
-  gap: var(--space-2xs);
+  gap: var(--space-s);
   color: var(--fg);
 }
-.rg-brand__q {
+.rg-brand__tile {
+  position: relative;
+  flex: none;
   display: grid;
   place-items: center;
-  flex: none;
   width: 1.34em;
   height: 1.34em;
-  border-radius: var(--r);
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-sm);
   background: var(--accent);
+  box-shadow: var(--shadow-pen);
+  font-size: var(--display-s);
+  transform: rotate(-6deg);
+  transition:
+    transform var(--t-med) var(--ease-out),
+    box-shadow var(--t-med) var(--ease-out);
+}
+.rg-brand__q {
+  display: block;
   color: var(--on-accent);
   font-family: var(--f-display);
-  font-style: italic;
-  font-weight: 900;
-  font-size: var(--step-3);
+  font-weight: 700;
   line-height: 1;
-  transform: rotate(-6deg);
-  transition: transform var(--t-med) var(--ease-out);
+  /* Caveat stops at 700, so a stroke in the ink colour thickens the pen. */
+  -webkit-text-stroke: 0.07em currentColor;
+  paint-order: stroke fill;
+  transform-origin: 50% 80%;
+}
+.rg-brand__ticks {
+  position: absolute;
+  inset: -0.32em -0.72em auto auto;
+  width: 0.66em;
+  height: 0.66em;
+  overflow: visible;
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  transform-origin: 0 100%;
 }
 .rg-brand__word {
-  display: block;
+  display: flex;
+  padding: 0 0.1em;
   font-family: var(--f-display);
-  font-weight: 900;
-  font-size: var(--step-3);
+  font-weight: 700;
+  font-size: var(--display-l);
   line-height: 1;
-  letter-spacing: -0.03em;
-  font-variation-settings: "opsz" 144;
+}
+.rg-brand__l {
+  display: inline-block;
+  rotate: -3deg;
+}
+.rg-brand__l:nth-child(even) {
+  rotate: 4deg;
+  translate: 0 0.03em;
+}
+.rg-brand__l:nth-child(3n) {
+  rotate: -1deg;
 }
 @media (hover: hover) {
+  .rg-brand:hover .rg-brand__tile {
+    transform: rotate(6deg) translate(-1px, -2px);
+    box-shadow: 5px 6px 0 var(--shadow);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .rg-brand:hover .rg-brand__q {
-    transform: rotate(6deg);
+    animation: rg-brand-wiggle 560ms var(--ease-out);
+  }
+  .rg-brand:hover .rg-brand__ticks {
+    animation: rg-brand-burst 420ms var(--ease-out);
+  }
+  .rg-brand:hover .rg-brand__l {
+    animation: rg-brand-hop 420ms var(--ease-out) calc(var(--i) * 45ms);
+  }
+}
+@keyframes rg-brand-wiggle {
+  20% {
+    transform: translateY(-0.12em) rotate(-16deg);
+  }
+  45% {
+    transform: translateY(-0.06em) rotate(14deg);
+  }
+  70% {
+    transform: rotate(-6deg);
+  }
+}
+@keyframes rg-brand-burst {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+@keyframes rg-brand-hop {
+  40% {
+    transform: translateY(-0.18em);
+  }
+  70% {
+    transform: translateY(0.02em);
   }
 }
 .rg-topbar__mid {
@@ -410,36 +530,41 @@ select.rg-input option {
 .rg-topbar__account {
   display: flex;
   align-items: center;
-  gap: var(--space-s);
+  gap: var(--space-2xs) var(--space-s);
 }
-
-/* Colour mode switch: one icon button. It holds an icon per mode and shows
-   the one that matches <html data-theme>. */
-.rg-theme {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--r);
-  background: none;
-  color: var(--fg-muted);
-  transition: color var(--t-fast) var(--ease-out);
+/* The me-chip tile and the log in / out link, drawn as on the player bar. */
+.rg-topbar__account .rg-tile {
+  border: var(--stroke) solid var(--fg);
+  border-radius: var(--wob-sm);
+  font-weight: 700;
 }
-.rg-theme__icon {
-  display: none;
-  width: 20px;
-  height: 20px;
+.rg-topbar__account .rg-link-btn {
+  position: relative;
+  text-decoration: none;
 }
-[data-theme="dark"] .rg-theme__icon--dark,
-[data-theme="light"] .rg-theme__icon--light {
-  display: block;
+.rg-topbar__account .rg-link-btn::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(var(--space-xs) - 2px);
+  height: 0.375rem;
+  background: var(--underline);
+  mask: var(--art-wave-link) repeat-x 0 0 / 1rem 0.375rem;
+  pointer-events: none;
 }
 @media (hover: hover) {
-  .rg-theme:hover {
-    color: var(--fg);
+  .rg-topbar__account .rg-link-btn:hover {
+    color: var(--underline);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .rg-topbar__account .rg-link-btn:hover::after {
+    animation: rg-wave-slide 700ms linear infinite;
+  }
+}
+@keyframes rg-wave-slide {
+  to {
+    mask-position: 1rem 0;
   }
 }
 

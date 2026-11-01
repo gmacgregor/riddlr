@@ -78,15 +78,35 @@ defmodule RiddlrWeb.Layouts do
     <header class="rg-topbar">
       <div class="rg-topbar__in">
         <.link id="topbar-brand" navigate={~p"/"} class="rg-brand" aria-label="Riddlr home">
-          <span class="rg-brand__mark" aria-hidden="true">
-            <span class="rg-brand__q">?</span><span class="rg-brand__word">riddlr</span>
-          </span>
+          <.brand_mark />
         </.link>
         <div class="rg-topbar__mid" aria-live={@live && "polite"}>{render_slot(@inner_block)}</div>
         <.theme_switch theme={@theme} />
         <.topbar_account current_scope={@current_scope} />
       </div>
     </header>
+    """
+  end
+
+  # The logo: a `?` tile with pen ticks off its corner, then the word in
+  # hand lettering. Each letter is its own span so it can tilt at rest and
+  # hop on hover; `--i` staggers the hop.
+  @spec brand_mark(map()) :: Phoenix.LiveView.Rendered.t()
+  defp brand_mark(assigns) do
+    assigns = assign(assigns, :letters, Enum.with_index(String.graphemes("Kriddle")))
+
+    ~H"""
+    <span class="rg-brand__mark" aria-hidden="true">
+      <span class="rg-brand__tile">
+        <svg class="rg-brand__ticks" viewBox="0 0 20 20" focusable="false">
+          <path d="M17.5 10.5 L12 12 M14.5 3.5 L10 8.5 M7 1.5 L6.2 7" />
+        </svg>
+        <span class="rg-brand__q">?</span>
+      </span>
+      <span class="rg-brand__word">
+        <span :for={{letter, i} <- @letters} class="rg-brand__l" style={"--i: #{i}"}>{letter}</span>
+      </span>
+    </span>
     """
   end
 

@@ -176,7 +176,7 @@ defmodule RiddlrWeb.ThemeTest do
       assert LazyHTML.attribute(switch, "aria-label") == ["Colour mode: Dark. Switch to Light"]
     end
 
-    test "shows on an admin page, with the theme on <html>", %{conn: conn} do
+    test "hides on an admin page, which still takes the theme on <html>", %{conn: conn} do
       conn =
         conn
         |> log_in_user(user_fixture(%{role: :editor}))
@@ -186,16 +186,8 @@ defmodule RiddlrWeb.ThemeTest do
 
       {:ok, live, _html} = live(conn, ~p"/admin/riddles")
 
-      assert has_element?(
-               live,
-               ~s(#theme-switch[aria-label="Colour mode: Dark. Switch to Light"])
-             )
-
-      for theme <- ~w(light dark) do
-        assert has_element?(live, "#theme-switch svg.rg-theme__icon--#{theme}")
-      end
-
-      refute has_element?(live, "#theme-switch svg.rg-theme__icon--dusk")
+      assert has_element?(live, "#topbar-brand")
+      refute has_element?(live, "#theme-switch")
     end
   end
 end
