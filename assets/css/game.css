@@ -801,14 +801,16 @@ a.rg-pill {
   position: relative;
   display: block;
   min-width: 0.72em;
-  padding: 0.04em 0.1em;
+  /* Kalam digits ride high in their line box, so the top padding pushes
+     them down to sit in the middle. The tile keeps its height. */
+  padding: 0.14em 0.1em 0;
   border-radius: var(--wob-sm);
   background: var(--surface-2);
   border: var(--stroke) solid var(--fg);
   font-family: var(--f-label);
   font-weight: 700;
   font-size: var(--flap-size);
-  line-height: 1.1;
+  line-height: 1.04;
   text-align: center;
   color: var(--fg);
   font-variant-numeric: tabular-nums;
