@@ -408,6 +408,15 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#last .rg-lastcard__answer", "keyboard")
       assert has_element?(live, "#last .rg-lastcard__win b", user.username)
       assert has_element?(live, "#last .rg-lastcard__win", GameCopy.solve_secs(12_340))
+
+      [tone] =
+        live
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("#last .rg-lastcard__answer")
+        |> LazyHTML.attribute("data-tone")
+
+      assert tone in ~w(variant-1 variant-2 variant-3 variant-4 variant-7 variant-8 variant-9)
       assert has_element?(live, "#last a[href='/game/#{last.id}/results']")
 
       refute has_element?(live, "#last .rg-last__empty")

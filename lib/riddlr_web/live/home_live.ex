@@ -261,8 +261,18 @@ defmodule RiddlrWeb.HomeLive do
     |> assign(:upcoming, Games.list_upcoming_riddles(@upcoming_limit))
     |> assign(:last, last)
     |> assign(:last_answer, last && List.first(last.answers, ""))
+    |> assign(:last_tone, last && answer_tone(last.id))
     |> assign(:last_win, last && last_win(last.id))
   end
+
+  # The highlighter colour behind the last answer. It looks picked at random,
+  # but comes from the riddle id, so it holds still when the page updates.
+  # The paper tile (5) and the warning red (6) are left out.
+  @answer_tones ~w(variant-1 variant-2 variant-3 variant-4 variant-7 variant-8 variant-9)
+
+  @spec answer_tone(integer()) :: String.t()
+  defp answer_tone(riddle_id),
+    do: Enum.at(@answer_tones, :erlang.phash2(riddle_id, length(@answer_tones)))
 
   # The last riddle's first solver and time, from the saved solve.
   @spec last_win(integer()) :: %{name: String.t(), secs: String.t()} | nil

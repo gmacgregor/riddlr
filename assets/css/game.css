@@ -1652,7 +1652,7 @@ a.rg-pill {
   --rg-icon-size: 1.15em;
 }
 
-/* Previously: the answer, circled in highlighter. */
+/* Previously: the answer, highlighted and circled in pen. */
 .rg-last__empty {
   display: grid;
   gap: var(--space-2xs);
@@ -1704,12 +1704,40 @@ a.rg-pill {
   line-height: 1.05;
   color: var(--fg);
 }
-/* The highlighter runs line by line, so a long answer that wraps still
-   reads as swiped text, not a block. */
+/* The highlighter covers the whole word, line by line, so a long answer
+   that wraps still reads as marked text, not a block. data-tone picks the
+   colour (see HomeLive); the text takes that tone's ink. */
 .rg-lastcard__answer > span {
-  background: linear-gradient(transparent 52%, var(--tone-4) 52% 94%, transparent 94%);
+  padding: 0 0.12em;
+  border-radius: var(--wob-sm);
+  background: var(--answer-tone, var(--tone-1));
+  color: var(--answer-ink, var(--on-tone-1));
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
+}
+.rg-lastcard__answer[data-tone="variant-2"] {
+  --answer-tone: var(--tone-2);
+  --answer-ink: var(--on-tone-2);
+}
+.rg-lastcard__answer[data-tone="variant-3"] {
+  --answer-tone: var(--tone-3);
+  --answer-ink: var(--on-tone-3);
+}
+.rg-lastcard__answer[data-tone="variant-4"] {
+  --answer-tone: var(--tone-4);
+  --answer-ink: var(--on-tone-4);
+}
+.rg-lastcard__answer[data-tone="variant-7"] {
+  --answer-tone: var(--tone-7);
+  --answer-ink: var(--on-tone-7);
+}
+.rg-lastcard__answer[data-tone="variant-8"] {
+  --answer-tone: var(--tone-8);
+  --answer-ink: var(--on-tone-8);
+}
+.rg-lastcard__answer[data-tone="variant-9"] {
+  --answer-tone: var(--tone-9);
+  --answer-ink: var(--on-tone-9);
 }
 .rg-lastcard__answer::after {
   content: "";
