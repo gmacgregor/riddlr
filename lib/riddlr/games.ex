@@ -395,7 +395,7 @@ defmodule Riddlr.Games do
   defp run_transition(riddle, to, stats) do
     Multi.new()
     |> Multi.update(:riddle, Riddle.changeset(riddle, transition_attrs(to, stats)))
-    |> save_solves(to, stats)
+    |> save_results(to, stats)
     |> enqueue_next_job(to)
     |> Repo.transaction()
     |> case do
@@ -404,16 +404,26 @@ defmodule Riddlr.Games do
     end
   end
 
-  # The solves go in with the move to `completed`, so the board and the status
-  # commit or roll back as one. A retry after rollback writes them again; a
-  # second run after commit is refused as an invalid transition. The
-  # `on_conflict: :nothing` covers a direct second call.
-  @spec save_solves(Multi.t(), atom(), map()) :: Multi.t()
-  defp save_solves(multi, :completed, %{solves: [_ | _] = solves}) do
-    Multi.insert_all(multi, :solves, Riddlr.Gameplay.Solve, solves, on_conflict: :nothing)
+  # The solves and entries go in with the move to `completed`, so the board,
+  # the solve rate and the status commit or roll back as one. A retry after
+  # rollback writes them again; a second run after commit is refused as an
+  # invalid transition. The `on_conflict: :nothing` covers a direct second call.
+  @spec save_results(Multi.t(), atom(), map()) :: Multi.t()
+  defp save_results(multi, :completed, stats) do
+    multi
+    |> insert_rows(:solves, Riddlr.Gameplay.Solve, stats)
+    |> insert_rows(:entries, Riddlr.Gameplay.Entry, stats)
   end
 
-  defp save_solves(multi, _to, _stats), do: multi
+  defp save_results(multi, _to, _stats), do: multi
+
+  @spec insert_rows(Multi.t(), :solves | :entries, module(), map()) :: Multi.t()
+  defp insert_rows(multi, key, schema, stats) do
+    case Map.get(stats, key, []) do
+      [] -> multi
+      rows -> Multi.insert_all(multi, key, schema, rows, on_conflict: :nothing)
+    end
+  end
 
   defp enqueue_next_job(multi, :ready) do
     Multi.insert(multi, :fan_out_job, fn %{riddle: riddle} ->

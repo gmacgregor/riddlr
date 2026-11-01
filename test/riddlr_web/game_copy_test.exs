@@ -88,6 +88,18 @@ defmodule RiddlrWeb.GameCopyTest do
     end
   end
 
+  describe "standings" do
+    test "solve rate as solves over entries with a whole percent" do
+      assert GameCopy.standings_rate(7, 10) == "7/10 · 70%"
+      assert GameCopy.standings_rate(2, 3) == "2/3 · 67%"
+      assert GameCopy.standings_rate(0, 4) == "0/4 · 0%"
+    end
+
+    test "solve rate with no entries shows a dash" do
+      assert GameCopy.standings_rate(2, 0) == "—"
+    end
+  end
+
   describe "results" do
     test "solve time in seconds with two decimals" do
       assert GameCopy.solve_secs(3_456) == "3.46s"

@@ -140,7 +140,14 @@ The player who got the Win, recorded on the riddle.
 Placements 1–3.
 
 **Completion rate**:
-Share of players who guessed a riddle that also solved it.
+Share of players who guessed a riddle that also solved it. One number per
+riddle; a player's share across riddles is their solve rate (Solves ÷
+Entries).
+
+**Entry**:
+A player's record of guessing at least once on a riddle, kept for good once
+it completes.
+_Avoid_: attempt, play
 
 **Leaderboard**:
 A riddle's solves in placement order, shown on its results page.

@@ -2,7 +2,8 @@ defmodule RiddlrWeb.StandingsLive do
   @moduledoc """
   The public Standings page: the overall ranking of players across riddles
   (`Riddlr.Standings.list/2`): rank, player, points, wins and podiums, or
-  on the Fastest board rank, player, best time and its riddle.
+  on the Fastest board rank, player, best time and its riddle. Every board
+  ends with the solve rate.
 
   Two URL params pick what it shows, each with a switch on the page that
   patches between values and keeps the other param:
@@ -104,6 +105,7 @@ defmodule RiddlrWeb.StandingsLive do
                       {GameCopy.standings_col(:podiums)}
                     </th>
                   <% end %>
+                  <th scope="col" class="rg-stand__rate">{GameCopy.standings_col(:rate)}</th>
                 </tr>
               </thead>
               <tbody id="standings-rows" phx-update="stream">
@@ -129,6 +131,7 @@ defmodule RiddlrWeb.StandingsLive do
                     <td class="rg-stand__wins">{row.wins}</td>
                     <td class="rg-stand__pods">{row.podiums}</td>
                   <% end %>
+                  <td class="rg-stand__rate">{GameCopy.standings_rate(row.solves, row.entries)}</td>
                 </tr>
               </tbody>
             </table>

@@ -616,7 +616,7 @@ defmodule RiddlrWeb.GameCopy do
   def standings_window_label, do: "Show standings for"
 
   @doc "A Standings column heading."
-  @spec standings_col(:rank | :player | :points | :wins | :podiums | :time | :riddle) ::
+  @spec standings_col(:rank | :player | :points | :wins | :podiums | :time | :riddle | :rate) ::
           String.t()
   def standings_col(:rank), do: "#"
   def standings_col(:player), do: "Player"
@@ -625,6 +625,18 @@ defmodule RiddlrWeb.GameCopy do
   def standings_col(:podiums), do: "Podiums"
   def standings_col(:time), do: "Time"
   def standings_col(:riddle), do: "Riddle"
+  def standings_col(:rate), do: "Solve rate"
+
+  @doc """
+  A player's solve rate on Standings, e.g. "7/10 · 70%": Solves over
+  Entries, with a whole percent. A dash when there are no Entries, as with
+  riddles that completed before Entries were kept.
+  """
+  @spec standings_rate(non_neg_integer(), non_neg_integer()) :: String.t()
+  def standings_rate(_solves, 0), do: "—"
+
+  def standings_rate(solves, entries),
+    do: "#{solves}/#{entries} · #{round(solves * 100 / entries)}%"
 
   @doc "The link to the Standings page from Home and Results."
   @spec standings_link() :: String.t()

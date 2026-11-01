@@ -19,6 +19,9 @@ defmodule Riddlr.Standings do
   don't count on Fastest. The Wins and Podiums boards leave out players with none of
   their stat.
 
+  Every row also carries the player's `solves` and `entries` (see
+  `Riddlr.Gameplay.Entry`) over the window, for the solve rate.
+
   Deleted players (solves with a nil `user_id`) and banned or suspended
   players are left out. Admins show like anyone else.
 
@@ -41,6 +44,7 @@ defmodule Riddlr.Standings do
 
   alias Riddlr.Accounts.User
   alias Riddlr.Clock
+  alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Games.Riddle
   alias Riddlr.Repo
@@ -63,6 +67,8 @@ defmodule Riddlr.Standings do
           required(:rank) => pos_integer(),
           required(:user_id) => integer(),
           required(:username) => String.t(),
+          required(:solves) => non_neg_integer(),
+          required(:entries) => non_neg_integer(),
           optional(:points) => non_neg_integer(),
           optional(:wins) => non_neg_integer(),
           optional(:podiums) => non_neg_integer(),
@@ -82,6 +88,40 @@ defmodule Riddlr.Standings do
     |> limit(@limit)
     |> Repo.all()
     |> add_ranks(board)
+    |> add_rate(window)
+  end
+
+  # Solves and entries for the listed players, both over the window, so the
+  # page can show the solve rate on any board.
+  @spec add_rate([map()], window()) :: [row()]
+  defp add_rate([], _window), do: []
+
+  defp add_rate(rows, window) do
+    ids = Enum.map(rows, & &1.user_id)
+    solves = count_by_user(Solve, ids, window)
+    entries = count_by_user(Entry, ids, window)
+
+    Enum.map(rows, fn row ->
+      Map.merge(row, %{
+        solves: Map.get(solves, row.user_id, 0),
+        entries: Map.get(entries, row.user_id, 0)
+      })
+    end)
+  end
+
+  @spec count_by_user(module(), [integer()], window()) :: %{integer() => non_neg_integer()}
+  defp count_by_user(schema, ids, window) do
+    from(x in schema,
+      join: r in Riddle,
+      as: :riddle,
+      on: r.id == x.riddle_id,
+      where: x.user_id in ^ids,
+      group_by: x.user_id,
+      select: {x.user_id, count(x.id)}
+    )
+    |> in_window(window)
+    |> Repo.all()
+    |> Map.new()
   end
 
   # Fastest: each player's single best solve. DISTINCT ON keeps the first

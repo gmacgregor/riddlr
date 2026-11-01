@@ -233,6 +233,10 @@ Players level on all three share a rank (1, 2, 2, 4) and are listed A–Z.
 Fastest shows each player once, with their best time on any Solve (not only
 Wins) and the riddle it came from; players share a rank there only on the
 same time and the same Live date. Solves with no time don't count.
+
+Every board also shows each player's solve rate over the window: their
+Solves ÷ their Entries, as "7/10 · 70%". Entries were not kept before this
+column existed, so older riddles show a dash when a player has none.
 The Wins and Podiums boards leave out players with none. Each shows the
 top 50. Banned and suspended players and deleted accounts are left out. A switch
 picks the window: all time (the default) or this month, which counts only
@@ -257,15 +261,17 @@ The first player to solve is recorded on the riddle as **First solver**, with
 their time from the Live date. If two players solve at once, only one is
 recorded.
 
-At completion the riddle records its **Completion rate** and saves one
-**Solve** per solver. The status change and the solves are saved together.
+At completion the riddle records its **Completion rate**, saves one
+**Solve** per solver and one **Entry** per player who guessed at least once,
+solvers included. The status change, the Solves and the Entries are saved
+together.
 
 ## What lasts and what does not
 
 | Kept for good | Gone at Archive (or on server restart) |
 |---|---|
 | Riddle, its Play and Publish status, First solver, Completion rate | Guesses and the Feed |
-| Solves (placement, points, time) | Cooldowns |
+| Solves (placement, points, time) and Entries | Cooldowns |
 | Player totals: points, wins, podiums | — |
 
 Chat is never kept: it reaches whoever is on Results at the time and nothing

@@ -30,8 +30,9 @@ defmodule Riddlr.Gameplay do
   and are recreated automatically if that process restarts. A restart wipes every
   in-flight answer.
 
-  When a riddle completes, `solve_rows/1` turns the ETS race into rows that
-  `Riddlr.Games.transition/3` saves as `Riddlr.Gameplay.Solve`. After that,
+  When a riddle completes, `solve_rows/1` and `entry_rows/1` turn the ETS race
+  into rows that `Riddlr.Games.transition/3` saves as `Riddlr.Gameplay.Solve`
+  and `Riddlr.Gameplay.Entry`. After that,
   `list_solves/1`, `solve_for/2` and `count_solves/1` read the database, and
   still work after archive drops the ETS rows.
 
@@ -344,6 +345,25 @@ defmodule Riddlr.Gameplay do
         updated_at: now
       }
     end)
+  end
+
+  @doc """
+  Every player who guessed a riddle, from ETS, as rows ready for
+  `Repo.insert_all/3` into `Riddlr.Gameplay.Entry`. One row per player,
+  solvers included.
+
+  `Riddlr.Workers.CompleteRiddleWorker` passes these to `Games.transition/3`
+  with the solve rows.
+  """
+  @spec entry_rows(integer()) :: [map()]
+  def entry_rows(riddle_id) do
+    now = Clock.utc_now() |> DateTime.truncate(:second)
+
+    @answers_table
+    |> :ets.match_object(Answer.ets_pattern(riddle_id))
+    |> Enum.map(&Answer.from_ets(&1).user_id)
+    |> Enum.uniq()
+    |> Enum.map(&%{riddle_id: riddle_id, user_id: &1, inserted_at: now, updated_at: now})
   end
 
   @doc """

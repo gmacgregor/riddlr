@@ -7,6 +7,7 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
   import Riddlr.AccountsFixtures
 
   alias Riddlr.Gameplay
+  alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Workers.CompleteRiddleWorker
 
@@ -87,6 +88,42 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
     end
   end
 
+  describe "entries" do
+    test "saves one entry per distinct guesser, solvers included" do
+      riddle = live_riddle()
+      [solver, guesser] = for _ <- 1..2, do: user_fixture()
+      lurker = user_fixture()
+
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, solver, "keyboard")
+      assert :incorrect = Gameplay.submit_answer(riddle, guesser, "mouse")
+
+      assert :ok = perform_job(CompleteRiddleWorker, %{riddle_id: riddle.id})
+
+      user_ids = riddle.id |> saved_entries() |> Enum.map(& &1.user_id) |> Enum.sort()
+      assert user_ids == Enum.sort([solver.id, guesser.id])
+      refute lurker.id in user_ids
+    end
+
+    test "entries and solves commit or roll back together" do
+      riddle = live_riddle()
+      solver = user_fixture()
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, solver, "keyboard")
+
+      # An entry for a riddle that doesn't exist fails the insert.
+      bad_entry = %{hd(Gameplay.entry_rows(riddle.id)) | riddle_id: -1}
+
+      assert_raise Postgrex.Error, fn ->
+        Riddlr.Games.transition(riddle.id, :completed, %{
+          solves: Gameplay.solve_rows(riddle.id),
+          entries: [bad_entry]
+        })
+      end
+
+      assert Riddlr.Repo.reload(riddle).play_status == "live"
+      assert saved_solves(riddle.id) == []
+    end
+  end
+
   test "cancels if riddle not found" do
     assert {:cancel, message} = perform_job(CompleteRiddleWorker, %{riddle_id: 0})
     assert message =~ "not found"
@@ -146,6 +183,10 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
       publish_status: "published",
       live_date: DateTime.add(DateTime.utc_now(), -60, :second)
     })
+  end
+
+  defp saved_entries(riddle_id) do
+    Riddlr.Repo.all(from e in Entry, where: e.riddle_id == ^riddle_id)
   end
 
   defp saved_solves(riddle_id) do

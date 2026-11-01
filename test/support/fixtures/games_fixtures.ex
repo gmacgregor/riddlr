@@ -58,6 +58,11 @@ defmodule Riddlr.GamesFixtures do
     )
   end
 
+  @doc "A saved entry: `user` guessed on `riddle`."
+  def entry_fixture(riddle, user) do
+    Riddlr.Repo.insert!(%Riddlr.Gameplay.Entry{riddle_id: riddle.id, user_id: user.id})
+  end
+
   @doc """
   The shared "logic" category every riddle fixture hangs off.
   """

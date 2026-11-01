@@ -215,4 +215,19 @@ defmodule Riddlr.StandingsTest do
       assert Standings.list(:fastest, :all_time) == []
     end
   end
+
+  describe "solves and entries" do
+    test "every board carries each player's solves and entries" do
+      [r1, r2, r3] = for _ <- 1..3, do: riddle_fixture()
+      ann = user_fixture(%{username: "ann"})
+
+      for r <- [r1, r2, r3], do: entry_fixture(r, ann)
+      solve_fixture(r1, ann, %{placement: 1})
+      solve_fixture(r2, ann, %{placement: 2})
+
+      for board <- [:points, :wins, :podiums, :fastest] do
+        assert [%{solves: 2, entries: 3}] = Standings.list(board, :all_time)
+      end
+    end
+  end
 end

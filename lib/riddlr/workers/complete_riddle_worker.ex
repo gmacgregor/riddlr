@@ -22,5 +22,6 @@ defmodule Riddlr.Workers.CompleteRiddleWorker do
     id
     |> Gameplay.get_completion_stats()
     |> Map.put(:solves, Gameplay.solve_rows(id))
+    |> Map.put(:entries, Gameplay.entry_rows(id))
   end
 end

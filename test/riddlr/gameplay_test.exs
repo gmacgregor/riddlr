@@ -219,6 +219,28 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
+  describe "entry_rows/1" do
+    test "returns one row per distinct guesser, solvers included" do
+      rid = unique_riddle_id()
+      solver = unique_user_id()
+      guesser = unique_user_id()
+      seed_answer(rid, guesser, "wrong", false)
+      seed_answer(rid, guesser, "also wrong", false)
+      seed_answer(rid, solver, "wrong", false)
+      seed_answer(rid, solver, "correct", true)
+      seed_answer(unique_riddle_id(), unique_user_id(), "other riddle", false)
+
+      rows = Gameplay.entry_rows(rid)
+
+      assert rows |> Enum.map(& &1.user_id) |> Enum.sort() == Enum.sort([solver, guesser])
+      assert Enum.all?(rows, &(&1.riddle_id == rid and is_struct(&1.inserted_at, DateTime)))
+    end
+
+    test "returns no rows when nobody guessed" do
+      assert Gameplay.entry_rows(unique_riddle_id()) == []
+    end
+  end
+
   describe "cleanup_riddle/1" do
     test "removes all answers for the riddle" do
       rid = unique_riddle_id()

@@ -2737,7 +2737,8 @@ a.rg-pill {
   font-weight: 600;
 }
 .rg-stand td.rg-stand__wins,
-.rg-stand td.rg-stand__pods {
+.rg-stand td.rg-stand__pods,
+.rg-stand td.rg-stand__rate {
   font-family: var(--f-label);
   color: var(--fg-muted);
 }
