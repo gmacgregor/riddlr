@@ -22,6 +22,12 @@ defmodule Riddlr.Accounts.User do
     field :notify_email, :boolean, default: false
     field :notify_sms, :boolean, default: false
 
+    # Set only once a texted code proves the player owns the number. See
+    # docs/adr/0002-phone-storage.md.
+    field :phone, Riddlr.Encrypted.Binary, redact: true
+    field :phone_hash, Riddlr.Hashed.HMAC, redact: true
+    field :phone_confirmed_at, :utc_datetime
+
     field :notification_lead_time, Ecto.Enum,
       values: [:lobby_open, :min_30, :min_60],
       default: :lobby_open
@@ -55,6 +61,28 @@ defmodule Riddlr.Accounts.User do
   @spec notification_changeset(t(), map()) :: Ecto.Changeset.t()
   def notification_changeset(user, attrs) do
     cast(user, attrs, [:notify_email, :notification_lead_time])
+  end
+
+  @doc """
+  Makes `e164` the player's confirmed number, replacing any old one. Call
+  only after a texted code checks out.
+  """
+  @spec confirm_phone_changeset(t(), String.t()) :: Ecto.Changeset.t()
+  def confirm_phone_changeset(user, e164) do
+    now = Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
+
+    user
+    |> change(phone: e164, phone_hash: e164, phone_confirmed_at: now)
+    |> unique_constraint(:phone_hash,
+      error_key: :phone,
+      message: "is already used by another account"
+    )
+  end
+
+  @doc "Wipes the player's number and turns texts off."
+  @spec remove_phone_changeset(t()) :: Ecto.Changeset.t()
+  def remove_phone_changeset(user) do
+    change(user, phone: nil, phone_hash: nil, phone_confirmed_at: nil, notify_sms: false)
   end
 
   @doc """

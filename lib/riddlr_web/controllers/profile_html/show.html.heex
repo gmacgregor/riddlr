@@ -65,6 +65,79 @@
       <.auth_submit phx-disable-with="Saving...">Save notifications</.auth_submit>
     </.form>
 
+    <section :if={@sms_enabled?} id="profile-phone" class="rg-auth__form">
+      <h2 class="rg-field__label">Mobile number</h2>
+
+      <div :if={@current_scope.user.phone_confirmed_at} id="phone-confirmed" class="rg-phone">
+        <p class="rg-phone__confirmed">
+          {Riddlr.SMS.mask(@current_scope.user.phone)} <span>Confirmed</span>
+        </p>
+        <.form
+          for={%{}}
+          action={~p"/profile"}
+          method="put"
+          id="remove_phone"
+          class="rg-phone__links"
+          data-confirm="Remove your number? We delete it from your account."
+        >
+          <input type="hidden" name="action" value="remove_phone" />
+          <.link href={~p"/profile?phone=new"} class="rg-auth__link">Change number</.link>
+          <button type="submit" class="rg-auth__link rg-phone__link-btn">Remove number</button>
+        </.form>
+      </div>
+
+      <.form
+        :if={@phone_step == :enter}
+        for={@phone_form}
+        action={~p"/profile"}
+        method="put"
+        id="send_phone_code"
+        class="rg-auth__form"
+      >
+        <input type="hidden" name="action" value="send_phone_code" />
+        <.phone_field field={@phone_form[:phone]} />
+        <.auth_submit phx-disable-with="Sending...">Text me a code</.auth_submit>
+      </.form>
+
+      <div :if={@phone_step == :code} class="rg-auth__form">
+        <.form
+          for={@code_form}
+          action={~p"/profile"}
+          method="put"
+          id="confirm_phone"
+          class="rg-auth__form"
+        >
+          <input type="hidden" name="action" value="confirm_phone" />
+          <p class="rg-phone__note">
+            We texted a 6-digit code to {@pending_phone}. It works for {Riddlr.Accounts.PhoneCode.ttl_minutes()} min.
+          </p>
+          <.input
+            field={@code_form[:code]}
+            type="text"
+            label="Code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="123456"
+            required
+          />
+          <.auth_submit phx-disable-with="Checking...">Confirm number</.auth_submit>
+        </.form>
+
+        <.form
+          for={%{}}
+          action={~p"/profile"}
+          method="put"
+          id="resend_phone_code"
+          class="rg-phone__links"
+        >
+          <input type="hidden" name="action" value="resend_phone_code" />
+          <button type="submit" class="rg-auth__link rg-phone__link-btn">Send a new code</button>
+          <.link href={~p"/profile?phone=new"} class="rg-auth__link">Use another number</.link>
+        </.form>
+      </div>
+    </section>
+
     <p class="rg-auth__footer">
       <.link navigate={~p"/"} class="rg-auth__link">Back to the game</.link>
     </p>

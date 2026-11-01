@@ -100,6 +100,44 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
+  # ## Phone storage
+  #
+  # CLOAK_KEY: base64 of 32 random bytes (`openssl rand -base64 32`). It
+  # encrypts phone numbers. To rotate, set CLOAK_KEY to the new key and
+  # CLOAK_KEY_OLD to the old one, deploy, run `mix cloak.migrate.ecto`, then
+  # drop CLOAK_KEY_OLD. Bump CLOAK_KEY_TAG (e.g. "AES.GCM.V2") with each new
+  # key so stored values name the key that made them.
+  #
+  # PHONE_HMAC_KEY: a separate secret for the phone blind index. Changing it
+  # orphans every stored hash, so do not rotate it without a re-hash.
+  cloak_key =
+    System.get_env("CLOAK_KEY") ||
+      raise "environment variable CLOAK_KEY is missing. Generate with: openssl rand -base64 32"
+
+  old_cloak_keys =
+    case System.get_env("CLOAK_KEY_OLD") do
+      nil -> []
+      key -> [{System.get_env("CLOAK_KEY_OLD_TAG", "AES.GCM.V1"), key}]
+    end
+
+  config :riddlr, Riddlr.Vault,
+    keys: [{System.get_env("CLOAK_KEY_TAG", "AES.GCM.V1"), cloak_key} | old_cloak_keys]
+
+  config :riddlr, Riddlr.Hashed.HMAC,
+    secret:
+      System.get_env("PHONE_HMAC_KEY") ||
+        raise(
+          "environment variable PHONE_HMAC_KEY is missing. Generate with: openssl rand -base64 32"
+        )
+
+  # ## SMS
+  #
+  # No SMS provider is chosen yet. SMS_ADAPTER names a module under
+  # Riddlr.SMS. With none set, the phone UI stays hidden.
+  if sms_adapter = System.get_env("SMS_ADAPTER") do
+    config :riddlr, Riddlr.SMS, adapter: Module.concat(Riddlr.SMS, sms_adapter)
+  end
+
   # ## Mailer
   #
   # No mail provider is chosen yet, so the adapter comes from the env.

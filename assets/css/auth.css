@@ -99,6 +99,44 @@
   margin-bottom: var(--space-2xs);
 }
 
+/* The mobile number steps on /profile: enter, code, confirmed. */
+.rg-phone {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.rg-phone__note {
+  font-size: var(--step--1);
+  line-height: 1.4;
+  color: var(--fg-muted);
+}
+
+.rg-phone__confirmed {
+  font-weight: 700;
+}
+
+.rg-phone__confirmed span {
+  margin-left: var(--space-2xs);
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+
+.rg-phone__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-m);
+  font-size: var(--step--1);
+}
+
+/* A form button that looks like .rg-auth__link. */
+.rg-phone__link-btn {
+  background: none;
+  border: 0;
+  padding: 0 0 0.375rem;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* ─── Footer + links ─────────────────────────────────────────────────────────── */
 .rg-auth__footer {
   font-size: var(--step--1);

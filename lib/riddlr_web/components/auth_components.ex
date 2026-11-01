@@ -73,4 +73,25 @@ defmodule RiddlrWeb.AuthComponents do
     </fieldset>
     """
   end
+
+  @doc """
+  The mobile number field, with the note that texts only go to Canadian
+  numbers. Every place a player can give a number for texts uses it.
+  """
+  attr :field, Phoenix.HTML.FormField, required: true
+
+  def phone_field(assigns) do
+    ~H"""
+    <.input
+      field={@field}
+      type="tel"
+      label="Mobile number"
+      inputmode="tel"
+      autocomplete="tel-national"
+      placeholder="(416) 555-1234"
+      required
+    />
+    <p class="rg-phone__note rg-phone__canada-note">Texts go to Canadian mobile numbers only.</p>
+    """
+  end
 end

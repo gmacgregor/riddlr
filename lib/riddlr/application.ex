@@ -10,6 +10,7 @@ defmodule Riddlr.Application do
     children = [
       Riddlr.Gameplay.EtsOwner,
       RiddlrWeb.Telemetry,
+      Riddlr.Vault,
       Riddlr.Repo,
       {Oban, Application.fetch_env!(:riddlr, Oban)},
       {DNSCluster, query: Application.get_env(:riddlr, :dns_cluster_query) || :ignore},

@@ -173,6 +173,11 @@ _Avoid_: period, range; not the **Ready window**
 
 ## Account
 
+**Confirmed number**:
+A Canadian mobile number a player proved they own by typing back a texted
+code. Only confirmed numbers are kept on an account.
+_Avoid_: verified phone, phone
+
 **Notification**:
 A message that tells a player a riddle is about to go live. Players opt in;
 it is off by default. At most one per player, riddle and channel. Email only

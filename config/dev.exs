@@ -10,6 +10,16 @@ config :riddlr, Riddlr.Repo,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
+# Dev-only keys for phone encryption and its blind index. Prod reads
+# CLOAK_KEY and PHONE_HMAC_KEY in runtime.exs.
+config :riddlr, Riddlr.Vault,
+  keys: [{"AES.GCM.V1", "Q/H98eADXglHuqVUWS922oCDDFI8scQtmTbgwf6tAjQ="}]
+
+config :riddlr, Riddlr.Hashed.HMAC, secret: "d29XbZnSqdGGp0SPnHNcn/qtu97rcFXAzZMKxzuFlWU="
+
+# Texts are logged, not sent. See Riddlr.SMS.Local.
+config :riddlr, Riddlr.SMS, adapter: Riddlr.SMS.Local
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

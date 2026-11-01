@@ -71,7 +71,9 @@ defmodule Riddlr.MixProject do
       {:oban, "~> 2.18"},
       {:tidewave, "~> 0.5", only: :dev},
       {:usage_rules, "~> 1.2", only: [:dev]},
-      {:tzdata, "~> 1.1"}
+      {:tzdata, "~> 1.1"},
+      {:cloak_ecto, "~> 1.3"},
+      {:ex_phone_number, "~> 0.4"}
     ]
   end
 

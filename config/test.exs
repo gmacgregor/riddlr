@@ -30,6 +30,15 @@ config :riddlr, :secure_session_cookie, false
 # Unfrozen, it passes through to the system clock.
 config :riddlr, clock: Riddlr.Clock.Frozen
 
+# Test-only keys for phone encryption and its blind index.
+config :riddlr, Riddlr.Vault,
+  keys: [{"AES.GCM.V1", "DK9n/Z+Qm/aL3aYHe8LKIci3vbLxJYIaxKh2YtgH0qM="}]
+
+config :riddlr, Riddlr.Hashed.HMAC, secret: "kVDJlKooIlBSKLJURFsZs6KIjGt+vt71C+1MyXqKK74="
+
+# Texts go to the test process. See Riddlr.SMS.Test.
+config :riddlr, Riddlr.SMS, adapter: Riddlr.SMS.Test
+
 # In test we don't send emails
 config :riddlr, Riddlr.Mailer, adapter: Swoosh.Adapters.Test
 

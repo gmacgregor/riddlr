@@ -30,7 +30,10 @@ config :riddlr,
 # Configure Oban
 config :riddlr, Oban,
   repo: Riddlr.Repo,
-  plugins: [Oban.Plugins.Pruner],
+  plugins: [
+    Oban.Plugins.Pruner,
+    {Oban.Plugins.Cron, crontab: [{"* * * * *", Riddlr.Workers.PrunePhoneCodesWorker}]}
+  ],
   queues: [game_lifecycle: 5, notifications: 10, mailers: 3, default: 5]
 
 # Configure the endpoint
@@ -86,6 +89,9 @@ config :logger, :default_formatter,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+
+# Keep phone numbers and phone codes out of request logs.
+config :phoenix, :filter_parameters, ["password", "phone", "code"]
 
 # enable timezone conversions of UTC dates
 config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase

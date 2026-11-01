@@ -159,6 +159,15 @@ Every time a player turns email on or off (sign-up, profile, unsubscribe),
 the system logs a **Notification consent**: the channel, granted or
 withdrawn, and when. The log is only ever added to, as proof of consent.
 
+To get texts later, a player adds a mobile number on their profile. Only
+Canadian numbers work. The system texts a 6-digit code; the player types it
+in within 10 min and 5 tries. Only then does the number join their account as
+their **Confirmed number**. A number not confirmed in time is wiped. Changing
+numbers keeps the old one until the new one is confirmed. Two accounts cannot
+hold the same number. Five wrong tries on a code block new codes for a day. Screens show only its last four digits. A player gets
+at most 3 codes an hour, and a number at most 5 a day. "Remove number"
+deletes it and turns texts off. Texts themselves come later.
+
 ### Game clock
 
 Each riddle has one **Game clock**, shared by every viewer. It ticks once a
