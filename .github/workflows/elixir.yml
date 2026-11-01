@@ -32,3 +32,9 @@ jobs:
       run: mix deps.get
     - name: Run tests
       run: mix test
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Run JS tests
+      run: mix test.js

@@ -14,7 +14,7 @@ defmodule RiddlrWeb.HomeLiveTest do
       conn: conn
     } do
       Frozen.freeze(~U[2030-01-01 09:00:00Z])
-      upcoming_fixture("scheduled", ~U[2030-01-02 14:05:00Z])
+      upcoming_fixture("scheduled", ~U[2030-01-08 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
@@ -22,8 +22,12 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       assert has_element?(
                live,
-               "#hero-date time[data-format='date'][datetime='2030-01-02T14:05:00Z']"
+               "#hero-date time[datetime='2030-01-08T14:05:00Z']",
+               "Tuesday, Jan 8, 9:05am EST"
              )
+
+      assert has_element?(live, "#hero-date .rg-underlined", "Jan 8, 9:05am EST")
+      assert has_element?(live, "#hero-date .rg-drop-local")
 
       assert has_element?(live, ".rg-hero__aside")
     end
@@ -103,15 +107,12 @@ defmodule RiddlrWeb.HomeLiveTest do
     end
 
     test "stamps the card and strikes out today's date when nothing is next", %{conn: conn} do
-      Frozen.freeze(~U[2030-01-01 09:00:00Z])
+      # Still Dec 31 in Eastern time.
+      Frozen.freeze(~U[2030-01-01 03:00:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
 
       assert has_element?(live, "#hero-card .rg-void-stamp", GameCopy.hero_none_stamp())
-
-      assert has_element?(
-               live,
-               "#hero-card s.rg-none__date time[data-format='date'][datetime='2030-01-01T09:00:00Z']"
-             )
+      assert has_element?(live, "#hero-card s.rg-none__date", "Mon, Dec 31")
     end
 
     test "shows a blank clock and an unknown next drop when nothing is next", %{conn: conn} do
@@ -214,12 +215,14 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-card .rg-hero__label", next.category.name)
-
       assert has_element?(
                live,
-               "#hero-card .rg-hero__label time[datetime='2030-01-01T14:05:00Z']"
+               "#hero-card .rg-hero__label",
+               "No. #{next.number}: #{next.name} · #{next.category.name}"
              )
+
+      # The date under "Up next" gives the drop time; the card doesn't repeat it.
+      refute has_element?(live, "#hero-card time")
 
       assert has_element?(live, "#hero-card #hero-flaps[data-seconds='90']")
       assert has_element?(live, "#hero-count", GameCopy.hero_waiting(1))
@@ -228,17 +231,16 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, "#hero-sheet[data-state='live']")
     end
 
-    test "shows a scheduled riddle's drop time with no lobby button", %{conn: conn} do
+    test "shows a scheduled riddle's clock with no lobby button", %{conn: conn} do
       next = upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
       assert has_element?(live, "#hero-card .rg-hero__label", next.category.name)
       assert has_element?(live, "#hero-card #hero-flaps")
-
-      for part <- [".rg-hero__label", ".rg-hero__meta", ".rg-hero__note"] do
-        assert has_element?(live, "#hero-card #{part} time[datetime='2030-01-01T14:05:00Z']")
-      end
+      refute has_element?(live, "#hero-card time")
+      refute has_element?(live, "#hero-card .rg-hero__meta")
+      refute has_element?(live, "#hero-card .rg-hero__note")
 
       refute has_element?(live, "#hero-count")
       refute has_element?(live, "#hero-card .rg-btn")
@@ -247,7 +249,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
   describe "coming up" do
     test "shows the empty line when there is no upcoming riddle", %{conn: conn} do
-      upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+      upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
@@ -266,8 +268,25 @@ defmodule RiddlrWeb.HomeLiveTest do
       {:ok, live, html} = live(conn, ~p"/")
 
       first = "#schedule li.rg-sched:nth-child(1)"
-      assert has_element?(live, "#{first} time[datetime='2030-01-01T15:00:00Z']", "15:00")
-      assert has_element?(live, "#{first} .rg-sched__cat", sooner.category.name)
+
+      assert has_element?(
+               live,
+               "#{first} time[datetime='2030-01-01T15:00:00Z']",
+               "Jan 1, 10:00am EST"
+             )
+
+      # The date comes first, above the title.
+      assert has_element?(live, "#{first} .rg-sched__body > .rg-sched__sub:first-child time")
+      assert has_element?(live, "#{first} .rg-drop-local")
+
+      assert has_element?(live, "#{first} .rg-sched__sub", "· #{sooner.category.name}")
+
+      assert has_element?(
+               live,
+               "#{first} .rg-sched__cat",
+               ~r/^\s*No\. #{sooner.number}: #{sooner.name}\s*$/
+             )
+
       assert has_element?(live, "#{first} .rg-sched__solve .rg-icon")
       assert has_element?(live, "#{first} .rg-sched__solve", "01:30")
 
@@ -278,6 +297,16 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, "#schedule li.rg-sched:nth-child(3)")
       refute has_element?(live, "#schedule .rg-schedule__empty")
       refute html =~ later.description
+    end
+
+    test "lists the next riddle too, when it is not live yet", %{conn: conn} do
+      next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+      later = upcoming_fixture("scheduled", ~U[2030-01-01 15:00:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#schedule li.rg-sched:nth-child(1)#sched-#{next.id}")
+      assert has_element?(live, "#schedule li.rg-sched:nth-child(2)#sched-#{later.id}")
     end
   end
 
@@ -425,7 +454,12 @@ defmodule RiddlrWeb.HomeLiveTest do
       {:ok, _} = Games.save_riddle(next, %{"live_date" => ~U[2030-01-01 13:01:00Z]})
 
       assert_push_event(live, "countdown-tick", %{seconds: 60})
-      assert has_element?(live, "#hero-card time[datetime='2030-01-01T13:01:00Z']")
+
+      assert has_element?(
+               live,
+               "#hero-date time[datetime='2030-01-01T13:01:00Z']",
+               "Today at 8:01am EST"
+             )
     end
 
     test "drops a riddle from the card when it completes", %{conn: conn} do
@@ -460,13 +494,17 @@ defmodule RiddlrWeb.HomeLiveTest do
     end
 
     test "adds a riddle to Coming up once it is scheduled", %{conn: conn} do
-      upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+      upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
       assert has_element?(live, "#schedule .rg-schedule__empty")
 
       later = GamesFixtures.scheduled_riddle_fixture(%{live_date: ~U[2030-01-01 15:00:00Z]})
 
-      assert has_element?(live, "#sched-#{later.id} time[datetime='2030-01-01T15:00:00Z']")
+      assert has_element?(
+               live,
+               "#sched-#{later.id} time[datetime='2030-01-01T15:00:00Z']",
+               "Jan 1, 10:00am EST"
+             )
     end
 
     test "fills the last riddle card when a riddle completes", %{conn: conn} do

@@ -200,26 +200,62 @@ defmodule RiddlrWeb.GameComponentsTest do
     defp escape(text), do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
   end
 
-  describe "local_time/1" do
-    test "renders a time of day by default" do
-      html =
-        render_component(&GameComponents.local_time/1, id: "t", at: ~U[2030-01-01 14:05:00Z])
+  describe "drop_time/1" do
+    @now ~U[2030-01-01 17:00:00Z]
 
-      assert html =~ ~s(datetime="2030-01-01T14:05:00Z")
-      assert html =~ ~s(data-format="time")
-      assert html =~ ">14:05</time>"
+    @spec drop_time(keyword()) :: String.t()
+    defp drop_time(attrs) do
+      render_component(&GameComponents.drop_time/1, [id: "t", now: @now] ++ attrs)
     end
 
-    test "renders a short date with the date format" do
-      html =
-        render_component(&GameComponents.local_time/1,
-          id: "t",
-          at: ~U[2030-01-01 14:05:00Z],
-          format: "date"
-        )
+    test "renders the short form in Eastern time" do
+      time =
+        drop_time(at: ~U[2030-07-08 17:17:00Z])
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("time")
 
-      assert html =~ ~s(data-format="date")
-      assert html =~ ">Tue 1 Jan</time>"
+      assert LazyHTML.attribute(time, "datetime") == ["2030-07-08T17:17:00Z"]
+      assert LazyHTML.text(time) == "Jul 8, 1:17pm EDT"
+    end
+
+    test "lowercases Today and Tomorrow mid-sentence" do
+      html = drop_time(at: ~U[2030-01-01 18:17:00Z], format: "long", mid_sentence: true)
+      time = html |> LazyHTML.from_fragment() |> LazyHTML.query("time")
+
+      assert LazyHTML.text(time) == "today at 1:17pm EST"
+    end
+
+    test "renders the long form with the date and time underlined, not the weekday" do
+      html = drop_time(at: ~U[2030-11-04 18:17:00Z], format: "long")
+      time = html |> LazyHTML.from_fragment() |> LazyHTML.query("time")
+
+      assert LazyHTML.text(time) == "Monday, Nov 4, 1:17pm EST"
+      assert LazyHTML.text(LazyHTML.query(time, ".rg-underlined")) == "Nov 4, 1:17pm EST"
+      assert time |> LazyHTML.query("svg") |> Enum.empty?()
+    end
+
+    test "underlines the whole relative time in the long form" do
+      html = drop_time(at: ~U[2030-01-01 18:17:00Z], format: "long")
+      line = html |> LazyHTML.from_fragment() |> LazyHTML.query(".rg-underlined")
+
+      assert LazyHTML.text(line) == "Today at 1:17pm EST"
+    end
+
+    test "adds a hidden local-time line holding the instant and display zone" do
+      doc = drop_time(at: ~U[2030-07-08 17:17:00Z]) |> LazyHTML.from_fragment()
+      line = LazyHTML.query(doc, "#t-local")
+
+      assert LazyHTML.attribute(line, "hidden") == [""]
+      assert LazyHTML.attribute(line, "data-at") == ["2030-07-08T17:17:00Z"]
+      assert LazyHTML.attribute(line, "data-zone") == ["America/Toronto"]
+      assert LazyHTML.attribute(line, "phx-hook") != []
+      assert LazyHTML.text(line) =~ GameCopy.drop_local_lead()
+    end
+
+    test "leaves out the local-time line when told to" do
+      doc = drop_time(at: ~U[2030-07-08 17:17:00Z], local: false) |> LazyHTML.from_fragment()
+
+      assert doc |> LazyHTML.query("#t-local") |> Enum.empty?()
     end
   end
 

@@ -15,6 +15,28 @@ defmodule RiddlrWeb.GameCopyTest do
     end
   end
 
+  describe "riddle_name/1" do
+    test "leads with the number when the riddle has one" do
+      assert GameCopy.riddle_name(%{number: 12, name: "Echo"}) == "No. 12: Echo"
+    end
+
+    test "leaves the number out when there is none" do
+      assert GameCopy.riddle_name(%{number: nil, name: "Echo"}) == "Echo"
+    end
+  end
+
+  describe "riddle_title/1" do
+    test "leads with the number when the riddle has one" do
+      riddle = %{number: 12, name: "Echo", category: %{name: "What am I"}}
+      assert GameCopy.riddle_title(riddle) == "No. 12: Echo · What am I"
+    end
+
+    test "leaves the number out when there is none" do
+      riddle = %{number: nil, name: "Echo", category: %{name: "What am I"}}
+      assert GameCopy.riddle_title(riddle) == "Echo · What am I"
+    end
+  end
+
   describe "play" do
     test "ordinal handles teens and twenties" do
       assert Enum.map([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111], &GameCopy.ordinal/1) ==

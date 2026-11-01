@@ -489,18 +489,15 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Up to `limit` riddles that come after the next riddle (`next_riddle/0`):
-  published, `scheduled` or `ready`, soonest Live date first, category
-  preloaded.
+  Up to `limit` riddles not yet live: published, `scheduled` or `ready`,
+  soonest Live date first, category preloaded. The next riddle
+  (`next_riddle/0`) is among them unless it is live.
   """
   @spec list_upcoming_riddles(pos_integer()) :: [Riddle.t()]
   def list_upcoming_riddles(limit) when is_integer(limit) and limit > 0 do
-    next_id = next_query() |> select([r], r.id)
-
     Riddle
     |> where([r], r.publish_status == "published")
     |> where([r], r.play_status in ["scheduled", "ready"])
-    |> where([r], r.id not in subquery(next_id))
     |> order_by([r], asc: r.live_date, asc: r.id)
     |> limit(^limit)
     |> preload(:category)

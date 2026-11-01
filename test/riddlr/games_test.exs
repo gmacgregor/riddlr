@@ -414,8 +414,8 @@ defmodule Riddlr.GamesTest do
   describe "list_upcoming_riddles/1" do
     import Riddlr.GamesFixtures
 
-    test "returns upcoming published riddles after the next one, soonest first" do
-      put_state(riddle_fixture(), "ready", "published", 60)
+    test "returns upcoming published riddles, the next one included, soonest first" do
+      first = put_state(riddle_fixture(), "ready", "published", 60)
       third = put_state(riddle_fixture(), "scheduled", "published", 7200)
       second = put_state(riddle_fixture(), "scheduled", "published", 600)
       put_state(riddle_fixture(), "scheduled", "draft", 300)
@@ -423,7 +423,7 @@ defmodule Riddlr.GamesTest do
 
       upcoming = Games.list_upcoming_riddles(3)
 
-      assert Enum.map(upcoming, & &1.id) == [second.id, third.id]
+      assert Enum.map(upcoming, & &1.id) == [first.id, second.id, third.id]
       assert hd(upcoming).category.name == "logic"
     end
 

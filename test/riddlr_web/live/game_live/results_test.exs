@@ -609,7 +609,14 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
       assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
-      assert has_element?(live, "#res-next time[datetime='2030-01-01T14:05:00Z']", "14:05")
+
+      assert has_element?(
+               live,
+               "#res-next time[datetime='2030-01-01T14:05:00Z']",
+               "Jan 1, 9:05am EST"
+             )
+
+      assert has_element?(live, "#res-next .rg-drop-local[hidden]")
 
       assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/lobby']")
 
@@ -628,7 +635,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
       assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
-      assert has_element?(live, "#res-next time", "14:05")
+      assert has_element?(live, "#res-next time", "Jan 1, 9:05am EST")
       refute has_element?(live, "#res-next .rg-btn")
       assert has_element?(live, "#res-next a[href='/']")
     end

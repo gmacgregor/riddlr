@@ -104,12 +104,18 @@ Deleting a riddle drops its pending steps, its guesses and its solves.
 
 Home shows the **Next riddle**. Before it goes live, Home counts down to the
 Live date. A ready riddle also shows how many players wait in the Lobby, and
-only a ready riddle offers a way into it. A scheduled riddle tells players to
-come back at the Live date. Once live, Home shows the time left and how many
+only a ready riddle offers a way into it. A scheduled riddle shows only the
+countdown. Once live, Home shows the time left and how many
 have solved it. With no Next riddle, Home says nothing is scheduled and
 offers a random **Practice riddle**. A player can peek at its answer or ask
 for another one. A practice riddle takes no guesses and scores nothing. With
 no practice riddles, Home leaves the note out.
+
+Home, Results and the Lobby show every Live date in the display time zone
+(Toronto by default, the zone admins schedule in and emails use), e.g.
+"Nov 3, 1:17pm EST", or "Today at …" / "Tomorrow at …" by that zone's
+date. A player whose own zone has a different UTC offset at that moment also
+sees the time in their zone.
 
 Below that, a timeline walks through a round, ending at the Next riddle's
 Solve time. Home then lists riddles coming up (without their text) and, as

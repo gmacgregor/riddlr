@@ -27,23 +27,11 @@ defmodule RiddlrWeb.GameCopy do
   def hero_aside, do: "this one"
 
   @doc """
-  The words before the drop time on the Home card when the Lobby is not open
-  yet. The line reads "Drops at 21:00, your local time. The lobby isn't open
-  yet."
+  The lead of the line under a drop time that gives it in the player's own
+  zone, e.g. "Your time: Today at 10:17am PST".
   """
-  @spec hero_future_lead() :: String.t()
-  def hero_future_lead, do: "Drops at"
-
-  @doc "The words after the drop time on the Home card when the Lobby is not open yet."
-  @spec hero_future_tail() :: String.t()
-  def hero_future_tail, do: ", your local time. The lobby isn't open yet."
-
-  @doc """
-  The words before the drop time in the Home card's note when the Lobby is
-  not open yet, e.g. "Nothing to do till then. Come back at 21:00."
-  """
-  @spec hero_back_lead() :: String.t()
-  def hero_back_lead, do: "Nothing to do till then. Come back at"
+  @spec drop_local_lead() :: String.t()
+  def drop_local_lead, do: "Your time:"
 
   @doc "The stamp on the Home card when nothing is next."
   @spec hero_none_stamp() :: String.t()
@@ -141,9 +129,22 @@ defmodule RiddlrWeb.GameCopy do
   @spec schedule_heading() :: String.t()
   def schedule_heading, do: "Coming up"
 
-  @doc "The line under an upcoming riddle's category, which keeps its text secret."
-  @spec schedule_hidden() :: String.t()
-  def schedule_hidden, do: "Riddle hidden until it drops"
+  @doc """
+  A riddle's number, name and category, e.g. "No. 12: Echo · What am I". A
+  riddle with no number yet leaves it out. Takes any map with `number`,
+  `name` and `category.name`.
+  """
+  @spec riddle_title(map()) :: String.t()
+  def riddle_title(%{category: %{name: category}} = riddle),
+    do: "#{riddle_name(riddle)} · #{category}"
+
+  @doc """
+  A riddle's number and name, e.g. "No. 12: Echo", or just the name when it
+  has no number yet.
+  """
+  @spec riddle_name(map()) :: String.t()
+  def riddle_name(%{number: nil, name: name}), do: name
+  def riddle_name(%{number: number, name: name}), do: "No. #{number}: #{name}"
 
   @doc "The Home schedule's line when nothing comes after the next riddle."
   @spec schedule_empty() :: String.t()
@@ -207,9 +208,12 @@ defmodule RiddlrWeb.GameCopy do
   @spec lobby_heading() :: String.t()
   def lobby_heading, do: "The riddle drops in"
 
-  @doc "The words before the drop time in the Lobby's when line."
+  @doc """
+  The words before the drop time in the Lobby's when line, e.g. "Drops for
+  everyone today at 1:17pm EST."
+  """
   @spec lobby_when_lead() :: String.t()
-  def lobby_when_lead, do: "Drops for everyone at"
+  def lobby_when_lead, do: "Drops for everyone"
 
   @doc "The words after the drop time in the Lobby's when line."
   @spec lobby_when_tail() :: String.t()
@@ -526,9 +530,12 @@ defmodule RiddlrWeb.GameCopy do
   @spec next_home() :: String.t()
   def next_home, do: "Back to home"
 
-  @doc "The words before the next riddle's start time on Results."
-  @spec next_drops_at() :: String.t()
-  def next_drops_at, do: "drops at"
+  @doc """
+  The words before the next riddle's drop time on Results and the Home card,
+  e.g. "drops today at 1:17pm EST" or "drops Nov 3, 1:17pm EST".
+  """
+  @spec next_drops() :: String.t()
+  def next_drops, do: "drops"
 
   @doc "The Results button to a ready riddle's lobby."
   @spec next_enter_lobby() :: String.t()

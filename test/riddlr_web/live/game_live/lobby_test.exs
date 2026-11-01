@@ -261,7 +261,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
   end
 
   describe "drop time" do
-    test "gives the drop time for the browser to show in local time", %{conn: conn, user: user} do
+    test "shows the drop time in Eastern time, with a local-time line", %{conn: conn, user: user} do
       live_date = DateTime.utc_now() |> DateTime.add(600, :second) |> DateTime.truncate(:second)
 
       riddle =
@@ -273,16 +273,17 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
       iso = DateTime.to_iso8601(live_date)
-      utc_hhmm = Calendar.strftime(live_date, "%H:%M")
 
       assert has_element?(live, ".rg-lobby__when", GameCopy.lobby_when_lead())
       assert has_element?(live, ".rg-lobby__when", GameCopy.lobby_when_tail())
 
       assert has_element?(
                live,
-               ".rg-lobby__when time#lobby-drop-time[phx-hook][datetime='#{iso}']",
-               utc_hhmm
+               ".rg-lobby__when time#lobby-drop-time[datetime='#{iso}']",
+               RiddlrWeb.DropTime.short(live_date, DateTime.utc_now(), mid_sentence: true)
              )
+
+      assert has_element?(live, "#lobby-drop-local.rg-drop-local[hidden][data-at='#{iso}']")
     end
   end
 

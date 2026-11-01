@@ -152,11 +152,17 @@
         </span>
         <span :if={@next && @next.play_status != "live"} class="rg-next__t">
           {GameCopy.next_lead()} <b>{@next.category.name}</b>
-          · {GameCopy.next_drops_at()}
-          <b><GameComponents.local_time
+          · {GameCopy.next_drops()}
+          <b><GameComponents.drop_time
             id={"res-next-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
             at={@next.live_date}
+            local={false}
+            mid_sentence
           /></b>
+          <GameComponents.drop_local
+            id={"res-next-local-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
+            at={@next.live_date}
+          />
         </span>
         <.link
           :if={@next && @next.play_status == "ready"}

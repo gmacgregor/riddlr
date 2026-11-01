@@ -95,7 +95,15 @@ defmodule Riddlr.MixProject do
         "esbuild css --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      # Node's built-in runner, so no npm deps. Pure JS only (no DOM).
+      "test.js": ["cmd node --test 'assets/js/**/*.test.js'"],
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test",
+        "test.js"
+      ]
     ]
   end
 

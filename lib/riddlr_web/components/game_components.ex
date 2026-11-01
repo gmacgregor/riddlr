@@ -7,6 +7,7 @@ defmodule RiddlrWeb.GameComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
+  alias RiddlrWeb.DropTime
   alias RiddlrWeb.GameCopy
 
   @tones ~w(variant-1 variant-2 variant-3 variant-4 variant-5 variant-6)
@@ -281,36 +282,81 @@ defmodule RiddlrWeb.GameComponents do
   defp urgency(_seconds), do: nil
 
   @doc """
-  A time of day (`HH:MM`) or a short date (`Tue 1 Jan`) in the viewer's own
-  time zone.
-
-  The server cannot know the viewer's zone, so it renders the UTC value and
-  the `.LocalTime` hook rewrites it in the browser's locale.
+  A drop date and time in the display zone (Eastern), e.g. `Nov 3, 1:17pm EST`
+  or `Today at 1:17pm EST`. See `RiddlrWeb.DropTime`.
   """
   attr :id, :string, required: true
   attr :at, DateTime, required: true
-  attr :format, :string, default: "time", values: ~w(time date)
+  attr :now, DateTime, doc: "what today is judged from; defaults to the clock"
+  attr :format, :string, default: "short", values: ~w(short long)
+  attr :local, :boolean, default: true, doc: "add the `drop_local/1` line after the time"
 
-  @spec local_time(map()) :: Phoenix.LiveView.Rendered.t()
-  def local_time(assigns) do
+  attr :mid_sentence, :boolean,
+    default: false,
+    doc: "lowercase Today and Tomorrow, for a time that follows a lead such as \"Drops\""
+
+  @spec drop_time(map()) :: Phoenix.LiveView.Rendered.t()
+  def drop_time(assigns) do
+    assigns =
+      assigns
+      |> assign_new(:now, fn -> Riddlr.Clock.utc_now() end)
+      |> then(fn %{at: at, now: now} = assigns ->
+        opts = [mid_sentence: assigns.mid_sentence]
+
+        assign(assigns,
+          iso: DateTime.to_iso8601(at),
+          short: DropTime.short(at, now, opts),
+          long: DropTime.long(at, now, opts)
+        )
+      end)
+
     ~H"""
-    <%!-- The script sits flush against </time>: a gap would render as a space before any punctuation that follows. --%>
-    <time
+    <%!-- No whitespace between the parts: it would show as a space before the comma. --%>
+    <time :if={@format == "short"} id={@id} datetime={@iso}>{@short}</time>
+    <time :if={@format == "long"} id={@id} datetime={@iso}>{@long.lead}<span class="rg-underlined">{@long.marked}</span></time><.drop_local
+      :if={@local}
+      id={"#{@id}-local"}
+      at={@at}
+    />
+    """
+  end
+
+  @doc """
+  The line under a drop time that gives it in the player's own zone, e.g.
+  "Your time: Today at 10:17am PST".
+
+  It starts hidden. The `.LocalDrop` hook shows it only when the browser's
+  zone has a different UTC offset from the display zone at the drop instant,
+  so Eastern players never see it. `drop_time/1` adds it by default; place it
+  yourself, with `local={false}` there, when the time sits mid-sentence.
+  """
+  attr :id, :string, required: true
+  attr :at, DateTime, required: true
+
+  @spec drop_local(map()) :: Phoenix.LiveView.Rendered.t()
+  def drop_local(assigns) do
+    ~H"""
+    <span
       id={@id}
-      datetime={DateTime.to_iso8601(@at)}
-      data-format={@format}
-      phx-hook=".LocalTime"
+      class="rg-drop-local"
+      data-at={DateTime.to_iso8601(@at)}
+      data-zone={DropTime.zone()}
+      phx-hook=".LocalDrop"
       phx-update="ignore"
-    >{Calendar.strftime(@at, if(@format == "date", do: "%a %-d %b", else: "%H:%M"))}</time><script
-      :type={Phoenix.LiveView.ColocatedHook}
-      name=".LocalTime"
+      hidden
     >
+      {GameCopy.drop_local_lead()} <span data-local-text></span>
+    </span>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".LocalDrop">
+      import {localDropText} from "@/js/drop_time"
+
       export default {
         mounted() {
-          const at = new Date(this.el.getAttribute("datetime"))
-          this.el.textContent = this.el.dataset.format === "date"
-            ? at.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })
-            : at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+          const text = localDropText(this.el.dataset.at, browserZone, this.el.dataset.zone)
+          if (!text) return
+          this.el.querySelector("[data-local-text]").textContent = text
+          this.el.hidden = false
         }
       }
     </script>

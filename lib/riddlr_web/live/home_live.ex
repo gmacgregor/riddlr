@@ -23,8 +23,8 @@ defmodule RiddlrWeb.HomeLive do
   The note is hidden when there are no practice riddles.
 
   The timeline ("A round, start to finish") ends at the next riddle's solve
-  time. Below it, "Coming up" lists the riddles after the next one
-  (`Games.list_upcoming_riddles/1`), with no riddle text, and "Previously"
+  time. Below it, "Coming up" lists the riddles not yet live, the
+  next one included (`Games.list_upcoming_riddles/1`), with no riddle text, and "Previously"
   shows the most recent finished riddle with its answer and first solver
   (`Games.last_finished_riddle/0`).
 
@@ -42,7 +42,7 @@ defmodule RiddlrWeb.HomeLive do
 
   alias Riddlr.{GameClock, Gameplay, Games}
   alias Riddlr.Gameplay.{Answer, Presence}
-  alias RiddlrWeb.{GameComponents, GameCopy}
+  alias RiddlrWeb.{DropTime, GameComponents, GameCopy}
 
   # Each of these can change which riddle is next, or its state, or the
   # schedule and last riddle panels. Completed is here so a live riddle drops
@@ -149,21 +149,15 @@ defmodule RiddlrWeb.HomeLive do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  # The hero card's top for a riddle not yet live: its category, drop time and
-  # countdown. The lobby and future states share it.
+  # The hero card's top for a riddle not yet live: its title and countdown.
+  # The lobby and future states share it. The drop time sits under "Up next".
   attr :riddle, Games.Riddle, required: true
   attr :seconds, :integer, required: true
 
   defp drop(assigns) do
     ~H"""
     <div class="rg-hero__row">
-      <span class="rg-hero__label">
-        {@riddle.category.name} · {GameCopy.next_drops_at()}
-        <GameComponents.local_time
-          id={"hero-at-#{@riddle.id}-#{DateTime.to_unix(@riddle.live_date)}"}
-          at={@riddle.live_date}
-        />
-      </span>
+      <span class="rg-hero__label">{GameCopy.riddle_title(@riddle)}</span>
     </div>
     <GameComponents.flaps id="hero-flaps" seconds={@seconds} />
     """
