@@ -1468,9 +1468,11 @@ a.rg-pill {
   transform: rotate(8deg);
 }
 
-/* Coming up and Previously: taped notes, so the grid only shows around them. */
+/* Coming up, Previously and the Standings board: taped notes, so the grid
+   only shows around them. */
 .rg-schedule,
-.rg-last {
+.rg-last,
+.rg-stand-note {
   isolation: isolate;
   padding: var(--space-m);
   background: var(--surface-2);
@@ -1480,7 +1482,8 @@ a.rg-pill {
   box-shadow: var(--shadow-note);
 }
 .rg-schedule::before,
-.rg-last::before {
+.rg-last::before,
+.rg-stand-note::before {
   content: "";
   position: absolute;
   z-index: 2;
@@ -1497,6 +1500,10 @@ a.rg-pill {
 .rg-last::before {
   background: var(--tape-4);
   transform: translateX(-50%) rotate(2.5deg);
+}
+.rg-stand-note::before {
+  background: var(--tape-2);
+  transform: translateX(-50%) rotate(-1.5deg);
 }
 
 /* Coming up: a notebook list with a big handwritten time. */
@@ -2681,10 +2688,200 @@ a.rg-pill {
   max-inline-size: var(--wrap-narrow);
   padding-block-start: var(--space-l);
 }
+/* Heading: centred between two laurel sprigs. */
+.rg-stand__head {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.rg-standings .rg-panel__h {
+  font-size: var(--display-l);
+}
+.rg-stand__laurel {
+  flex: none;
+  inline-size: 2.25rem;
+  block-size: 3.15rem;
+  color: var(--fg);
+  stroke-width: 2;
+  transform: rotate(-6deg);
+}
+.rg-stand__laurel--flip {
+  transform: scaleX(-1) rotate(-6deg);
+}
+.rg-stand__leaf {
+  fill: var(--success);
+}
+
+/* A trophy perched on the note's top right corner, half off the paper. */
+.rg-stand__trophy {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: -2.25rem;
+  inset-inline-end: -1.5rem;
+  inline-size: 5rem;
+  block-size: 5.25rem;
+  color: var(--fg);
+  stroke-width: 2.2;
+  transform: rotate(9deg);
+  pointer-events: none;
+}
+.rg-stand__cup {
+  fill: var(--medal-1);
+}
+.rg-stand__base {
+  fill: var(--surface-2);
+}
+
+/* Gold, silver and bronze medals beside the top three ranks. They hang
+   past the note's left edge, onto the grid. */
+.rg-stand td.rg-stand__rank {
+  position: relative;
+}
+.rg-stand__medal {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 50%;
+  inset-inline-start: calc(-1 * var(--space-m) - 1.35rem);
+  inline-size: 2.4rem;
+  block-size: 3.25rem;
+  overflow: visible;
+  stroke: var(--fg);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: translateY(-55%) rotate(-10deg);
+  pointer-events: none;
+}
+.rg-stand__medal--2 {
+  transform: translateY(-55%) rotate(6deg);
+}
+.rg-stand__medal--3 {
+  transform: translateY(-55%) rotate(-4deg);
+}
+.rg-stand__ribbon {
+  fill: var(--tape-2);
+}
+.rg-stand__medal--2 .rg-stand__ribbon {
+  fill: var(--tape-1);
+}
+.rg-stand__medal--3 .rg-stand__ribbon {
+  fill: var(--tape-3);
+}
+.rg-stand__medal--1 .rg-stand__disc {
+  fill: var(--medal-1);
+}
+.rg-stand__medal--2 .rg-stand__disc {
+  fill: var(--medal-2);
+}
+.rg-stand__medal--3 .rg-stand__disc {
+  fill: var(--medal-3);
+}
+.rg-stand__disc-ring {
+  fill: none;
+  stroke-width: 1.2;
+  opacity: 0.6;
+}
+.rg-stand__star {
+  fill: var(--surface-2);
+  stroke-width: 1.4;
+}
+/* "How are these counted?": a link that opens a short note under the
+   board. The marker drops so it reads as a link, not a list. */
+.rg-stand__how {
+  margin-block-start: var(--space-s);
+  font-size: var(--step--1);
+  color: var(--fg-muted);
+}
+.rg-stand__how > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.rg-stand__how > summary::-webkit-details-marker {
+  display: none;
+}
+.rg-stand__how-list {
+  display: grid;
+  gap: var(--space-xs);
+  margin-block: var(--space-xs) var(--space-s);
+}
+.rg-stand__how-list dt {
+  font-family: var(--f-display);
+  font-size: var(--step-1);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--fg);
+}
+.rg-stand__how p + p {
+  margin-block-start: var(--space-2xs);
+}
+
+/* On a phone the page margin is thin, so the doodles hang off less. */
+@media (max-width: 640px) {
+  .rg-stand__trophy {
+    inset-inline-end: -0.5rem;
+    inline-size: 3.75rem;
+    block-size: 4rem;
+  }
+  .rg-stand__medal {
+    inset-inline-start: calc(-1 * var(--space-m) - 0.9rem);
+    inline-size: 2rem;
+    block-size: 2.7rem;
+  }
+  .rg-stand__laurel {
+    inline-size: 1.75rem;
+    block-size: 2.45rem;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rg-stand__laurel,
+  .rg-stand__trophy {
+    animation: rg-pen 800ms var(--ease-out) 200ms backwards;
+  }
+  .rg-stand__medal {
+    animation: rg-medal-in 520ms var(--ease-out) backwards;
+  }
+  tr:nth-child(2) .rg-stand__medal {
+    animation-delay: 90ms;
+  }
+  tr:nth-child(3) .rg-stand__medal {
+    animation-delay: 180ms;
+  }
+}
+@keyframes rg-medal-in {
+  from {
+    opacity: 0;
+    translate: -0.75rem 0;
+  }
+}
 .rg-stand__switch {
   display: flex;
   gap: var(--space-m);
   margin-block-start: var(--space-xs);
+}
+/* The window switch sits under the board switch, so it reads smaller and
+   plainer: a printed label, the picked one circled in pen. */
+.rg-tab--sub {
+  min-height: 44px;
+  padding: 0.1em 0.7em;
+  font-family: var(--f-label);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1.5px solid transparent;
+  border-radius: var(--wob-sm);
+}
+.rg-tab--sub::after {
+  display: none;
+}
+.rg-tab--sub[aria-current] {
+  border-color: var(--fg);
+  transform: rotate(-1.5deg);
+}
+.rg-stand__switch:has(.rg-tab--sub) {
+  gap: var(--space-2xs);
+  margin-inline-start: -0.7em;
 }
 .rg-stand {
   inline-size: 100%;
@@ -2692,12 +2889,16 @@ a.rg-pill {
   border-collapse: collapse;
   border-top: 1px solid var(--hairline-strong);
 }
+/* Cells sit on one shared baseline, so the handwritten numbers and the
+   plain text line up across a row whatever each font's height. */
 .rg-stand th,
 .rg-stand td {
   padding: var(--space-2xs) var(--space-2xs);
   border-bottom: 1px solid var(--hairline);
   text-align: right;
   white-space: nowrap;
+  vertical-align: baseline;
+  line-height: 1.2;
 }
 .rg-stand thead th {
   font-family: var(--f-label);
@@ -2720,15 +2921,18 @@ a.rg-pill {
   max-inline-size: 0;
   text-align: left;
 }
+/* Inline, not flex, so the cell's baseline is the name's: the tile sits
+   centred on the text and a long name trims at the cell's edge. */
 .rg-stand__who {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  min-inline-size: 0;
-}
-.rg-stand__name {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.rg-stand__who .rg-tile {
+  vertical-align: middle;
+  margin-inline-end: var(--space-xs);
+}
+.rg-stand__name {
   font-weight: 600;
 }
 .rg-stand td.rg-stand__pts,
@@ -2737,8 +2941,7 @@ a.rg-pill {
   font-weight: 600;
 }
 .rg-stand td.rg-stand__wins,
-.rg-stand td.rg-stand__pods,
-.rg-stand td.rg-stand__rate {
+.rg-stand td.rg-stand__pods {
   font-family: var(--f-label);
   color: var(--fg-muted);
 }
@@ -2750,13 +2953,25 @@ a.rg-pill {
 .rg-stand__pinned tr:first-child > * {
   border-top: 2px solid var(--hairline-strong);
 }
-/* A long riddle name trims so the time stays in view. */
+/* A long riddle name trims so the time stays in view. It sits right,
+   under its heading, and links to that riddle's Results. */
 .rg-stand td.rg-stand__riddle {
   max-inline-size: 10rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: left;
+  padding-inline-start: var(--space-s);
   color: var(--fg-muted);
+}
+/* The usual squiggly link, but inline so it keeps the row's baseline and
+   a long name can trim. */
+.rg-stand .rg-stand__link {
+  display: inline;
+  min-height: 0;
+  padding: 0 0 0.3rem;
+  font-weight: 600;
+}
+.rg-stand .rg-stand__link::after {
+  bottom: 0;
 }
 
 .rg-payout {

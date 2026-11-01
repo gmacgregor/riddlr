@@ -234,10 +234,6 @@ Fastest shows each player once, with their best time on any Solve (not only
 Wins) and the riddle it came from; players share a rank there only on the
 same time and the same Live date. Solves with no time don't count.
 
-Every board also shows each player's solve rate over the window: their
-Solves ÷ their Entries, as "7/10 · 70%". Entries were not kept before this
-column existed, so older riddles show a dash when a player has none.
-
 A signed-in player's own row is marked. When they are on the board but
 outside the top 50, their row is pinned below the list with its true rank. The
 page updates by itself when a riddle completes, once its Solves are saved.

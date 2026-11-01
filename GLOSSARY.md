@@ -150,7 +150,7 @@ it completes.
 _Avoid_: attempt, play
 
 **Solve rate**:
-A player's Solves ÷ Entries over a Window, shown on every Standings board.
+A player's Solves ÷ Entries over a Window. Not shown anywhere yet.
 _Avoid_: win rate, accuracy; not the **Completion rate** (one riddle)
 
 **Leaderboard**:

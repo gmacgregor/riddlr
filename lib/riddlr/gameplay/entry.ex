@@ -6,7 +6,7 @@ defmodule Riddlr.Gameplay.Entry do
   ETS holds the guesses while the riddle is live. When the riddle completes,
   `Riddlr.Games.transition/3` writes one Entry per distinct guesser, solvers
   included, in the same transaction as the `Riddlr.Gameplay.Solve` rows.
-  Standings divide Solves by Entries for the solve rate.
+  Solves ÷ Entries gives a player's solve rate.
 
   `user_id` is nil when the player's account is gone.
   """

@@ -21,9 +21,6 @@ defmodule Riddlr.Standings do
   don't count on Fastest. The Wins and Podiums boards leave out players with none of
   their stat.
 
-  Every row also carries the player's `solves` and `entries` (see
-  `Riddlr.Gameplay.Entry`) over the window, for the solve rate.
-
   Deleted players (solves with a nil `user_id`) and banned or suspended
   players are left out. Admins show like anyone else.
 
@@ -36,7 +33,6 @@ defmodule Riddlr.Standings do
 
   alias Riddlr.Accounts.User
   alias Riddlr.Clock
-  alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Games.Riddle
   alias Riddlr.Repo
@@ -61,13 +57,12 @@ defmodule Riddlr.Standings do
           required(:rank) => pos_integer(),
           required(:user_id) => integer(),
           required(:username) => String.t(),
-          required(:solves) => non_neg_integer(),
-          required(:entries) => non_neg_integer(),
           optional(:points) => non_neg_integer(),
           optional(:wins) => non_neg_integer(),
           optional(:podiums) => non_neg_integer(),
           optional(:solve_time_ms) => non_neg_integer(),
           optional(:live_date) => DateTime.t() | nil,
+          optional(:riddle_id) => integer(),
           optional(:riddle_name) => String.t(),
           optional(:riddle_number) => pos_integer() | nil
         }
@@ -82,7 +77,6 @@ defmodule Riddlr.Standings do
       limit: @limit
     )
     |> Repo.all()
-    |> add_rate(window)
   end
 
   @doc """
@@ -93,10 +87,6 @@ defmodule Riddlr.Standings do
   def player_row(user_id, board, window) when board in @boards and window in @windows do
     from(row in subquery(ranked(board, window)), where: row.user_id == ^user_id)
     |> Repo.one()
-    |> case do
-      nil -> nil
-      row -> [row] |> add_rate(window) |> hd()
-    end
   end
 
   @doc """
@@ -165,6 +155,7 @@ defmodule Riddlr.Standings do
         username: u.username,
         solve_time_ms: s.solve_time_ms,
         live_date: r.live_date,
+        riddle_id: r.id,
         riddle_name: r.name,
         riddle_number: r.number
       }
@@ -185,41 +176,6 @@ defmodule Riddlr.Standings do
     )
     |> in_window(window)
     |> with_some(board)
-  end
-
-  # Solves and entries for the listed players, both over the window, so the
-  # page can show the solve rate on any board.
-  @spec add_rate([map()], window()) :: [row()]
-  defp add_rate([], _window), do: []
-
-  defp add_rate(rows, window) do
-    ids = Enum.map(rows, & &1.user_id)
-    solves = count_by_user(Solve, ids, window)
-    entries = count_by_user(Entry, ids, window)
-
-    Enum.map(rows, fn row ->
-      Map.merge(row, %{
-        solves: Map.get(solves, row.user_id, 0),
-        entries: Map.get(entries, row.user_id, 0)
-      })
-    end)
-  end
-
-  # How many rows of `schema` (Solve or Entry) each listed player has on the
-  # window's riddles.
-  @spec count_by_user(module(), [integer()], window()) :: %{integer() => non_neg_integer()}
-  defp count_by_user(schema, ids, window) do
-    from(x in schema,
-      join: r in Riddle,
-      as: :riddle,
-      on: r.id == x.riddle_id,
-      where: x.user_id in ^ids,
-      group_by: x.user_id,
-      select: {x.user_id, count(x.id)}
-    )
-    |> in_window(window)
-    |> Repo.all()
-    |> Map.new()
   end
 
   # The Wins and Podiums boards only list players with at least one.

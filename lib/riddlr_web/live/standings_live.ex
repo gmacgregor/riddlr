@@ -2,8 +2,8 @@ defmodule RiddlrWeb.StandingsLive do
   @moduledoc """
   The public Standings page: the overall ranking of players across riddles
   (`Riddlr.Standings.list/2`): rank, player, points, wins and podiums, or
-  on the Fastest board rank, player, best time and its riddle. Every board
-  ends with the solve rate.
+  on the Fastest board rank, player, best time and its riddle, linked to
+  that riddle's Results.
 
   Two URL params pick what it shows, each with a switch on the page that
   patches between values and keeps the other param:
@@ -20,6 +20,9 @@ defmodule RiddlrWeb.StandingsLive do
   A signed-in player's own row is marked. When they are on the board but
   outside the top 50, their row (`Riddlr.Standings.player_row/3`) is pinned
   below the list with its true rank.
+
+  A "How are these counted?" link below opens a note on how each board is
+  counted, how ties break, and what This month covers.
 
   Anyone can open it, signed in or not. With no solves in the window it
   shows an empty note instead of the board.
@@ -74,10 +77,15 @@ defmodule RiddlrWeb.StandingsLive do
     <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
       <section class="rg-view" aria-labelledby="standings-h">
         <div class="rg-wrap rg-standings">
-          <section class="rg-panel">
-            <h1 id="standings-h" class="rg-panel__h" tabindex="-1">
-              {GameCopy.standings_heading()}
-            </h1>
+          <section class="rg-panel rg-stand-note">
+            <.trophy />
+            <div class="rg-stand__head">
+              <.laurel />
+              <h1 id="standings-h" class="rg-panel__h" tabindex="-1">
+                {GameCopy.standings_heading()}
+              </h1>
+              <.laurel flip />
+            </div>
             <nav class="rg-stand__switch" aria-label={GameCopy.standings_board_label()}>
               <.link
                 :for={board <- @boards}
@@ -94,7 +102,7 @@ defmodule RiddlrWeb.StandingsLive do
                 :for={window <- @windows}
                 id={"standings-window-#{window}"}
                 patch={~p"/standings?#{[board: @board, window: window]}"}
-                class="rg-tab rg-tab--sm"
+                class="rg-tab rg-tab--sm rg-tab--sub"
                 aria-current={if window == @window, do: "page"}
               >
                 {GameCopy.standings_window(window)}
@@ -124,7 +132,6 @@ defmodule RiddlrWeb.StandingsLive do
                       {GameCopy.standings_col(:podiums)}
                     </th>
                   <% end %>
-                  <th scope="col" class="rg-stand__rate">{GameCopy.standings_col(:rate)}</th>
                 </tr>
               </thead>
               <tbody id="standings-rows" phx-update="stream">
@@ -147,6 +154,17 @@ defmodule RiddlrWeb.StandingsLive do
                 />
               </tbody>
             </table>
+            <details id="standings-how" class="rg-stand__how">
+              <summary class="rg-link-btn">{GameCopy.standings_how_link()}</summary>
+              <dl class="rg-stand__how-list">
+                <div :for={board <- @boards} id={"standings-how-#{board}"}>
+                  <dt>{GameCopy.standings_board(board)}</dt>
+                  <dd>{GameCopy.standings_how(board)}</dd>
+                </div>
+              </dl>
+              <p>{GameCopy.standings_how_ties()}</p>
+              <p>{GameCopy.standings_how_month()}</p>
+            </details>
           </section>
         </div>
       </section>
@@ -164,7 +182,9 @@ defmodule RiddlrWeb.StandingsLive do
   defp board_row(assigns) do
     ~H"""
     <tr id={@id} class={@you? && "rg-stand__you"} aria-current={@you? && "true"}>
-      <td class="rg-stand__rank">{@row.rank}</td>
+      <td class="rg-stand__rank">
+        <.medal :if={@row.rank <= 3} place={@row.rank} />{@row.rank}
+      </td>
       <th scope="row" class="rg-stand__player">
         <span class="rg-stand__who">
           <GameComponents.tile
@@ -178,15 +198,90 @@ defmodule RiddlrWeb.StandingsLive do
       <%= if @board == :fastest do %>
         <td class="rg-stand__time">{GameCopy.solve_secs(@row.solve_time_ms)}</td>
         <td class="rg-stand__riddle">
-          {GameCopy.riddle_name(%{number: @row.riddle_number, name: @row.riddle_name})}
+          <.link navigate={~p"/game/#{@row.riddle_id}/results"} class="rg-link-btn rg-stand__link">
+            {GameCopy.riddle_name(%{number: @row.riddle_number, name: @row.riddle_name})}
+          </.link>
         </td>
       <% else %>
         <td class="rg-stand__pts">{@row.points}</td>
         <td class="rg-stand__wins">{@row.wins}</td>
         <td class="rg-stand__pods">{@row.podiums}</td>
       <% end %>
-      <td class="rg-stand__rate">{GameCopy.standings_rate(@row.solves, @row.entries)}</td>
     </tr>
+    """
+  end
+
+  attr :place, :integer, required: true, doc: "1, 2 or 3"
+
+  # A gold, silver or bronze medal hung beside a top-three rank. It pokes
+  # past the note's left edge. Players level on a rank share a medal.
+  defp medal(assigns) do
+    ~H"""
+    <svg
+      class={"rg-stand__medal rg-stand__medal--#{@place}"}
+      viewBox="0 0 40 54"
+      aria-hidden="true"
+    >
+      <path class="rg-stand__ribbon" d="M9 2 L18 2 L23 22 L15.5 24 Z" />
+      <path class="rg-stand__ribbon" d="M31 2 L22.5 2 L17 22 L24.5 24 Z" />
+      <path
+        class="rg-stand__disc"
+        d="M20.5 22.5 C28.5 22 34 27.5 33.5 35.5 C33 43 27.5 48 20 47.5 C12.5 47 7 41.5 7.5 34.5 C8 27 13 23 20.5 22.5 Z"
+      />
+      <path
+        class="rg-stand__disc-ring"
+        d="M20 27.5 C25.5 27.5 28.5 31 28.5 35.5 C28 40 24.5 43 20 42.5"
+      />
+      <path
+        class="rg-stand__star"
+        d="M20 29.5 L21.9 33.4 L26 33.9 L23 36.7 L23.8 40.8 L20 38.8 L16.2 40.8 L17 36.7 L14 33.9 L18.1 33.4 Z"
+      />
+    </svg>
+    """
+  end
+
+  attr :flip, :boolean, default: false, doc: "mirror it for the right of the heading"
+
+  # A laurel sprig, one each side of the heading.
+  defp laurel(assigns) do
+    ~H"""
+    <svg
+      class={["rg-doodle rg-stand__laurel", @flip && "rg-stand__laurel--flip"]}
+      viewBox="0 0 40 56"
+      aria-hidden="true"
+    >
+      <path d="M30 52 C14 46 8 30 14 6" />
+      <path class="rg-stand__leaf" d="M13 12 C7 10 6 5 8 2 C12 4 14 8 13 12 Z" />
+      <path class="rg-stand__leaf" d="M14 13 C19 10 23 11 24 15 C20 17 16 16 14 13 Z" />
+      <path class="rg-stand__leaf" d="M11 22 C5 21 3 16 4 12 C9 14 11 18 11 22 Z" />
+      <path class="rg-stand__leaf" d="M12 24 C17 21 21 22 22 26 C18 28 14 27 12 24 Z" />
+      <path class="rg-stand__leaf" d="M12 33 C6 33 3 29 3 25 C8 26 11 29 12 33 Z" />
+      <path class="rg-stand__leaf" d="M14 35 C19 33 23 35 23 39 C19 40 16 38 14 35 Z" />
+      <path class="rg-stand__leaf" d="M18 43 C12 44 8 41 7 37 C12 37 16 39 18 43 Z" />
+      <path class="rg-stand__leaf" d="M22 46 C26 43 30 44 32 47 C28 50 24 49 22 46 Z" />
+    </svg>
+    """
+  end
+
+  # A cup with sparkles, perched on the note's top right corner.
+  defp trophy(assigns) do
+    ~H"""
+    <svg class="rg-doodle rg-stand__trophy" viewBox="0 0 80 84" aria-hidden="true">
+      <path
+        class="rg-stand__cup"
+        d="M24 14 C34 12.5 46 12.5 56 14 C57 30 52 42 40.5 45 C29 42 23.5 30 24 14 Z"
+      />
+      <path d="M24.5 19 C15 17.5 13 25 16 30 C18.5 34 23 35 27 35" />
+      <path d="M55.5 19 C65 17.5 67 25 64 30 C61.5 34 57 35 53 35" />
+      <path d="M40.5 45 L40 55" />
+      <path class="rg-stand__cup" d="M33 55 C38 54 43 54 48 55 L50 62 C43 61 37 61 31 62 Z" />
+      <path class="rg-stand__base" d="M27 62 C36 61 45 61 54 62 L54.5 69 C45 68 36 68 26.5 69 Z" />
+      <path d="M33 20 C32.5 27 34 33 37 37" />
+      <path d="M8 8 L8 16 M4 12 L12 12" />
+      <path d="M70 4 L70 10 M67 7 L73 7" />
+      <path d="M72 40 L77 38 M71 46 L77 47 M68 51 L72 55" />
+      <path d="M6 44 C4 42 4 40 6 39 M3 50 L8 49" />
+    </svg>
     """
   end
 

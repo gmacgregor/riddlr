@@ -186,6 +186,7 @@ defmodule Riddlr.StandingsTest do
 
       assert [row] = Standings.list(:fastest, :all_time)
       assert %{rank: 1, username: "ann", solve_time_ms: 2_500} = row
+      assert row.riddle_id == quick.id
       assert row.riddle_name == "Quick Riddle"
       assert row.riddle_number == quick.number
     end
@@ -216,21 +217,6 @@ defmodule Riddlr.StandingsTest do
     end
   end
 
-  describe "solves and entries" do
-    test "every board carries each player's solves and entries" do
-      [r1, r2, r3] = for _ <- 1..3, do: riddle_fixture()
-      ann = user_fixture(%{username: "ann"})
-
-      for r <- [r1, r2, r3], do: entry_fixture(r, ann)
-      solve_fixture(r1, ann, %{placement: 1})
-      solve_fixture(r2, ann, %{placement: 2})
-
-      for board <- [:points, :wins, :podiums, :fastest] do
-        assert [%{solves: 2, entries: 3}] = Standings.list(board, :all_time)
-      end
-    end
-  end
-
   describe "player_row(user_id, board, window)" do
     test "gives the same rank list/2 would, even outside the top 50" do
       riddle = riddle_fixture()
@@ -250,7 +236,6 @@ defmodule Riddlr.StandingsTest do
 
       assert id == tied.id
       assert %{rank: 52} = Standings.player_row(last.id, :points, :all_time)
-      assert %{solves: 1, entries: 0} = Standings.player_row(last.id, :points, :all_time)
 
       {1, top} = hd(players)
 

@@ -588,6 +588,38 @@ defmodule RiddlrWeb.GameCopy do
   @spec standings_heading() :: String.t()
   def standings_heading, do: "Standings"
 
+  @doc "The link that opens the note on how each Standings board is counted."
+  @spec standings_how_link() :: String.t()
+  def standings_how_link, do: "How are these counted?"
+
+  @doc "How one Standings board is counted, for the note under the board."
+  @spec standings_how(:points | :wins | :podiums | :fastest) :: String.t()
+  def standings_how(:points),
+    do:
+      "Each solve earns points by place: 10 for 1st, 9 for 2nd, and so on down to 1 for 10th. " <>
+        "11th and later earn none. Your total adds up every riddle you solved."
+
+  def standings_how(:wins), do: "How many riddles you solved first."
+  def standings_how(:podiums), do: "How many riddles you solved 1st, 2nd or 3rd."
+
+  def standings_how(:fastest),
+    do:
+      "Your quickest solve on any one riddle: the time from the riddle going live " <>
+        "to your right answer."
+
+  @doc "How the Standings note says ties are broken."
+  @spec standings_how_ties() :: String.t()
+  def standings_how_ties,
+    do:
+      "Ties: Points looks next at wins, then podiums. Wins looks at podiums, then points. " <>
+        "Podiums looks at wins, then points. Fastest looks at which riddle came first. " <>
+        "Players still level share a rank."
+
+  @doc "How the Standings note explains This month."
+  @spec standings_how_month() :: String.t()
+  def standings_how_month,
+    do: "This month counts only riddles that went live this calendar month (UTC)."
+
   @doc "The Standings line when nobody has solved a riddle in the window."
   @spec standings_empty(:all_time | :month) :: String.t()
   def standings_empty(:all_time),
@@ -616,7 +648,7 @@ defmodule RiddlrWeb.GameCopy do
   def standings_window_label, do: "Show standings for"
 
   @doc "A Standings column heading."
-  @spec standings_col(:rank | :player | :points | :wins | :podiums | :time | :riddle | :rate) ::
+  @spec standings_col(:rank | :player | :points | :wins | :podiums | :time | :riddle) ::
           String.t()
   def standings_col(:rank), do: "#"
   def standings_col(:player), do: "Player"
@@ -625,18 +657,6 @@ defmodule RiddlrWeb.GameCopy do
   def standings_col(:podiums), do: "Podiums"
   def standings_col(:time), do: "Time"
   def standings_col(:riddle), do: "Riddle"
-  def standings_col(:rate), do: "Solve rate"
-
-  @doc """
-  A player's solve rate on Standings, e.g. "7/10 · 70%": Solves over
-  Entries, with a whole percent. A dash when there are no Entries, as with
-  riddles that completed before Entries were kept.
-  """
-  @spec standings_rate(non_neg_integer(), non_neg_integer()) :: String.t()
-  def standings_rate(_solves, 0), do: "—"
-
-  def standings_rate(solves, entries),
-    do: "#{solves}/#{entries} · #{round(solves * 100 / entries)}%"
 
   @doc "The link to the Standings page from Home and Results."
   @spec standings_link() :: String.t()

@@ -32,16 +32,26 @@ defmodule RiddlrWeb.StandingsLiveTest do
     refute has_element?(live, "#standings-empty")
   end
 
-  test "shows each player's solve rate on every board", %{conn: conn} do
-    riddles = for _ <- 1..10, do: riddle_fixture()
+  test "the Fastest board links each riddle to its Results", %{conn: conn} do
+    riddle = riddle_fixture()
     ann = user_fixture(%{username: "ann"})
+    solve_fixture(riddle, ann, %{placement: 1, solve_time_ms: 2_500})
 
-    for r <- riddles, do: entry_fixture(r, ann)
-    for r <- Enum.take(riddles, 7), do: solve_fixture(r, ann, %{placement: 1})
+    {:ok, live, _html} = live(conn, ~p"/standings?board=fastest")
+
+    assert has_element?(
+             live,
+             ~s(#standings-#{ann.id} .rg-stand__riddle a[href="/game/#{riddle.id}/results"])
+           )
+  end
+
+  test "explains how each board is counted", %{conn: conn} do
+    {:ok, live, _html} = live(conn, ~p"/standings")
+
+    assert has_element?(live, "#standings-how summary", "How are these counted?")
 
     for board <- ~w(points wins podiums fastest) do
-      {:ok, live, _html} = live(conn, ~p"/standings?board=#{board}")
-      assert has_element?(live, "#standings-#{ann.id} .rg-stand__rate", "7/10 · 70%")
+      assert has_element?(live, "#standings-how-#{board} dd")
     end
   end
 end
