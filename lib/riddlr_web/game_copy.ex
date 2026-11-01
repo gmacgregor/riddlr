@@ -81,13 +81,6 @@ defmodule RiddlrWeb.GameCopy do
   def timeline_heading, do: "A round, start to finish"
 
   @doc """
-  The note beside the Home timeline heading: words struck out, then the one
-  kept, read as "~~streaks~~ ~~feeds~~ riddles".
-  """
-  @spec timeline_aside() :: %{struck: [String.t()], kept: String.t()}
-  def timeline_aside, do: %{struck: ["streaks", "feeds"], kept: "riddles"}
-
-  @doc """
   The last time on the Home timeline when there is no next riddle. Matches
   the default solve time in `Riddlr.Games.Riddle`.
   """

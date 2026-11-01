@@ -102,15 +102,7 @@
       </section>
 
       <section id="timeline" class="rg-panel rg-intro" aria-labelledby="timeline-h">
-        <div class="rg-intro__head">
-          <h2 id="timeline-h" class="rg-panel__h">{GameCopy.timeline_heading()}</h2>
-          <p class="rg-intro__aside" aria-hidden="true">
-            <%= for word <- GameCopy.timeline_aside().struck do %>
-              <s>{word}</s>
-            <% end %>
-            {GameCopy.timeline_aside().kept}
-          </p>
-        </div>
+        <h2 id="timeline-h" class="rg-panel__h">{GameCopy.timeline_heading()}</h2>
         <ol id="timeline-reel" class="rg-reel" phx-hook=".Reel">
           <li
             :for={{step, row} <- Enum.with_index(GameCopy.timeline_steps(@round_end))}

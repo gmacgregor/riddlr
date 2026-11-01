@@ -1308,25 +1308,6 @@ a.rg-pill {
 }
 
 /* "A round, start to finish": a hand-drawn timeline. */
-.rg-intro__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3xs) var(--space-s);
-}
-.rg-intro__aside {
-  color: var(--success-text);
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: var(--display-s);
-  line-height: 1.1;
-  transform: rotate(-2deg);
-}
-.rg-intro__aside s {
-  text-decoration: line-through wavy var(--urgent);
-  text-decoration-thickness: 2px;
-}
 
 .rg-reel {
   --col: var(--space-time-col);
