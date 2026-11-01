@@ -14,7 +14,11 @@
         required
         phx-mounted={JS.focus()}
       />
-      <.input field={f[:notify_email]} type="checkbox" label="Email me before riddles go live" />
+      <%= if RiddlrWeb.PrototypeSmsOptIn.enabled?() do %>
+        <RiddlrWeb.PrototypeSmsOptIn.signup_fields form={f} />
+      <% else %>
+        <.input field={f[:notify_email]} type="checkbox" label="Email me before riddles go live" />
+      <% end %>
       <.auth_submit phx-disable-with="Creating account...">
         Create an account <span aria-hidden="true">→</span>
       </.auth_submit>
@@ -24,4 +28,5 @@
       Already registered? <.link navigate={~p"/users/log-in"} class="rg-auth__link">Log in</.link>
     </p>
   </.auth_shell>
+  <RiddlrWeb.PrototypeSmsOptIn.signup_bar :if={RiddlrWeb.PrototypeSmsOptIn.enabled?()} />
 </Layouts.game>

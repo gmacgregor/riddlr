@@ -14,7 +14,11 @@
       <div class="rg-auth__meta-row">
         <dt class="rg-auth__meta-label">Notifications</dt>
         <dd id="profile-notifications" class="rg-auth__meta-value">
-          {notification_summary(@current_scope.user)}
+          <%= if RiddlrWeb.PrototypeSmsOptIn.enabled?() do %>
+            {RiddlrWeb.PrototypeSmsOptIn.summary(RiddlrWeb.PrototypeSmsOptIn.state(@conn.params))}
+          <% else %>
+            {notification_summary(@current_scope.user)}
+          <% end %>
         </dd>
       </div>
     </dl>
@@ -40,7 +44,13 @@
       <.auth_submit phx-disable-with="Changing...">Change email</.auth_submit>
     </.form>
 
+    <RiddlrWeb.PrototypeSmsOptIn.profile_section
+      :if={RiddlrWeb.PrototypeSmsOptIn.enabled?()}
+      state={RiddlrWeb.PrototypeSmsOptIn.state(@conn.params)}
+    />
+
     <.form
+      :if={!RiddlrWeb.PrototypeSmsOptIn.enabled?()}
       :let={f}
       for={@notifications_changeset}
       action={~p"/profile"}
@@ -69,4 +79,8 @@
       <.link navigate={~p"/"} class="rg-auth__link">Back to the game</.link>
     </p>
   </.auth_shell>
+  <RiddlrWeb.PrototypeSmsOptIn.switcher
+    :if={RiddlrWeb.PrototypeSmsOptIn.enabled?()}
+    state={RiddlrWeb.PrototypeSmsOptIn.state(@conn.params)}
+  />
 </Layouts.game>

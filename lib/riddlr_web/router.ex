@@ -57,6 +57,8 @@ defmodule RiddlrWeb.Router do
 
       live_dashboard "/dashboard", metrics: RiddlrWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
+      # PROTOTYPE, throwaway: SMS opt-in log-in flash
+      get "/proto-sms-login", RiddlrWeb.PrototypeSmsLoginController, :show
     end
   end
 
