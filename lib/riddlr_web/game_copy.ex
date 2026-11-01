@@ -588,9 +588,21 @@ defmodule RiddlrWeb.GameCopy do
   @spec standings_heading() :: String.t()
   def standings_heading, do: "Standings"
 
-  @doc "The Standings line when nobody has solved a riddle yet."
-  @spec standings_empty() :: String.t()
-  def standings_empty, do: "No one has solved a riddle yet. The first solve puts you on top."
+  @doc "The Standings line when nobody has solved a riddle in the window."
+  @spec standings_empty(:all_time | :month) :: String.t()
+  def standings_empty(:all_time),
+    do: "No one has solved a riddle yet. The first solve puts you on top."
+
+  def standings_empty(:month), do: "No solves yet this month"
+
+  @doc "A label on the Standings window switch."
+  @spec standings_window(:all_time | :month) :: String.t()
+  def standings_window(:all_time), do: "All time"
+  def standings_window(:month), do: "This month"
+
+  @doc "The accessible name of the Standings window switch."
+  @spec standings_window_label() :: String.t()
+  def standings_window_label, do: "Show standings for"
 
   @doc "A Standings column heading."
   @spec standings_col(:rank | :player | :points | :wins | :podiums) :: String.t()

@@ -2413,11 +2413,19 @@ a.rg-pill {
   opacity: 0;
   pointer-events: none;
 }
-.rg-tab[aria-selected="true"] {
+.rg-tab[aria-selected="true"],
+.rg-tab[aria-current] {
   color: var(--fg);
 }
-.rg-tab[aria-selected="true"]::after {
+.rg-tab[aria-selected="true"]::after,
+.rg-tab[aria-current]::after {
   opacity: 1;
+}
+/* A smaller tab, for a switch that sits under a heading. */
+.rg-tab--sm {
+  min-height: 44px;
+  text-decoration: none;
+  font-size: var(--display-s);
 }
 @media (hover: hover) {
   .rg-tab:hover {
@@ -2672,6 +2680,11 @@ a.rg-pill {
 .rg-standings {
   max-inline-size: var(--wrap-narrow);
   padding-block-start: var(--space-l);
+}
+.rg-stand__windows {
+  display: flex;
+  gap: var(--space-m);
+  margin-block-start: var(--space-xs);
 }
 .rg-stand {
   inline-size: 100%;

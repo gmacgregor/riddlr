@@ -1,11 +1,15 @@
 defmodule RiddlrWeb.StandingsLive do
   @moduledoc """
   The public Standings page: the overall ranking of players across riddles
-  (`Riddlr.Standings.list/2`). For now it shows the all-time Points board:
-  rank, player, points, wins and podiums.
+  (`Riddlr.Standings.list/2`). It shows the Points board: rank, player,
+  points, wins and podiums.
 
-  Anyone can open it, signed in or not. With no solves yet it shows an empty
-  note instead of the board.
+  `?window=all_time` (the default) or `?window=month` picks the window; a
+  switch on the page patches between them, and any other value falls back
+  to all-time.
+
+  Anyone can open it, signed in or not. With no solves in the window it
+  shows an empty note instead of the board.
   """
 
   use RiddlrWeb, :live_view
@@ -15,15 +19,23 @@ defmodule RiddlrWeb.StandingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    rows = Standings.list(:points, :all_time)
-
     {:ok,
      socket
      |> assign(:page_title, GameCopy.standings_heading())
+     |> stream_configure(:rows, dom_id: &"standings-#{&1.user_id}")}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    window = parse_window(params["window"])
+    rows = Standings.list(:points, window)
+
+    {:noreply,
+     socket
+     |> assign(:window, window)
      # A stream can't say whether it is empty, so the empty note reads this.
      |> assign(:empty?, rows == [])
-     |> stream_configure(:rows, dom_id: &"standings-#{&1.user_id}")
-     |> stream(:rows, rows)}
+     |> stream(:rows, rows, reset: true)}
   end
 
   @impl true
@@ -36,8 +48,19 @@ defmodule RiddlrWeb.StandingsLive do
             <h1 id="standings-h" class="rg-panel__h" tabindex="-1">
               {GameCopy.standings_heading()}
             </h1>
+            <nav class="rg-stand__windows" aria-label={GameCopy.standings_window_label()}>
+              <.link
+                :for={window <- [:all_time, :month]}
+                id={"standings-window-#{window}"}
+                patch={~p"/standings?window=#{window}"}
+                class="rg-tab rg-tab--sm"
+                aria-current={if window == @window, do: "page"}
+              >
+                {GameCopy.standings_window(window)}
+              </.link>
+            </nav>
             <p :if={@empty?} id="standings-empty" class="rg-board__empty">
-              {GameCopy.standings_empty()}
+              {GameCopy.standings_empty(@window)}
             </p>
             <table :if={!@empty?} id="standings-board" class="rg-stand">
               <thead>
@@ -74,6 +97,11 @@ defmodule RiddlrWeb.StandingsLive do
     </Layouts.game>
     """
   end
+
+  # Anything but a known window falls back to all-time.
+  @spec parse_window(String.t() | nil) :: Standings.window()
+  defp parse_window("month"), do: :month
+  defp parse_window(_), do: :all_time
 
   # The viewer's username, so their own tile gets the "you" tone.
   @spec viewer_name(Riddlr.Accounts.User.t() | nil) :: String.t() | nil

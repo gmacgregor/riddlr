@@ -11,12 +11,18 @@ defmodule Riddlr.Standings do
 
   Deleted players (solves with a nil `user_id`) and banned or suspended
   players are left out. Admins show like anyone else.
+
+  A window picks which riddles count. `:all_time` counts every riddle.
+  `:month` counts riddles whose `live_date` falls in the current UTC
+  calendar month, by `Riddlr.Clock`.
   """
 
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query, only: [from: 2, where: 3]
 
   alias Riddlr.Accounts.User
+  alias Riddlr.Clock
   alias Riddlr.Gameplay.Solve
+  alias Riddlr.Games.Riddle
   alias Riddlr.Repo
 
   @limit 50
@@ -25,7 +31,7 @@ defmodule Riddlr.Standings do
   @type board :: :points
 
   @typedoc "The span of riddles a board counts."
-  @type window :: :all_time
+  @type window :: :all_time | :month
 
   @typedoc "One player's line on a board."
   @type row :: %{
@@ -41,8 +47,11 @@ defmodule Riddlr.Standings do
   The top #{@limit} players on `board` over `window`, best first.
   """
   @spec list(board(), window()) :: [row()]
-  def list(:points, :all_time) do
+  def list(:points, window) when window in [:all_time, :month] do
     from(s in Solve,
+      join: r in Riddle,
+      as: :riddle,
+      on: r.id == s.riddle_id,
       join: u in User,
       on: u.id == s.user_id,
       where: u.account_status not in [:banned, :suspended],
@@ -62,8 +71,25 @@ defmodule Riddlr.Standings do
       ],
       limit: @limit
     )
+    |> in_window(window)
     |> Repo.all()
     |> add_ranks()
+  end
+
+  @spec in_window(Ecto.Query.t(), window()) :: Ecto.Query.t()
+  defp in_window(query, :all_time), do: query
+
+  defp in_window(query, :month) do
+    {from, to} = month_bounds(Clock.utc_now())
+    where(query, [riddle: r], r.live_date >= ^from and r.live_date < ^to)
+  end
+
+  # Start of this month and start of next month, both UTC midnight.
+  @spec month_bounds(DateTime.t()) :: {DateTime.t(), DateTime.t()}
+  defp month_bounds(now) do
+    first = Date.beginning_of_month(now)
+    next = first |> Date.end_of_month() |> Date.add(1)
+    {DateTime.new!(first, ~T[00:00:00]), DateTime.new!(next, ~T[00:00:00])}
   end
 
   # Rows arrive sorted. A row level with the one above on points, wins and
