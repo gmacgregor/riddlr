@@ -149,6 +149,10 @@ A player's record of guessing at least once on a riddle, kept for good once
 it completes.
 _Avoid_: attempt, play
 
+**Solve rate**:
+A player's Solves ÷ Entries over a Window, shown on every Standings board.
+_Avoid_: win rate, accuracy; not the **Completion rate** (one riddle)
+
 **Leaderboard**:
 A riddle's solves in placement order, shown on its results page.
 _Avoid_: using it for the ranking across riddles (say **Standings**)
