@@ -45,7 +45,7 @@ _Avoid_: solution
 Optional help text an admin attaches to a riddle, meant to show after a set delay. Not yet shown to players.
 
 **Practice riddle**:
-A riddle and answer shown on Home while nothing is scheduled. It takes no guesses and awards no points.
+A riddle and answer shown on Home while nothing is scheduled, or while the Next riddle's Lobby is not open yet. It takes no guesses and awards no points.
 _Avoid_: sample, demo riddle
 
 ## Lifecycle

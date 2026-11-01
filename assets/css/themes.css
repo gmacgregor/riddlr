@@ -83,9 +83,6 @@
   --display-flap: clamp(3.5rem, 2.5435rem + 4.7826vw, 6.25rem);
   --display-flap-long: clamp(1.75rem, 1.0543rem + 3.4783vw, 3.75rem);
   --display-flap-sm: clamp(2.25rem, 1.8152rem + 2.1739vw, 3.5rem);
-  /* The Home hero's clock: the card's main thing, so bigger than the Lobby's. */
-  --display-flap-hero: clamp(3.75rem, 2.4rem + 6.75vw, 8rem);
-  --display-flap-hero-long: clamp(2rem, 1.2rem + 4vw, 4.75rem);
   --display-account: clamp(2.25rem, 1.9891rem + 1.3043vw, 3rem);
 
   /* Carried over from the old look until later slices of #47 redraw the
@@ -143,7 +140,7 @@
   --surface-2: #f5f7fb;
   --surface-3: #e8ebf3;
   --surface-feature: var(--tone-7);
-  --surface-practice: var(--tone-9);
+  --surface-practice: var(--tone-8);
   --border: #c7c9cf;
   --border-strong: #4c566c;
   --fg: #172440;
@@ -214,7 +211,7 @@
   --surface-2: #172440;
   --surface-3: #223156;
   --surface-feature: var(--tone-7);
-  --surface-practice: var(--tone-9);
+  --surface-practice: var(--tone-8);
   --border: #2f3b57;
   --border-strong: #6b7792;
   --fg: #f5f7fb;

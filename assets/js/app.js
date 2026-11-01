@@ -45,11 +45,13 @@ function onDocumentPatch(start) {
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  // practice_id: the practice riddle Home's static page showed, so the
-  // connected mount keeps it instead of picking another.
+  // practice_id: the practice riddle Home's static page showed, and thinker:
+  // the drawing in its hero card, so the connected mount keeps both instead
+  // of picking again.
   params: () => ({
     _csrf_token: csrfToken,
     practice_id: document.getElementById("practice")?.dataset.practiceId,
+    thinker: document.getElementById("hero-thinker")?.dataset.thinker,
   }),
   hooks: {...colocatedHooks},
   dom: {onDocumentPatch},

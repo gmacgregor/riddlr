@@ -864,12 +864,12 @@ a.rg-pill {
 }
 .rg-hero__head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: end;
-  column-gap: var(--space-s);
+  column-gap: var(--space-m);
 }
 .rg-hero__eyebrow {
-  grid-column: 1;
+  grid-column: 1 / -1;
   font-family: var(--f-display);
   font-weight: 700;
   font-size: var(--display-hero);
@@ -891,10 +891,17 @@ a.rg-pill {
   line-height: 1;
   color: var(--fg-muted);
 }
-/* "this one", with an arrow at the card. */
+/* "this one", right of the date, with an arrow that dips onto the card.
+   The sheet comes later and makes its own stacking layer, so the note needs
+   a z-index to sit on top of it. */
 .rg-hero__aside {
+  position: relative;
+  z-index: 3;
   grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-row: 2;
+  justify-self: start;
+  align-self: start;
+  margin-block-end: calc(var(--space-m) * -2);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -957,27 +964,38 @@ a.rg-pill {
   background: var(--tape-4);
 }
 
-.rg-doodle--burst {
-  --burst-size: clamp(4rem, 3.5652rem + 2.1739vw, 5.25rem);
+/* A person deep in thought, on the card's bottom corner. It sits over the
+   practice note too, so it needs a z-index above the card's content. */
+.rg-thinker {
+  --thinker-size: clamp(5.5rem, 4.8rem + 3.5vw, 8rem);
   position: absolute;
-  z-index: -1;
+  z-index: 3;
   pointer-events: none;
-  inset-inline-end: calc(var(--burst-size) * -0.16);
-  inset-block-end: calc(var(--burst-size) * -0.35);
-  inline-size: var(--burst-size);
-  block-size: var(--burst-size);
+  inset-inline-end: calc(var(--thinker-size) * -0.12);
+  inset-block-end: 0;
+  inline-size: var(--thinker-size);
+  block-size: var(--thinker-size);
+  overflow: visible;
   color: var(--fg);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: rotate(-3deg);
+}
+.rg-thinker__paper {
   fill: var(--surface-2);
-  transform: rotate(12deg);
 }
-.rg-doodle--burst text {
-  fill: var(--fg);
+.rg-thinker__ink {
+  fill: currentColor;
+}
+/* Freckles and stubble: small dots with no outline. */
+.rg-thinker__dots {
+  fill: currentColor;
   stroke: none;
-  font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 44px;
 }
-.rg-hero__sheet[data-state="none"] .rg-doodle--burst {
+.rg-hero__sheet[data-state="none"] .rg-thinker {
   display: none;
 }
 
@@ -1297,14 +1315,23 @@ a.rg-pill {
   font-size: var(--step-0);
 }
 
-/* Clock sizes: 4 tiles can go big; 6 (HH:MM:SS) must fit at any width. */
+/* Clock sizes follow the card's width (the card is a size container), so
+   the clock fills most of the card: 4 tiles (MM:SS) or 6 (HH:MM:SS). The
+   divisors are the clock's width in flap sizes, with room to spare. */
+.rg-hero__card {
+  container-type: inline-size;
+}
 .rg-hero .rg-flaps {
-  --flap-size: var(--display-flap-hero);
+  --flap-size: min(100cqi / 4, 9rem);
   gap: calc(var(--flap-size) * 0.06);
 }
 .rg-hero .rg-flaps--long {
-  --flap-size: var(--display-flap-hero-long);
+  --flap-size: min(100cqi / 5.5, 9rem);
   gap: calc(var(--flap-size) * 0.07);
+}
+/* No button to pin to the bottom: the clock sits under the title. */
+.rg-hero__sheet[data-state="future"] .rg-hero__card {
+  min-block-size: 0;
 }
 
 /* "A round, start to finish": a hand-drawn timeline. */
@@ -1584,11 +1611,11 @@ a.rg-pill {
 /* Motion: pens draw once, and the timeline flips in when it scrolls into
    view. The .Reel hook sets is-armed, then is-flipped. */
 @media (prefers-reduced-motion: no-preference) {
-  .rg-hero .rg-doodle:not(.rg-doodle--burst) {
+  .rg-hero .rg-doodle {
     animation: rg-pen 800ms var(--ease-out) 300ms backwards;
   }
-  .rg-doodle--burst {
-    animation: rg-stamp 420ms var(--ease-out) 600ms backwards;
+  .rg-thinker {
+    animation: rg-thinker-in 480ms var(--ease-out) 600ms backwards;
   }
   .rg-hl {
     animation: rg-swipe 600ms var(--ease-out) 150ms backwards;
@@ -1633,9 +1660,9 @@ a.rg-pill {
     background-repeat: no-repeat;
   }
 }
-@keyframes rg-stamp {
+@keyframes rg-thinker-in {
   from {
-    transform: rotate(12deg) scale(1.5);
+    transform: rotate(-3deg) translateY(30%);
     opacity: 0;
   }
 }

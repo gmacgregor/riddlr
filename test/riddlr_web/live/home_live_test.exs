@@ -7,7 +7,7 @@ defmodule RiddlrWeb.HomeLiveTest do
   alias Riddlr.Clock.Frozen
   alias Riddlr.{Gameplay, Games, GamesFixtures}
   alias Riddlr.Gameplay.Presence
-  alias RiddlrWeb.GameCopy
+  alias RiddlrWeb.{GameCopy, Thinker}
 
   describe "heading" do
     test "shows the next riddle's drop date and a margin note when a riddle is next", %{
@@ -70,6 +70,42 @@ defmodule RiddlrWeb.HomeLiveTest do
                "#timeline li:nth-child(3) .rg-reel__t",
                GameCopy.timeline_end_default()
              )
+    end
+  end
+
+  describe "thinker" do
+    test "draws one of the thinkers on the card", %{conn: conn} do
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      html = live |> element("#hero-thinker") |> render()
+      [n] = Regex.run(~r/data-thinker="(\d+)"/, html, capture: :all_but_first)
+      assert String.to_integer(n) in 1..Thinker.count()
+    end
+
+    test "keeps the thinker the page first showed once it connects", %{conn: conn} do
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      for n <- 1..Thinker.count() do
+        {:ok, live, _html} =
+          conn |> put_connect_params(%{"thinker" => to_string(n)}) |> live(~p"/")
+
+        assert has_element?(live, "#hero-thinker[data-thinker='#{n}']")
+      end
+    end
+
+    test "picks a thinker when the page sent an unknown one", %{conn: conn} do
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      for bad <- ["0", "#{Thinker.count() + 1}", "nope"] do
+        {:ok, live, _html} =
+          conn |> put_connect_params(%{"thinker" => bad}) |> live(~p"/")
+
+        html = live |> element("#hero-thinker") |> render()
+        [n] = Regex.run(~r/data-thinker="(\d+)"/, html, capture: :all_but_first)
+        assert String.to_integer(n) in 1..Thinker.count()
+      end
     end
   end
 
@@ -143,6 +179,28 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       assert has_element?(live, "#practice .rg-peek__q", practice.description)
       assert has_element?(live, "#practice .rg-peek__tag", GameCopy.practice_tag(1, 1))
+    end
+
+    test "shows a practice riddle while a scheduled riddle counts down", %{conn: conn} do
+      practice = practice_fixture("echo")
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-card #practice .rg-peek__q", practice.description)
+    end
+
+    test "hides the practice note once the Lobby opens", %{conn: conn} do
+      practice_fixture("echo")
+      next = upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+      assert has_element?(live, "#practice")
+
+      {:ok, _} = Games.transition(next.id, :ready)
+      refute has_element?(live, "#practice")
+
+      {:ok, _} = Games.transition(next.id, :live)
+      refute has_element?(live, "#practice")
     end
 
     test "keeps the practice riddle the page first showed once it connects", %{conn: conn} do

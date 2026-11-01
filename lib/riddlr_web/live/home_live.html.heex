@@ -36,10 +36,7 @@
           </p>
         </div>
         <div id="hero-sheet" class="rg-hero__sheet" data-state={@hero}>
-          <svg class="rg-doodle rg-doodle--burst" viewBox="0 0 100 100" aria-hidden="true">
-            <path d="M50.0 4.9 L58.1 19.8 L73.4 9.5 L71.8 28.2 L90.0 26.9 L81.2 41.6 L93.8 50.0 L81.9 58.6 L87.8 71.8 L73.1 73.1 L71.9 88.0 L58.0 79.9 L50.0 95.6 L41.0 83.5 L27.9 88.2 L27.6 72.4 L9.6 73.3 L16.0 59.1 L3.6 50.0 L18.6 41.6 L8.1 25.8 L28.3 28.3 L26.1 8.6 L41.7 19.1 Z" />
-            <text x="50" y="65" text-anchor="middle">?</text>
-          </svg>
+          <Thinker.thinker id="hero-thinker" n={@thinker} />
           <div id="hero-card" class="rg-hero__card">
             <%= case @hero do %>
               <% :none -> %>
@@ -57,15 +54,7 @@
                     {GameCopy.hero_none_tbc_lead()} <b>{GameCopy.hero_none_tbc()}</b>
                   </p>
                 </div>
-                <GameComponents.practice_note
-                  :if={@practice}
-                  id="practice"
-                  riddle={@practice.riddle}
-                  n={@practice.n}
-                  total={@practice.total}
-                  on_another="another_practice"
-                  data-practice-id={@practice.riddle.id}
-                />
+                <.practice_note practice={@practice} />
                 <p class="rg-hero__note">
                   <span>
                     {GameCopy.hero_none_note_lead()}
@@ -96,6 +85,7 @@
                 </.link>
               <% :future -> %>
                 <.drop riddle={@next} seconds={@seconds} />
+                <.practice_note practice={@practice} />
             <% end %>
           </div>
         </div>

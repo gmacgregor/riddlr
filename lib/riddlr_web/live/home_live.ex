@@ -8,8 +8,9 @@ defmodule RiddlrWeb.HomeLive do
 
     * `none`: no next riddle. The heading reads "Nothing listed", with no
       date.
-    * `future`: scheduled, Lobby not open. A countdown and the drop time, with
-      no button.
+    * `future`: scheduled, Lobby not open. A countdown and a "While you
+      wait" practice note, with no button. The drop time sits under the
+      heading.
     * `lobby`: ready. A countdown, how many players wait in the Lobby, and a
       button to it.
     * `live`: the time left, how many have solved it, and a button to Play.
@@ -17,8 +18,13 @@ defmodule RiddlrWeb.HomeLive do
   In the other states, the date under the heading is the next riddle's drop
   date.
 
+  A hand-drawn thinker (`RiddlrWeb.Thinker`) sits on the card's corner in
+  every state but `none`. It is random on each load, and kept as the page
+  connects.
+
   With nothing next, the card also shows a blank clock and a link to Coming
-  up, and a "While you wait" practice note (`GameComponents.practice_note/1`)
+  up. With nothing next, or a riddle whose Lobby is not open yet, it shows a
+  "While you wait" practice note (`GameComponents.practice_note/1`)
   with a random practice riddle. "Another riddle" swaps in a different one.
   The note is hidden when there are no practice riddles.
 
@@ -42,7 +48,7 @@ defmodule RiddlrWeb.HomeLive do
 
   alias Riddlr.{GameClock, Gameplay, Games}
   alias Riddlr.Gameplay.{Answer, Presence}
-  alias RiddlrWeb.{DropTime, GameComponents, GameCopy}
+  alias RiddlrWeb.{DropTime, GameComponents, GameCopy, Thinker}
 
   # Each of these can change which riddle is next, or its state, or the
   # schedule and last riddle panels. Completed is here so a live riddle drops
@@ -88,6 +94,7 @@ defmodule RiddlrWeb.HomeLive do
      # `%{riddle: riddle, n: n, total: total}`, or nil to hide the note.
      # `assign_next/2` picks one once nothing is next.
      |> assign(:practice, kept_practice(socket))
+     |> assign(:thinker, kept_thinker(socket))
      |> assign_next(next)
      |> assign_panels()}
   end
@@ -163,6 +170,24 @@ defmodule RiddlrWeb.HomeLive do
     """
   end
 
+  # The "While you wait" note, in the none and future states. Shows nothing
+  # with no practice riddles.
+  attr :practice, :map, default: nil
+
+  defp practice_note(assigns) do
+    ~H"""
+    <GameComponents.practice_note
+      :if={@practice}
+      id="practice"
+      riddle={@practice.riddle}
+      n={@practice.n}
+      total={@practice.total}
+      on_another="another_practice"
+      data-practice-id={@practice.riddle.id}
+    />
+    """
+  end
+
   @spec assign_next(Phoenix.LiveView.Socket.t(), Games.Riddle.t() | nil) ::
           Phoenix.LiveView.Socket.t()
   defp assign_next(socket, next) do
@@ -177,10 +202,12 @@ defmodule RiddlrWeb.HomeLive do
     |> assign_practice()
   end
 
-  # Picks a practice riddle the first time the card shows nothing next, and
-  # keeps it after that, so a state change does not swap it under the player.
+  # Picks a practice riddle the first time the card shows the note (nothing
+  # next, or a riddle whose Lobby is not open yet), and keeps it after that,
+  # so a state change does not swap it under the player.
   @spec assign_practice(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  defp assign_practice(%{assigns: %{hero: :none, practice: nil}} = socket) do
+  defp assign_practice(%{assigns: %{hero: hero, practice: nil}} = socket)
+       when hero in [:none, :future] do
     assign(socket, :practice, practice(Games.random_practice_riddle()))
   end
 
@@ -197,6 +224,20 @@ defmodule RiddlrWeb.HomeLive do
       practice(Games.get_practice_riddle(id))
     else
       _ -> nil
+    end
+  end
+
+  # The thinker in the hero card's corner, random on each load. Like the
+  # practice riddle, app.js sends the static page's pick on connect, so the
+  # drawing does not change as the page connects.
+  @spec kept_thinker(Phoenix.LiveView.Socket.t()) :: pos_integer()
+  defp kept_thinker(socket) do
+    with true <- connected?(socket),
+         %{"thinker" => param} <- get_connect_params(socket),
+         n when is_integer(n) <- Thinker.parse(param) do
+      n
+    else
+      _ -> Thinker.random()
     end
   end
 
