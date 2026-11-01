@@ -1,12 +1,15 @@
 defmodule RiddlrWeb.StandingsLive do
   @moduledoc """
   The public Standings page: the overall ranking of players across riddles
-  (`Riddlr.Standings.list/2`). It shows the Points board: rank, player,
-  points, wins and podiums.
+  (`Riddlr.Standings.list/2`): rank, player, points, wins and podiums.
 
-  `?window=all_time` (the default) or `?window=month` picks the window; a
-  switch on the page patches between them, and any other value falls back
-  to all-time.
+  Two URL params pick what it shows, each with a switch on the page that
+  patches between values and keeps the other param:
+
+  - `?board=points` (default), `wins` or `podiums`: the stat it ranks by
+  - `?window=all_time` (default) or `month`: which riddles count
+
+  Any other value falls back to the default.
 
   Anyone can open it, signed in or not. With no solves in the window it
   shows an empty note instead of the board.
@@ -17,22 +20,27 @@ defmodule RiddlrWeb.StandingsLive do
   alias Riddlr.Standings
   alias RiddlrWeb.{GameComponents, GameCopy}
 
+  @boards [:points, :wins, :podiums]
+  @windows [:all_time, :month]
+
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:page_title, GameCopy.standings_heading())
+     |> assign(boards: @boards, windows: @windows)
      |> stream_configure(:rows, dom_id: &"standings-#{&1.user_id}")}
   end
 
   @impl true
   def handle_params(params, _uri, socket) do
+    board = parse_board(params["board"])
     window = parse_window(params["window"])
-    rows = Standings.list(:points, window)
+    rows = Standings.list(board, window)
 
     {:noreply,
      socket
-     |> assign(:window, window)
+     |> assign(board: board, window: window)
      # A stream can't say whether it is empty, so the empty note reads this.
      |> assign(:empty?, rows == [])
      |> stream(:rows, rows, reset: true)}
@@ -48,11 +56,22 @@ defmodule RiddlrWeb.StandingsLive do
             <h1 id="standings-h" class="rg-panel__h" tabindex="-1">
               {GameCopy.standings_heading()}
             </h1>
-            <nav class="rg-stand__windows" aria-label={GameCopy.standings_window_label()}>
+            <nav class="rg-stand__switch" aria-label={GameCopy.standings_board_label()}>
               <.link
-                :for={window <- [:all_time, :month]}
+                :for={board <- @boards}
+                id={"standings-board-#{board}"}
+                patch={~p"/standings?#{[board: board, window: @window]}"}
+                class="rg-tab rg-tab--sm"
+                aria-current={if board == @board, do: "page"}
+              >
+                {GameCopy.standings_board(board)}
+              </.link>
+            </nav>
+            <nav class="rg-stand__switch" aria-label={GameCopy.standings_window_label()}>
+              <.link
+                :for={window <- @windows}
                 id={"standings-window-#{window}"}
-                patch={~p"/standings?window=#{window}"}
+                patch={~p"/standings?#{[board: @board, window: window]}"}
                 class="rg-tab rg-tab--sm"
                 aria-current={if window == @window, do: "page"}
               >
@@ -67,9 +86,15 @@ defmodule RiddlrWeb.StandingsLive do
                 <tr>
                   <th scope="col" class="rg-stand__rank">{GameCopy.standings_col(:rank)}</th>
                   <th scope="col" class="rg-stand__player">{GameCopy.standings_col(:player)}</th>
-                  <th scope="col" class="rg-stand__pts">{GameCopy.standings_col(:points)}</th>
-                  <th scope="col" class="rg-stand__wins">{GameCopy.standings_col(:wins)}</th>
-                  <th scope="col" class="rg-stand__pods">{GameCopy.standings_col(:podiums)}</th>
+                  <th scope="col" class="rg-stand__pts" aria-sort={aria_sort(@board, :points)}>
+                    {GameCopy.standings_col(:points)}
+                  </th>
+                  <th scope="col" class="rg-stand__wins" aria-sort={aria_sort(@board, :wins)}>
+                    {GameCopy.standings_col(:wins)}
+                  </th>
+                  <th scope="col" class="rg-stand__pods" aria-sort={aria_sort(@board, :podiums)}>
+                    {GameCopy.standings_col(:podiums)}
+                  </th>
                 </tr>
               </thead>
               <tbody id="standings-rows" phx-update="stream">
@@ -97,6 +122,17 @@ defmodule RiddlrWeb.StandingsLive do
     </Layouts.game>
     """
   end
+
+  # Anything but a known board falls back to points.
+  @spec parse_board(String.t() | nil) :: Standings.board()
+  defp parse_board("wins"), do: :wins
+  defp parse_board("podiums"), do: :podiums
+  defp parse_board(_), do: :points
+
+  # Marks the column the board ranks by, for screen readers.
+  @spec aria_sort(Standings.board(), Standings.board()) :: String.t() | nil
+  defp aria_sort(board, board), do: "descending"
+  defp aria_sort(_board, _col), do: nil
 
   # Anything but a known window falls back to all-time.
   @spec parse_window(String.t() | nil) :: Standings.window()

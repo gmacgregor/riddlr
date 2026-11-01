@@ -48,12 +48,12 @@ defmodule RiddlrWeb.StandingsWindowLiveTest do
     assert has_element?(live, "#standings-window-all_time[aria-current]")
 
     live |> element("#standings-window-month") |> render_click()
-    assert_patch(live, ~p"/standings?window=month")
+    assert_patch(live, ~p"/standings?board=points&window=month")
     assert has_element?(live, "#standings-window-month[aria-current]")
     refute has_element?(live, "#standings-#{bob.id}")
 
     live |> element("#standings-window-all_time") |> render_click()
-    assert_patch(live, ~p"/standings?window=all_time")
+    assert_patch(live, ~p"/standings?board=points&window=all_time")
     assert has_element?(live, "#standings-#{bob.id}")
   end
 

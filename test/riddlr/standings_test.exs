@@ -101,4 +101,73 @@ defmodule Riddlr.StandingsTest do
       assert Standings.list(:points, :all_time) == []
     end
   end
+
+  describe "list(:wins, window)" do
+    test "orders by wins, then podiums, then points, shares exact ties and skips players with no wins" do
+      [r1, r2, r3, r4] = for _ <- 1..4, do: riddle_fixture()
+      ann = user_fixture(%{username: "ann"})
+      bob = user_fixture(%{username: "bob"})
+      cat = user_fixture(%{username: "cat"})
+      dan = user_fixture(%{username: "dan"})
+      eve = user_fixture(%{username: "eve"})
+
+      solve_fixture(r1, ann, %{placement: 1, points: 10})
+      solve_fixture(r2, bob, %{placement: 1, points: 10})
+      solve_fixture(r3, cat, %{placement: 1, points: 10})
+      solve_fixture(r3, bob, %{placement: 2, points: 9})
+      solve_fixture(r4, eve, %{placement: 1, points: 10})
+      solve_fixture(r4, dan, %{placement: 2, points: 9})
+      solve_fixture(r4, cat, %{placement: 5, points: 6})
+
+      ranks = Standings.list(:wins, :all_time) |> Enum.map(&{&1.username, &1.rank})
+
+      # bob: 1 win, 2 podiums. cat: 1 win, 1 podium, 16 points.
+      # ann and eve: 1 win, 1 podium, 10 points. dan never won.
+      assert ranks == [{"bob", 1}, {"cat", 2}, {"ann", 3}, {"eve", 3}]
+    end
+  end
+
+  describe "list(:podiums, window)" do
+    test "orders by podiums, then wins, then points and skips players with no podium" do
+      [r1, r2, r3] = for _ <- 1..3, do: riddle_fixture()
+      ann = user_fixture(%{username: "ann"})
+      bob = user_fixture(%{username: "bob"})
+      cat = user_fixture(%{username: "cat"})
+      dan = user_fixture(%{username: "dan"})
+      eve = user_fixture(%{username: "eve"})
+
+      solve_fixture(r1, ann, %{placement: 1, points: 10})
+      solve_fixture(r1, cat, %{placement: 2, points: 9})
+      solve_fixture(r1, bob, %{placement: 3, points: 8})
+      solve_fixture(r1, dan, %{placement: 4, points: 7})
+      solve_fixture(r2, bob, %{placement: 1, points: 10})
+      solve_fixture(r2, cat, %{placement: 2, points: 9})
+      solve_fixture(r2, dan, %{placement: 4, points: 7})
+      solve_fixture(r3, eve, %{placement: 3, points: 8})
+      solve_fixture(r3, dan, %{placement: 4, points: 7})
+      solve_fixture(r3, cat, %{placement: 5, points: 6})
+
+      # bob and cat: 2 podiums, but only bob won. cat has the most points.
+      # ann: 1 podium, 1 win. eve: 1 podium. dan never made the podium.
+      assert names(Standings.list(:podiums, :all_time)) == ~w(bob cat ann eve)
+    end
+
+    test "points break podium and win ties; exact ties share a rank, A–Z" do
+      [r1, r2, r3] = for _ <- 1..3, do: riddle_fixture()
+      hal = user_fixture(%{username: "hal"})
+      ivy = user_fixture(%{username: "ivy"})
+      jon = user_fixture(%{username: "jon"})
+      kim = user_fixture(%{username: "kim"})
+
+      # All on 1 podium and no wins. hal has the most points; the rest tie.
+      solve_fixture(r1, hal, %{placement: 2, points: 9})
+      solve_fixture(r1, kim, %{placement: 3, points: 8})
+      solve_fixture(r2, jon, %{placement: 3, points: 8})
+      solve_fixture(r3, ivy, %{placement: 3, points: 8})
+
+      ranks = Standings.list(:podiums, :all_time) |> Enum.map(&{&1.username, &1.rank})
+
+      assert ranks == [{"hal", 1}, {"ivy", 2}, {"jon", 2}, {"kim", 2}]
+    end
+  end
 end

@@ -595,6 +595,16 @@ defmodule RiddlrWeb.GameCopy do
 
   def standings_empty(:month), do: "No solves yet this month"
 
+  @doc "A label on the Standings board switch."
+  @spec standings_board(:points | :wins | :podiums) :: String.t()
+  def standings_board(:points), do: "Points"
+  def standings_board(:wins), do: "Wins"
+  def standings_board(:podiums), do: "Podiums"
+
+  @doc "The accessible name of the Standings board switch."
+  @spec standings_board_label() :: String.t()
+  def standings_board_label, do: "Rank standings by"
+
   @doc "A label on the Standings window switch."
   @spec standings_window(:all_time | :month) :: String.t()
   def standings_window(:all_time), do: "All time"

@@ -2681,7 +2681,7 @@ a.rg-pill {
   max-inline-size: var(--wrap-narrow);
   padding-block-start: var(--space-l);
 }
-.rg-stand__windows {
+.rg-stand__switch {
   display: flex;
   gap: var(--space-m);
   margin-block-start: var(--space-xs);

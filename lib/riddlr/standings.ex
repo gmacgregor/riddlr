@@ -5,9 +5,16 @@ defmodule Riddlr.Standings do
   Read-only. Every number comes from saved `solves`, so Standings change
   when a riddle completes, not during play.
 
-  `list/2` returns the top 50 players on a board. The Points board sorts
-  by points, then wins, then podiums. Players level on all three share a
-  rank (1, 2, 2, 4) and are listed by username A–Z.
+  `list/2` returns the top 50 players on a board. Each board sorts by its
+  own stat first, then the other two:
+
+  - Points: points, wins, podiums
+  - Wins: wins, podiums, points
+  - Podiums: podiums, wins, points
+
+  Players level on all three share a rank (1, 2, 2, 4) and are listed by
+  username A–Z. The Wins and Podiums boards leave out players with none of
+  their stat.
 
   Deleted players (solves with a nil `user_id`) and banned or suspended
   players are left out. Admins show like anyone else.
@@ -17,7 +24,7 @@ defmodule Riddlr.Standings do
   calendar month, by `Riddlr.Clock`.
   """
 
-  import Ecto.Query, only: [from: 2, where: 3]
+  import Ecto.Query, only: [dynamic: 1, dynamic: 2, from: 2, having: 3, order_by: 3, where: 3]
 
   alias Riddlr.Accounts.User
   alias Riddlr.Clock
@@ -28,7 +35,7 @@ defmodule Riddlr.Standings do
   @limit 50
 
   @typedoc "A board to rank by."
-  @type board :: :points
+  @type board :: :points | :wins | :podiums
 
   @typedoc "The span of riddles a board counts."
   @type window :: :all_time | :month
@@ -47,12 +54,15 @@ defmodule Riddlr.Standings do
   The top #{@limit} players on `board` over `window`, best first.
   """
   @spec list(board(), window()) :: [row()]
-  def list(:points, window) when window in [:all_time, :month] do
+  def list(board, window)
+      when board in [:points, :wins, :podiums] and window in [:all_time, :month] do
     from(s in Solve,
+      as: :solve,
       join: r in Riddle,
       as: :riddle,
       on: r.id == s.riddle_id,
       join: u in User,
+      as: :user,
       on: u.id == s.user_id,
       where: u.account_status not in [:banned, :suspended],
       group_by: [u.id, u.username],
@@ -63,18 +73,39 @@ defmodule Riddlr.Standings do
         wins: s.id |> count() |> filter(s.placement == 1) |> selected_as(:wins),
         podiums: s.id |> count() |> filter(s.placement <= 3) |> selected_as(:podiums)
       },
-      order_by: [
-        desc: selected_as(:points),
-        desc: selected_as(:wins),
-        desc: selected_as(:podiums),
-        asc: u.username
-      ],
       limit: @limit
     )
     |> in_window(window)
+    |> rank_by(board)
     |> Repo.all()
     |> add_ranks()
   end
+
+  # Sort by the board's own stat, then the other two, then username.
+  @spec rank_by(Ecto.Query.t(), board()) :: Ecto.Query.t()
+  defp rank_by(query, board) do
+    stats = Enum.map(sort_keys(board), &{:desc, dynamic(selected_as(^&1))})
+    name = [asc: dynamic([user: u], u.username)]
+
+    query
+    |> order_by([], ^(stats ++ name))
+    |> with_some(board)
+  end
+
+  @spec sort_keys(board()) :: [:points | :wins | :podiums]
+  defp sort_keys(:points), do: [:points, :wins, :podiums]
+  defp sort_keys(:wins), do: [:wins, :podiums, :points]
+  defp sort_keys(:podiums), do: [:podiums, :wins, :points]
+
+  # The Wins and Podiums boards only list players with at least one.
+  @spec with_some(Ecto.Query.t(), board()) :: Ecto.Query.t()
+  defp with_some(query, :points), do: query
+
+  defp with_some(query, :wins),
+    do: having(query, [solve: s], count(s.id) |> filter(s.placement == 1) > 0)
+
+  defp with_some(query, :podiums),
+    do: having(query, [solve: s], count(s.id) |> filter(s.placement <= 3) > 0)
 
   @spec in_window(Ecto.Query.t(), window()) :: Ecto.Query.t()
   defp in_window(query, :all_time), do: query

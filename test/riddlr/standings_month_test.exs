@@ -42,4 +42,20 @@ defmodule Riddlr.StandingsMonthTest do
       assert Standings.list(:points, :month) == []
     end
   end
+
+  test "list(:wins, :month) only counts this month's wins" do
+    Frozen.freeze(~U[2026-11-15 12:00:00Z])
+
+    this_month = riddle_fixture() |> went_live(~U[2026-11-02 12:00:00Z])
+    last_month = riddle_fixture() |> went_live(~U[2026-10-02 12:00:00Z])
+
+    ann = user_fixture(%{username: "ann"})
+    bob = user_fixture(%{username: "bob"})
+
+    solve_fixture(this_month, ann, %{placement: 1, points: 10})
+    solve_fixture(last_month, bob, %{placement: 1, points: 10})
+    solve_fixture(this_month, bob, %{placement: 2, points: 9})
+
+    assert [%{username: "ann", wins: 1}] = Standings.list(:wins, :month)
+  end
 end

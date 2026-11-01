@@ -220,9 +220,17 @@ archived riddle, to Home.
 
 **Standings** rank players across all riddles, built from their saved
 Solves. Anyone can see them, signed in or not; Home and Results link there.
-The board ranks by points, then Wins, then podiums. Players level on all
-three share a rank (1, 2, 2, 4) and are listed A–Z. It shows the top 50.
-Banned and suspended players and deleted accounts are left out. A switch
+There are three boards, each ranking by its own stat first:
+
+| Board | Order |
+|---|---|
+| Points (default) | points → Wins → podiums |
+| Wins | Wins → podiums → points |
+| Podiums | podiums → Wins → points |
+
+Players level on all three share a rank (1, 2, 2, 4) and are listed A–Z.
+The Wins and Podiums boards leave out players with none. Each shows the
+top 50. Banned and suspended players and deleted accounts are left out. A switch
 picks the window: all time (the default) or this month, which counts only
 riddles whose Live date falls in the current UTC calendar month. With no
 Solves in the window, the page says so.

@@ -150,6 +150,16 @@ _Avoid_: using it for the ranking across riddles (say **Standings**)
 The overall ranking of players across riddles, built from their solves.
 _Avoid_: leaderboard, rankings
 
+**Board**:
+One ranking within Standings: Points, Wins or Podiums. Each sorts by its
+own stat first.
+_Avoid_: tab, table, leaderboard (that is one riddle's board)
+
+**Window**:
+The span of riddles a Standings board counts: all time, or this month by
+Live date (UTC).
+_Avoid_: period, range; not the **Ready window**
+
 ## Account
 
 **Notification**:
