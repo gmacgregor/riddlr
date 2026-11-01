@@ -150,7 +150,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "#{riddle.number}")
     end
 
-    test "shows the solve time and the scoring rule", %{conn: conn, user: user} do
+    test "shows the solve time as its only fact", %{conn: conn, user: user} do
       riddle =
         GamesFixtures.riddle_fixture(%{solve_time: 90})
         |> set_play_status("scheduled")
@@ -160,7 +160,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
       assert has_element?(live, ".rg-facts .rg-fact", GameCopy.solve_time("01:30"))
-      assert has_element?(live, ".rg-facts .rg-fact", GameCopy.scoring_rule())
+      refute has_element?(live, ".rg-facts .rg-fact:nth-child(2)")
       assert has_element?(live, ".rg-fact svg.rg-icon[aria-hidden='true']")
     end
 

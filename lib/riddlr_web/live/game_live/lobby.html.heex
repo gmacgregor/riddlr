@@ -24,7 +24,6 @@
               GameComponents.clock_str(@riddle.solve_time)
             )}
           </li>
-          <li class="rg-fact"><GameComponents.icon name="trophy" /> {GameCopy.scoring_rule()}</li>
         </ul>
         <p id="lobby-ready" class="rg-lobby__ready" aria-live="assertive">
           {if @time_remaining in 1..5, do: GameCopy.lobby_ready()}

@@ -223,10 +223,6 @@ defmodule RiddlrWeb.GameCopy do
   @spec solve_time(String.t()) :: String.t()
   def solve_time(clock), do: "#{clock} to solve"
 
-  @doc "The fact that says which places earn points."
-  @spec scoring_rule() :: String.t()
-  def scoring_rule, do: "Top 10 score"
-
   @doc "The Lobby's call to get ready, shown in the last seconds."
   @spec lobby_ready() :: String.t()
   def lobby_ready, do: "Fingers on the keys"
