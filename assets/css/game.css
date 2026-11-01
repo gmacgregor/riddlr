@@ -2234,7 +2234,7 @@ a.rg-pill {
 .rg-results__riddle {
   font-family: var(--f-display);
   font-style: italic;
-  font-size: var(--step-2);
+  font-size: var(--step-4);
   line-height: 1.35;
   color: var(--fg-muted);
   max-width: 40ch;
@@ -2245,7 +2245,10 @@ a.rg-pill {
   font-weight: 300;
   /* --n is the longest word's letter count. Each tile takes 1.2em with its gap, so
      the longest word always fits the column and wraps only between words. */
-  font-size: max(1.25rem, min(var(--display-answer), calc(100cqi / (var(--n, 8) * 1.2))));
+  font-size: max(
+    1.25rem,
+    min(calc(var(--display-answer) * 0.75), calc(100cqi / (var(--n, 8) * 1.2)))
+  );
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2263,6 +2266,8 @@ a.rg-pill {
   place-items: center;
   width: 1.1em;
   height: 1.2em;
+  /* The caps sit a little low in the tile, like letters on a line. */
+  padding-top: 0.12em;
   border: 3px solid var(--fg);
   border-radius: var(--wob-sm);
   background: var(--surface-2);
