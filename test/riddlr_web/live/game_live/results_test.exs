@@ -633,7 +633,9 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       refute has_element?(live, "#chat-feed", "spam")
     end
 
-    test "a user banned before they arrived cannot chat", %{conn: conn} do
+    test "a user banned before they arrived sees results as a guest, with no chat form", %{
+      conn: conn
+    } do
       user = AccountsFixtures.user_fixture()
       {:ok, _} = Riddlr.Accounts.set_user_status(user, :banned)
 
@@ -642,9 +644,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
 
-      render_submit(element(live, "#chat-form"), %{"message" => "hello"})
-
-      assert_redirect(live, "/")
+      refute has_element?(live, "#chat-form")
     end
 
     test "a ban sends the player home", %{conn: conn, user: user} do

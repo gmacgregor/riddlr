@@ -318,4 +318,11 @@ defmodule Riddlr.Accounts.User do
     Bcrypt.no_user_verify()
     false
   end
+
+  @doc """
+  Returns true if the user is banned. A guest (`nil`) is not.
+  """
+  @spec banned?(t() | nil) :: boolean()
+  def banned?(%__MODULE__{account_status: :banned}), do: true
+  def banned?(_user), do: false
 end

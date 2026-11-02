@@ -2,6 +2,7 @@ defmodule RiddlrWeb.UserSessionController do
   use RiddlrWeb, :controller
 
   alias Riddlr.Accounts
+  alias Riddlr.Accounts.User
   alias RiddlrWeb.UserAuth
 
   def new(conn, _params) do
@@ -50,9 +51,12 @@ defmodule RiddlrWeb.UserSessionController do
     end
   end
 
-  # magic link request
+  # magic link request. A banned user gets no link but the same message, so
+  # the reply does not tell who is banned.
   def create(conn, %{"user" => %{"email" => email}}) do
-    if user = Accounts.get_user_by_email(email) do
+    user = Accounts.get_user_by_email(email)
+
+    if user && not User.banned?(user) do
       Accounts.deliver_login_instructions(
         user,
         &url(~p"/users/log-in/#{&1}")

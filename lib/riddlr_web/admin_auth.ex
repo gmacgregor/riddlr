@@ -23,7 +23,7 @@ defmodule RiddlrWeb.AdminAuth do
 
     # A signed-in player who is not an admin gets a 404 rather than a hint
     # that the page exists. The router has sent any guest to log in already.
-    unless Authorization.is_admin?(socket.assigns.current_user) do
+    unless Authorization.admin?(socket.assigns.current_user) do
       raise RiddlrWeb.NotFoundError
     end
 

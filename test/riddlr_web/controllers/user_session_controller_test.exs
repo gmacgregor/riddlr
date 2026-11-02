@@ -237,6 +237,16 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       assert Riddlr.Repo.get_by!(Accounts.UserToken, user_id: user.id).context == "login"
     end
 
+    test "sends a banned user nothing, with the same message", %{conn: conn, user: user} do
+      user = user |> Ecto.Changeset.change(account_status: :banned) |> Riddlr.Repo.update!()
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"email" => user.email}})
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "If your email is in our system"
+      refute Riddlr.Repo.get_by(Accounts.UserToken, user_id: user.id, context: "login")
+    end
+
     test "logs the user in", %{conn: conn, user: user} do
       {token, _hashed_token} = generate_user_magic_link_token(user)
 

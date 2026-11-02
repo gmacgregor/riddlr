@@ -9,11 +9,10 @@ defmodule RiddlrWeb.GameLive.Play do
   use RiddlrWeb, :live_view
 
   alias Riddlr.{GameClock, Games, Gameplay}
+  alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
   alias RiddlrWeb.GameLive.Feed
-
-  import Riddlr.Utils.User
 
   @answer_max_length 500
   # The most guesses the feed keeps in the DOM; older ones drop off the top.
@@ -64,7 +63,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
             {:ok,
              socket
-             |> assign(:banned, user != nil and is_banned?(user))
+             |> assign(:banned, User.banned?(user))
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:words, String.split(riddle.description))

@@ -52,14 +52,15 @@ defmodule Riddlr.Accounts.UserToken do
 
   The query returns the user found by the token, if any, along with the token's creation time.
 
-  The token is valid if it matches the value in the database and it has
-  not expired (after @session_validity_in_days).
+  The token is valid if it matches the value in the database, it has
+  not expired (after @session_validity_in_days), and its user is not banned.
   """
   def verify_session_token_query(token) do
     query =
       from token in by_token_and_context_query(token, "session"),
         join: user in assoc(token, :user),
         where: token.inserted_at > ago(@session_validity_in_days, "day"),
+        where: user.account_status != :banned,
         select: {%{user | authenticated_at: token.authenticated_at}, token.inserted_at}
 
     {:ok, query}
@@ -101,8 +102,8 @@ defmodule Riddlr.Accounts.UserToken do
   If found, the query returns a tuple of the form `{user, token}`.
 
   The given token is valid if it matches its hashed counterpart in the
-  database. This function also checks whether the token has expired. The context
-  of a magic link token is always "login".
+  database. This function also checks whether the token has expired, and
+  refuses a banned user. The context of a magic link token is always "login".
   """
   def verify_magic_link_token_query(token) do
     case Base.url_decode64(token, padding: false) do
@@ -114,6 +115,7 @@ defmodule Riddlr.Accounts.UserToken do
             join: user in assoc(token, :user),
             where: token.inserted_at > ago(^@magic_link_validity_in_minutes, "minute"),
             where: token.sent_to == user.email,
+            where: user.account_status != :banned,
             select: {user, token}
 
         {:ok, query}

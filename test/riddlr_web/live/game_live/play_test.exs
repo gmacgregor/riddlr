@@ -793,7 +793,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert_redirect(live, "/")
     end
 
-    test "a user banned before they arrived cannot submit an answer", %{conn: conn} do
+    test "a user banned before they arrived plays as a guest, with no answer form", %{
+      conn: conn
+    } do
       user = AccountsFixtures.user_fixture()
       {:ok, _} = Riddlr.Accounts.set_user_status(user, :banned)
 
@@ -802,12 +804,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      live
-      |> form("#answer-form", %{answer: "keyboard"})
-      |> render_submit()
-
-      assert_redirect(live, "/")
-      assert Gameplay.get_answers(riddle.id) == []
+      refute has_element?(live, "#answer-form")
     end
   end
 

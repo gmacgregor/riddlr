@@ -150,6 +150,25 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     end
   end
 
+  describe "status" do
+    test "a ban logs an editor out of the admin pages", %{conn: conn, admin: admin} do
+      conn = log_in_user(conn, admin)
+
+      {:ok, _} = Riddlr.Accounts.set_user_status(admin, :banned)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/admin/riddles")
+      refute Riddlr.Repo.get_by(Riddlr.Accounts.UserToken, user_id: admin.id)
+    end
+
+    test "answers 404 to a suspended editor", %{conn: conn, admin: admin} do
+      conn = log_in_user(conn, admin)
+
+      {:ok, _} = Riddlr.Accounts.set_user_status(admin, :suspended)
+
+      assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, ~p"/admin/riddles") end
+    end
+  end
+
   # A moderator is an admin, but may not read scheduled riddles or their
   # answers.
   describe "access" do
