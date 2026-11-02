@@ -10,7 +10,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.Index do
   alias Riddlr.Games
   alias Riddlr.Games.PracticeRiddle
 
-  # Moderators reach other admin pages but may not manage riddles.
+  # Moderators are admins but may not manage riddles or read their answers.
   on_mount {RiddlrWeb.AdminAuth, {:require_permission, :manage_riddles}}
 
   @impl true

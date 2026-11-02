@@ -4,6 +4,9 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
   alias Riddlr.Games.Category
   alias Riddlr.Authorization
 
+  # Moderators are admins but may not manage riddles or read their answers.
+  on_mount {RiddlrWeb.AdminAuth, {:require_permission, :manage_riddles}}
+
   @impl true
   def mount(_params, _session, socket) do
     {:ok, socket |> assign(:page_title, "Manage Categories") |> stream(:categories, [])}

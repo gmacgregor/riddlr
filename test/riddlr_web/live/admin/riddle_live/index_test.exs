@@ -136,4 +136,49 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert has_element?(view, "#riddles-#{riddle.id} .adm-badge.adm-badge--live")
     end
   end
+
+  # A moderator is an admin, but may not read scheduled riddles or their
+  # answers.
+  describe "access" do
+    setup do
+      riddle = GamesFixtures.riddle_fixture()
+
+      paths = [
+        ~p"/admin/riddles",
+        ~p"/admin/riddles/new",
+        ~p"/admin/riddles/#{riddle.id}/edit",
+        ~p"/admin/riddles/#{riddle.id}"
+      ]
+
+      %{paths: paths}
+    end
+
+    test "turns a moderator away from every riddle page", %{conn: conn, paths: paths} do
+      conn = log_in_user(conn, AccountsFixtures.user_fixture(%{role: :moderator}))
+
+      for path <- paths do
+        assert {:error, {:redirect, %{to: "/"}}} = live(conn, path)
+      end
+    end
+
+    for role <- [:viewer, :player] do
+      test "answers 404 to a #{role} on every riddle page", %{conn: conn, paths: paths} do
+        conn = log_in_user(conn, AccountsFixtures.user_fixture(%{role: unquote(role)}))
+
+        for path <- paths do
+          assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, path) end
+        end
+      end
+    end
+
+    for role <- [:editor, :super_admin] do
+      test "lets a #{role} into every riddle page", %{conn: conn, paths: paths} do
+        conn = log_in_user(conn, AccountsFixtures.user_fixture(%{role: unquote(role)}))
+
+        for path <- paths do
+          assert {:ok, _live, _html} = live(conn, path)
+        end
+      end
+    end
+  end
 end
