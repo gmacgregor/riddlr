@@ -8,14 +8,14 @@ defmodule RiddlrWeb.AdminController do
     redirect(conn, to: ~p"/admin/riddles")
   end
 
+  # A signed-in player who is not an admin gets a 404; the pipeline has sent
+  # any guest to log in already. The browser pipeline assigns only
+  # :current_scope, never :current_user.
   defp require_admin(conn, _opts) do
-    if Authorization.has_permission?(conn.assigns.current_user, :manage_riddles) do
-      conn
-    else
-      conn
-      |> put_flash(:error, "Unauthorized")
-      |> redirect(to: ~p"/")
-      |> halt()
+    unless Authorization.is_admin?(conn.assigns.current_scope.user) do
+      raise RiddlrWeb.NotFoundError
     end
+
+    conn
   end
 end

@@ -23,10 +23,11 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     refute has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/riddles"]))
   end
 
-  test "redirects non-admin", %{conn: conn} do
+  test "answers 404 to a non-admin", %{conn: conn} do
     player = Riddlr.AccountsFixtures.user_fixture(%{role: :player})
     conn = log_in_user(conn, player)
-    {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/admin/categories")
+
+    assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, ~p"/admin/categories") end
   end
 
   test "creates new category", %{conn: conn, admin: admin} do

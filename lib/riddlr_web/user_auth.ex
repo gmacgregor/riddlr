@@ -199,18 +199,26 @@ defmodule RiddlrWeb.UserAuth do
 
   @doc """
   Plug for routes that require the user to be authenticated.
+
+  Sends a guest to log in, then back here. Pass `flash: false` to send them
+  with no "You must log in" flash, as the admin pages do.
   """
-  def require_authenticated_user(conn, _opts) do
+  def require_authenticated_user(conn, opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user do
       conn
     else
       conn
-      |> put_flash(:error, "You must log in to access this page.")
+      |> maybe_put_login_flash(Keyword.get(opts, :flash, true))
       |> maybe_store_return_to()
       |> redirect(to: ~p"/users/log-in")
       |> halt()
     end
   end
+
+  defp maybe_put_login_flash(conn, true),
+    do: put_flash(conn, :error, "You must log in to access this page.")
+
+  defp maybe_put_login_flash(conn, false), do: conn
 
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))

@@ -60,11 +60,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       refute has_element?(live, ".fieldset, .input, .select, .textarea, .btn")
     end
 
-    test "redirects non-admin", %{conn: conn} do
+    test "answers 404 to a non-admin", %{conn: conn} do
       player = AccountsFixtures.user_fixture(%{role: :player})
       conn = log_in_user(conn, player)
-      {:error, {:redirect, %{to: "/", flash: flash}}} = live(conn, ~p"/admin/riddles")
-      assert flash["error"]
+
+      assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, ~p"/admin/riddles") end
     end
 
     test "redirects unauthenticated user", %{conn: conn} do

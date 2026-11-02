@@ -21,16 +21,13 @@ defmodule RiddlrWeb.AdminAuth do
   def on_mount(:require_admin, _params, session, socket) do
     socket = mount_current_user(socket, session)
 
-    if socket.assigns[:current_user] && Authorization.is_admin?(socket.assigns.current_user) do
-      {:cont, attach_hook(socket, :current_path, :handle_params, &assign_current_path/3)}
-    else
-      socket =
-        socket
-        |> put_flash(:error, "You must be an admin to access this page.")
-        |> redirect(to: ~p"/")
-
-      {:halt, socket}
+    # A signed-in player who is not an admin gets a 404 rather than a hint
+    # that the page exists. The router has sent any guest to log in already.
+    unless Authorization.is_admin?(socket.assigns.current_user) do
+      raise RiddlrWeb.NotFoundError
     end
+
+    {:cont, attach_hook(socket, :current_path, :handle_params, &assign_current_path/3)}
   end
 
   def on_mount({:require_role, allowed_roles}, _params, session, socket) do

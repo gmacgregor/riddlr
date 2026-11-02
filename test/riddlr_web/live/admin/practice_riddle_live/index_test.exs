@@ -27,12 +27,19 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
     assert has_element?(live, "#practice_riddles-#{practice.id}", practice.answer)
   end
 
-  for role <- [:moderator, :viewer, :player] do
-    test "refuses a #{role}", %{conn: conn} do
-      user = AccountsFixtures.user_fixture(%{role: unquote(role)})
+  # A moderator is an admin, just not one who edits riddles.
+  test "turns a moderator away", %{conn: conn} do
+    user = AccountsFixtures.user_fixture(%{role: :moderator})
 
-      assert {:error, {:redirect, %{to: "/"}}} =
-               conn |> log_in_user(user) |> live(~p"/admin/practice-riddles")
+    assert {:error, {:redirect, %{to: "/"}}} =
+             conn |> log_in_user(user) |> live(~p"/admin/practice-riddles")
+  end
+
+  for role <- [:viewer, :player] do
+    test "answers 404 to a #{role}", %{conn: conn} do
+      conn = log_in_user(conn, AccountsFixtures.user_fixture(%{role: unquote(role)}))
+
+      assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, ~p"/admin/practice-riddles") end
     end
   end
 

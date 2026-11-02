@@ -26,6 +26,12 @@ defmodule RiddlrWeb.Router do
     plug :put_root_layout, html: {RiddlrWeb.AdminLayouts, :root}
   end
 
+  # Sends a guest to log in with no flash, so the admin pages give no hint
+  # that they exist.
+  pipeline :require_authenticated_user_quietly do
+    plug :require_authenticated_user, flash: false
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -107,15 +113,17 @@ defmodule RiddlrWeb.Router do
 
   ## Admin routes
 
+  # A guest goes to log in, with no flash. A signed-in player who is not an
+  # admin gets a 404.
   scope "/admin", RiddlrWeb do
-    pipe_through [:browser, :admin_browser, :require_authenticated_user]
+    pipe_through [:browser, :admin_browser, :require_authenticated_user_quietly]
 
     # AdminController redirect - requires admin permission via plug in controller
     get "/", AdminController, :redirect_to_riddles
   end
 
   scope "/admin", RiddlrWeb.Admin do
-    pipe_through [:browser, :admin_browser, :require_authenticated_user]
+    pipe_through [:browser, :admin_browser, :require_authenticated_user_quietly]
 
     live_session :admin,
       on_mount: [{RiddlrWeb.AdminAuth, :require_admin}],

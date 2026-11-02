@@ -252,6 +252,14 @@ defmodule RiddlrWeb.UserAuthTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :error)
     end
 
+    test "redirects without a flash when told to", %{conn: conn} do
+      conn = conn |> fetch_flash() |> UserAuth.require_authenticated_user(flash: false)
+
+      assert conn.halted
+      assert redirected_to(conn) == ~p"/users/log-in"
+      refute Phoenix.Flash.get(conn.assigns.flash, :error)
+    end
+
     test "stores the path to redirect to on GET", %{conn: conn} do
       halted_conn =
         %{conn | path_info: ["foo"], query_string: ""}
