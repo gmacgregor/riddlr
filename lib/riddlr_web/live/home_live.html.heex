@@ -96,6 +96,10 @@
             <% end %>
           </div>
         </div>
+        <p id="hero-standings" class="rg-hero__standings">
+          <GameComponents.trophy class="rg-hero__trophy" />
+          <.link navigate={~p"/standings"} class="rg-link-btn">{GameCopy.standings_link()}</.link>
+        </p>
       </section>
 
       <section id="timeline" class="rg-panel rg-intro" aria-labelledby="timeline-h">

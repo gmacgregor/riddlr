@@ -902,6 +902,13 @@ a.rg-pill {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* The trophy doodle (GameComponents.trophy/1): a gold cup on a plain base. */
+.rg-trophy__cup {
+  fill: var(--medal-1);
+}
+.rg-trophy__base {
+  fill: var(--surface-2);
+}
 
 /* The date and time in a long drop time. A cousin of the heading line: one
    stroke that sags and flicks up at the end, then a short second pass. */
@@ -1471,6 +1478,20 @@ a.rg-pill {
 .rg-hero .rg-flaps--long {
   --flap-size: min(100cqi / 5.5, 9rem);
   gap: calc(var(--flap-size) * 0.07);
+}
+/* The Standings link under the card, centred, with a trophy on its left. */
+.rg-hero__standings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+.rg-hero__trophy {
+  flex: none;
+  inline-size: 3rem;
+  block-size: 3.15rem;
+  stroke-width: 2.2;
+  transform: rotate(-6deg);
 }
 /* No button to pin to the bottom: the clock sits under the title. */
 .rg-hero__sheet[data-state="future"] .rg-hero__card {
@@ -2907,12 +2928,6 @@ a.rg-pill {
   stroke-width: 2.2;
   transform: rotate(9deg);
   pointer-events: none;
-}
-.rg-stand__cup {
-  fill: var(--medal-1);
-}
-.rg-stand__base {
-  fill: var(--surface-2);
 }
 
 /* Gold, silver and bronze medals beside the top three ranks. They hang

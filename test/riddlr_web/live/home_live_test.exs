@@ -623,6 +623,20 @@ defmodule RiddlrWeb.HomeLiveTest do
     assert response =~ "family=Familjen+Grotesk"
   end
 
+  describe "standings link" do
+    for status <- [nil, "scheduled", "ready", "live"] do
+      test "sits under the card, with a trophy, when the next riddle is #{status || "none"}",
+           %{conn: conn} do
+        if unquote(status), do: upcoming_fixture(unquote(status), ~U[2030-01-01 14:05:00Z])
+
+        {:ok, live, _html} = live(conn, ~p"/")
+
+        assert has_element?(live, "#hero-sheet + #hero-standings a[href='/standings']")
+        assert has_element?(live, "#hero-standings svg.rg-trophy")
+      end
+    end
+  end
+
   describe "join note" do
     test "invites a guest to log in or sign up when nothing is next", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")

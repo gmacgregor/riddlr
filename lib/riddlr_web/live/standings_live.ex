@@ -78,7 +78,7 @@ defmodule RiddlrWeb.StandingsLive do
       <section class="rg-view" aria-labelledby="standings-h">
         <div class="rg-wrap rg-standings">
           <section class="rg-panel rg-stand-note">
-            <.trophy />
+            <GameComponents.trophy class="rg-stand__trophy" />
             <div class="rg-stand__head">
               <.laurel />
               <h1 id="standings-h" class="rg-panel__h" tabindex="-1">
@@ -259,28 +259,6 @@ defmodule RiddlrWeb.StandingsLive do
       <path class="rg-stand__leaf" d="M14 35 C19 33 23 35 23 39 C19 40 16 38 14 35 Z" />
       <path class="rg-stand__leaf" d="M18 43 C12 44 8 41 7 37 C12 37 16 39 18 43 Z" />
       <path class="rg-stand__leaf" d="M22 46 C26 43 30 44 32 47 C28 50 24 49 22 46 Z" />
-    </svg>
-    """
-  end
-
-  # A cup with sparkles, perched on the note's top right corner.
-  defp trophy(assigns) do
-    ~H"""
-    <svg class="rg-doodle rg-stand__trophy" viewBox="0 0 80 84" aria-hidden="true">
-      <path
-        class="rg-stand__cup"
-        d="M24 14 C34 12.5 46 12.5 56 14 C57 30 52 42 40.5 45 C29 42 23.5 30 24 14 Z"
-      />
-      <path d="M24.5 19 C15 17.5 13 25 16 30 C18.5 34 23 35 27 35" />
-      <path d="M55.5 19 C65 17.5 67 25 64 30 C61.5 34 57 35 53 35" />
-      <path d="M40.5 45 L40 55" />
-      <path class="rg-stand__cup" d="M33 55 C38 54 43 54 48 55 L50 62 C43 61 37 61 31 62 Z" />
-      <path class="rg-stand__base" d="M27 62 C36 61 45 61 54 62 L54.5 69 C45 68 36 68 26.5 69 Z" />
-      <path d="M33 20 C32.5 27 34 33 37 37" />
-      <path d="M8 8 L8 16 M4 12 L12 12" />
-      <path d="M70 4 L70 10 M67 7 L73 7" />
-      <path d="M72 40 L77 38 M71 46 L77 47 M68 51 L72 55" />
-      <path d="M6 44 C4 42 4 40 6 39 M3 50 L8 49" />
     </svg>
     """
   end

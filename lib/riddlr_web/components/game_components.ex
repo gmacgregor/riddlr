@@ -650,6 +650,34 @@ defmodule RiddlrWeb.GameComponents do
   end
 
   @doc """
+  A pen-drawn trophy: a gold cup with sparkles. `class` places and sizes it,
+  e.g. perched on the Standings note or beside a Standings link.
+  """
+  attr :class, :any, default: nil
+
+  @spec trophy(map()) :: Phoenix.LiveView.Rendered.t()
+  def trophy(assigns) do
+    ~H"""
+    <svg class={["rg-doodle rg-trophy", @class]} viewBox="0 0 80 84" aria-hidden="true">
+      <path
+        class="rg-trophy__cup"
+        d="M24 14 C34 12.5 46 12.5 56 14 C57 30 52 42 40.5 45 C29 42 23.5 30 24 14 Z"
+      />
+      <path d="M24.5 19 C15 17.5 13 25 16 30 C18.5 34 23 35 27 35" />
+      <path d="M55.5 19 C65 17.5 67 25 64 30 C61.5 34 57 35 53 35" />
+      <path d="M40.5 45 L40 55" />
+      <path class="rg-trophy__cup" d="M33 55 C38 54 43 54 48 55 L50 62 C43 61 37 61 31 62 Z" />
+      <path class="rg-trophy__base" d="M27 62 C36 61 45 61 54 62 L54.5 69 C45 68 36 68 26.5 69 Z" />
+      <path d="M33 20 C32.5 27 34 33 37 37" />
+      <path d="M8 8 L8 16 M4 12 L12 12" />
+      <path d="M70 4 L70 10 M67 7 L73 7" />
+      <path d="M72 40 L77 38 M71 46 L77 47 M68 51 L72 55" />
+      <path d="M6 44 C4 42 4 40 6 39 M3 50 L8 49" />
+    </svg>
+    """
+  end
+
+  @doc """
   Asks a guest to log in or sign up. A lightning bolt sits each side of the
   links, the two facing apart, each coloured in with a loose yellow fill that
   misses the lines. Shows nothing once signed in.
