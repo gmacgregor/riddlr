@@ -438,7 +438,7 @@ defmodule RiddlrWeb.GameComponents do
         >
           {GameCopy.practice_another()}
         </button>
-        <p class="rg-peek__note">{GameCopy.practice_note()}</p>
+        <p :if={GameCopy.practice_note() != ""} class="rg-peek__note">{GameCopy.practice_note()}</p>
       </div>
     </section>
     """

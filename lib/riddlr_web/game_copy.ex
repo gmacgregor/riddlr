@@ -299,11 +299,29 @@ defmodule RiddlrWeb.GameCopy do
   @spec crisis_tail() :: String.t()
   def crisis_tail, do: "Good question!"
 
+  # ─── Join note ────────────────────────────────────────────────────────────────
+
+  @doc "The link in the Home join note that goes to log in."
+  @spec join_log_in() :: String.t()
+  def join_log_in, do: "Log in"
+
+  @doc "The word between the Home join note's two links."
+  @spec join_or() :: String.t()
+  def join_or, do: "or"
+
+  @doc "The link in the Home join note that goes to sign up."
+  @spec join_sign_up() :: String.t()
+  def join_sign_up, do: "sign up"
+
+  @doc "The end of the Home join note, after its links."
+  @spec join_tail() :: String.t()
+  def join_tail, do: "to play"
+
   # ─── Practice note ────────────────────────────────────────────────────────────
 
   @doc "The heading of the practice note on Home when nothing is next."
   @spec practice_heading() :: String.t()
-  def practice_heading, do: "While you wait"
+  def practice_heading, do: "While you wait…"
 
   @doc ~S(The practice note's tag, e.g. "Practice riddle 2 of 5".)
   @spec practice_tag(pos_integer(), pos_integer()) :: String.t()
@@ -311,7 +329,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The practice note's reminder that it scores nothing."
   @spec practice_note() :: String.t()
-  def practice_note, do: "Doesn't count. No one's racing."
+  def practice_note, do: ""
 
   @doc "The button that shows a practice riddle's answer."
   @spec practice_peek() :: String.t()

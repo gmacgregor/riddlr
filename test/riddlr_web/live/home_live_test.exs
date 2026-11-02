@@ -623,6 +623,33 @@ defmodule RiddlrWeb.HomeLiveTest do
     assert response =~ "family=Familjen+Grotesk"
   end
 
+  describe "join note" do
+    test "invites a guest to log in or sign up when nothing is next", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-card #join-note a.rg-link-btn[href='/users/log-in']")
+      assert has_element?(live, "#hero-card #join-note a.rg-link-btn[href='/users/register']")
+      assert has_element?(live, "#join-note svg.rg-doodle--bolt")
+    end
+
+    test "invites a guest while a scheduled riddle counts down", %{conn: conn} do
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-card #join-note")
+    end
+
+    test "hides the note from a signed-in player", %{conn: conn} do
+      conn = log_in_user(conn, user_fixture())
+      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      refute has_element?(live, "#join-note")
+    end
+  end
+
   describe "topbar" do
     test "renders the game shell with a brand link home", %{conn: conn} do
       doc = conn |> get(~p"/") |> html_response(200) |> LazyHTML.from_document()
