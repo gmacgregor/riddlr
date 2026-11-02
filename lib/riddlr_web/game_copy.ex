@@ -211,7 +211,7 @@ defmodule RiddlrWeb.GameCopy do
   @doc "The words after the drop time in the Lobby's when line."
   @spec lobby_when_tail() :: String.t()
   def lobby_when_tail,
-    do: "Stay on this screen and the countdown will be replaced when it goes live!"
+    do: ""
 
   @doc "The fact that gives a riddle's solve time, already formatted as a clock."
   @spec solve_time(String.t()) :: String.t()

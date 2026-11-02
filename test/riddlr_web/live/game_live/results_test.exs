@@ -214,11 +214,62 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
   end
 
   describe "mount redirects" do
-    test "redirects unauthenticated user to login", %{conn: conn} do
+    test "lets a guest see the board and the chat", %{conn: conn} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      solver = AccountsFixtures.user_fixture()
+      GamesFixtures.solve_fixture(riddle, solver)
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
+      Gameplay.broadcast_answer(Answer.new(riddle.id, solver, "gg", chat: true))
+
+      assert has_element?(live, ".rg-board .rg-row:not(.is-me)", solver.username)
+      assert has_element?(live, "#chat-feed li.rg-msg:not(.is-me)", "gg")
+    end
+
+    test "does not show a deleted player's solve as a guest's own", %{conn: conn} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      gone = AccountsFixtures.user_fixture()
+      GamesFixtures.solve_fixture(riddle, gone)
+      Riddlr.Repo.delete!(gone)
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, ".rg-board .rg-row", GameCopy.gone_player())
+      refute has_element?(live, ".is-me")
+    end
+
+    test "gives a guest the join note, no you card and no chat form", %{conn: conn} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
 
-      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
-               live(conn, ~p"/game/#{riddle.id}/results")
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#join-note a[href='/users/log-in']")
+      refute has_element?(live, "#res-you")
+      refute has_element?(live, "#chat-form")
+    end
+
+    test "ignores a chat message sent by a guest", %{conn: conn} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle.id))
+
+      render_hook(live, "send_chat", %{"message" => "sneaky"})
+
+      refute_receive {:answer_submitted, _}
+      refute has_element?(live, "#chat-feed", "sneaky")
+    end
+
+    test "gives a signed-in player the you card and chat form, no join note", %{
+      conn: conn,
+      user: user
+    } do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+
+      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
+
+      assert has_element?(live, "#res-you")
+      assert has_element?(live, "#chat-form")
+      refute has_element?(live, "#join-note")
     end
 
     test "redirects home when the riddle does not exist", %{conn: conn, user: user} do

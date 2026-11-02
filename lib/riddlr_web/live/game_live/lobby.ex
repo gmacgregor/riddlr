@@ -23,13 +23,7 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
           true ->
             if connected?(socket) do
-              Presence.track(
-                self(),
-                Presence.lobby_topic(id),
-                to_string(socket.assigns.current_user.id),
-                %{username: socket.assigns.current_user.username}
-              )
-
+              track_player(socket.assigns.current_user, id)
               Phoenix.PubSub.subscribe(Riddlr.PubSub, Presence.lobby_topic(id))
               Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
               Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
@@ -122,10 +116,24 @@ defmodule RiddlrWeb.GameLive.Lobby do
     end
   end
 
-  # Re-reads who is in the room. The viewer comes first, then players in the
+  # Puts a signed-in viewer in the room. A guest watches without being tracked,
+  # so they never show in the room or its count.
+  @spec track_player(Riddlr.Accounts.User.t() | nil, String.t()) :: :ok
+  defp track_player(nil, _riddle_id), do: :ok
+
+  defp track_player(user, riddle_id) do
+    {:ok, _ref} =
+      Presence.track(self(), Presence.lobby_topic(riddle_id), to_string(user.id), %{
+        username: user.username
+      })
+
+    :ok
+  end
+
+  # Re-reads who is in the room. A signed-in viewer comes first, then players in the
   # order they joined: players already shown keep their place, players who
   # left drop out, new players go on the end. Before the socket connects the
-  # viewer is not yet tracked, so they are added here.
+  # viewer is not yet tracked, so they are added here. A guest is not added.
   #
   # `players` is a plain list, not a stream: the grid needs the full order to
   # pick which players get tiles and to count the rest. Only `room_cells/2`'s
@@ -133,14 +141,14 @@ defmodule RiddlrWeb.GameLive.Lobby do
   @spec refresh_players(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp refresh_players(socket) do
     %{riddle: riddle, current_user: user, players: players} = socket.assigns
-    me = %{id: to_string(user.id), username: user.username, me?: true}
+    me = viewer(user)
 
     present =
       riddle.id
       |> Presence.lobby_topic()
       |> Presence.list()
       |> usernames()
-      |> Map.put(me.id, me.username)
+      |> then(&if me, do: Map.put(&1, me.id, me.username), else: &1)
 
     staying =
       Enum.filter(players, fn player ->
@@ -151,14 +159,19 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
     joined =
       for {id, username} <- Enum.sort(present),
-          id != me.id,
+          is_nil(me) or id != me.id,
           not MapSet.member?(shown, id),
           do: %{id: id, username: username, me?: false}
 
     socket
-    |> assign(:players, [me | staying ++ joined])
+    |> assign(:players, List.wrap(me) ++ staying ++ joined)
     |> assign_room()
   end
+
+  # The viewer's own room entry, or nil for a guest, who has none.
+  @spec viewer(Riddlr.Accounts.User.t() | nil) :: GameComponents.room_player() | nil
+  defp viewer(nil), do: nil
+  defp viewer(user), do: %{id: to_string(user.id), username: user.username, me?: true}
 
   @spec assign_room(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp assign_room(socket) do

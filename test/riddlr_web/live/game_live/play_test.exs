@@ -19,11 +19,43 @@ defmodule RiddlrWeb.GameLive.PlayTest do
   end
 
   describe "mount access control" do
-    test "redirects unauthenticated user to login", %{conn: conn} do
+    test "lets a guest watch the game and its guesses", %{conn: conn} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("live")
+      other = AccountsFixtures.user_fixture()
+      :incorrect = Gameplay.submit_answer(riddle, other, "piano")
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      assert has_element?(live, "h1#play-h")
+      assert has_element?(live, "#answer-feed .rg-msg:not(.is-me)", other.username)
+    end
+
+    test "gives a guest no guess form, only the join note", %{conn: conn} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("live")
 
-      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
-               live(conn, ~p"/game/#{riddle.id}/play")
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      refute has_element?(live, "#answer-form")
+      assert has_element?(live, "#join-note a[href='/users/log-in']")
+    end
+
+    test "ignores a guess sent by a guest", %{conn: conn} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("live")
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      render_hook(live, "submit_answer", %{"answer" => hd(riddle.answers)})
+
+      assert Gameplay.get_answers(riddle.id) == []
+      refute has_element?(live, "#solved-panel")
+    end
+
+    test "gives a signed-in player the guess form and no join note", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("live")
+
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/play")
+
+      assert has_element?(live, "#answer-form")
+      refute has_element?(live, "#join-note")
     end
 
     test "redirects to home when riddle does not exist", %{conn: conn, user: user} do

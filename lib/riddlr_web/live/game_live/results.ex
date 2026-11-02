@@ -13,6 +13,9 @@ defmodule RiddlrWeb.GameLive.Results do
   A card under the board points to the next riddle (`Games.next_riddle/0`)
   and follows its state while the page is open. A `scheduled` riddle gets no
   button: its Lobby does not open until the riddle is `ready`.
+
+  A guest sees the board and reads the chat, but gets a join note in place of
+  the "you" card and no chat form. The server drops any chat a guest sends.
   """
 
   use RiddlrWeb, :live_view
@@ -69,12 +72,12 @@ defmodule RiddlrWeb.GameLive.Results do
         # Chat is open until Archive. An open page closes it when the
         # `:riddle_archived` broadcast arrives.
         chat_open? = status == "completed"
-        board = load_board(riddle.id, user.id)
+        board = load_board(riddle.id, user && user.id)
 
         feed =
           if connected?(socket) do
             if chat_open?, do: subscribe_to_chat(id)
-            Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
+            if user, do: Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
             Enum.each(@next_topics, &Phoenix.PubSub.subscribe(Riddlr.PubSub, &1))
             load_feed(riddle.id) ++ [@round_ended]
           else
@@ -83,7 +86,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
         {:ok,
          socket
-         |> assign(:banned, is_banned?(user))
+         |> assign(:banned, user != nil and is_banned?(user))
          |> assign(:chat_open?, chat_open?)
          # Sent to the countdown hook once. Nil once archived: no countdown.
          |> assign(:archive_at, if(chat_open?, do: GameClock.archive_at(riddle)))
@@ -95,7 +98,8 @@ defmodule RiddlrWeb.GameLive.Results do
          |> assign(:answer_words, answer_words(List.first(riddle.answers, "")))
          |> assign(:answer_longest, longest_word(List.first(riddle.answers, "")))
          |> assign(:board, board)
-         |> assign(:you, you_card(board, riddle.id, user.id))
+         # Nil for a guest, who gets the join note instead.
+         |> assign(:you, user && you_card(board, riddle.id, user.id))
          |> assign(:payout, payout(board))
          |> assign(:next, Games.next_riddle())
          # "win", "lose" or nil. Set by handle_params/3.
@@ -133,7 +137,12 @@ defmodule RiddlrWeb.GameLive.Results do
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
+  # A guest has no chat form, but a message could still be sent by hand.
   @impl true
+  def handle_event("send_chat", _params, %{assigns: %{current_user: nil}} = socket) do
+    {:noreply, socket}
+  end
+
   def handle_event("send_chat", _params, %{assigns: %{chat_open?: false}} = socket) do
     {:noreply, socket}
   end
@@ -299,13 +308,14 @@ defmodule RiddlrWeb.GameLive.Results do
   end
 
   # Every saved solve, by placement. A deleted account shows as "Player", as
-  # on the feed.
-  @spec load_board(integer(), integer()) :: [board_entry()]
+  # on the feed. `user_id` is nil for a guest, who owns no row.
+  @spec load_board(integer(), integer() | nil) :: [board_entry()]
   defp load_board(riddle_id, user_id) do
     riddle_id
     |> Gameplay.list_solves()
     |> Enum.map(fn solve ->
-      me? = solve.user_id == user_id
+      # A guest's nil id must not match a deleted player's nil solve.
+      me? = user_id != nil and solve.user_id == user_id
       username = if(solve.user, do: solve.user.username, else: GameCopy.gone_player())
 
       %{

@@ -1,6 +1,9 @@
 defmodule RiddlrWeb.GameLive.Play do
   @moduledoc """
   Live game view — answer submission, scoring, real-time gameplay.
+
+  A guest may watch the riddle and the guess feed, but gets no guess form, and
+  the server drops any guess a guest sends.
   """
 
   use RiddlrWeb, :live_view
@@ -51,7 +54,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(id))
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
+                if user, do: Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
                 GameClock.ensure_started(riddle)
                 build_initial_feed(riddle.id)
@@ -61,11 +64,11 @@ defmodule RiddlrWeb.GameLive.Play do
 
             {:ok,
              socket
-             |> assign(:banned, is_banned?(user))
+             |> assign(:banned, user != nil and is_banned?(user))
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:words, String.split(riddle.description))
-             |> assign(:solve, Gameplay.live_solve_for(riddle.id, user.id))
+             |> assign(:solve, user && Gameplay.live_solve_for(riddle.id, user.id))
              |> assign(:time_remaining, solve_seconds_left(riddle))
              |> assign(:guess_msg, nil)
              |> assign(:guess_wrong?, false)
@@ -81,7 +84,12 @@ defmodule RiddlrWeb.GameLive.Play do
     end
   end
 
+  # A guest has no form, but a guess could still be sent by hand.
   @impl true
+  def handle_event("submit_answer", _params, %{assigns: %{current_user: nil}} = socket) do
+    {:noreply, socket}
+  end
+
   def handle_event("submit_answer", %{"answer" => text}, socket) do
     riddle = socket.assigns.riddle
 

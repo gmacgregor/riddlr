@@ -54,7 +54,7 @@
                     {GameCopy.hero_none_tbc_lead()} <b>{GameCopy.hero_none_tbc()}</b>
                   </p>
                 </div>
-                <.join_note current_scope={@current_scope} />
+                <GameComponents.join_note current_scope={@current_scope} />
                 <.practice_note practice={@practice} />
                 <p class="rg-hero__note">
                   <span>
@@ -86,7 +86,7 @@
                 </.link>
               <% :future -> %>
                 <.drop riddle={@next} seconds={@seconds} />
-                <.join_note current_scope={@current_scope} />
+                <GameComponents.join_note current_scope={@current_scope} />
                 <.practice_note practice={@practice} />
             <% end %>
           </div>

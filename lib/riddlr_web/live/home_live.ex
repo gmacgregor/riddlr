@@ -170,50 +170,6 @@ defmodule RiddlrWeb.HomeLive do
     """
   end
 
-  # Asks a guest to log in or sign up, in the none and future states. A
-  # lightning bolt sits each side of the links, the two facing apart, each
-  # coloured in with a loose yellow fill that misses the lines. Shows nothing once signed in.
-  attr :current_scope, :map, default: nil
-
-  defp join_note(assigns) do
-    ~H"""
-    <p :if={!(@current_scope && @current_scope.user)} id="join-note" class="rg-join">
-      <.bolt />
-      <span class="rg-join__links">
-        <.link navigate={~p"/users/log-in"} class="rg-link-btn">{GameCopy.join_log_in()}</.link>
-        {GameCopy.join_or()}
-        <.link navigate={~p"/users/register"} class="rg-link-btn">
-          {GameCopy.join_sign_up()}
-        </.link>
-        {GameCopy.join_tail()}
-      </span>
-      <.bolt flip />
-    </p>
-    """
-  end
-
-  attr :flip, :boolean, default: false
-
-  defp bolt(assigns) do
-    ~H"""
-    <svg
-      class={["rg-doodle rg-doodle--bolt", @flip && "rg-doodle--flip"]}
-      viewBox="0 0 48 48"
-      aria-hidden="true"
-    >
-      <path
-        class="rg-bolt__fill"
-        d="M31 5 C25 12 19 21 13 29 L25 28 C23 34 21 40 18 47 C26 38 33 29 40 20 L28 21 C29 15 30 10 31 5 Z"
-      />
-      <path
-        class="rg-bolt__scribble"
-        d="M27 9 L17 25 L29 13 L19 29 L33 19 L23 34 L35 22 L20 42"
-      />
-      <path d="M29 3 C24 11 17 20 11 28 L23 27 C21 33 19 39 16 46 C24 37 31 28 38 19 L26 20 C27 14 28 8 29 3 Z" />
-    </svg>
-    """
-  end
-
   # The "While you wait" note, in the none and future states. Shows nothing
   # with no practice riddles.
   attr :practice, :map, default: nil

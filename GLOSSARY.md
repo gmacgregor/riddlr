@@ -10,6 +10,10 @@ How it all works: [`docs/DOMAIN.md`](docs/DOMAIN.md).
 **Player**:
 Anyone signed in who plays riddles. Every account is a player.
 
+**Guest**:
+Anyone not signed in. May watch the Lobby, Play and Results but cannot guess or chat. Also called an anonymous user; prefer guest.
+_Avoid_: spectator
+
 **Admin**:
 A super admin, moderator or editor: anyone who can reach the admin pages.
 

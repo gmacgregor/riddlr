@@ -30,6 +30,14 @@ Every account is a **Player**. Some players also hold a role:
 Roles do not stack: a moderator cannot edit riddles, and an editor cannot
 moderate. **Admin** means super admin, moderator or editor.
 
+### Guests
+
+A visitor who is not signed in can watch a game: the Lobby, Play and
+Results. They see the countdown, who is in the Lobby, the guess feed, the
+board and the post-game chat. They cannot take part: no guess or chat form
+shows, and the system refuses a guess or chat message from them. They are not
+counted in the Lobby. Each of these pages asks them to log in or sign up.
+
 ### Profile
 
 Each player has one account page, `/profile`, and sees only their own. It

@@ -14,11 +14,15 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
   end
 
   describe "mount access control" do
-    test "redirects unauthenticated user to login", %{conn: conn} do
-      riddle = GamesFixtures.riddle_fixture()
+    test "lets a guest watch the lobby", %{conn: conn} do
+      riddle =
+        GamesFixtures.riddle_fixture()
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
 
-      assert {:error, {:redirect, %{to: "/users/log-in"}}} =
-               live(conn, ~p"/game/#{riddle.id}/lobby")
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, "h1#lobby-h")
     end
 
     test "redirects to home when riddle does not exist", %{conn: conn, user: user} do
@@ -247,6 +251,18 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
     end
 
+    test "does not tell a guest to get ready", %{conn: conn} do
+      riddle =
+        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(DateTime.utc_now(), 120, :second)})
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+      send(live.pid, {:countdown_tick, :lobby, 5})
+
+      refute has_element?(live, "#lobby-ready")
+    end
+
     test "sets the topbar countdown dot from the seconds left", %{conn: conn, user: user} do
       riddle =
         GamesFixtures.riddle_fixture(%{live_date: DateTime.add(DateTime.utc_now(), 120, :second)})
@@ -357,6 +373,34 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
                "#room-p-#{user.id} .rg-tile",
                GameComponents.initial(user.username)
              )
+    end
+
+    test "a guest sees the players in the room but is not one of them", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      {:ok, _player_live, _html} =
+        build_conn() |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, "#room-p-#{user.id}:not(.is-me)", user.username)
+      refute has_element?(live, "#room-grid .is-me")
+      assert has_element?(live, "#room-count", GameCopy.room_count(1))
+    end
+
+    test "invites a guest to log in or sign up", %{conn: conn, riddle: riddle} do
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
+
+      assert has_element?(live, "#join-note a[href='/users/log-in']")
+      assert has_element?(live, "#join-note a[href='/users/register']")
+    end
+
+    test "does not invite a signed-in player to join", %{conn: conn, riddle: riddle, user: user} do
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+
+      refute has_element?(live, "#join-note")
     end
 
     test "two players in the same lobby each see both names", %{

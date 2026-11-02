@@ -42,6 +42,10 @@ defmodule RiddlrWeb.Router do
     live_session :public, on_mount: [{RiddlrWeb.UserAuth, :mount_current_user}] do
       live "/", HomeLive, :home
       live "/standings", StandingsLive, :index
+      # Guests may watch a game but not guess or chat.
+      live "/game/:id/lobby", GameLive.Lobby, :lobby
+      live "/game/:id/play", GameLive.Play, :play
+      live "/game/:id/results", GameLive.Results, :results
     end
   end
 
@@ -78,13 +82,6 @@ defmodule RiddlrWeb.Router do
 
   scope "/", RiddlrWeb do
     pipe_through [:browser, :require_authenticated_user]
-
-    live_session :require_authenticated_user,
-      on_mount: [{RiddlrWeb.UserAuth, :ensure_authenticated}] do
-      live "/game/:id/lobby", GameLive.Lobby, :lobby
-      live "/game/:id/play", GameLive.Play, :play
-      live "/game/:id/results", GameLive.Results, :results
-    end
 
     get "/profile", ProfileController, :show
     put "/profile", ProfileController, :update
