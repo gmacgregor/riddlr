@@ -117,9 +117,18 @@ defmodule Riddlr.Accounts.PhoneCode do
     |> String.pad_leading(@code_digits, "0")
   end
 
-  @doc "The stored form of a code."
+  @doc """
+  The stored form of a code: an HMAC keyed with the phone blind-index secret.
+  A six-digit code has only a million values, so a plain hash of a leaked row
+  gives up the code at once.
+  """
   @spec hash_code(String.t()) :: binary()
-  def hash_code(code), do: :crypto.hash(:sha256, code)
+  def hash_code(code) do
+    # The prefix keeps a code's hash apart from the blind index of the same
+    # text, which shares the key.
+    {:ok, hash} = Riddlr.Hashed.HMAC.dump("phone_code:" <> code)
+    hash
+  end
 
   @doc """
   Parses a number as typed into E.164. Numbers with no country code are read
