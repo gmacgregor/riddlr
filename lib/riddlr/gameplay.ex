@@ -31,8 +31,9 @@ defmodule Riddlr.Gameplay do
   in-flight answer.
 
   When a riddle completes, `solve_rows/1` and `entry_rows/1` turn the ETS race
-  into rows that `Riddlr.Games.transition/3` saves as `Riddlr.Gameplay.Solve`
-  and `Riddlr.Gameplay.Entry`. After that,
+  into rows, and `persist_results/3` adds the steps that save them as
+  `Riddlr.Gameplay.Solve` and `Riddlr.Gameplay.Entry` to the transaction
+  `Riddlr.Games.transition/3` runs. After that,
   `list_solves/1`, `solve_for/2` and `count_solves/1` read the database, and
   still work after archive drops the ETS rows.
 
@@ -40,9 +41,11 @@ defmodule Riddlr.Gameplay do
   either writes. It is a rate-limiting UX affordance, not a security boundary.
   """
 
+  alias Ecto.Multi
   alias Riddlr.Clock
   alias Riddlr.GameClock
   alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Repo
 
@@ -53,6 +56,9 @@ defmodule Riddlr.Gameplay do
   # 1 second in microseconds
   @cooldown_us 1_000_000
   @answer_max_length 500
+  # Postgres caps one statement at 65,535 bound parameters. A solve row binds
+  # 7, so one insert of more than ~9,300 solvers fails.
+  @result_row_chunk 5_000
 
   @doc """
   Runs a player's answer through the Answer race.
@@ -335,7 +341,8 @@ defmodule Riddlr.Gameplay do
   guard is not atomic, so two fast correct submissions can both land.
 
   `Riddlr.Workers.CompleteRiddleWorker` passes these to `Games.transition/3`,
-  which saves them in the same transaction as the move to `completed`.
+  which saves them with `persist_results/3` in the same transaction as the
+  move to `completed`.
   """
   @spec solve_rows(integer()) :: [map()]
   def solve_rows(riddle_id) do
@@ -377,6 +384,36 @@ defmodule Riddlr.Gameplay do
     |> Enum.map(&Answer.from_ets(&1).user_id)
     |> Enum.uniq()
     |> Enum.map(&%{riddle_id: riddle_id, user_id: &1, inserted_at: now, updated_at: now})
+  end
+
+  @doc """
+  Adds the steps that save a completed riddle's solve and entry rows to
+  `multi`. `stats` holds the rows from `solve_rows/1` and `entry_rows/1` under
+  `:solves` and `:entries`; either may be missing or empty.
+
+  Postgres caps one statement at 65,535 parameters, so the rows go in batches
+  of `:chunk_size` (default #{@result_row_chunk}), one step each, named
+  `{:solves, n}` and `{:entries, n}`. Rows already saved are skipped, so a
+  second run writes nothing twice.
+  """
+  @spec persist_results(Multi.t(), map(), keyword()) :: Multi.t()
+  def persist_results(multi, stats, opts \\ []) do
+    chunk_size = Keyword.get(opts, :chunk_size, @result_row_chunk)
+
+    multi
+    |> insert_chunks(:solves, Solve, Map.get(stats, :solves, []), chunk_size)
+    |> insert_chunks(:entries, Entry, Map.get(stats, :entries, []), chunk_size)
+  end
+
+  @spec insert_chunks(Multi.t(), :solves | :entries, module(), [map()], pos_integer()) ::
+          Multi.t()
+  defp insert_chunks(multi, key, schema, rows, chunk_size) do
+    rows
+    |> Enum.chunk_every(chunk_size)
+    |> Enum.with_index()
+    |> Enum.reduce(multi, fn {chunk, n}, multi ->
+      Multi.insert_all(multi, {key, n}, schema, chunk, on_conflict: :nothing)
+    end)
   end
 
   @doc """

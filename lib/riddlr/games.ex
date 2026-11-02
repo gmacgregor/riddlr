@@ -357,6 +357,10 @@ defmodule Riddlr.Games do
   the follow-on job, the broadcast and any cleanup. Callers (Oban workers,
   Gameplay) supply only the target status and, for `:completed`, stats.
 
+  For `:completed`, `stats` also carries the `:solves` and `:entries` rows.
+  `Riddlr.Gameplay.persist_results/3` saves them in the same transaction as
+  the status change.
+
   Returns:
 
     * `{:ok, riddle}` — transitioned and committed
@@ -407,23 +411,12 @@ defmodule Riddlr.Games do
   # The solves and entries go in with the move to `completed`, so the board,
   # the solve rate and the status commit or roll back as one. A retry after
   # rollback writes them again; a second run after commit is refused as an
-  # invalid transition. The `on_conflict: :nothing` covers a direct second call.
+  # invalid transition.
   @spec save_results(Multi.t(), atom(), map()) :: Multi.t()
-  defp save_results(multi, :completed, stats) do
-    multi
-    |> insert_rows(:solves, Riddlr.Gameplay.Solve, stats)
-    |> insert_rows(:entries, Riddlr.Gameplay.Entry, stats)
-  end
+  defp save_results(multi, :completed, stats),
+    do: Riddlr.Gameplay.persist_results(multi, stats)
 
   defp save_results(multi, _to, _stats), do: multi
-
-  @spec insert_rows(Multi.t(), :solves | :entries, module(), map()) :: Multi.t()
-  defp insert_rows(multi, key, schema, stats) do
-    case Map.get(stats, key, []) do
-      [] -> multi
-      rows -> Multi.insert_all(multi, key, schema, rows, on_conflict: :nothing)
-    end
-  end
 
   defp enqueue_next_job(multi, :ready) do
     Multi.insert(multi, :fan_out_job, fn %{riddle: riddle} ->
