@@ -5,6 +5,8 @@ defmodule Riddlr.Games.TransitionTest do
   import Riddlr.GamesFixtures
 
   alias Riddlr.Games
+  alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Store
 
   defp published(attrs), do: riddle_fixture(Map.put(attrs, :publish_status, "published"))
 
@@ -181,17 +183,15 @@ defmodule Riddlr.Games.TransitionTest do
       riddle = published(%{play_status: "completed"})
       user_id = :erlang.unique_integer([:positive])
 
-      :ets.insert(
-        :riddle_answers,
-        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true, nil}
-      )
-
-      :ets.insert(:answer_cooldowns, {{riddle.id, user_id}, System.monotonic_time(:microsecond)})
+      user = %{id: user_id, username: "user#{user_id}"}
+      {:ok, 1} = Store.record(Answer.new(riddle.id, user, "answer", correct: true))
+      :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
 
       assert {:ok, _} = Games.transition(riddle.id, :archived)
 
-      assert :ets.lookup(:riddle_answers, {riddle.id, user_id}) == []
-      assert :ets.lookup(:answer_cooldowns, {riddle.id, user_id}) == []
+      refute Store.guessed?(riddle.id, user_id)
+      assert Store.recent_answers(riddle.id) == []
+      assert :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
     end
   end
 end

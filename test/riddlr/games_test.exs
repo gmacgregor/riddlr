@@ -3,6 +3,8 @@ defmodule Riddlr.GamesTest do
   use Oban.Testing, repo: Riddlr.Repo
 
   alias Riddlr.Games
+  alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Store
 
   describe "riddles" do
     alias Riddlr.Games.Riddle
@@ -143,17 +145,15 @@ defmodule Riddlr.GamesTest do
       riddle = riddle_fixture()
       user_id = :erlang.unique_integer([:positive])
 
-      :ets.insert(
-        :riddle_answers,
-        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true, nil}
-      )
-
-      :ets.insert(:answer_cooldowns, {{riddle.id, user_id}, System.monotonic_time(:microsecond)})
+      user = %{id: user_id, username: "user#{user_id}"}
+      {:ok, 1} = Store.record(Answer.new(riddle.id, user, "answer", correct: true))
+      :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
 
       assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
 
-      assert :ets.lookup(:riddle_answers, {riddle.id, user_id}) == []
-      assert :ets.lookup(:answer_cooldowns, {riddle.id, user_id}) == []
+      refute Store.guessed?(riddle.id, user_id)
+      assert Store.recent_answers(riddle.id) == []
+      assert :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
     end
 
     test "delete_riddle/1 cancels the riddle's pending jobs" do

@@ -5,6 +5,8 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
   import Ecto.Query
   import Riddlr.GamesFixtures
 
+  alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Store
   alias Riddlr.Workers.ArchiveRiddleTransitionWorker
 
   test "transitions completed riddle to archived" do
@@ -90,19 +92,15 @@ defmodule Riddlr.Workers.ArchiveRiddleTransitionWorkerTest do
 
       user_id = :erlang.unique_integer([:positive])
 
-      # Manually insert ETS entries for this riddle
-      :ets.insert(
-        :riddle_answers,
-        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true, nil}
-      )
-
-      :ets.insert(:answer_cooldowns, {{riddle.id, user_id}, System.monotonic_time(:microsecond)})
+      user = %{id: user_id, username: "user#{user_id}"}
+      {:ok, 1} = Store.record(Answer.new(riddle.id, user, "answer", correct: true))
+      :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
 
       assert :ok = perform_job(ArchiveRiddleTransitionWorker, %{riddle_id: riddle.id})
 
-      # Verify ETS entries were cleaned up
-      assert :ets.lookup(:riddle_answers, {riddle.id, user_id}) == []
-      assert :ets.lookup(:answer_cooldowns, {riddle.id, user_id}) == []
+      refute Store.guessed?(riddle.id, user_id)
+      assert Store.recent_answers(riddle.id) == []
+      assert :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
     end
   end
 
