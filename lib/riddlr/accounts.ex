@@ -305,7 +305,8 @@ defmodule Riddlr.Accounts do
   prove they own it. The number stays pending, off the account, until
   `confirm_phone/2` gets the right code.
 
-  Sends are limited to #{PhoneCode.user_hourly_limit()} per player per hour and
+  Sends are limited to #{PhoneCode.user_hourly_limit()} per player per hour,
+  #{PhoneCode.user_daily_limit()} per player per day and
   #{PhoneCode.number_daily_limit()} per number per day. A code that used up all
   its tries blocks new codes (`:locked`) for a day after it was sent.
   """

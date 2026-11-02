@@ -368,6 +368,17 @@ defmodule Riddlr.AccountsPhoneTest do
 
       assert [_one] = all_enqueued(worker: SendSmsConfirmationWorker)
     end
+
+    test "off and on again after a confirmation text went out sends no second one that day",
+         %{user: user} do
+      user = confirm!(user, @ca)
+      Repo.update_all(Oban.Job, set: [state: "completed", completed_at: DateTime.utc_now()])
+
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: false})
+      {:ok, _} = Accounts.update_user_notifications(user, %{notify_sms: true})
+
+      assert [] = all_enqueued(worker: SendSmsConfirmationWorker)
+    end
   end
 
   defp wrong(code), do: if(code == "000000", do: "111111", else: "000000")
