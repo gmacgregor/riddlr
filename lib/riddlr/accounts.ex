@@ -415,9 +415,11 @@ defmodule Riddlr.Accounts do
     day_ago = DateTime.add(now, -1, :day)
 
     by_user = from c in PhoneCode, where: c.user_id == ^user_id and c.inserted_at > ^hour_ago
+    by_user_day = from c in PhoneCode, where: c.user_id == ^user_id and c.inserted_at > ^day_ago
     by_number = from c in PhoneCode, where: c.phone_hash == ^e164 and c.inserted_at > ^day_ago
 
     Repo.aggregate(by_user, :count) >= PhoneCode.user_hourly_limit() or
+      Repo.aggregate(by_user_day, :count) >= PhoneCode.user_daily_limit() or
       Repo.aggregate(by_number, :count) >= PhoneCode.number_daily_limit()
   end
 

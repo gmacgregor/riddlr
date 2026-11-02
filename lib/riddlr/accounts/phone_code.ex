@@ -26,6 +26,12 @@ defmodule Riddlr.Accounts.PhoneCode do
   @spec user_hourly_limit() :: pos_integer()
   def user_hourly_limit, do: @user_hourly_limit
 
+  @user_daily_limit 10
+
+  @doc "How many codes one player may get per day, across all numbers."
+  @spec user_daily_limit() :: pos_integer()
+  def user_daily_limit, do: @user_daily_limit
+
   @number_daily_limit 5
 
   @doc "How many codes one number may get per day, across all accounts."
