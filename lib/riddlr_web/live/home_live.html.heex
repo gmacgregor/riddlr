@@ -35,6 +35,11 @@
             </svg>
           </p>
         </div>
+        <%!-- While a riddle is open, the card is busy: the note sits above it. --%>
+        <GameComponents.join_note
+          :if={@hero in [:lobby, :live]}
+          current_scope={@current_scope}
+        />
         <div id="hero-sheet" class="rg-hero__sheet" data-state={@hero}>
           <Thinker.thinker id="hero-thinker" n={@thinker} />
           <div id="hero-card" class="rg-hero__card">

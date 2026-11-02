@@ -640,6 +640,28 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#hero-card #join-note")
     end
 
+    for status <- ["ready", "live"] do
+      test "sits above the card while a riddle is #{status}", %{conn: conn} do
+        upcoming_fixture(unquote(status), ~U[2030-01-01 14:05:00Z])
+
+        {:ok, live, _html} = live(conn, ~p"/")
+
+        assert has_element?(live, "#join-note + #hero-sheet")
+        refute has_element?(live, "#hero-card #join-note")
+      end
+    end
+
+    test "is not above the card for a signed-in player while a riddle is live", %{
+      conn: conn
+    } do
+      conn = log_in_user(conn, user_fixture())
+      upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      refute has_element?(live, "#join-note")
+    end
+
     test "hides the note from a signed-in player", %{conn: conn} do
       conn = log_in_user(conn, user_fixture())
       upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
