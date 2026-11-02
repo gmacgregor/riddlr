@@ -53,6 +53,11 @@ defmodule RiddlrWeb.UserAuth do
       RiddlrWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
     end
 
+    if previous_token = get_session(conn, :previous_user_token) do
+      Accounts.delete_user_session_token(previous_token)
+      RiddlrWeb.Endpoint.broadcast(user_session_topic(previous_token), "disconnect", %{})
+    end
+
     conn
     |> renew_session(nil)
     |> delete_resp_cookie(@remember_me_cookie)
@@ -70,7 +75,7 @@ defmodule RiddlrWeb.UserAuth do
       conn
       |> assign(:current_scope, Scope.for_user(user))
       |> maybe_put_live_socket_id(token)
-      |> maybe_reissue_user_session_token(user, token_inserted_at)
+      |> maybe_reissue_user_session_token(user, token, token_inserted_at)
     else
       nil -> assign(conn, :current_scope, Scope.for_user(nil))
     end
@@ -100,12 +105,19 @@ defmodule RiddlrWeb.UserAuth do
   end
 
   # Reissue the session token if it is older than the configured reissue age.
-  defp maybe_reissue_user_session_token(conn, user, token_inserted_at) do
+  #
+  # The old token stays valid, as tabs opened before the reissue still hold
+  # it. Logout reads :previous_user_token to delete it and close those tabs.
+  # One is enough: a token lives 14 days and reissues at 7, so the one before
+  # it has expired by the next reissue.
+  defp maybe_reissue_user_session_token(conn, user, token, token_inserted_at) do
     now = Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
     token_age = DateTime.diff(now, token_inserted_at, :day)
 
     if token_age >= @session_reissue_age_in_days do
-      create_or_extend_session(conn, user, %{})
+      conn
+      |> create_or_extend_session(user, %{})
+      |> put_session(:previous_user_token, token)
     else
       conn
     end

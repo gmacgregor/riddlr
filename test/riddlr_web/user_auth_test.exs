@@ -131,6 +131,24 @@ defmodule RiddlrWeb.UserAuthTest do
       assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^live_socket_id}
     end
 
+    test "also logs out the token a reissue replaced", %{conn: conn, user: user} do
+      old_token = Accounts.generate_user_session_token(user)
+      offset_user_token(old_token, -10, :day)
+      old_topic = "users_sessions:#{Base.url_encode64(old_token)}"
+      RiddlrWeb.Endpoint.subscribe(old_topic)
+
+      conn =
+        conn |> put_session(:user_token, old_token) |> UserAuth.fetch_current_scope_for_user([])
+
+      assert get_session(conn, :user_token) != old_token
+      assert Accounts.get_user_by_session_token(old_token)
+
+      UserAuth.log_out_user(conn)
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^old_topic}
+      refute Accounts.get_user_by_session_token(old_token)
+    end
+
     test "works even if user is already logged out", %{conn: conn} do
       conn = conn |> fetch_cookies() |> UserAuth.log_out_user()
       refute get_session(conn, :user_token)
