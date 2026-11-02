@@ -137,6 +137,15 @@ defmodule RiddlrWeb.ProfileControllerTest do
       assert redirected_to(conn) == ~p"/profile"
       assert Phoenix.Flash.get(conn.assigns.flash, :error)
     end
+
+    for action <- ["update_email", "update_password", "update_notifications"] do
+      test "treats #{action} with no user params as unknown", %{conn: conn} do
+        conn = put(conn, ~p"/profile", %{"action" => unquote(action)})
+
+        assert redirected_to(conn) == ~p"/profile"
+        assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Unknown form."
+      end
+    end
   end
 
   describe "PUT /profile (change email form)" do

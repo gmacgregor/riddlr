@@ -32,8 +32,7 @@ defmodule RiddlrWeb.ProfileController do
   `send_phone_code`, `resend_phone_code`, `confirm_phone`, `remove_phone`.
   """
   @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def update(conn, %{"action" => "update_email"} = params) do
-    %{"user" => user_params} = params
+  def update(conn, %{"action" => "update_email", "user" => user_params}) do
     user = conn.assigns.current_scope.user
 
     case Accounts.change_user_email(user, user_params) do
@@ -56,8 +55,7 @@ defmodule RiddlrWeb.ProfileController do
     end
   end
 
-  def update(conn, %{"action" => "update_password"} = params) do
-    %{"user" => user_params} = params
+  def update(conn, %{"action" => "update_password", "user" => user_params}) do
     user = conn.assigns.current_scope.user
 
     case Accounts.update_user_password(user, user_params) do
@@ -74,8 +72,7 @@ defmodule RiddlrWeb.ProfileController do
     end
   end
 
-  def update(conn, %{"action" => "update_notifications"} = params) do
-    %{"user" => user_params} = params
+  def update(conn, %{"action" => "update_notifications", "user" => user_params}) do
     user = conn.assigns.current_scope.user
 
     case Accounts.update_user_notifications(user, user_params) do
