@@ -620,6 +620,19 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
       assert has_element?(live, "#chat-feed", "gg everyone")
     end
 
+    test "a second message inside a second is dropped", %{conn: conn, user: user} do
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
+      conn = log_in_user(conn, user)
+
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
+
+      render_submit(element(live, "#chat-form"), %{"message" => "gg everyone"})
+      render_submit(element(live, "#chat-form"), %{"message" => "spam"})
+
+      assert has_element?(live, "#chat-feed", "gg everyone")
+      refute has_element?(live, "#chat-feed", "spam")
+    end
+
     test "a user banned before they arrived cannot chat", %{conn: conn} do
       user = AccountsFixtures.user_fixture()
       {:ok, _} = Riddlr.Accounts.set_user_status(user, :banned)
