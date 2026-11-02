@@ -292,21 +292,27 @@ defmodule RiddlrWeb.UserAuth do
     end
   end
 
+  # On the first render, assign_new takes the scope fetch_current_scope_for_user
+  # already put on the conn, so the token is looked up once per request. The
+  # connected mount has no conn and looks it up again, which also catches a
+  # ban since the page loaded.
   defp mount_current_user(socket, session) do
-    case session do
-      %{"user_token" => user_token} ->
-        case Accounts.get_user_by_session_token(user_token) do
-          {user, _token_inserted_at} ->
-            assign_current_user(socket, user)
+    socket =
+      Phoenix.Component.assign_new(socket, :current_scope, fn ->
+        session |> session_user() |> Scope.for_user()
+      end)
 
-          nil ->
-            assign_current_user(socket, nil)
-        end
+    assign_current_user(socket, socket.assigns.current_scope && socket.assigns.current_scope.user)
+  end
 
-      %{} ->
-        assign_current_user(socket, nil)
+  defp session_user(%{"user_token" => user_token}) do
+    case Accounts.get_user_by_session_token(user_token) do
+      {user, _token_inserted_at} -> user
+      nil -> nil
     end
   end
+
+  defp session_user(_session), do: nil
 
   # Layouts and shared components read :current_scope, so LiveViews carry it
   # alongside :current_user just like the plug does for controllers.
