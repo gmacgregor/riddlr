@@ -1462,7 +1462,9 @@ a.rg-pill {
 .rg-hero__card {
   container-type: inline-size;
 }
+/* The card lines its parts up at the start; the clock sits in the middle. */
 .rg-hero .rg-flaps {
+  align-self: center;
   --flap-size: min(100cqi / 4, 9rem);
   gap: calc(var(--flap-size) * 0.06);
 }
@@ -1919,6 +1921,9 @@ a.rg-pill {
   display: grid;
   gap: var(--space-s);
   justify-items: start;
+}
+.rg-lobby__clock .rg-flaps {
+  justify-self: center;
 }
 .rg-lobby__h {
   font-family: var(--f-display);
