@@ -32,13 +32,18 @@ config :riddlr,
 config :riddlr, Riddlr.GameClock, batch_feed: true, feed_flush_ms: 250
 
 # Configure Oban
+# Queue limits add up to 15, under the Repo pool of 20, so jobs at full tilt
+# leave connections for web requests. Lifeline puts a job back once it has
+# run 5 minutes, which means its node died: a notification send times out at
+# 30 seconds, and nothing else runs that long.
 config :riddlr, Oban,
   repo: Riddlr.Repo,
+  lifeline: [rescue_after: {5, :minutes}],
   plugins: [
     Oban.Plugins.Pruner,
     {Oban.Plugins.Cron, crontab: [{"0 * * * *", Riddlr.Workers.PrunePhoneCodesWorker}]}
   ],
-  queues: [game_lifecycle: 5, notifications: 10, mailers: 3, default: 5]
+  queues: [game_lifecycle: 5, notifications: 5, default: 5]
 
 # Configure the endpoint
 config :riddlr, RiddlrWeb.Endpoint,
