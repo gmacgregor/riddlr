@@ -12,7 +12,6 @@ defmodule RiddlrWeb.GameLive.Play do
   alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
-  alias RiddlrWeb.GameLive.Feed
 
   @answer_max_length 500
   # The most guesses the feed keeps in the DOM; older ones drop off the top.
@@ -48,7 +47,7 @@ defmodule RiddlrWeb.GameLive.Play do
           "live" ->
             user = socket.assigns.current_user
 
-            {initial_answers, guess_count, solver_ids} =
+            {initial_answers, guess_count, solved} =
               if connected?(socket) do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
@@ -58,7 +57,7 @@ defmodule RiddlrWeb.GameLive.Play do
                 GameClock.ensure_started(riddle)
                 build_initial_feed(riddle.id)
               else
-                {[], 0, MapSet.new()}
+                {[], 0, 0}
               end
 
             {:ok,
@@ -74,7 +73,7 @@ defmodule RiddlrWeb.GameLive.Play do
              |> assign(:cooling?, false)
              |> assign(:cooldown_timer, nil)
              |> assign(:guess_count, guess_count)
-             |> assign(:solver_ids, solver_ids)
+             |> assign(:solved, solved)
              |> stream(:answers, initial_answers, limit: -@feed_limit)}
         end
 
@@ -128,7 +127,7 @@ defmodule RiddlrWeb.GameLive.Play do
     {:noreply,
      socket
      |> update(:guess_count, &(&1 + 1))
-     |> update(:solver_ids, &add_solver(&1, answer_data))
+     |> update(:solved, &count_solve(&1, answer_data))
      |> stream_insert(:answers, answer_data, at: -1, limit: -@feed_limit)}
   end
 
@@ -183,12 +182,16 @@ defmodule RiddlrWeb.GameLive.Play do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  # Keeps solvers as a set of user ids, so a solve the mount snapshot already
-  # holds is not counted twice when its broadcast lands. Chat and wrong guesses
-  # add nothing. A flagged solve stays: the solve still stands.
-  @spec add_solver(MapSet.t(), Answer.t()) :: MapSet.t()
-  defp add_solver(ids, %Answer{correct: true, chat: false, user_id: id}), do: MapSet.put(ids, id)
-  defp add_solver(ids, _answer), do: ids
+  # A solve's placement is the solved count when it was claimed, so taking the
+  # larger of the two never counts a solve the mount snapshot already holds.
+  # Chat and wrong guesses add nothing. A flagged solve stays: the solve still
+  # stands.
+  @spec count_solve(non_neg_integer(), Answer.t()) :: non_neg_integer()
+  defp count_solve(solved, %Answer{correct: true, chat: false, placement: placement})
+       when is_integer(placement),
+       do: max(solved, placement)
+
+  defp count_solve(solved, _answer), do: solved
 
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok
@@ -212,24 +215,19 @@ defmodule RiddlrWeb.GameLive.Play do
 
   defp format_error({:not_live, _}), do: "The game is not currently active."
 
-  # Builds feed items for answers already in ETS when the LiveView mounts,
-  # oldest first, plus the count of every guess and the ids of every solver so far.
+  # Builds feed items for the newest answers in ETS when the LiveView mounts,
+  # oldest first, plus how many guesses and solves the riddle has so far.
   # Correct answers stay masked while the race runs (Answer.for_live_feed/1).
   @spec build_initial_feed(integer()) ::
-          {[Answer.t()], non_neg_integer(), MapSet.t()}
+          {[Answer.t()], non_neg_integer(), non_neg_integer()}
   defp build_initial_feed(riddle_id) do
-    answers = Gameplay.get_answers(riddle_id)
-
     feed =
-      answers
-      |> Enum.take(@feed_limit)
+      riddle_id
+      |> Gameplay.get_answers(@feed_limit)
       |> Enum.reverse()
-      |> Feed.put_usernames()
       |> Enum.map(&Answer.for_live_feed/1)
 
-    solver_ids = for %Answer{correct: true, user_id: id} <- answers, into: MapSet.new(), do: id
-
-    {feed, length(answers), solver_ids}
+    {feed, Gameplay.answer_count(riddle_id), Gameplay.solved_count(riddle_id)}
   end
 
   defp solve_seconds_left(riddle) do

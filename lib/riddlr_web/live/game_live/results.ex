@@ -24,7 +24,6 @@ defmodule RiddlrWeb.GameLive.Results do
   alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
-  alias RiddlrWeb.GameLive.Feed
 
   @message_max_length 500
   # Guesses loaded at mount, and rows kept in the feed once chat joins them.
@@ -280,10 +279,8 @@ defmodule RiddlrWeb.GameLive.Results do
   @spec load_feed(integer()) :: [Answer.t()]
   defp load_feed(riddle_id) do
     riddle_id
-    |> Gameplay.get_answers()
-    |> Enum.take(@log_limit)
+    |> Gameplay.get_answers(@log_limit)
     |> Enum.reverse()
-    |> Feed.put_usernames()
     |> Enum.map(&%{&1 | offset_ms: nil})
   end
 
