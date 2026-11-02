@@ -621,6 +621,7 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
     end
 
     test "a second message inside a second is dropped", %{conn: conn, user: user} do
+      Frozen.freeze()
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
       conn = log_in_user(conn, user)
 

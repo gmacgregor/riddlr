@@ -6,7 +6,11 @@ defmodule Riddlr.Gameplay.SendChatTest do
   alias Riddlr.Gameplay.Answer
   alias Riddlr.{AccountsFixtures, GamesFixtures}
 
+  # The cooldown is one second, so a slow run on the real clock could let a
+  # second message through.
   setup do
+    Frozen.freeze()
+
     riddle =
       %{publish_status: "published"}
       |> GamesFixtures.riddle_fixture()
@@ -38,8 +42,6 @@ defmodule Riddlr.Gameplay.SendChatTest do
       riddle: riddle,
       user: user
     } do
-      Frozen.freeze()
-
       assert Gameplay.send_chat(riddle, user, "one") == :ok
       Frozen.advance(999, :millisecond)
       assert Gameplay.send_chat(riddle, user, "two") == {:error, :cooldown}
