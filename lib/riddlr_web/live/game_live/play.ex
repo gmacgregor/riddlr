@@ -142,9 +142,14 @@ defmodule RiddlrWeb.GameLive.Play do
 
   # The riddle ended while the player watched, so Results opens with a
   # celebration. Results drops the param once read, so a reload doesn't replay it.
+  # The completed riddle replaces the mounted one, so a guess that lands before
+  # the page leaves is checked against the "completed" status.
   def handle_info({:riddle_completed, riddle}, socket) do
     if riddle.id == socket.assigns.riddle.id do
-      {:noreply, push_navigate(socket, to: ~p"/game/#{riddle.id}/results?celebrate=1")}
+      {:noreply,
+       socket
+       |> assign(:riddle, riddle)
+       |> push_navigate(to: ~p"/game/#{riddle.id}/results?celebrate=1")}
     else
       {:noreply, socket}
     end
@@ -200,6 +205,7 @@ defmodule RiddlrWeb.GameLive.Play do
   end
 
   defp format_error(:cooldown), do: GameCopy.guess_cooldown()
+  defp format_error(:time_up), do: GameCopy.guess_time_up()
   defp format_error(:already_solved), do: "You've already solved this riddle!"
 
   defp format_error(:answer_too_long),

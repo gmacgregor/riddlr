@@ -474,6 +474,10 @@ defmodule RiddlrWeb.GameCopy do
   @spec guess_cooldown() :: String.t()
   def guess_cooldown, do: "One guess per second. Breathe."
 
+  @doc "The message when a guess arrives after the solve time is up."
+  @spec guess_time_up() :: String.t()
+  def guess_time_up, do: "Time's up. Results are on the way."
+
   @quips [
     "Not quite. Read it again.",
     "Nope. The riddle is smirking at you.",

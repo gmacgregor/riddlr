@@ -41,6 +41,7 @@ defmodule Riddlr.Gameplay do
   """
 
   alias Riddlr.Clock
+  alias Riddlr.GameClock
   alias Riddlr.Gameplay.Answer
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Repo
@@ -66,6 +67,7 @@ defmodule Riddlr.Gameplay do
 
     with :ok <- check_not_banned(user),
          :ok <- check_game_live(riddle),
+         :ok <- check_time_left(riddle),
          :ok <- check_already_solved(riddle.id, user.id),
          :ok <- validate_input(text),
          # Mutates — keep last, and call it exactly once per submission.
@@ -76,6 +78,17 @@ defmodule Riddlr.Gameplay do
 
   defp check_game_live(%{play_status: "live"}), do: :ok
   defp check_game_live(%{play_status: status}), do: {:error, {:not_live, status}}
+
+  # A riddle still reads "live" for a moment after its timer runs out, until
+  # CompleteRiddleWorker ends the round, and the caller's struct may be older
+  # still. The clock decides, so no guess gets in late.
+  @spec check_time_left(Riddlr.Games.Riddle.t()) :: :ok | {:error, :time_up}
+  defp check_time_left(riddle) do
+    case GameClock.countdown(riddle) do
+      {:play, seconds} when seconds > 0 -> :ok
+      _lobby_or_over -> {:error, :time_up}
+    end
+  end
 
   defp check_not_banned(%{account_status: :banned}), do: {:error, :banned}
   defp check_not_banned(_user), do: :ok
