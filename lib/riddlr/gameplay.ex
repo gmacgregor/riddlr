@@ -43,7 +43,6 @@ defmodule Riddlr.Gameplay do
 
   alias Ecto.Multi
   alias Riddlr.Clock
-  alias Riddlr.GameClock
   alias Riddlr.Gameplay.Answer
   alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
@@ -87,13 +86,19 @@ defmodule Riddlr.Gameplay do
 
   # A riddle still reads "live" for a moment after its timer runs out, until
   # CompleteRiddleWorker ends the round, and the caller's struct may be older
-  # still. The clock decides, so no guess gets in late.
+  # still. The clock decides, so no guess gets in late. It checks to the
+  # millisecond, not by GameClock.countdown/1: the countdown rounds down and
+  # shows 0 for the last second, which would cut that second from the round.
   @spec check_time_left(Riddlr.Games.Riddle.t()) :: :ok | {:error, :time_up}
+  defp check_time_left(%{live_date: nil}), do: :ok
+
   defp check_time_left(riddle) do
-    case GameClock.countdown(riddle) do
-      {:play, seconds} when seconds > 0 -> :ok
-      _lobby_or_over -> {:error, :time_up}
-    end
+    now = Clock.utc_now()
+    deadline = DateTime.add(riddle.live_date, riddle.solve_time, :second)
+
+    if DateTime.before?(now, riddle.live_date) or not DateTime.before?(now, deadline),
+      do: {:error, :time_up},
+      else: :ok
   end
 
   defp check_not_banned(%{account_status: :banned}), do: {:error, :banned}

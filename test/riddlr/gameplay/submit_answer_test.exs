@@ -191,14 +191,12 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
       assert Riddlr.Games.get_riddle!(riddle.id).first_solver_id == nil
     end
 
-    # Guesses stop when the countdown shows 0, which GameClock.countdown/1
-    # reaches just after 59 of 60 seconds.
-    test "accepts an answer while the countdown shows a second left", %{user: user} do
+    test "accepts an answer with a fraction of a second left", %{user: user} do
       live_date = ~U[2026-08-01 12:00:00.000000Z]
       riddle = live_riddle(%{live_date: live_date, solve_time: 60})
 
       Frozen.freeze(live_date)
-      Frozen.advance(59, :second)
+      Frozen.advance(59_999, :millisecond)
 
       assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
     end
