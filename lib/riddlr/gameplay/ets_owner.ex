@@ -10,6 +10,7 @@ defmodule Riddlr.Gameplay.EtsOwner do
   @impl true
   def init(_) do
     :ok = Store.create_tables()
+    :ok = Riddlr.Cache.create_table()
     {:ok, []}
   end
 end

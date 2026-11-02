@@ -37,6 +37,10 @@ config :riddlr, Riddlr.GameClock, batch_feed: false
 # Lobby tests apply presence diffs by sending :flush_room themselves.
 config :riddlr, RiddlrWeb.GameLive.Lobby, room_flush_ms: 60_000
 
+# The cache is one table for the node; async tests in different sandboxes
+# would read each other's entries. Riddlr.CacheHelpers turns it on per test.
+config :riddlr, Riddlr.Cache, enabled: false
+
 # Navigate at once when a riddle goes live or ends.
 config :riddlr, RiddlrWeb.GameLive.Stagger, max_ms: 0
 
