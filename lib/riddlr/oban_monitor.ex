@@ -18,15 +18,29 @@ defmodule Riddlr.ObanMonitor do
   import Ecto.Query
   alias Riddlr.Repo
 
+  @spec stats() :: %{
+          total: non_neg_integer(),
+          by_state: %{String.t() => pos_integer()},
+          by_queue: %{String.t() => pos_integer()},
+          by_worker: %{String.t() => pos_integer()}
+        }
   def stats do
-    jobs = Repo.all(Oban.Job)
+    by_state = count_by(:state)
 
     %{
-      total: length(jobs),
-      by_state: Enum.frequencies_by(jobs, & &1.state),
-      by_queue: Enum.frequencies_by(jobs, & &1.queue),
-      by_worker: Enum.frequencies_by(jobs, & &1.worker)
+      total: by_state |> Map.values() |> Enum.sum(),
+      by_state: by_state,
+      by_queue: count_by(:queue),
+      by_worker: count_by(:worker)
     }
+  end
+
+  # Counts in the database, so stats never loads every job into memory.
+  @spec count_by(:state | :queue | :worker) :: %{String.t() => pos_integer()}
+  defp count_by(field) do
+    from(j in Oban.Job, group_by: field(j, ^field), select: {field(j, ^field), count(j.id)})
+    |> Repo.all()
+    |> Map.new()
   end
 
   def riddle_jobs(riddle_id) do
