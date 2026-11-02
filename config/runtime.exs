@@ -107,9 +107,12 @@ if config_env() == :prod do
   # CLOAK_KEY: base64 of 32 random bytes (`openssl rand -base64 32`). It
   # encrypts phone numbers. To rotate, set CLOAK_KEY to the new key and
   # CLOAK_KEY_OLD to the old one, deploy, run `mix cloak.migrate.ecto`, then
-  # drop CLOAK_KEY_OLD. CLOAK_KEY_TAG names the key (e.g. "AES.GCM.V1"); bump
-  # it with each new key and move the old tag to CLOAK_KEY_OLD_TAG, so stored
-  # values name the key that made them.
+  # drop CLOAK_KEY_OLD. CLOAK_KEY_TAG (required) names the key; bump it with
+  # each new key and move the old tag to CLOAK_KEY_OLD_TAG, so stored values
+  # name the key that made them. Each stored value finds its key by tag, so
+  # data written before tags were required needs "AES.GCM.V1", as CLOAK_KEY_TAG
+  # or as CLOAK_KEY_OLD_TAG. With any other tag the app boots but cannot read
+  # those numbers.
   #
   # PHONE_HMAC_KEY: a separate secret for the phone blind index. Changing it
   # orphans every stored hash, so do not rotate it without a re-hash.
