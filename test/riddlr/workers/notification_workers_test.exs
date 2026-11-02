@@ -32,6 +32,30 @@ defmodule Riddlr.Workers.NotificationWorkersTest do
     refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
   end
 
+  describe "a row another job is sending" do
+    setup %{riddle: riddle} do
+      args = %{"riddle_id" => riddle.id, "lead_time" => "lobby_open"}
+      :ok = perform_job(NotificationFanOutWorker, args)
+      [row] = Repo.all(from n in RiddleNotification, where: n.riddle_id == ^riddle.id)
+      now = DateTime.truncate(Riddlr.Clock.utc_now(), :second)
+      row |> Ecto.Changeset.change(sending_at: now) |> Repo.update!()
+      %{args: %{"notification_id" => row.id}}
+    end
+
+    test "snoozes the job for a minute", %{args: args} do
+      assert {:snooze, 60} = perform_job(SendNotificationWorker, args)
+      refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
+    end
+
+    test "gives up as an error after 10 snoozes", %{args: args} do
+      assert {:error, _} = perform_job(SendNotificationWorker, args, meta: %{"snoozed" => 10})
+    end
+  end
+
+  test "times a send out after 30 seconds" do
+    assert SendNotificationWorker.timeout(%Oban.Job{}) == 30_000
+  end
+
   test "a finished fan-out does not block a new one for the same riddle", %{riddle: riddle} do
     args = %{"riddle_id" => riddle.id, "lead_time" => "lobby_open"}
     {:ok, first} = args |> NotificationFanOutWorker.new() |> Oban.insert()

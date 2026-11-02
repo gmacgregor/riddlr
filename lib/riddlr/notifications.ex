@@ -7,10 +7,17 @@ defmodule Riddlr.Notifications do
 
     1. Fan-out (`fan_out/3`) writes one `RiddleNotification` row per eligible
        player and channel, and queues one send job per new row.
-    2. Send (`deliver/1`) checks the riddle and player again, sends the email
-       or text and stamps `sent_at`.
+    2. Send (`deliver/1`) checks the riddle and player again, claims the
+       row, sends the email or text and stamps `sent_at`.
 
-  The unique row per riddle, player and channel is what stops a second send.
+  The unique row per riddle, player and channel, and the claim on it, are
+  what stop a second send. Delivery is at least once: a job that dies after
+  the provider took the message but before the stamp leaves a claim that
+  goes stale, and a later job sends again.
+
+  No database connection is held while the provider is called, so Unschedule
+  does not wait for a send in flight: a send that passed its checks can still
+  go out just after the riddle is unscheduled.
   """
 
   import Ecto.Query, warn: false
@@ -34,6 +41,10 @@ defmodule Riddlr.Notifications do
   @timed_lead_times %{"min_30" => 30 * 60, "min_60" => 60 * 60}
 
   @unsubscribe_salt "unsubscribe notifications"
+
+  # A claim older than this belongs to a send job that died; another job may
+  # take the row over. Longer than SendNotificationWorker's timeout.
+  @claim_ttl_seconds 5 * 60
 
   # Postgres caps one statement at 65,535 bound parameters, and each send job
   # row binds 9, so one Oban.insert_all fails above ~7,200 jobs.
@@ -198,8 +209,16 @@ defmodule Riddlr.Notifications do
   scheduled or ready, the Live date has passed, or the player stopped being
   eligible.
 
-  Returns `{:ok, row}`, `{:skip, reason}`, or `{:error, reason}` when the mail
-  or SMS provider fails (the caller may retry).
+  Then it claims the row by setting `sending_at`, sends with no transaction
+  open, and stamps `sent_at`. A row another job claimed less than
+  #{div(@claim_ttl_seconds, 60)} minutes ago is left alone. If the provider
+  fails, the claim is released so a retry can send. If the row was deleted
+  while the message went out (Unschedule), the stamp finds nothing and the
+  send still counts.
+
+  Returns `{:ok, row}`, `{:skip, reason}`, `:claimed` when another job holds
+  the row, or `{:error, reason}` when the mail or SMS provider fails (the
+  caller may retry).
 
   ## Options
 
@@ -207,32 +226,84 @@ defmodule Riddlr.Notifications do
       the adapter in tests.
   """
   @spec deliver(integer(), keyword()) ::
-          {:ok, RiddleNotification.t()} | {:skip, String.t()} | {:error, term()}
+          {:ok, RiddleNotification.t()} | {:skip, String.t()} | :claimed | {:error, term()}
   def deliver(notification_id, opts \\ []) do
-    # The row lock stops two sends of one row overlapping. The share lock on
-    # the riddle makes an Unschedule wait until this send ends, so a send that
-    # passed the checks is never beaten by one. A crash after the provider
-    # takes the mail but before COMMIT can still send twice on retry.
-    Repo.transaction(fn ->
-      now = Clock.utc_now()
+    now = Clock.utc_now()
 
-      with {:ok, row} <- lock_unsent(notification_id),
-           {:ok, riddle} <- lock_riddle(row.riddle_id),
-           :ok <- check_riddle(riddle, now),
-           :ok <- check_player(row.user, row.channel),
-           :ok <- send_message(row, riddle, now, opts),
-           {:ok, sent} <- mark_sent(row, now) do
-        sent
-      else
-        {:skip, reason} -> Repo.rollback({:skip, reason})
-        {:error, reason} -> Repo.rollback({:error, reason})
-      end
-    end)
-    |> case do
-      {:ok, sent} -> {:ok, sent}
-      {:error, {:skip, reason}} -> {:skip, reason}
-      {:error, {:error, reason}} -> {:error, reason}
+    with {:ok, row} <- fetch_unsent(notification_id),
+         {:ok, riddle} <- fetch_riddle(row.riddle_id),
+         :ok <- check_riddle(riddle, now),
+         :ok <- check_player(row.user, row.channel),
+         {:ok, claimed_at} <- claim(row, now),
+         :ok <- send_or_release(row, riddle, now, claimed_at, opts) do
+      {:ok, stamp_sent(row, now)}
     end
+  end
+
+  @spec fetch_unsent(integer()) :: {:ok, RiddleNotification.t()} | {:skip, String.t()}
+  defp fetch_unsent(id) do
+    case Repo.get(RiddleNotification, id) do
+      nil -> {:skip, "notification #{id} not found"}
+      %RiddleNotification{sent_at: %DateTime{}} -> {:skip, "notification #{id} already sent"}
+      row -> {:ok, Repo.preload(row, :user)}
+    end
+  end
+
+  @spec fetch_riddle(integer()) :: {:ok, Riddle.t()} | {:skip, String.t()}
+  defp fetch_riddle(id) do
+    case Repo.get(Riddle, id) do
+      nil -> {:skip, "riddle #{id} not found"}
+      riddle -> {:ok, Repo.preload(riddle, :category)}
+    end
+  end
+
+  # One UPDATE takes the row only if it is unsent and unclaimed, or its claim
+  # is stale, so two jobs never both win it.
+  @spec claim(RiddleNotification.t(), DateTime.t()) :: {:ok, DateTime.t()} | :claimed
+  defp claim(%RiddleNotification{id: id}, now) do
+    claimed_at = DateTime.truncate(now, :second)
+    stale = DateTime.add(claimed_at, -@claim_ttl_seconds, :second)
+
+    RiddleNotification
+    |> where([n], n.id == ^id and is_nil(n.sent_at))
+    |> where([n], is_nil(n.sending_at) or n.sending_at < ^stale)
+    |> Repo.update_all(set: [sending_at: claimed_at])
+    |> case do
+      {1, _} -> {:ok, claimed_at}
+      {0, _} -> :claimed
+    end
+  end
+
+  @spec send_or_release(
+          RiddleNotification.t(),
+          Riddle.t(),
+          DateTime.t(),
+          DateTime.t(),
+          keyword()
+        ) :: :ok | {:error, term()}
+  defp send_or_release(row, riddle, now, claimed_at, opts) do
+    case send_message(row, riddle, now, opts) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        RiddleNotification
+        |> where([n], n.id == ^row.id and n.sending_at == ^claimed_at)
+        |> Repo.update_all(set: [sending_at: nil])
+
+        {:error, reason}
+    end
+  end
+
+  @spec stamp_sent(RiddleNotification.t(), DateTime.t()) :: RiddleNotification.t()
+  defp stamp_sent(row, now) do
+    sent_at = DateTime.truncate(now, :second)
+
+    RiddleNotification
+    |> where([n], n.id == ^row.id and is_nil(n.sent_at))
+    |> Repo.update_all(set: [sent_at: sent_at, sending_at: nil])
+
+    %{row | sent_at: sent_at, sending_at: nil}
   end
 
   # The number is read here only, from the loaded player, and goes no further
@@ -250,39 +321,6 @@ defmodule Riddlr.Notifications do
 
   defp send_message(%RiddleNotification{channel: :sms, user: user}, riddle, now, _opts),
     do: riddle |> Text.notification(user, now) |> SMS.deliver()
-
-  @spec lock_unsent(integer()) :: {:ok, RiddleNotification.t()} | {:skip, String.t()}
-  defp lock_unsent(id) do
-    RiddleNotification
-    |> where([n], n.id == ^id)
-    |> lock("FOR UPDATE")
-    |> Repo.one()
-    |> case do
-      nil -> {:skip, "notification #{id} not found"}
-      %RiddleNotification{sent_at: %DateTime{}} -> {:skip, "notification #{id} already sent"}
-      row -> {:ok, Repo.preload(row, :user)}
-    end
-  end
-
-  @spec lock_riddle(integer()) :: {:ok, Riddle.t()} | {:skip, String.t()}
-  defp lock_riddle(id) do
-    Riddle
-    |> where([r], r.id == ^id)
-    |> lock("FOR SHARE")
-    |> Repo.one()
-    |> case do
-      nil -> {:skip, "riddle #{id} not found"}
-      riddle -> {:ok, Repo.preload(riddle, :category)}
-    end
-  end
-
-  @spec mark_sent(RiddleNotification.t(), DateTime.t()) ::
-          {:ok, RiddleNotification.t()} | {:error, Ecto.Changeset.t()}
-  defp mark_sent(row, now) do
-    row
-    |> Ecto.Changeset.change(sent_at: DateTime.truncate(now, :second))
-    |> Repo.update()
-  end
 
   @spec check_riddle(Riddle.t(), DateTime.t()) :: :ok | {:skip, String.t()}
   defp check_riddle(%Riddle{publish_status: "published", play_status: s} = riddle, now)
