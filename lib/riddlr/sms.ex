@@ -11,7 +11,9 @@ defmodule Riddlr.SMS do
   defmodule Message do
     @moduledoc "One text: an E.164 number and a body."
     @enforce_keys [:to, :body]
-    @derive {Inspect, except: [:to]}
+    # The body carries one-time codes, so it stays out of logs and crash
+    # reports, as the number does.
+    @derive {Inspect, except: [:to, :body]}
     defstruct [:to, :body]
 
     @type t :: %__MODULE__{to: String.t(), body: String.t()}

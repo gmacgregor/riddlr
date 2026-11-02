@@ -148,7 +148,14 @@ if config_env() == :prod do
   # No SMS provider is chosen yet. SMS_ADAPTER names a module under
   # Riddlr.SMS. With none set, the phone UI stays hidden.
   if sms_adapter = System.get_env("SMS_ADAPTER") do
-    config :riddlr, Riddlr.SMS, adapter: Module.concat(Riddlr.SMS, sms_adapter)
+    adapter = Module.concat(Riddlr.SMS, sms_adapter)
+
+    # Local logs each text, codes included; Test sends to a test process.
+    if adapter in [Riddlr.SMS.Local, Riddlr.SMS.Test] do
+      raise "SMS_ADAPTER=#{sms_adapter} is for dev and test only"
+    end
+
+    config :riddlr, Riddlr.SMS, adapter: adapter
   end
 
   # ## Mailer
