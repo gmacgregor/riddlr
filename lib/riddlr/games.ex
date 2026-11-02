@@ -22,6 +22,10 @@ defmodule Riddlr.Games do
     ReadyRiddleTransitionWorker
   }
 
+  # What every riddle read loads, and every broadcast riddle carries, so a
+  # broadcast riddle equals a fetched one. Nothing reads first_solver.
+  @riddle_preload [:category]
+
   # The four workers that take a riddle_id argument. Cancelling a riddle's
   # pending work means cancelling jobs from this list, which is why it exists as
   # one list rather than a filter written out at each call site.
@@ -61,13 +65,14 @@ defmodule Riddlr.Games do
   """
   def list_riddles do
     Riddle
-    |> preload([:category, :first_solver])
+    |> preload(^@riddle_preload)
     |> order_by([c], desc: c.inserted_at, desc: c.play_status)
     |> Repo.all()
   end
 
   @doc """
-  Gets a single riddle.
+  Gets a single riddle, with `:category` loaded. Pass `preload: [...]` to load
+  other associations instead.
 
   Raises `Ecto.NoResultsError` if the Riddle does not exist.
 
@@ -80,18 +85,21 @@ defmodule Riddlr.Games do
       ** (Ecto.NoResultsError)
 
   """
-  def get_riddle!(id) do
+  @spec get_riddle!(term(), keyword()) :: Riddle.t()
+  def get_riddle!(id, opts \\ []) do
     Riddle
-    |> preload([:category, :first_solver])
+    |> preload(^Keyword.get(opts, :preload, @riddle_preload))
     |> Repo.get!(id)
   end
 
   @doc """
   Fetches a riddle by ID, returning `{:ok, riddle}` or `{:error, :not_found}`. Rescues i.e Ecto.NoResultsError, Ecto.Query.CastError
+
+  Takes the options `get_riddle!/2` takes.
   """
-  @spec fetch_riddle(term()) :: {:ok, Riddle.t()} | {:error, :not_found}
-  def fetch_riddle(id) do
-    case get_riddle!(id) do
+  @spec fetch_riddle(term(), keyword()) :: {:ok, Riddle.t()} | {:error, :not_found}
+  def fetch_riddle(id, opts \\ []) do
+    case get_riddle!(id, opts) do
       %Riddle{} = riddle -> {:ok, riddle}
       _ -> {:error, :not_found}
     end
@@ -607,11 +615,11 @@ defmodule Riddlr.Games do
   end
 
   defp preload_assoc(%Riddle{} = riddle) do
-    Repo.preload(riddle, [:category, :first_solver])
+    Repo.preload(riddle, @riddle_preload)
   end
 
   defp preload_assoc_force(%Riddle{} = riddle) do
-    Repo.preload(riddle, [:category, :first_solver], force: true)
+    Repo.preload(riddle, @riddle_preload, force: true)
   end
 
   @doc """

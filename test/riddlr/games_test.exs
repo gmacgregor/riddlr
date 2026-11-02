@@ -135,6 +135,18 @@ defmodule Riddlr.GamesTest do
         Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
     end
 
+    test "get_riddle!/2 loads the category and nothing else by default" do
+      riddle = riddle_fixture()
+
+      fetched = Games.get_riddle!(riddle.id)
+      assert %Riddlr.Games.Category{} = fetched.category
+      refute Ecto.assoc_loaded?(fetched.first_solver)
+
+      assert Ecto.assoc_loaded?(
+               Games.get_riddle!(riddle.id, preload: [:first_solver]).first_solver
+             )
+    end
+
     test "delete_riddle/1 deletes the riddle" do
       riddle = riddle_fixture()
       assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
