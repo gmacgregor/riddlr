@@ -302,7 +302,7 @@ defmodule Riddlr.Games do
       Oban.Job
       |> where([j], j.state in @cancellable_states)
       |> where([j], j.worker in ^workers)
-      |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+      |> where([j], fragment("? @> ?", j.args, type(^%{"riddle_id" => riddle_id}, :map)))
       |> repo.update_all(set: [state: "cancelled", cancelled_at: Clock.utc_now()])
 
     {:ok, count}

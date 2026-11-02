@@ -32,7 +32,7 @@ defmodule Riddlr.ObanMonitor do
   def riddle_jobs(riddle_id) do
     Repo.all(
       from j in Oban.Job,
-        where: fragment("args->>'riddle_id' = ?", ^to_string(riddle_id)),
+        where: fragment("? @> ?", j.args, type(^%{"riddle_id" => riddle_id}, :map)),
         order_by: [asc: j.scheduled_at],
         select: %{
           id: j.id,

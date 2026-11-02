@@ -183,6 +183,22 @@ defmodule Riddlr.GamesTest do
       assert pending == []
     end
 
+    test "delete_riddle/1 leaves other riddles' jobs alone" do
+      riddle = scheduled_riddle_fixture()
+      other = scheduled_riddle_fixture()
+
+      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+
+      assert [_ | _] = Riddlr.ObanMonitor.riddle_jobs(other.id)
+
+      assert Enum.all?(
+               Riddlr.ObanMonitor.riddle_jobs(other.id),
+               &(&1.state in ["available", "scheduled"])
+             )
+
+      assert Enum.all?(Riddlr.ObanMonitor.riddle_jobs(riddle.id), &(&1.state == "cancelled"))
+    end
+
     test "delete_riddle/1 announces :riddle_deleted to the admin topic" do
       riddle = riddle_fixture()
       riddle_id = riddle.id

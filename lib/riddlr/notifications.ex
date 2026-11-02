@@ -66,7 +66,7 @@ defmodule Riddlr.Notifications do
     Oban.Job
     |> where([j], j.state in ["available", "scheduled", "retryable"])
     |> where([j], j.worker == ^inspect(NotificationFanOutWorker))
-    |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(id)))
+    |> where([j], fragment("? @> ?", j.args, type(^%{"riddle_id" => id}, :map)))
     |> where([j], fragment("?->>'lead_time'", j.args) in ^Map.keys(@timed_lead_times))
     |> repo.update_all(set: [state: "cancelled", cancelled_at: Clock.utc_now()])
 
