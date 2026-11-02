@@ -102,6 +102,46 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
     assert Games.list_practice_riddles() == []
   end
 
+  describe "role taken away mid-session" do
+    setup %{conn: conn, editor: editor} do
+      practice = practice_fixture()
+      {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles")
+      %{practice: practice, live: live}
+    end
+
+    test "refuses a delete", %{editor: editor, practice: practice, live: live} do
+      demote!(editor)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               live
+               |> element("#practice_riddles-#{practice.id} a[data-confirm]")
+               |> render_click()
+
+      assert [_kept] = Games.list_practice_riddles()
+    end
+
+    test "refuses a save", %{editor: editor, practice: practice, live: live} do
+      live |> element("a[href='/admin/practice-riddles/#{practice.id}/edit']") |> render_click()
+      demote!(editor)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               live
+               |> form("#practice-riddle-form", practice_riddle: %{answer: "taken"})
+               |> render_submit()
+
+      assert Games.get_practice_riddle!(practice.id).answer == practice.answer
+    end
+
+    test "refuses to open the edit form", %{editor: editor, practice: practice, live: live} do
+      demote!(editor)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               render_patch(live, ~p"/admin/practice-riddles/#{practice.id}/edit")
+    end
+  end
+
+  defp demote!(user), do: user |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
+
   test "shows errors for a blank description and a long answer", %{conn: conn, editor: editor} do
     {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles/new")
 

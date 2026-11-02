@@ -45,7 +45,10 @@ defmodule RiddlrWeb.AdminAuth do
   # `:require_admin`, which lets every admin role in, including moderators.
   def on_mount({:require_permission, permission}, _params, _session, socket) do
     if Authorization.has_permission?(socket.assigns[:current_user], permission) do
-      {:cont, socket}
+      {:cont,
+       attach_hook(socket, :recheck_permission, :handle_params, fn _params, _url, socket ->
+         recheck_permission(socket, permission)
+       end)}
     else
       socket = socket |> put_flash(:error, "You don't have permission.") |> redirect(to: ~p"/")
       {:halt, socket}
@@ -65,6 +68,21 @@ defmodule RiddlrWeb.AdminAuth do
   end
 
   def authorized?(_socket, _permission), do: false
+
+  # A live_patch runs handle_params with no new mount, so without this a
+  # demoted editor could still patch to a riddle and read its answers.
+  @spec recheck_permission(Phoenix.LiveView.Socket.t(), atom()) ::
+          {:cont | :halt, Phoenix.LiveView.Socket.t()}
+  defp recheck_permission(socket, permission) do
+    if authorized?(socket, permission) do
+      {:cont, socket}
+    else
+      socket =
+        socket |> put_flash(:error, "You don't have permission.") |> push_navigate(to: ~p"/")
+
+      {:halt, socket}
+    end
+  end
 
   # The admin layout reads :current_path to mark the current nav link.
   defp assign_current_path(_params, url, socket) do

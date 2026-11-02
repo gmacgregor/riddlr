@@ -74,6 +74,42 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     assert has_element?(index_live, "#flash-info")
   end
 
+  describe "role taken away mid-session" do
+    setup %{conn: conn, admin: admin} do
+      {:ok, category} = Riddlr.Games.create_category(%{name: "kept"})
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/categories")
+      %{category: category, live: live}
+    end
+
+    test "refuses a delete", %{admin: admin, category: category, live: live} do
+      demote!(admin)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               live |> element("#categories-#{category.id} a[data-confirm]") |> render_click()
+
+      assert Riddlr.Games.get_category!(category.id)
+    end
+
+    test "refuses a save", %{admin: admin, category: category, live: live} do
+      live |> element("a[href='/admin/categories/#{category.id}/edit']") |> render_click()
+      demote!(admin)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               live |> form("#category-form", category: %{name: "taken over"}) |> render_submit()
+
+      assert Riddlr.Games.get_category!(category.id).name == "kept"
+    end
+
+    test "refuses to open the edit form", %{admin: admin, category: category, live: live} do
+      demote!(admin)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               render_patch(live, ~p"/admin/categories/#{category.id}/edit")
+    end
+  end
+
+  defp demote!(user), do: user |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
+
   test "validates required name", %{conn: conn, admin: admin} do
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")

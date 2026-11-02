@@ -115,6 +115,22 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
 
       assert Riddlr.Games.get_riddle!(riddle.id)
     end
+
+    test "refuses to show or edit a riddle once the editor's role is taken away",
+         %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, show_live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, edit_live, _html} = live(conn, ~p"/admin/riddles")
+
+      admin |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               render_patch(show_live, ~p"/admin/riddles/#{riddle.id}")
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               render_patch(edit_live, ~p"/admin/riddles/#{riddle.id}/edit")
+    end
   end
 
   describe "index page riddle number" do
