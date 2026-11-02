@@ -1,0 +1,17 @@
+<.error_page
+  id="crisis"
+  riddle={GameCopy.crisis_riddle()}
+  tail={GameCopy.crisis_tail()}
+  flash={@flash}
+  current_scope={@current_scope}
+  theme={@theme}
+>
+  <:doodle>
+    <svg class="rg-doodle rg-lost__doodle" viewBox="0 0 96 112" aria-hidden="true">
+      <%!-- A storm cloud with a bolt dropping out of it. --%>
+      <path d="M22 62 C10 62 8 46 20 44 C20 30 36 26 42 36 C46 24 66 24 68 38 C82 36 88 52 76 60 C74 63 70 63 66 62 Z" />
+      <path d="M50 64 L40 82 L50 81 L44 100 L60 76 L50 77 L56 64" />
+      <path d="M28 72 L24 80" /><path d="M72 70 L68 78" />
+    </svg>
+  </:doodle>
+</.error_page>

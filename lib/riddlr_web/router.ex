@@ -143,4 +143,12 @@ defmodule RiddlrWeb.Router do
       live "/practice-riddles/:id/edit", PracticeRiddleLive.Index, :edit
     end
   end
+
+  # Must stay last. Unknown pages raise a 404 after the browser pipeline, so
+  # the 404 page shows the player's own topbar (see RiddlrWeb.ErrorHTML).
+  scope "/", RiddlrWeb do
+    pipe_through :browser
+
+    get "/*path", NotFoundController, :show
+  end
 end

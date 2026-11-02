@@ -1,0 +1,20 @@
+<.error_page
+  id="not-found"
+  riddle={GameCopy.not_found_riddle()}
+  flash={@flash}
+  current_scope={@current_scope}
+  theme={@theme}
+>
+  <:doodle>
+    <svg class="rg-doodle rg-lost__doodle" viewBox="0 0 96 112" aria-hidden="true">
+      <%!-- A door frame, the door swung open on an empty room, and three
+           knock marks in the air. --%>
+      <path d="M22 106 L22 14 C22 11 24 9 27 9 L69 10 C72 10 74 12 74 15 L74 106" />
+      <path d="M8 106 C34 104 62 107 90 105" />
+      <path d="M22 14 L46 22 L46 104 L22 106" />
+      <path d="M39 64 C40 61 43 61 43 64" />
+      <path d="M80 30 C85 28 88 31 86 35" /><path d="M84 42 C90 41 92 45 89 48" />
+      <path d="M80 54 C85 54 86 58 83 60" />
+    </svg>
+  </:doodle>
+</.error_page>
