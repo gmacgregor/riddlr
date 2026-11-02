@@ -176,12 +176,13 @@ defmodule Riddlr.Workers.CompleteRiddleWorkerTest do
     assert job_count == 1
   end
 
-  # A live, published riddle that went live a minute ago, so solves carry a time.
+  # A live, published riddle that went live 10 seconds into its 60, so solves
+  # carry a time and guesses still land.
   defp live_riddle do
     riddle_fixture(%{
       play_status: "live",
       publish_status: "published",
-      live_date: DateTime.add(DateTime.utc_now(), -60, :second)
+      live_date: DateTime.add(DateTime.utc_now(), -10, :second)
     })
   end
 

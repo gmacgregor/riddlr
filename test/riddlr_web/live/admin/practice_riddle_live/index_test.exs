@@ -58,14 +58,6 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
            )
   end
 
-  test "hides the nav link from a moderator", %{conn: conn} do
-    moderator = AccountsFixtures.user_fixture(%{role: :moderator})
-
-    {:ok, live, _html} = conn |> log_in_user(moderator) |> live(~p"/admin/categories")
-
-    refute has_element?(live, ~s(.adm-nav a[href="/admin/practice-riddles"]))
-  end
-
   test "creates a practice riddle", %{conn: conn, editor: editor} do
     {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles")
 

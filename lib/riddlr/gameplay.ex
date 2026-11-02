@@ -31,8 +31,9 @@ defmodule Riddlr.Gameplay do
   in-flight answer.
 
   When a riddle completes, `solve_rows/1` and `entry_rows/1` turn the ETS race
-  into rows that `Riddlr.Games.transition/3` saves as `Riddlr.Gameplay.Solve`
-  and `Riddlr.Gameplay.Entry`. After that,
+  into rows, and `persist_results/3` adds the steps that save them as
+  `Riddlr.Gameplay.Solve` and `Riddlr.Gameplay.Entry` to the transaction
+  `Riddlr.Games.transition/3` runs. After that,
   `list_solves/1`, `solve_for/2` and `count_solves/1` read the database, and
   still work after archive drops the ETS rows.
 
@@ -40,8 +41,10 @@ defmodule Riddlr.Gameplay do
   either writes. It is a rate-limiting UX affordance, not a security boundary.
   """
 
+  alias Ecto.Multi
   alias Riddlr.Clock
   alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Repo
 
@@ -52,6 +55,9 @@ defmodule Riddlr.Gameplay do
   # 1 second in microseconds
   @cooldown_us 1_000_000
   @answer_max_length 500
+  # Postgres caps one statement at 65,535 bound parameters. A solve row binds
+  # 7, so one insert of more than ~9,300 solvers fails.
+  @result_row_chunk 5_000
 
   @doc """
   Runs a player's answer through the Answer race.
@@ -66,6 +72,7 @@ defmodule Riddlr.Gameplay do
 
     with :ok <- check_not_banned(user),
          :ok <- check_game_live(riddle),
+         :ok <- check_time_left(riddle),
          :ok <- check_already_solved(riddle.id, user.id),
          :ok <- validate_input(text),
          # Mutates — keep last, and call it exactly once per submission.
@@ -76,6 +83,23 @@ defmodule Riddlr.Gameplay do
 
   defp check_game_live(%{play_status: "live"}), do: :ok
   defp check_game_live(%{play_status: status}), do: {:error, {:not_live, status}}
+
+  # A riddle still reads "live" for a moment after its timer runs out, until
+  # CompleteRiddleWorker ends the round, and the caller's struct may be older
+  # still. The clock decides, so no guess gets in late. It checks to the
+  # millisecond, not by GameClock.countdown/1: the countdown rounds down and
+  # shows 0 for the last second, which would cut that second from the round.
+  @spec check_time_left(Riddlr.Games.Riddle.t()) :: :ok | {:error, :time_up}
+  defp check_time_left(%{live_date: nil}), do: :ok
+
+  defp check_time_left(riddle) do
+    now = Clock.utc_now()
+    deadline = DateTime.add(riddle.live_date, riddle.solve_time, :second)
+
+    if DateTime.before?(now, riddle.live_date) or not DateTime.before?(now, deadline),
+      do: {:error, :time_up},
+      else: :ok
+  end
 
   defp check_not_banned(%{account_status: :banned}), do: {:error, :banned}
   defp check_not_banned(_user), do: :ok
@@ -322,7 +346,8 @@ defmodule Riddlr.Gameplay do
   guard is not atomic, so two fast correct submissions can both land.
 
   `Riddlr.Workers.CompleteRiddleWorker` passes these to `Games.transition/3`,
-  which saves them in the same transaction as the move to `completed`.
+  which saves them with `persist_results/3` in the same transaction as the
+  move to `completed`.
   """
   @spec solve_rows(integer()) :: [map()]
   def solve_rows(riddle_id) do
@@ -364,6 +389,36 @@ defmodule Riddlr.Gameplay do
     |> Enum.map(&Answer.from_ets(&1).user_id)
     |> Enum.uniq()
     |> Enum.map(&%{riddle_id: riddle_id, user_id: &1, inserted_at: now, updated_at: now})
+  end
+
+  @doc """
+  Adds the steps that save a completed riddle's solve and entry rows to
+  `multi`. `stats` holds the rows from `solve_rows/1` and `entry_rows/1` under
+  `:solves` and `:entries`; either may be missing or empty.
+
+  Postgres caps one statement at 65,535 parameters, so the rows go in batches
+  of `:chunk_size` (default #{@result_row_chunk}), one step each, named
+  `{:solves, n}` and `{:entries, n}`. Rows already saved are skipped, so a
+  second run writes nothing twice.
+  """
+  @spec persist_results(Multi.t(), map(), keyword()) :: Multi.t()
+  def persist_results(multi, stats, opts \\ []) do
+    chunk_size = Keyword.get(opts, :chunk_size, @result_row_chunk)
+
+    multi
+    |> insert_chunks(:solves, Solve, Map.get(stats, :solves, []), chunk_size)
+    |> insert_chunks(:entries, Entry, Map.get(stats, :entries, []), chunk_size)
+  end
+
+  @spec insert_chunks(Multi.t(), :solves | :entries, module(), [map()], pos_integer()) ::
+          Multi.t()
+  defp insert_chunks(multi, key, schema, rows, chunk_size) do
+    rows
+    |> Enum.chunk_every(chunk_size)
+    |> Enum.with_index()
+    |> Enum.reduce(multi, fn {chunk, n}, multi ->
+      Multi.insert_all(multi, {key, n}, schema, chunk, on_conflict: :nothing)
+    end)
   end
 
   @doc """

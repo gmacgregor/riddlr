@@ -5,6 +5,9 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   alias Riddlr.Authorization
   import Riddlr.Utils.Datetime
 
+  # Moderators are admins but may not manage riddles or read their answers.
+  on_mount {RiddlrWeb.AdminAuth, {:require_permission, :manage_riddles}}
+
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do

@@ -464,6 +464,26 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert has_element?(live, "#guess-msg", GameCopy.guess_cooldown())
     end
 
+    test "turns away a guess once the solve time is up", %{conn: conn, user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+
+      riddle =
+        GamesFixtures.riddle_fixture(%{live_date: live_date, solve_time: 60})
+        |> set_play_status_direct("live")
+
+      Frozen.freeze(live_date)
+      conn = log_in_user(conn, user)
+      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
+
+      # The page still holds the struct it mounted with, which reads "live".
+      Frozen.advance(60, :second)
+      render_submit(live, "submit_answer", %{answer: "keyboard"})
+
+      assert has_element?(live, "#guess-msg", GameCopy.guess_time_up())
+      refute has_element?(live, "#solved-panel")
+      refute Gameplay.guessed?(riddle.id, user.id)
+    end
+
     test "duplicate submission blocked after correct answer", %{
       conn: conn,
       riddle: riddle,
@@ -994,7 +1014,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       live_date = ~U[2026-08-01 12:00:00.000000Z]
 
       riddle =
-        GamesFixtures.riddle_fixture(%{live_date: live_date})
+        GamesFixtures.riddle_fixture(%{live_date: live_date, solve_time: 300})
         |> set_play_status_direct("live")
 
       Frozen.freeze(live_date)

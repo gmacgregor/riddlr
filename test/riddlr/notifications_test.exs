@@ -42,7 +42,7 @@ defmodule Riddlr.NotificationsTest do
     ready
   end
 
-  describe "fan_out/2" do
+  describe "fan_out/3" do
     test "queues one send job per eligible player" do
       riddle = ready_riddle()
       alice = opted_in()
@@ -93,6 +93,21 @@ defmodule Riddlr.NotificationsTest do
 
       assert [_, _, _] = all_enqueued(worker: SendNotificationWorker)
       assert {:ok, 0} = Notifications.fan_out(riddle.id, :lobby_open)
+    end
+
+    test "queues send jobs in chunks, one job per row" do
+      riddle = ready_riddle()
+      for _ <- 1..5, do: opted_in()
+
+      assert {:ok, 5} = Notifications.fan_out(riddle.id, :lobby_open, chunk_size: 2)
+
+      row_ids =
+        Repo.all(from n in RiddleNotification, where: n.riddle_id == ^riddle.id, select: n.id)
+
+      job_ids =
+        for job <- all_enqueued(worker: SendNotificationWorker), do: job.args["notification_id"]
+
+      assert Enum.sort(job_ids) == Enum.sort(row_ids)
     end
 
     test "a second run adds no rows and queues no jobs" do

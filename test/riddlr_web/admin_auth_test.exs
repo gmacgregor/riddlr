@@ -17,10 +17,14 @@ defmodule RiddlrWeb.AdminAuthTest do
       assert {:ok, _view, _html} = live(conn, "/admin/riddles")
     end
 
-    test "allows moderator access", %{conn: conn} do
+    # :require_admin lets a moderator in; the riddle page's
+    # {:require_permission, :manage_riddles} hook then sends them home.
+    test "lets a moderator past, to the riddle page's permission check", %{conn: conn} do
       user = AccountsFixtures.user_fixture(%{role: :moderator})
       conn = log_in_user(conn, user)
-      assert {:ok, _view, _html} = live(conn, "/admin/riddles")
+
+      assert {:error, {:redirect, %{to: "/", flash: %{"error" => "You don't have permission."}}}} =
+               live(conn, "/admin/riddles")
     end
 
     test "allows super_admin access", %{conn: conn} do

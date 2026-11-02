@@ -13,7 +13,7 @@ defmodule RiddlrWeb.StandingsLiveUpdateTest do
       riddle_fixture(%{
         play_status: "live",
         publish_status: "published",
-        live_date: DateTime.add(DateTime.utc_now(), -60, :second)
+        live_date: DateTime.add(DateTime.utc_now(), -10, :second)
       })
 
     ann = user_fixture(%{username: "ann"})

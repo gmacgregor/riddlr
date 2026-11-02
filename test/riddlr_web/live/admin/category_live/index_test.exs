@@ -102,4 +102,47 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     assert has_element?(index_live, "#category-form [name='category[name]'][aria-invalid]")
     assert has_element?(index_live, "#category-form .rg-field__error")
   end
+
+  # A moderator is an admin, just not one who edits categories.
+  describe "access" do
+    setup do
+      {:ok, category} = Riddlr.Games.create_category(%{name: "access category"})
+
+      paths = [
+        ~p"/admin/categories",
+        ~p"/admin/categories/new",
+        ~p"/admin/categories/#{category.id}/edit"
+      ]
+
+      %{paths: paths}
+    end
+
+    test "turns a moderator away from every category page", %{conn: conn, paths: paths} do
+      conn = log_in_user(conn, Riddlr.AccountsFixtures.user_fixture(%{role: :moderator}))
+
+      for path <- paths do
+        assert {:error, {:redirect, %{to: "/"}}} = live(conn, path)
+      end
+    end
+
+    for role <- [:viewer, :player] do
+      test "answers 404 to a #{role} on every category page", %{conn: conn, paths: paths} do
+        conn = log_in_user(conn, Riddlr.AccountsFixtures.user_fixture(%{role: unquote(role)}))
+
+        for path <- paths do
+          assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, path) end
+        end
+      end
+    end
+
+    for role <- [:editor, :super_admin] do
+      test "lets a #{role} into every category page", %{conn: conn, paths: paths} do
+        conn = log_in_user(conn, Riddlr.AccountsFixtures.user_fixture(%{role: unquote(role)}))
+
+        for path <- paths do
+          assert {:ok, _live, _html} = live(conn, path)
+        end
+      end
+    end
+  end
 end

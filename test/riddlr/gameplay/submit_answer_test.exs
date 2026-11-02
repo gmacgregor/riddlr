@@ -173,6 +173,34 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
       assert Gameplay.get_answers(riddle.id) == []
     end
 
+    # The riddle can still read "live" after its timer runs out: the
+    # completion job runs a moment later, and the caller's struct may be
+    # older still.
+    test "rejects an answer once the solve time is up", %{user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+      riddle = live_riddle(%{live_date: live_date, solve_time: 60})
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle.id))
+
+      Frozen.freeze(live_date)
+      Frozen.advance(60, :second)
+
+      assert Gameplay.submit_answer(riddle, user, "keyboard") == {:error, :time_up}
+
+      assert Gameplay.get_answers(riddle.id) == []
+      refute_received {:answer_submitted, _}
+      assert Riddlr.Games.get_riddle!(riddle.id).first_solver_id == nil
+    end
+
+    test "accepts an answer with a fraction of a second left", %{user: user} do
+      live_date = ~U[2026-08-01 12:00:00.000000Z]
+      riddle = live_riddle(%{live_date: live_date, solve_time: 60})
+
+      Frozen.freeze(live_date)
+      Frozen.advance(59_999, :millisecond)
+
+      assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
+    end
+
     test "rejects submissions from a banned user", %{riddle: riddle, user: user} do
       {:ok, banned} = Riddlr.Accounts.set_user_status(user, :banned)
 

@@ -5,7 +5,7 @@ defmodule Riddlr.Notifications do
   Sent by email, by text, or both. The send flow has two steps, both Oban
   jobs on the `notifications` queue:
 
-    1. Fan-out (`fan_out/2`) writes one `RiddleNotification` row per eligible
+    1. Fan-out (`fan_out/3`) writes one `RiddleNotification` row per eligible
        player and channel, and queues one send job per new row.
     2. Send (`deliver/1`) checks the riddle and player again, sends the email
        or text and stamps `sent_at`.
@@ -34,6 +34,10 @@ defmodule Riddlr.Notifications do
   @timed_lead_times %{"min_30" => 30 * 60, "min_60" => 60 * 60}
 
   @unsubscribe_salt "unsubscribe notifications"
+
+  # Postgres caps one statement at 65,535 bound parameters, and each send job
+  # row binds 9, so one Oban.insert_all fails above ~7,200 jobs.
+  @send_job_chunk 2_000
 
   @doc """
   Replaces a riddle's 30 min and 1 hour fan-out jobs. Schedule and Reschedule
@@ -79,12 +83,17 @@ defmodule Riddlr.Notifications do
   player with both gets one row per channel. Rows that already exist are left alone, so
   running this twice sends nothing twice.
 
+  Send jobs go in batches of `:chunk_size` (default #{@send_job_chunk}), all
+  in the same transaction.
+
   Returns `{:ok, new_row_count}`, or `{:skip, reason}` when the riddle is gone
   or no longer upcoming.
   """
-  @spec fan_out(integer(), :lobby_open | :min_30 | :min_60) ::
+  @spec fan_out(integer(), :lobby_open | :min_30 | :min_60, keyword()) ::
           {:ok, non_neg_integer()} | {:skip, String.t()} | {:error, term()}
-  def fan_out(riddle_id, lead_time) do
+  def fan_out(riddle_id, lead_time, opts \\ []) do
+    chunk_size = Keyword.get(opts, :chunk_size, @send_job_chunk)
+
     # The share lock on the riddle makes a Reschedule or Unschedule wait until
     # this fan-out commits, and makes this fan-out wait for theirs. Without it,
     # rows written after an Unschedule's `drop_unsent/2` would stay unsent and
@@ -96,7 +105,8 @@ defmodule Riddlr.Notifications do
     |> Multi.run(:send_jobs, fn _repo, %{email: {_, email_rows}, sms: {_, sms_rows}} ->
       (email_rows ++ sms_rows)
       |> Enum.map(&SendNotificationWorker.new(%{"notification_id" => &1.id}))
-      |> Oban.insert_all()
+      |> Enum.chunk_every(chunk_size)
+      |> Enum.flat_map(&Oban.insert_all/1)
       |> then(&{:ok, &1})
     end)
     |> Repo.transaction()
@@ -108,7 +118,8 @@ defmodule Riddlr.Notifications do
   end
 
   # Adds one channel's rows under the step named for the channel. One query
-  # feeds the insert, so the rows land in a single statement.
+  # feeds the insert, so the rows land in a single statement that binds a few
+  # parameters however many players match; it needs no chunks.
   @spec insert_rows(Multi.t(), RiddleNotification.channel(), atom()) :: Multi.t()
   defp insert_rows(multi, channel, lead_time) do
     Multi.insert_all(
