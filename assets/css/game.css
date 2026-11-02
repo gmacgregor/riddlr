@@ -3430,6 +3430,12 @@ a.rg-pill {
   flex: 1;
   min-width: 0;
 }
+.rg-flash__link {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .rg-flash__title {
   font-family: var(--f-label);
   font-weight: 600;

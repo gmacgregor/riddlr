@@ -179,7 +179,8 @@ _Avoid_: period, range; not the **Ready window**
 
 **Confirmed number**:
 A Canadian mobile number a player proved they own by typing back a texted
-code. Only confirmed numbers are kept on an account.
+code. Only a confirmed number gets texts. A number given at sign-up is held,
+unconfirmed, until the first log-in texts it a code.
 _Avoid_: verified phone, phone
 
 **Notification**:

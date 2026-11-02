@@ -137,6 +137,45 @@ defmodule Riddlr.AccountsPhoneTest do
       assert Enum.all?(rows, &(&1 == [nil, nil, nil]))
       assert {:error, :no_code} = Accounts.resend_phone_code(user)
     end
+
+    test "clears a sign-up Text request and the held number", %{user: user} do
+      user =
+        user
+        |> Ecto.Changeset.change(text_requested: true, signup_phone: "+14165550123")
+        |> Repo.update!()
+
+      send_code!(user, @ca)
+
+      assert {:ok, %{text_requested: false, signup_phone: nil}} = Accounts.remove_phone(user)
+    end
+  end
+
+  describe "text_signup_phone/1" do
+    test "texts the held number once, even from a stale copy of the user" do
+      user = unconfirmed_user_fixture(%{text_requested: true, signup_phone: @ca})
+
+      assert {:ok, _} = Accounts.text_signup_phone(user)
+      assert_received {:sms, %{to: "+14165550123"}}
+
+      assert Accounts.text_signup_phone(user) == :none
+      refute_received {:sms, _}
+      assert Accounts.get_user!(user.id).signup_phone == nil
+    end
+  end
+
+  describe "prune_phone_codes/0" do
+    test "wipes a number held from sign-up once the account is a day old" do
+      Riddlr.Clock.Frozen.freeze()
+      user = unconfirmed_user_fixture(%{text_requested: true, signup_phone: @ca})
+
+      Riddlr.Clock.Frozen.advance(23, :hour)
+      Accounts.prune_phone_codes()
+      assert Accounts.get_user!(user.id).signup_phone == "+14165550123"
+
+      Riddlr.Clock.Frozen.advance(1, :hour)
+      Accounts.prune_phone_codes()
+      assert Accounts.get_user!(user.id).signup_phone == nil
+    end
   end
 
   describe "remove_phone/1 consent" do
@@ -185,6 +224,14 @@ defmodule Riddlr.AccountsPhoneTest do
 
       assert [%{channel: :sms, action: :granted}] = consents(user)
       assert [_job] = all_enqueued(worker: SendSmsConfirmationWorker)
+    end
+
+    test "clears the sign-up Text request, logging consent only now", %{user: user} do
+      user = user |> Ecto.Changeset.change(text_requested: true) |> Repo.update!()
+      assert consents(user) == []
+
+      assert %{text_requested: false, notify_sms: true} = confirm!(user, @ca)
+      assert [%{channel: :sms, action: :granted}] = consents(user)
     end
 
     test "a changed number keeps Text as it was", %{user: user} do
@@ -253,6 +300,13 @@ defmodule Riddlr.AccountsPhoneTest do
       assert {:error, changeset} = Accounts.update_user_notifications(user, %{notify_sms: true})
       assert errors_on(changeset)[:notify_sms]
       assert consents(user) == []
+    end
+
+    test "saving with Text off drops a sign-up Text request", %{user: user} do
+      user = user |> Ecto.Changeset.change(text_requested: true) |> Repo.update!()
+
+      assert {:ok, %{text_requested: false}} =
+               Accounts.update_user_notifications(user, %{notify_sms: false})
     end
 
     test "off pauses and keeps the number; on again logs consent", %{user: user} do

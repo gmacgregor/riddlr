@@ -6,7 +6,7 @@ defmodule RiddlrWeb.UserRegistrationController do
 
   def new(conn, _params) do
     changeset = Accounts.change_user_registration(%User{})
-    render(conn, :new, changeset: changeset)
+    render(conn, :new, changeset: changeset, sms_enabled?: Riddlr.SMS.enabled?())
   end
 
   def create(conn, %{"user" => user_params}) do
@@ -26,7 +26,7 @@ defmodule RiddlrWeb.UserRegistrationController do
         |> redirect(to: ~p"/users/log-in")
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, :new, changeset: changeset)
+        render(conn, :new, changeset: changeset, sms_enabled?: Riddlr.SMS.enabled?())
     end
   end
 end

@@ -21,6 +21,13 @@ defmodule Riddlr.Accounts.User do
 
     field :notify_email, :boolean, default: false
     field :notify_sms, :boolean, default: false
+    # Ticked Text at sign-up, so we text a code, or ask for a number, after
+    # the first log-in. Not consent: that is logged when the number is
+    # confirmed.
+    field :text_requested, :boolean, default: false
+    # The unconfirmed number typed at sign-up, held only until the first
+    # log-in texts it a code, or a day. Never texted before then.
+    field :signup_phone, Riddlr.Encrypted.Binary, redact: true
 
     # Set only once a texted code proves the player owns the number. See
     # docs/adr/0002-phone-storage.md.
@@ -57,11 +64,13 @@ defmodule Riddlr.Accounts.User do
 
   Casts `notify_email`, `notify_sms` and `notification_lead_time`. Text can
   turn on only with a confirmed number; turning it off keeps the number.
+  A save is the player's own choice, so it drops a sign-up Text request.
   """
   @spec notification_changeset(t(), map()) :: Ecto.Changeset.t()
   def notification_changeset(user, attrs) do
     user
     |> cast(attrs, [:notify_email, :notify_sms, :notification_lead_time])
+    |> put_change(:text_requested, false)
     |> validate_change(:notify_sms, fn :notify_sms, on? ->
       if on? and is_nil(user.phone_confirmed_at),
         do: [notify_sms: "confirm a mobile number first"],
@@ -75,6 +84,7 @@ defmodule Riddlr.Accounts.User do
 
   A first number turns Text on: the player reached the number step by
   ticking Text. A changed number keeps Text as it was, so paused stays paused.
+  Clears a sign-up Text request: it is now met.
   """
   @spec confirm_phone_changeset(t(), String.t()) :: Ecto.Changeset.t()
   def confirm_phone_changeset(user, e164) do
@@ -82,17 +92,33 @@ defmodule Riddlr.Accounts.User do
     notify_sms = is_nil(user.phone_confirmed_at) or user.notify_sms
 
     user
-    |> change(phone: e164, phone_hash: e164, phone_confirmed_at: now, notify_sms: notify_sms)
+    |> change(
+      phone: e164,
+      phone_hash: e164,
+      phone_confirmed_at: now,
+      notify_sms: notify_sms,
+      text_requested: false
+    )
     |> unique_constraint(:phone_hash,
       error_key: :phone,
       message: "is already used by another account"
     )
   end
 
-  @doc "Wipes the player's number and turns texts off."
+  @doc """
+  Wipes the player's number and any number held from sign-up, turns texts
+  off and drops a sign-up Text request.
+  """
   @spec remove_phone_changeset(t()) :: Ecto.Changeset.t()
   def remove_phone_changeset(user) do
-    change(user, phone: nil, phone_hash: nil, phone_confirmed_at: nil, notify_sms: false)
+    change(user,
+      phone: nil,
+      phone_hash: nil,
+      phone_confirmed_at: nil,
+      notify_sms: false,
+      text_requested: false,
+      signup_phone: nil
+    )
   end
 
   @doc """
@@ -117,19 +143,54 @@ defmodule Riddlr.Accounts.User do
 
   It requires email and username. Password is optional (used for password-based auth).
   The player may opt in to email notifications here; it stays off unless sent.
+  Ticking Text (`text_requested`) needs a Canadian `signup_phone`, held
+  unconfirmed until the first log-in texts it a code. With Text off the
+  number is dropped. Texts stay off until the code checks out.
 
   ## Options
 
     * `:validate_unique` - Set to false if you don't want to validate the
       uniqueness of fields, useful when displaying live validations.
       Defaults to `true`.
+    * `:text` - Set to false while texting is off, to ignore the Text
+      opt-in and number. Defaults to `true`.
   """
   def registration_changeset(user, attrs, opts \\ []) do
+    fields = [:email, :username, :notify_email]
+
+    fields =
+      if Keyword.get(opts, :text, true),
+        do: fields ++ [:text_requested, :signup_phone],
+        else: fields
+
     user
-    |> cast(attrs, [:email, :username, :notify_email])
+    |> cast(attrs, fields)
     |> validate_username(opts)
     |> validate_email(opts)
+    |> validate_signup_phone()
   end
+
+  # Text ticked: the number is required and must be Canadian. Text off: drop it.
+  @spec validate_signup_phone(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp validate_signup_phone(changeset) do
+    if get_field(changeset, :text_requested) do
+      changeset
+      |> validate_required([:signup_phone], message: "Provide a Canadian phone number")
+      |> put_canadian_signup_phone()
+    else
+      put_change(changeset, :signup_phone, nil)
+    end
+  end
+
+  @spec put_canadian_signup_phone(Ecto.Changeset.t()) :: Ecto.Changeset.t()
+  defp put_canadian_signup_phone(%{changes: %{signup_phone: raw}} = changeset) do
+    case Riddlr.Accounts.PhoneCode.parse_canadian(raw) do
+      {:ok, e164} -> put_change(changeset, :signup_phone, e164)
+      {:error, message} -> add_error(changeset, :signup_phone, message)
+    end
+  end
+
+  defp put_canadian_signup_phone(changeset), do: changeset
 
   defp validate_email(changeset, opts) do
     changeset =

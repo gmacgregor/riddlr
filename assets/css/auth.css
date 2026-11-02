@@ -110,8 +110,11 @@
   margin-bottom: 0;
 }
 
-/* A player with no number sees the number step only while Text is ticked. */
+/* A player with no number sees the number step only while Text is ticked.
+   Sign-up shows the consent only while Text is ticked. */
 .rg-notify:has(input[type="checkbox"][name="user[notify_sms]"]:not(:checked))
+  .rg-notify__phone[data-needs-text],
+.rg-notify:has(input[type="checkbox"][name="user[text_requested]"]:not(:checked))
   .rg-notify__phone[data-needs-text] {
   display: none;
 }

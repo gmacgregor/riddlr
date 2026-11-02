@@ -9,6 +9,9 @@ defmodule Riddlr.Accounts do
   alias Riddlr.Accounts.{NotificationConsent, PhoneCode, User, UserToken, UserNotifier}
   alias Riddlr.Workers.SendSmsConfirmationWorker
 
+  @typedoc "What to tell a player about texts at their first log-in."
+  @type text_prompt :: {:code_sent, PhoneCode.t()} | :add_number | nil
+
   ## Database getters
 
   @doc """
@@ -73,7 +76,7 @@ defmodule Riddlr.Accounts do
 
   @doc """
   Registers a user. Opting in to email also logs a consent row in the same
-  transaction.
+  transaction. The Text opt-in is ignored while texting is off.
 
   ## Examples
 
@@ -86,7 +89,10 @@ defmodule Riddlr.Accounts do
   """
   @spec register_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def register_user(attrs) do
-    save_with_consent(fn -> User.registration_changeset(%User{}, attrs) end, &Repo.insert/1)
+    save_with_consent(
+      fn -> User.registration_changeset(%User{}, attrs, text: Riddlr.SMS.enabled?()) end,
+      &Repo.insert/1
+    )
   end
 
   # Builds the changeset and saves the user inside one transaction, and logs
@@ -253,6 +259,45 @@ defmodule Riddlr.Accounts do
   end
 
   ## Phone
+
+  @doc """
+  Whether to ask the player for a mobile number: they ticked Text at sign-up
+  and have no confirmed number yet. False while texting is off.
+  """
+  @spec ask_for_number?(User.t()) :: boolean()
+  def ask_for_number?(%User{text_requested: requested, phone_confirmed_at: confirmed_at}),
+    do: requested and is_nil(confirmed_at) and Riddlr.SMS.enabled?()
+
+  @doc """
+  Texts a code to the number the player gave at sign-up, then wipes it from
+  the account whatever the result. Call at the first log-in. The usual send
+  limits and the taken-number check apply. `:none` when no number is held or
+  texting is off.
+
+  Reads the stored row, not `user`, and takes the number off in one locked
+  step, so two log-ins at once text it only once.
+  """
+  @spec text_signup_phone(User.t()) :: {:ok, PhoneCode.t()} | {:error, term()} | :none
+  def text_signup_phone(%User{id: id} = user) do
+    {:ok, phone} = Repo.transaction(fn -> take_signup_phone!(id) end)
+
+    if phone && Riddlr.SMS.enabled?(),
+      do: send_phone_code(user, %{"phone" => phone}),
+      else: :none
+  end
+
+  # Inside a transaction: the held number, wiped from the locked row.
+  @spec take_signup_phone!(integer()) :: String.t() | nil
+  defp take_signup_phone!(id) do
+    case lock_user!(id) do
+      %User{signup_phone: nil} ->
+        nil
+
+      %User{signup_phone: phone} = locked ->
+        Repo.update!(Ecto.Changeset.change(locked, signup_phone: nil))
+        phone
+    end
+  end
 
   @doc """
   Texts a code to the Canadian number in `attrs["phone"]` so the player can
@@ -484,9 +529,10 @@ defmodule Riddlr.Accounts do
   end
 
   @doc """
-  Wipes pending numbers and codes once their code has expired, so an
-  unconfirmed number never outlives its window. Deletes rows older than a
-  day, which the per-number send limit no longer needs.
+  Wipes pending numbers and codes once their code has expired. Deletes rows
+  older than a day, which the per-number send limit no longer needs. Wipes
+  a number held from sign-up once the account is a day old. Runs hourly, so
+  data can outlive these limits by up to an hour; codes still fail on time.
   """
   @spec prune_phone_codes() :: :ok
   def prune_phone_codes do
@@ -501,6 +547,13 @@ defmodule Riddlr.Accounts do
     )
 
     Repo.delete_all(from c in PhoneCode, where: c.inserted_at <= ^day_ago)
+
+    # Only sign-up sets `signup_phone`, so the account's age is the number's.
+    Repo.update_all(
+      from(u in User, where: u.inserted_at <= ^day_ago and not is_nil(u.signup_phone)),
+      set: [signup_phone: nil]
+    )
+
     :ok
   end
 
@@ -565,7 +618,16 @@ defmodule Riddlr.Accounts do
      This cannot happen in the default implementation but may be the
      source of security pitfalls. See the "Mixing magic link and password registration" section of
      `mix help phx.gen.auth`.
+
+  The third item is the text prompt, set only at the first log-in (case 2)
+  for a player who ticked Text at sign-up:
+
+    * `{:code_sent, phone_code}` - a code went to the number they gave.
+    * `:add_number` - no code went out; they should add a number.
+    * `nil` - nothing to say.
   """
+  @spec login_user_by_magic_link(String.t()) ::
+          {:ok, {User.t(), [UserToken.t()], text_prompt()}} | {:error, :not_found}
   def login_user_by_magic_link(token) do
     {:ok, query} = UserToken.verify_magic_link_token_query(token)
 
@@ -581,16 +643,28 @@ defmodule Riddlr.Accounts do
         """
 
       {%User{confirmed_at: nil} = user, _token} ->
-        user
-        |> User.confirm_changeset()
-        |> update_user_and_delete_all_tokens()
+        with {:ok, {user, tokens}} <-
+               user
+               |> User.confirm_changeset()
+               |> update_user_and_delete_all_tokens() do
+          {:ok, {user, tokens, first_log_in_text(user)}}
+        end
 
       {user, token} ->
         Repo.delete!(token)
-        {:ok, {user, []}}
+        {:ok, {user, [], nil}}
 
       nil ->
         {:error, :not_found}
+    end
+  end
+
+  # Runs after the confirm commits, so the text goes out of the transaction.
+  @spec first_log_in_text(User.t()) :: text_prompt()
+  defp first_log_in_text(user) do
+    case text_signup_phone(user) do
+      {:ok, phone_code} -> {:code_sent, phone_code}
+      _not_sent -> if ask_for_number?(user), do: :add_number
     end
   end
 

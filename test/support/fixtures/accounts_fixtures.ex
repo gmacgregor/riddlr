@@ -46,7 +46,7 @@ defmodule Riddlr.AccountsFixtures do
         Accounts.deliver_login_instructions(user, url)
       end)
 
-    {:ok, {user, _expired_tokens}} =
+    {:ok, {user, _expired_tokens, _text_prompt}} =
       Accounts.login_user_by_magic_link(token)
 
     user

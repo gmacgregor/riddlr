@@ -225,7 +225,15 @@ defmodule RiddlrWeb.ProfileController do
     conn
     |> assign(:email_changeset, Accounts.change_user_email(user))
     |> assign(:password_changeset, Accounts.change_user_password(user))
-    |> assign(:notifications_changeset, Accounts.change_user_notifications(user))
+    |> assign(:notifications_changeset, notifications_changeset(user))
+  end
+
+  # A player who ticked Text at sign-up finds Text ticked, so the number step
+  # shows. Nothing saves until they confirm a number.
+  @spec notifications_changeset(Riddlr.Accounts.User.t()) :: Ecto.Changeset.t()
+  defp notifications_changeset(user) do
+    attrs = if Accounts.ask_for_number?(user), do: %{notify_sms: true}, else: %{}
+    Accounts.change_user_notifications(user, attrs)
   end
 
   # The phone steps: whether they show at all, and which step is up.

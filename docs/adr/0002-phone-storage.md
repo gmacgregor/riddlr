@@ -15,7 +15,8 @@ number back, not just a way to check it. We must also:
 - stop two accounts holding the same number,
 - find a player by number when a STOP reply comes in (#69),
 - keep the number out of logs, job args and error text,
-- keep only numbers the player has proved they own.
+- keep only numbers the player has proved they own, apart from a number
+  given at sign-up, held a short time (see below).
 
 ## Decision
 
@@ -67,22 +68,44 @@ stops that, which is why it lives apart from the database.
   Counted from `phone_codes` rows.
 - A code that gets 5 wrong tries blocks new codes for that player for 24
   hours from when it was sent (so up to 10 minutes less than 24 hours after
-  the last try). The used try count stays on the row through Remove number,
-  and the block ends when the row is pruned at a day. The player's row and an advisory lock on
+  the last try). The used try count stays on the row through Remove number.
+  Both limits and the block count rows by send time, so a late prune does
+  not stretch them. The player's row and an advisory lock on
   the number are held while counting, so two sends at once, from one account
   or several, cannot both pass. Failed texts count too.
 
+### A number given at sign-up (#68)
+
+- Ticking Text at sign-up needs a Canadian number. It goes, encrypted, in
+  `users.signup_phone`, with `users.text_requested` set. No hash: sign-up
+  does not check whether the number is taken, so it cannot be used to probe
+  numbers with no limit.
+- Sign-up texts nothing and logs no consent.
+- The first log-in takes the number off the locked user row, so two log-ins
+  at once text it only once, then sends a code as "Text me a code" does.
+  Limits and the taken-number check apply. The number is gone from `users`
+  whatever the result; if the text did not go, the player adds a number on
+  `/profile`.
+- Texts start, and consent is logged, only when the code checks out.
+- `text_requested` holds no number. It pre-ticks Text on `/profile` and is
+  cleared by confirming a number, Remove number or a saved notification
+  change.
+
 ### Retention
 
-- An Oban cron job (`PrunePhoneCodesWorker`, every minute) wipes the number
-  and code from rows whose code has expired, and deletes rows older than a
-  day. So an unconfirmed number lasts at most about 11 minutes.
+- An Oban cron job (`PrunePhoneCodesWorker`, every hour) wipes the number
+  and code from rows whose code has expired, deletes rows older than a day,
+  and wipes `signup_phone` from accounts more than a day old. So an
+  unconfirmed number lasts at most about 70 minutes, and a sign-up number at
+  most about 25 hours. A code still fails after 10 minutes between runs: the
+  check reads the send time, not the prune.
 - A row's `phone_hash` stays up to a day after its code expires, for the
   per-number limit. It cannot be turned back into the number without the
   HMAC secret.
 - Unticking Text (#67) pauses texts and keeps the number.
-- "Remove number" wipes `phone`, `phone_hash` and `phone_confirmed_at` on
-  `users`, sets `notify_sms = false`, and clears the number, hash and code
+- "Remove number" wipes `phone`, `phone_hash`, `phone_confirmed_at` and
+  `signup_phone` on `users`, sets `notify_sms = false` and
+  `text_requested = false`, and clears the number, hash and code
   from all the player's `phone_codes` rows. The empty rows stay, up to a day,
   so they still count toward the hourly send limit.
 - A STOP reply (#69) does the same as Remove number.
@@ -93,16 +116,20 @@ stops that, which is why it lives apart from the database.
   Dev uses `Local` (logs the text with the last four digits only); test uses
   `Test`. Prod has none until `SMS_ADAPTER` is set (#69).
 - With no adapter, `/profile` hides the phone section and refuses every phone
-  step except Remove number.
+  step except Remove number. Sign-up hides Text and ignores a Text opt-in.
 
 ## Consequences
 
 - A database dump shows no readable numbers. Reading one needs `CLOAK_KEY`.
 - Losing `CLOAK_KEY` loses every stored number. Changing `PHONE_HMAC_KEY`
   breaks the unique index and STOP lookups until every hash is rebuilt.
-- Sign-up opt-in (#68) cannot store an unconfirmed number on `users`, and a
-  pending row expires in 10 minutes, long before a first log-in. #68 needs
-  its own design, e.g. ask for the number after the first log-in.
+- A sign-up number (#68) sits unconfirmed on `users` for up to about a day,
+  the one place an unproved number lives longer than a code. It is encrypted
+  and never texted before the first log-in. Someone could sign up with
+  another person's number; that person gets at most one code, at the first
+  log-in, under the usual limits.
+- Hourly pruning keeps unconfirmed numbers up to about an hour longer than a
+  per-minute job would. We accept this for fewer jobs.
 - A code is 6 digits with 5 tries: a 1 in 200,000 chance to guess per code.
   The send limits cap how many codes one player can try.
 - Remove number wipes the hash from the player's sent-code rows, so it also

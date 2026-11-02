@@ -16,6 +16,16 @@ defmodule RiddlrWeb.ProfilePhoneTest do
       assert has_selector?(html, "form#send_phone_code input[name='_method'][value='put']")
     end
 
+    test "a player who ticked Text at sign-up finds Text ticked and the number step open",
+         %{conn: conn, user: user} do
+      Riddlr.Repo.update!(Ecto.Changeset.change(user, text_requested: true))
+
+      html = conn |> get(~p"/profile") |> html_response(200)
+
+      assert has_selector?(html, "input[type=checkbox][name='user[notify_sms]'][checked]")
+      assert has_selector?(html, "input[form=send_phone_code][name='phone[phone]']")
+    end
+
     test "?phone=new offers a new number while a code is pending", %{conn: conn} do
       conn |> send_code(@ca) |> code_from_text()
 
@@ -169,6 +179,31 @@ defmodule RiddlrWeb.ProfilePhoneTest do
       assert redirected_to(conn) == ~p"/profile"
       assert Phoenix.Flash.get(conn.assigns.flash, :error)
       assert Riddlr.Accounts.get_pending_phone_code(conn.assigns.current_scope.user) == nil
+    end
+
+    test "sign-up offers no Text box" do
+      html = build_conn() |> get(~p"/users/register") |> html_response(200)
+
+      refute has_selector?(html, "[name='user[text_requested]']")
+      refute has_selector?(html, ".rg-notify__consent")
+    end
+
+    @tag :capture_log
+    test "sign-up ignores a forged Text opt-in" do
+      email = Riddlr.AccountsFixtures.unique_user_email()
+
+      attrs =
+        Riddlr.AccountsFixtures.valid_user_attributes(
+          email: email,
+          text_requested: "true",
+          signup_phone: @ca
+        )
+
+      build_conn() |> post(~p"/users/register", %{"user" => attrs}) |> redirected_to()
+
+      user = Riddlr.Accounts.get_user_by_email(email)
+      refute user.text_requested
+      assert user.signup_phone == nil
     end
   end
 

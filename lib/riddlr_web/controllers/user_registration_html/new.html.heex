@@ -14,7 +14,19 @@
         required
         phx-mounted={JS.focus()}
       />
-      <.notify_me_group form={f} />
+      <.notify_me_group form={f} text={@sms_enabled?} text_field={:text_requested}>
+        <:text_steps :if={@sms_enabled?}>
+          <%!-- Not `required`: the field hides while Text is off. The
+               changeset needs it when Text is ticked. --%>
+          <div class="rg-notify__phone" data-needs-text>
+            <.phone_field field={f[:signup_phone]} required={false} />
+            <.text_consent />
+            <p class="rg-phone__note">
+              We text you a code when you first log in. Texts start once you enter it.
+            </p>
+          </div>
+        </:text_steps>
+      </.notify_me_group>
       <.auth_submit phx-disable-with="Creating account...">
         Create an account <span aria-hidden="true">→</span>
       </.auth_submit>

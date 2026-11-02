@@ -1,5 +1,6 @@
 defmodule Riddlr.AccountsTest do
   use Riddlr.DataCase
+  use Oban.Testing, repo: Riddlr.Repo
 
   alias Riddlr.Accounts
 
@@ -105,6 +106,35 @@ defmodule Riddlr.AccountsTest do
       {:ok, user} = Accounts.register_user(valid_user_attributes(notify_email: true))
 
       assert [%NotificationConsent{channel: :email, action: :granted}] = consents(user)
+    end
+
+    test "ticking Text holds the number, sends nothing and logs no consent" do
+      attrs = valid_user_attributes(text_requested: true, signup_phone: "(416) 555-0123")
+      {:ok, user} = Accounts.register_user(attrs)
+
+      assert user.text_requested
+      assert user.signup_phone == "+14165550123"
+      assert user.phone == nil
+      refute user.notify_sms
+      assert consents(user) == []
+      assert Repo.all(Riddlr.Accounts.PhoneCode) == []
+      refute_enqueued(worker: Riddlr.Workers.SendSmsConfirmationWorker)
+      refute_received {:sms, _}
+    end
+
+    test "ticking Text needs a Canadian number" do
+      for phone <- [nil, "", "(212) 555-0123"] do
+        attrs = valid_user_attributes(text_requested: true, signup_phone: phone)
+        assert {:error, changeset} = Accounts.register_user(attrs)
+        assert errors_on(changeset)[:signup_phone]
+      end
+    end
+
+    test "leaving Text off drops the number" do
+      attrs = valid_user_attributes(text_requested: false, signup_phone: "(416) 555-0123")
+      {:ok, user} = Accounts.register_user(attrs)
+
+      assert user.signup_phone == nil
     end
 
     test "leaving email off writes no consent" do
@@ -420,17 +450,43 @@ defmodule Riddlr.AccountsTest do
       refute user.confirmed_at
       {encoded_token, hashed_token} = generate_user_magic_link_token(user)
 
-      assert {:ok, {user, [%{token: ^hashed_token}]}} =
+      assert {:ok, {user, [%{token: ^hashed_token}], nil}} =
                Accounts.login_user_by_magic_link(encoded_token)
 
       assert user.confirmed_at
+    end
+
+    test "first log-in texts a code to the number held from sign-up" do
+      user =
+        unconfirmed_user_fixture(%{text_requested: true, signup_phone: "(416) 555-0123"})
+
+      {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
+
+      assert {:ok, {user, _tokens, {:code_sent, %{phone: "+14165550123"}}}} =
+               Accounts.login_user_by_magic_link(encoded_token)
+
+      assert_received {:sms, %{to: "+14165550123"}}
+      assert Accounts.get_user!(user.id).signup_phone == nil
+    end
+
+    test "first log-in asks for a number when Text was ticked but none is held" do
+      user =
+        unconfirmed_user_fixture(%{text_requested: true, signup_phone: "(416) 555-0123"})
+
+      Repo.update!(Ecto.Changeset.change(user, signup_phone: nil))
+      {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
+
+      assert {:ok, {_user, _tokens, :add_number}} =
+               Accounts.login_user_by_magic_link(encoded_token)
+
+      refute_received {:sms, _}
     end
 
     test "returns user and (deleted) token for confirmed user" do
       user = user_fixture()
       assert user.confirmed_at
       {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
-      assert {:ok, {^user, []}} = Accounts.login_user_by_magic_link(encoded_token)
+      assert {:ok, {^user, [], nil}} = Accounts.login_user_by_magic_link(encoded_token)
       # one time use only
       assert {:error, :not_found} = Accounts.login_user_by_magic_link(encoded_token)
     end

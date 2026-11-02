@@ -64,10 +64,12 @@ defmodule RiddlrWeb.AuthComponents do
   player can turn on. Sign-up and the profile both use it.
 
   With `text`, it adds a Text box and renders the `text_steps` slot under it,
-  e.g. the profile's phone steps.
+  e.g. the profile's phone steps. `text_field` names the field the Text box
+  sets: `notify_sms` on the profile, `text_requested` at sign-up.
   """
   attr :form, Phoenix.HTML.Form, required: true
   attr :text, :boolean, default: false, doc: "show the Text box"
+  attr :text_field, :atom, default: :notify_sms, doc: "the field the Text box sets"
   slot :text_steps, doc: "shown under the Text box"
 
   def notify_me_group(assigns) do
@@ -75,7 +77,7 @@ defmodule RiddlrWeb.AuthComponents do
     <fieldset class="rg-notify">
       <legend class="rg-field__label">Notify me of upcoming games</legend>
       <.input field={@form[:notify_email]} type="checkbox" label="Email" />
-      <.input :if={@text} field={@form[:notify_sms]} type="checkbox" label="Text" />
+      <.input :if={@text} field={@form[@text_field]} type="checkbox" label="Text" />
       {render_slot(@text_steps)}
     </fieldset>
     """
@@ -101,6 +103,7 @@ defmodule RiddlrWeb.AuthComponents do
   numbers. Every place a player can give a number for texts uses it.
   """
   attr :field, Phoenix.HTML.FormField, required: true
+  attr :required, :boolean, default: true, doc: "false when the field hides inside a bigger form"
   attr :rest, :global, include: ~w(form)
 
   def phone_field(assigns) do
@@ -113,7 +116,7 @@ defmodule RiddlrWeb.AuthComponents do
       inputmode="tel"
       autocomplete="tel-national"
       placeholder="(416) 555-1234"
-      required
+      required={@required}
     />
     <p class="rg-phone__note rg-phone__canada-note">Texts go to Canadian mobile numbers only.</p>
     """

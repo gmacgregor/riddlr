@@ -20,9 +20,9 @@ defmodule RiddlrWeb.UserSessionController do
       end
 
     case Accounts.login_user_by_magic_link(token) do
-      {:ok, {user, _expired_tokens}} ->
+      {:ok, {user, _expired_tokens, text_prompt}} ->
         conn
-        |> put_flash(:info, info)
+        |> put_flash(:info, text_prompt_flash(text_prompt) || info)
         |> UserAuth.log_in_user(user, user_params)
 
       {:error, :not_found} ->
@@ -85,4 +85,24 @@ defmodule RiddlrWeb.UserSessionController do
     |> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()
   end
+
+  # At the first log-in, a player who ticked Text at sign-up learns a code
+  # went to their number, or is asked to add one. Both link to the profile.
+  @spec text_prompt_flash(Accounts.text_prompt()) :: map() | nil
+  defp text_prompt_flash({:code_sent, phone_code}) do
+    %{
+      message:
+        "We texted a code to #{Riddlr.SMS.mask(phone_code.phone)}. Enter it to turn on texts.",
+      link: {"Enter the code", ~p"/profile"}
+    }
+  end
+
+  defp text_prompt_flash(:add_number) do
+    %{
+      message: "Add your mobile number to turn on texts.",
+      link: {"Add your number", ~p"/profile"}
+    }
+  end
+
+  defp text_prompt_flash(nil), do: nil
 end

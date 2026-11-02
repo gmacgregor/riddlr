@@ -41,6 +41,25 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
       refute has_selector?(response, "input[name='user[notify_email]'][checked]")
     end
 
+    test "offers a Text opt-in, unchecked, with the consent shown only once ticked", %{
+      conn: conn
+    } do
+      response = conn |> get(~p"/users/register") |> html_response(200)
+
+      assert has_selector?(
+               response,
+               "fieldset.rg-notify input[type=checkbox][name='user[text_requested]']"
+             )
+
+      refute has_selector?(response, "input[name='user[text_requested]'][checked]")
+      assert has_selector?(response, "fieldset.rg-notify [data-needs-text] .rg-notify__consent")
+
+      assert has_selector?(
+               response,
+               "fieldset.rg-notify [data-needs-text] input[type=tel][name='user[signup_phone]']"
+             )
+    end
+
     test "redirects if already logged in", %{conn: conn} do
       conn = conn |> log_in_user(user_fixture()) |> get(~p"/users/register")
 
@@ -84,6 +103,35 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
       })
 
       refute Riddlr.Accounts.get_user_by_email(email).notify_email
+    end
+
+    @tag :capture_log
+    test "ticking Text holds the number and texts nothing", %{conn: conn} do
+      email = unique_user_email()
+
+      post(conn, ~p"/users/register", %{
+        "user" =>
+          valid_user_attributes(
+            email: email,
+            text_requested: "true",
+            signup_phone: "(416) 555-0123"
+          )
+      })
+
+      user = Riddlr.Accounts.get_user_by_email(email)
+      assert user.text_requested
+      assert user.signup_phone == "+14165550123"
+      refute_received {:sms, _}
+    end
+
+    test "ticking Text without a number shows the error on the field", %{conn: conn} do
+      conn =
+        post(conn, ~p"/users/register", %{
+          "user" => valid_user_attributes(text_requested: "true", signup_phone: "")
+        })
+
+      response = html_response(conn, 200)
+      assert has_selector?(response, "#user_signup_phone[aria-invalid]")
     end
 
     test "render errors for invalid data", %{conn: conn} do

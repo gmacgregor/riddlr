@@ -34,6 +34,10 @@ defmodule RiddlrWeb.CoreComponents do
 
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:info} phx-mounted={show("#flash")}>Welcome Back!</.flash>
+
+  A flash value is a plain message, or a message with a link:
+
+      put_flash(conn, :info, %{message: "Add your number.", link: {"Go", ~p"/profile"}})
   """
   attr :id, :string, doc: "the optional id of flash container"
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
@@ -63,7 +67,12 @@ defmodule RiddlrWeb.CoreComponents do
       <.icon :if={@kind == :error} name="hero-exclamation-circle" class="rg-flash__icon" />
       <div class="rg-flash__body">
         <p :if={@title} class="rg-flash__title">{@title}</p>
-        <p>{msg}</p>
+        <%= case msg do %>
+          <% %{message: message, link: {label, to}} -> %>
+            <p>{message} <.link href={to} class="rg-flash__link">{label}</.link></p>
+          <% _ -> %>
+            <p>{msg}</p>
+        <% end %>
       </div>
       <button type="button" class="rg-flash__close" aria-label={gettext("close")}>
         <.icon name="hero-x-mark" class="size-4" />

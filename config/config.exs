@@ -32,7 +32,7 @@ config :riddlr, Oban,
   repo: Riddlr.Repo,
   plugins: [
     Oban.Plugins.Pruner,
-    {Oban.Plugins.Cron, crontab: [{"* * * * *", Riddlr.Workers.PrunePhoneCodesWorker}]}
+    {Oban.Plugins.Cron, crontab: [{"0 * * * *", Riddlr.Workers.PrunePhoneCodesWorker}]}
   ],
   queues: [game_lifecycle: 5, notifications: 10, mailers: 3, default: 5]
 

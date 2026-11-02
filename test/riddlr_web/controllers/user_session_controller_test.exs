@@ -274,6 +274,79 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       assert html_response(conn, 200) =~ ~s(id="topbar-log-out")
     end
 
+    test "first log-in texts a code to the held number and links to the code step", %{
+      conn: conn
+    } do
+      user = unconfirmed_user_fixture(%{text_requested: true, signup_phone: "(416) 555-0123"})
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      assert_received {:sms, %{to: "+14165550123"}}
+
+      assert %{message: message, link: {_label, "/profile"}} =
+               Phoenix.Flash.get(conn.assigns.flash, :info)
+
+      assert message =~ "•••• 0123"
+      assert Accounts.get_user!(user.id).signup_phone == nil
+
+      html = conn |> get(~p"/profile") |> html_response(200)
+      assert has_selector?(html, "#confirm_phone")
+    end
+
+    test "a held number another account holds is not texted; the flash still links", %{
+      conn: conn
+    } do
+      user = unconfirmed_user_fixture(%{text_requested: true, signup_phone: "(416) 555-0123"})
+
+      other = user_fixture()
+      Riddlr.Repo.update!(Riddlr.Accounts.User.confirm_phone_changeset(other, "+14165550123"))
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      refute_received {:sms, _}
+      assert %{link: {_label, "/profile"}} = Phoenix.Flash.get(conn.assigns.flash, :info)
+      assert Accounts.get_user!(user.id).signup_phone == nil
+    end
+
+    test "first log-in with Text ticked but no held number links to the number step", %{
+      conn: conn
+    } do
+      user = unconfirmed_user_fixture(%{text_requested: true, signup_phone: "(416) 555-0123"})
+      Riddlr.Repo.update!(Ecto.Changeset.change(user, signup_phone: nil))
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      assert redirected_to(conn) == ~p"/"
+      assert %{link: {_label, "/profile"}} = Phoenix.Flash.get(conn.assigns.flash, :info)
+      refute_received {:sms, _}
+
+      html = conn |> get(~p"/") |> html_response(200)
+      assert has_selector?(html, "#flash-info a[href='/profile']")
+    end
+
+    test "first log-in without Text ticked gets the usual flash", %{
+      conn: conn,
+      unconfirmed_user: user
+    } do
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      assert is_binary(Phoenix.Flash.get(conn.assigns.flash, :info))
+    end
+
+    test "a later log-in does not prompt for the number again", %{conn: conn} do
+      user = user_fixture(%{text_requested: true, signup_phone: "(416) 555-0123"})
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      assert is_binary(Phoenix.Flash.get(conn.assigns.flash, :info))
+    end
+
     test "emits error message when magic link is invalid", %{conn: conn} do
       conn =
         post(conn, ~p"/users/log-in", %{
