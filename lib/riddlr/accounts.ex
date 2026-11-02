@@ -731,6 +731,8 @@ defmodule Riddlr.Accounts do
         else: with({:ok, user} <- Repo.update(changeset), do: {:ok, {user, []}})
 
     with {:ok, _} <- result do
+      # Standings leave out banned and suspended players.
+      Riddlr.Standings.invalidate()
       Phoenix.PubSub.broadcast(Riddlr.PubSub, "user:#{user.id}", {:user_status_changed, status})
       result
     end

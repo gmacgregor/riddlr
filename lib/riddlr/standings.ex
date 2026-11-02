@@ -27,11 +27,20 @@ defmodule Riddlr.Standings do
   A window picks which riddles count. `:all_time` counts every riddle.
   `:month` counts riddles whose `live_date` falls in the current UTC
   calendar month, by `Riddlr.Clock`.
+
+  Both reads are cached (`Riddlr.Cache`), keyed by board and window, with the
+  month window keyed by year and month so a new month misses on its own.
+  `broadcast_changed/0` drops every entry and refills the eight top lists
+  before it tells subscribers, so they reload from a warm cache. A ban,
+  suspension or unban drops every entry (`invalidate/0`), as does deleting a
+  riddle. Other admin edits to a finished riddle (its name, its Live date)
+  show after the next completion.
   """
 
   import Ecto.Query, only: [dynamic: 2, from: 2, having: 3, subquery: 1, where: 3]
 
   alias Riddlr.Accounts.User
+  alias Riddlr.Cache
   alias Riddlr.Clock
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Games.Riddle
@@ -72,6 +81,10 @@ defmodule Riddlr.Standings do
   """
   @spec list(board(), window()) :: [row()]
   def list(board, window) when board in @boards and window in @windows do
+    Cache.fetch(key(board, window, :top), fn -> list_query(board, window) end)
+  end
+
+  defp list_query(board, window) do
     from(row in subquery(ranked(board, window)),
       order_by: [asc: row.rank, asc: row.username],
       limit: @limit
@@ -85,8 +98,27 @@ defmodule Riddlr.Standings do
   """
   @spec player_row(integer(), board(), window()) :: row() | nil
   def player_row(user_id, board, window) when board in @boards and window in @windows do
-    from(row in subquery(ranked(board, window)), where: row.user_id == ^user_id)
-    |> Repo.one()
+    Cache.fetch(key(board, window, {:user, user_id}), fn ->
+      from(row in subquery(ranked(board, window)), where: row.user_id == ^user_id)
+      |> Repo.one()
+    end)
+  end
+
+  @doc """
+  Drops every cached board and player row. Call it when something outside a
+  completion changes who is on a board, such as a ban.
+  """
+  @spec invalidate() :: :ok
+  def invalidate, do: Cache.delete_match({:standings, :_, :_, :_})
+
+  @spec key(board(), window(), :top | {:user, integer()}) :: tuple()
+  defp key(board, window, part), do: {:standings, board, window_key(window), part}
+
+  defp window_key(:all_time), do: :all_time
+
+  defp window_key(:month) do
+    %{year: year, month: month} = Clock.utc_now()
+    {:month, {year, month}}
   end
 
   @doc """
@@ -97,12 +129,20 @@ defmodule Riddlr.Standings do
   def subscribe, do: Phoenix.PubSub.subscribe(Riddlr.PubSub, @topic)
 
   @doc """
-  Tells subscribers the Standings changed. Call it only after the
-  completion transaction commits, so no one reloads before the Solves are
-  there.
+  Refills the cached top lists and tells subscribers the Standings changed.
+  Call it only after the completion transaction commits, so no one reloads
+  before the Solves are there.
   """
   @spec broadcast_changed() :: :ok | {:error, term()}
-  def broadcast_changed, do: Phoenix.PubSub.broadcast(Riddlr.PubSub, @topic, :standings_changed)
+  def broadcast_changed do
+    invalidate()
+
+    for board <- @boards, window <- @windows do
+      Cache.put(key(board, window, :top), list_query(board, window))
+    end
+
+    Phoenix.PubSub.broadcast(Riddlr.PubSub, @topic, :standings_changed)
+  end
 
   # Every player on the board with their rank. rank() gives players level on
   # every sort key the same rank and skips the places after them (1, 2, 2, 4).

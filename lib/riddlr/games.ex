@@ -319,6 +319,8 @@ defmodule Riddlr.Games do
     |> case do
       {:ok, %{riddle: deleted}} ->
         Riddlr.Gameplay.cleanup_riddle(deleted.id)
+        # Its solves went with it.
+        Riddlr.Standings.invalidate()
 
         Phoenix.PubSub.broadcast(
           Riddlr.PubSub,
