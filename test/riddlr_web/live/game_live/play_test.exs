@@ -714,13 +714,13 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       # The same solve can arrive after the mount snapshot already counted it.
       solve = Answer.new(riddle.id, other, "keyboard", correct: true, placement: 1)
-      Gameplay.broadcast_answer(solve)
-      Gameplay.broadcast_answer(solve)
+      Gameplay.broadcast_answers(riddle.id, [solve])
+      Gameplay.broadcast_answers(riddle.id, [solve])
 
       assert has_element?(live, "#play-solved", GameCopy.solved_count(1))
     end
 
-    test "wrong guesses and chat leave the count alone", %{
+    test "wrong guesses leave the solved count alone, and chat is not a guess", %{
       conn: conn,
       riddle: riddle,
       user: user
@@ -732,7 +732,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       :incorrect = Gameplay.submit_answer(riddle, other, "nope")
       Gameplay.broadcast_answer(Answer.new(riddle.id, other, "gg", chat: true))
 
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(2))
+      assert has_element?(live, "#feed-count", GameCopy.guess_count(1))
       assert has_element?(live, "#play-solved", GameCopy.solved_count(0))
     end
   end
@@ -835,7 +835,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       assert has_element?(live, "ol#answer-feed[aria-live='polite'][aria-relevant='additions']")
 
-      send(live.pid, {:answer_submitted, Answer.new(riddle.id, user, "piano", offset_ms: 900)})
+      send(live.pid, batch([Answer.new(riddle.id, user, "piano", offset_ms: 900)]))
       assert has_element?(live, "#feed-count", GameCopy.guess_count(1))
     end
 
@@ -861,12 +861,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      send(live.pid, {:answer_submitted, Answer.new(riddle.id, user, "piano", offset_ms: 900)})
+      send(live.pid, batch([Answer.new(riddle.id, user, "piano", offset_ms: 900)]))
 
-      send(
-        live.pid,
-        {:answer_submitted, Answer.new(riddle.id, other, "organ", offset_ms: 65_000)}
-      )
+      send(live.pid, batch([Answer.new(riddle.id, other, "organ", offset_ms: 65_000)]))
 
       render(live)
 
@@ -886,8 +883,8 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      send(live.pid, {:answer_submitted, Answer.new(riddle.id, user, "piano", offset_ms: 900)})
-      send(live.pid, {:answer_submitted, Answer.new(riddle.id, user, "organ", offset_ms: 1900)})
+      send(live.pid, batch([Answer.new(riddle.id, user, "piano", offset_ms: 900)]))
+      send(live.pid, batch([Answer.new(riddle.id, user, "organ", offset_ms: 1900)]))
       render(live)
 
       assert has_element?(live, "#answer-feed .rg-msg:last-child", "organ")
@@ -901,9 +898,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      Gameplay.broadcast_answer(
+      Gameplay.broadcast_answers(riddle.id, [
         Answer.new(riddle.id, user, "keyboard", correct: true, placement: 1)
-      )
+      ])
 
       assert has_element?(
                live,
@@ -924,7 +921,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       answer = Answer.new(riddle.id, user, "keyboard", offset_ms: 1_500)
 
-      send(live.pid, {:answer_submitted, answer})
+      send(live.pid, batch([answer]))
 
       html = render(live)
       assert html =~ user.username
@@ -940,9 +937,9 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      Gameplay.broadcast_answer(
+      Gameplay.broadcast_answers(riddle.id, [
         Answer.new(riddle.id, solver, "keyboard", correct: true, placement: 2)
-      )
+      ])
 
       html = render(live)
       assert has_element?(live, "#answer-feed .rg-msg.is-solve", solver.username)
@@ -997,7 +994,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
       answer = Answer.new(riddle.id, user, "piano", offset_ms: 500)
-      send(live.pid, {:answer_submitted, answer})
+      send(live.pid, batch([answer]))
       assert has_element?(live, "#feed-count", GameCopy.guess_count(1))
 
       send(live.pid, {:answer_flagged, answer.id})
@@ -1033,7 +1030,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       # no longer uses it, it masks synchronously before broadcast instead.
       answer = Answer.new(riddle.id, user, "clean content", offset_ms: 500)
 
-      send(live.pid, {:answer_submitted, answer})
+      send(live.pid, batch([answer]))
       html = render(live)
       assert html =~ "clean content"
 
@@ -1056,7 +1053,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       # require sleep() to stabilise.
       answer = Answer.new(riddle.id, user, @bad_word, offset_ms: 100)
 
-      send(live.pid, {:answer_submitted, answer})
+      send(live.pid, batch([answer]))
 
       html = render(live)
       refute html =~ @bad_word
@@ -1073,10 +1070,16 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       answer = Answer.new(riddle.id, user, "keyboard", offset_ms: 2_500)
 
-      send(live.pid, {:answer_submitted, answer})
+      send(live.pid, batch([answer]))
 
       assert has_element?(live, "#answer-feed .rg-msg__t", "+0:02")
     end
+  end
+
+  # A feed batch holding `answers`, with totals that count only them.
+  defp batch(answers) do
+    totals = %{guesses: length(answers), solved: Enum.count(answers, & &1.correct)}
+    {:answers_batch, answers, totals}
   end
 
   # Helper to directly set play_status bypassing changeset transition validation

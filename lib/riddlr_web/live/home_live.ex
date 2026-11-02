@@ -39,7 +39,8 @@ defmodule RiddlrWeb.HomeLive do
   subscription.
 
   The page follows the riddle's state while open. It listens to the riddle
-  state topics, and to the next riddle's clock, Lobby presence and answers.
+  state topics, and to the next riddle's clock and its Lobby and solver
+  counts, which the clock sends at most once a second.
   When the next riddle changes, the per-riddle topics move with it. Any state
   message reloads the card and both notes.
   """
@@ -47,7 +48,7 @@ defmodule RiddlrWeb.HomeLive do
   use RiddlrWeb, :live_view
 
   alias Riddlr.{GameClock, Gameplay, Games}
-  alias Riddlr.Gameplay.{Answer, Presence}
+  alias Riddlr.Gameplay.Presence
   alias RiddlrWeb.{DropTime, GameComponents, GameCopy, Thinker}
 
   # Each of these can change which riddle is next, or its state, or the
@@ -146,12 +147,10 @@ defmodule RiddlrWeb.HomeLive do
     end
   end
 
-  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
-    {:noreply, assign(socket, :waiting, waiting(socket.assigns.next))}
-  end
-
-  def handle_info({:answer_submitted, %{correct: true}}, socket) do
-    {:noreply, assign(socket, :solved, solved(socket.assigns.next))}
+  # Counts from the last next riddle's clock can land after a switch.
+  def handle_info({:riddle_stats, id, stats}, %{assigns: %{next: %{id: id} = next}} = socket) do
+    solved = if next.play_status == "live", do: stats.solved, else: 0
+    {:noreply, assign(socket, waiting: stats.waiting, solved: solved)}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
@@ -319,7 +318,7 @@ defmodule RiddlrWeb.HomeLive do
   end
 
   @spec riddle_topics(integer()) :: [String.t()]
-  defp riddle_topics(id), do: [GameClock.topic(id), Presence.lobby_topic(id), Answer.topic(id)]
+  defp riddle_topics(id), do: [GameClock.topic(id), GameClock.stats_topic(id)]
 
   # The seconds on the card's clock: until the drop, or left to solve. A riddle
   # past its drop time but not yet live holds at zero until the live broadcast.

@@ -4,6 +4,8 @@ defmodule Riddlr.GameClockTest do
 
   alias Riddlr.Clock.Frozen
   alias Riddlr.GameClock
+  alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Store
   alias Riddlr.Games.Riddle
 
   setup do
@@ -142,6 +144,77 @@ defmodule Riddlr.GameClockTest do
     end
   end
 
+  describe "stats" do
+    test "sends Lobby and solver counts on a tick, only when they change", ctx do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.stats_topic(ctx.riddle_id))
+      on_exit(fn -> Store.cleanup_riddle(ctx.riddle_id) end)
+      :ok = GameClock.ensure_started(riddle(ctx, live_in: -5, solve_time: 600))
+      pid = clock_pid(ctx.riddle_id)
+
+      send(pid, :tick)
+      assert_receive {:riddle_stats, id, %{waiting: 0, solved: 0}} when id == ctx.riddle_id
+
+      send(pid, :tick)
+      refute_receive {:riddle_stats, _, _}
+
+      user = %{id: 1, username: "u1"}
+      {:ok, 1} = Store.record(Answer.new(ctx.riddle_id, user, "x", correct: true))
+      send(pid, :tick)
+      assert_receive {:riddle_stats, _, %{waiting: 0, solved: 1}}
+    end
+  end
+
+  describe "feed batching" do
+    setup ctx do
+      config = Application.get_env(:riddlr, GameClock)
+      # A long interval, so only the test's own :flush_feed sends a batch.
+      Application.put_env(:riddlr, GameClock, batch_feed: true, feed_flush_ms: 60_000)
+      on_exit(fn -> Application.put_env(:riddlr, GameClock, config) end)
+      on_exit(fn -> Store.cleanup_riddle(ctx.riddle_id) end)
+
+      :ok = GameClock.ensure_started(riddle(ctx, live_in: -5, solve_time: 600))
+      %{clock: clock_pid(ctx.riddle_id)}
+    end
+
+    for viewers <- [5, 200] do
+      test "sends #{viewers} viewers one message per flush, however many guesses", ctx do
+        viewers = Enum.map(1..unquote(viewers), fn _ -> viewer(ctx.riddle_id) end)
+
+        for _ <- 1..50, do: guess(ctx.riddle_id)
+        _ = :sys.get_state(ctx.clock)
+        assert Enum.all?(viewers, &(received(&1) == []))
+
+        send(ctx.clock, :flush_feed)
+        _ = :sys.get_state(ctx.clock)
+
+        for viewer <- viewers do
+          assert [{:answers_batch, answers, %{guesses: 50, solved: 0}}] = received(viewer)
+          assert length(answers) == 50
+          assert answers == Enum.sort_by(answers, & &1.timestamp)
+        end
+      end
+    end
+
+    test "masks correct answers in the batch", ctx do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(ctx.riddle_id))
+      guess(ctx.riddle_id, correct: true)
+
+      send(ctx.clock, :flush_feed)
+
+      assert_receive {:answers_batch, [%Answer{correct: true, text: nil}], %{solved: 1}}
+    end
+
+    test "with no clock running, a guess goes out alone at once" do
+      riddle_id = :erlang.unique_integer([:positive])
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle_id))
+
+      guess(riddle_id)
+
+      assert_receive {:answers_batch, [%Answer{}], %{guesses: 1}}
+      Store.cleanup_riddle(riddle_id)
+    end
+  end
+
   test "a riddle with no live date has nothing to count", ctx do
     :ok = GameClock.ensure_started(%Riddle{id: ctx.riddle_id, live_date: nil, solve_time: 60})
 
@@ -156,6 +229,46 @@ defmodule Riddlr.GameClockTest do
     :ok = GameClock.ensure_started(riddle)
 
     assert [_only_one] = Registry.lookup(Riddlr.GameClockRegistry, ctx.riddle_id)
+  end
+
+  defp guess(riddle_id, opts \\ []) do
+    id = :erlang.unique_integer([:positive])
+    answer = Answer.new(riddle_id, %{id: id, username: "u#{id}"}, "guess", opts)
+    {:ok, placement} = Store.record(answer)
+    GameClock.push_answer(%{answer | placement: placement})
+  end
+
+  # A process standing in for a viewer's LiveView: it subscribes to the
+  # riddle's feed and hands back what it has received when asked.
+  defp viewer(riddle_id) do
+    test = self()
+
+    pid =
+      spawn_link(fn ->
+        Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle_id))
+        send(test, {:subscribed, self()})
+        collect([])
+      end)
+
+    assert_receive {:subscribed, ^pid}
+    pid
+  end
+
+  defp collect(messages) do
+    receive do
+      {:report, from} ->
+        send(from, {:received, self(), Enum.reverse(messages)})
+        collect([])
+
+      message ->
+        collect([message | messages])
+    end
+  end
+
+  defp received(viewer) do
+    send(viewer, {:report, self()})
+    assert_receive {:received, ^viewer, messages}
+    messages
   end
 
   defp riddle(ctx, opts) do

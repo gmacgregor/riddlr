@@ -123,12 +123,16 @@ defmodule RiddlrWeb.GameLive.Play do
   end
 
   @impl true
-  def handle_info({:answer_submitted, answer_data}, socket) do
+  # Totals count every guess stored, so they replace the counts. A batch sent
+  # before the mount snapshot was read can land after it, so counts only rise.
+  def handle_info({:answers_batch, answers, %{guesses: guesses, solved: solved}}, socket) do
+    socket =
+      Enum.reduce(answers, socket, &stream_insert(&2, :answers, &1, at: -1, limit: -@feed_limit))
+
     {:noreply,
      socket
-     |> update(:guess_count, &(&1 + 1))
-     |> update(:solved, &count_solve(&1, answer_data))
-     |> stream_insert(:answers, answer_data, at: -1, limit: -@feed_limit)}
+     |> update(:guess_count, &max(&1, guesses))
+     |> update(:solved, &max(&1, solved))}
   end
 
   def handle_info({:answer_flagged, answer_id}, socket) do
@@ -181,17 +185,6 @@ defmodule RiddlrWeb.GameLive.Play do
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
-
-  # A solve's placement is the solved count when it was claimed, so taking the
-  # larger of the two never counts a solve the mount snapshot already holds.
-  # Chat and wrong guesses add nothing. A flagged solve stays: the solve still
-  # stands.
-  @spec count_solve(non_neg_integer(), Answer.t()) :: non_neg_integer()
-  defp count_solve(solved, %Answer{correct: true, chat: false, placement: placement})
-       when is_integer(placement),
-       do: max(solved, placement)
-
-  defp count_solve(solved, _answer), do: solved
 
   defp check_not_banned(%{banned: true}), do: {:error, :banned}
   defp check_not_banned(_assigns), do: :ok

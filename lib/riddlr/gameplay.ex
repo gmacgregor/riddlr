@@ -133,7 +133,7 @@ defmodule Riddlr.Gameplay do
     with {:ok, placement} <- Store.record(answer) do
       answer = %{answer | placement: placement}
 
-      broadcast_answer(answer)
+      Riddlr.GameClock.push_answer(answer)
       moderate_answer_async(answer)
       score(riddle, user, answer)
     end
@@ -235,10 +235,31 @@ defmodule Riddlr.Gameplay do
   defdelegate get_answers(riddle_id, limit \\ :infinity), to: Store, as: :recent_answers
 
   @doc """
-  Puts an answer — or a post-game chat message — on the riddle's feed.
+  Puts guesses on a riddle's live feed in one message, oldest first, with the
+  riddle's guess and solve totals as they stand now:
 
-  Chat rides the same topic and the same message tag so every subscriber picks
-  it up without knowing there are two kinds.
+      {:answers_batch, answers, %{guesses: n, solved: m}}
+
+  The totals cover every guess stored, not only the batch, so a viewer sets
+  its counts from them rather than adding. `Riddlr.GameClock.push_answer/1`
+  decides when to call this.
+
+  Correct answers go out masked — see `Answer.for_live_feed/1`.
+  """
+  @spec broadcast_answers(integer(), [Answer.t()]) :: :ok | {:error, term()}
+  def broadcast_answers(riddle_id, answers) do
+    totals = %{guesses: Store.answer_count(riddle_id), solved: Store.solved_count(riddle_id)}
+
+    Phoenix.PubSub.broadcast(
+      Riddlr.PubSub,
+      Answer.topic(riddle_id),
+      {:answers_batch, Enum.map(answers, &Answer.for_live_feed/1), totals}
+    )
+  end
+
+  @doc """
+  Puts a post-game chat message on the riddle's feed, alone and at once. Chat
+  is rate-limited per player and not stored, so it skips the guess batch.
 
   Correct answers go out masked — see `Answer.for_live_feed/1`.
   """

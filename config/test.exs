@@ -30,6 +30,10 @@ config :riddlr, :secure_session_cookie, false
 # Unfrozen, it passes through to the system clock.
 config :riddlr, clock: Riddlr.Clock.Frozen
 
+# Broadcast each guess at once, so a LiveView test sees it without waiting
+# for a flush. GameClock tests turn batching on.
+config :riddlr, Riddlr.GameClock, batch_feed: false
+
 # Test-only keys for phone encryption and its blind index.
 config :riddlr, Riddlr.Vault,
   keys: [{"AES.GCM.V1", "DK9n/Z+Qm/aL3aYHe8LKIci3vbLxJYIaxKh2YtgH0qM="}]

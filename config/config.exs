@@ -27,6 +27,10 @@ config :riddlr,
   # Live dates in emails show in this zone.
   display_time_zone: "America/Toronto"
 
+# Guesses reach the live feed in one batch per riddle every feed_flush_ms,
+# not one message each.
+config :riddlr, Riddlr.GameClock, batch_feed: true, feed_flush_ms: 250
+
 # Configure Oban
 config :riddlr, Oban,
   repo: Riddlr.Repo,
