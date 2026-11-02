@@ -67,6 +67,7 @@ defmodule Riddlr.GameClockTest do
 
       assert_receive {:countdown_tick, :play, 0}
       assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+      refute_restarted(ctx.riddle_id)
     end
   end
 
@@ -136,6 +137,7 @@ defmodule Riddlr.GameClockTest do
         broadcast(unquote(topic), {unquote(message), riddle(ctx, live_in: 10)})
 
         assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
+        refute_restarted(ctx.riddle_id)
       end
     end
   end
@@ -169,6 +171,13 @@ defmodule Riddlr.GameClockTest do
     # Give the clock time to process the broadcast before the :tick sent next.
     # A GenServer.call would be more precise, but the clock exposes none.
     Process.sleep(10)
+  end
+
+  # A clock that stops on purpose must stay stopped. The supervisor handles the
+  # exit before this call returns, so a restarted clock is registered by then.
+  defp refute_restarted(riddle_id) do
+    _ = :sys.get_state(Riddlr.GameClockSupervisor)
+    assert Registry.lookup(Riddlr.GameClockRegistry, riddle_id) == []
   end
 
   defp clock_pid(riddle_id) do

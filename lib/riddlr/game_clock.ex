@@ -19,7 +19,9 @@ defmodule Riddlr.GameClock do
   is deleted.
   """
 
-  use GenServer
+  # Transient: the clock stops with :normal when its riddle ends, and a
+  # permanent child would be restarted to tick for a riddle that is over.
+  use GenServer, restart: :transient
 
   alias Riddlr.Clock
   alias Riddlr.Games.Riddle
