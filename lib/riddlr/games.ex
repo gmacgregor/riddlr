@@ -55,7 +55,7 @@ defmodule Riddlr.Games do
   @cancellable_states ["available", "scheduled", "retryable"]
 
   @doc """
-  Returns the list of riddles.
+  Returns the newest riddles, newest first, at most `limit` (default 100).
 
   ## Examples
 
@@ -63,10 +63,12 @@ defmodule Riddlr.Games do
       [%Riddle{}, ...]
 
   """
-  def list_riddles do
+  @spec list_riddles(pos_integer()) :: [Riddle.t()]
+  def list_riddles(limit \\ 100) do
     Riddle
     |> preload(^@riddle_preload)
-    |> order_by([c], desc: c.inserted_at, desc: c.play_status)
+    |> order_by([r], desc: r.id)
+    |> limit(^limit)
     |> Repo.all()
   end
 

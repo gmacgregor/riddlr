@@ -19,6 +19,13 @@ defmodule Riddlr.GamesTest do
       assert Enum.any?(riddles, &(&1.id == riddle.id))
     end
 
+    test "list_riddles/1 returns the newest `limit` riddles, newest first" do
+      [first, second, third] = for _ <- 1..3, do: riddle_fixture()
+
+      assert Games.list_riddles(2) |> Enum.map(& &1.id) == [third.id, second.id]
+      refute first.id in Enum.map(Games.list_riddles(2), & &1.id)
+    end
+
     test "get_riddle!/1 returns the riddle with given id" do
       riddle = riddle_fixture()
       assert Games.get_riddle!(riddle.id) == riddle
