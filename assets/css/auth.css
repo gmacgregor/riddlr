@@ -87,16 +87,33 @@
 }
 
 /* A group of notification channel checkboxes under one legend. */
+/* Channel boxes share one row; the steps under them take a full row each. */
 .rg-notify {
-  display: grid;
-  gap: var(--space-2xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-l);
   border: 0;
   padding: 0;
   margin: 0;
 }
 
+.rg-notify > :not(.rg-field) {
+  flex-basis: 100%;
+}
+
 .rg-notify legend {
   margin-bottom: var(--space-2xs);
+}
+
+/* Channel names (Email, Text) read like the profile values, not like field
+   labels. */
+.rg-notify .rg-field__check .rg-field__label {
+  font-family: var(--f-ui);
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fg);
 }
 
 /* The phone steps under the Text box on /profile. */
@@ -206,22 +223,20 @@
   margin: 0;
 }
 
+/* Label above value. */
 .rg-auth__meta-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-s);
-  padding-block: var(--space-2xs);
-  border-bottom: 1.5px solid var(--hairline);
+  display: grid;
+  gap: var(--space-3xs);
+  padding-block: var(--space-xs);
 }
 
-.rg-auth__meta-row:first-child {
-  border-top: 1.5px solid var(--hairline);
-}
-
+/* Matches .rg-field__label, e.g. "Notify me of upcoming games". */
 .rg-auth__meta-label {
   font-family: var(--f-label);
   font-size: var(--step--1);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--fg-muted);
 }
 
@@ -229,7 +244,6 @@
   margin: 0;
   font-weight: 700;
   overflow-wrap: anywhere;
-  text-align: right;
 }
 
 /* ─── Info note (e.g. local mail adapter) ────────────────────────────────────── */
