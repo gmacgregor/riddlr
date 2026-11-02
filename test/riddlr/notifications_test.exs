@@ -16,6 +16,26 @@ defmodule Riddlr.NotificationsTest do
     |> Repo.update!()
   end
 
+  # A player with a confirmed number and Text on. Each gets their own number.
+  defp texting(attrs \\ %{}) do
+    last4 = rem(System.unique_integer([:positive]), 10_000)
+    phone = "+1416555" <> String.pad_leading("#{last4}", 4, "0")
+
+    user_fixture()
+    |> Ecto.Changeset.change(
+      Map.merge(
+        %{
+          notify_sms: true,
+          phone: phone,
+          phone_hash: phone,
+          phone_confirmed_at: DateTime.utc_now(:second)
+        },
+        attrs
+      )
+    )
+    |> Repo.update!()
+  end
+
   defp ready_riddle do
     riddle = scheduled_riddle_fixture()
     {:ok, ready} = Riddlr.Games.transition(riddle.id, :ready)
@@ -51,6 +71,28 @@ defmodule Riddlr.NotificationsTest do
 
       assert {:ok, 0} = Notifications.fan_out(riddle.id, :lobby_open)
       refute_enqueued(worker: SendNotificationWorker)
+    end
+
+    test "adds an :sms row for each player with Text on and a confirmed number" do
+      riddle = ready_riddle()
+      both = texting(%{notify_email: true})
+      text_only = texting()
+
+      texting(%{phone: nil, phone_hash: nil, phone_confirmed_at: nil})
+      texting(%{notify_sms: false})
+      texting(%{account_status: :suspended})
+      texting(%{account_status: :banned})
+      texting(%{notification_lead_time: :min_30})
+
+      assert {:ok, 3} = Notifications.fan_out(riddle.id, :lobby_open)
+
+      rows = Repo.all(from n in RiddleNotification, select: {n.user_id, n.channel})
+
+      assert Enum.sort(rows) ==
+               Enum.sort([{both.id, :email}, {both.id, :sms}, {text_only.id, :sms}])
+
+      assert [_, _, _] = all_enqueued(worker: SendNotificationWorker)
+      assert {:ok, 0} = Notifications.fan_out(riddle.id, :lobby_open)
     end
 
     test "a second run adds no rows and queues no jobs" do
@@ -206,6 +248,7 @@ defmodule Riddlr.NotificationsTest do
       assert email.text_body =~ "/game/#{riddle.id}/lobby"
       assert email.text_body =~ riddle.category.name
       assert email.text_body =~ "/notifications/unsubscribe/"
+      assert email.text_body =~ Application.fetch_env!(:riddlr, :info_url)
       refute email.text_body =~ riddle.description
 
       assert email.headers["List-Unsubscribe"] =~ "/notifications/unsubscribe/"
@@ -257,6 +300,95 @@ defmodule Riddlr.NotificationsTest do
                Notifications.deliver(row.id, mailer_config: [adapter: __MODULE__.DownAdapter])
 
       assert Repo.reload!(row).sent_at == nil
+    end
+  end
+
+  describe "deliver/1 for Text" do
+    alias Riddlr.Clock.Frozen
+
+    # Every GSM-7 basic character; a text with only these fits 160 per segment.
+    @gsm7 ~c"@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà"
+
+    setup do
+      riddle = ready_riddle() |> Repo.preload(:category)
+      user = texting()
+      {:ok, 1} = Notifications.fan_out(riddle.id, :lobby_open)
+      row = Repo.get_by!(RiddleNotification, riddle_id: riddle.id, user_id: user.id)
+      Frozen.freeze(DateTime.add(riddle.live_date, -1800, :second))
+
+      %{riddle: riddle, user: user, row: row}
+    end
+
+    test "texts the player once, in one GSM-7 segment, with no riddle text",
+         %{riddle: riddle, user: user, row: row} do
+      assert {:ok, %{sent_at: %DateTime{}}} = Notifications.deliver(row.id)
+      assert {:skip, _} = Notifications.deliver(row.id)
+
+      assert_received {:sms, %{to: to, body: body}}
+      refute_received {:sms, _}
+
+      assert to == user.phone
+      assert body =~ "Riddle No. #{riddle.number} goes live in 30 min"
+      assert body =~ "/game/#{riddle.id}/lobby"
+      assert body =~ Application.fetch_env!(:riddlr, :info_url)
+      assert body =~ "Reply STOP to end"
+      refute body =~ riddle.description
+
+      assert String.length(body) <= 160
+      assert body |> String.to_charlist() |> Enum.all?(&(&1 in @gsm7))
+    end
+
+    test "skips a player who paused Text, removed the number, or was suspended",
+         %{user: user, row: row} do
+      eligible = Map.take(user, [:notify_sms, :phone, :phone_hash, :phone_confirmed_at])
+
+      for change <- [
+            %{notify_sms: false},
+            %{phone: nil, phone_hash: nil, phone_confirmed_at: nil},
+            %{account_status: :suspended}
+          ] do
+        user |> Ecto.Changeset.change(change) |> Repo.update!()
+        assert {:skip, _} = Notifications.deliver(row.id)
+
+        user
+        |> Repo.reload!()
+        |> Ecto.Changeset.change(Map.put(eligible, :account_status, :active))
+        |> Repo.update!()
+      end
+
+      refute_received {:sms, _}
+      assert Repo.reload!(row).sent_at == nil
+    end
+
+    test "skips after Unschedule", %{riddle: riddle, row: row} do
+      {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"publish_status" => "draft"})
+
+      assert {:skip, _} = Notifications.deliver(row.id)
+      refute_received {:sms, _}
+    end
+  end
+
+  describe "deliver_sms_confirmation/1" do
+    test "texts the player once Text is on" do
+      user = texting()
+
+      assert :ok = Notifications.deliver_sms_confirmation(user.id)
+      assert_received {:sms, %{to: to, body: body}}
+      assert to == user.phone
+      assert body =~ "Kriddle"
+      assert body =~ "Reply STOP to end"
+    end
+
+    test "skips a player with Text off, no number, or a banned account" do
+      for user <- [
+            texting(%{notify_sms: false}),
+            texting(%{phone: nil, phone_hash: nil, phone_confirmed_at: nil}),
+            texting(%{account_status: :banned})
+          ] do
+        assert {:skip, _} = Notifications.deliver_sms_confirmation(user.id)
+      end
+
+      refute_received {:sms, _}
     end
   end
 

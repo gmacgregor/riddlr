@@ -6,7 +6,12 @@ defmodule Riddlr.Workers.NotificationWorkersTest do
   import Riddlr.GamesFixtures
 
   alias Riddlr.Notifications.RiddleNotification
-  alias Riddlr.Workers.{NotificationFanOutWorker, SendNotificationWorker}
+
+  alias Riddlr.Workers.{
+    NotificationFanOutWorker,
+    SendNotificationWorker,
+    SendSmsConfirmationWorker
+  }
 
   setup do
     user_fixture() |> Ecto.Changeset.change(notify_email: true) |> Repo.update!()
@@ -45,5 +50,24 @@ defmodule Riddlr.Workers.NotificationWorkersTest do
                "riddle_id" => riddle.id,
                "lead_time" => "lobby_open"
              })
+  end
+
+  test "the confirmation text job texts a player with Text on, and cancels once paused" do
+    user =
+      user_fixture()
+      |> Ecto.Changeset.change(
+        notify_sms: true,
+        phone: "+14165550177",
+        phone_hash: "+14165550177",
+        phone_confirmed_at: DateTime.utc_now(:second)
+      )
+      |> Repo.update!()
+
+    assert :ok = perform_job(SendSmsConfirmationWorker, %{"user_id" => user.id})
+    assert_received {:sms, %{to: "+14165550177"}}
+
+    user |> Ecto.Changeset.change(notify_sms: false) |> Repo.update!()
+    assert {:cancel, _} = perform_job(SendSmsConfirmationWorker, %{"user_id" => user.id})
+    refute_received {:sms, _}
   end
 end

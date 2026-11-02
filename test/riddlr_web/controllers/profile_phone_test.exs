@@ -11,9 +11,9 @@ defmodule RiddlrWeb.ProfilePhoneTest do
     test "offers to add a number, with the Canada-only note", %{conn: conn} do
       html = conn |> get(~p"/profile") |> html_response(200)
 
-      assert has_selector?(html, "#send_phone_code input[name='phone[phone]'][type='tel']")
-      assert has_selector?(html, "#send_phone_code .rg-phone__canada-note")
-      assert has_selector?(html, "#send_phone_code input[name='_method'][value='put']")
+      assert has_selector?(html, "input[form=send_phone_code][name='phone[phone]'][type='tel']")
+      assert has_selector?(html, ".rg-notify__phone .rg-phone__canada-note")
+      assert has_selector?(html, "form#send_phone_code input[name='_method'][value='put']")
     end
 
     test "?phone=new offers a new number while a code is pending", %{conn: conn} do
@@ -41,11 +41,80 @@ defmodule RiddlrWeb.ProfilePhoneTest do
     end
   end
 
+  describe "Text in the Notify me group" do
+    test "shows a Text box, with the number step under it, gated on the box",
+         %{conn: conn} do
+      html = conn |> get(~p"/profile") |> html_response(200)
+      group = "#update_notifications fieldset.rg-notify"
+
+      assert has_selector?(html, "#{group} input[type=checkbox][name='user[notify_sms]']")
+      refute has_selector?(html, "#{group} input[name='user[notify_sms]'][checked]")
+
+      assert has_selector?(
+               html,
+               "#{group} .rg-notify__phone[data-needs-text] input[form=send_phone_code][name='phone[phone]']"
+             )
+
+      assert has_selector?(
+               html,
+               "#{group} .rg-notify__consent a[href='http://localhost:4000/info']"
+             )
+    end
+
+    test "saving Text with no confirmed number shows an error and keeps Text off",
+         %{conn: conn, user: user} do
+      html =
+        conn
+        |> put(~p"/profile", %{
+          "action" => "update_notifications",
+          "user" => %{"notify_sms" => "true"}
+        })
+        |> html_response(200)
+
+      assert has_selector?(
+               html,
+               ".rg-field:has(input[type=checkbox][name='user[notify_sms]']) .rg-field__error"
+             )
+
+      refute Riddlr.Accounts.get_user!(user.id).notify_sms
+    end
+
+    test "confirming a first number ticks Text; unticking pauses and keeps the number",
+         %{conn: conn, user: user} do
+      code = conn |> send_code(@ca) |> code_from_text()
+      confirm(conn, code)
+
+      html = conn |> get(~p"/profile") |> html_response(200)
+      assert has_selector?(html, "input[name='user[notify_sms]'][checked]")
+      refute has_selector?(html, "[data-needs-text]")
+
+      put(conn, ~p"/profile", %{
+        "action" => "update_notifications",
+        "user" => %{"notify_sms" => "false"}
+      })
+
+      user = Riddlr.Accounts.get_user!(user.id)
+      refute user.notify_sms
+      assert user.phone == "+14165550123"
+
+      html = conn |> get(~p"/profile") |> html_response(200)
+      refute has_selector?(html, "input[name='user[notify_sms]'][checked]")
+      assert has_selector?(html, "#phone-confirmed")
+    end
+
+    test "a refused number stays shown with its error, Text box or not", %{conn: conn} do
+      html = conn |> send_code("(212) 555-0123") |> html_response(200)
+
+      assert has_selector?(html, "input[form=send_phone_code][name='phone[phone]']")
+      refute has_selector?(html, "[data-needs-text]")
+    end
+  end
+
   describe "PUT /profile (send_phone_code)" do
     test "shows an error under the field for a number outside Canada", %{conn: conn} do
       html = conn |> send_code("(212) 555-0123") |> html_response(200)
 
-      assert html =~ "must be a Canadian number"
+      assert has_selector?(html, "input[form=send_phone_code][name='phone[phone]'][aria-invalid]")
       refute_received {:sms, _}
     end
 
@@ -56,7 +125,7 @@ defmodule RiddlrWeb.ProfilePhoneTest do
 
       html = conn |> get(~p"/profile") |> html_response(200)
 
-      assert has_selector?(html, "#confirm_phone input[name='phone[code]']")
+      assert has_selector?(html, "input[form=confirm_phone][name='phone[code]']")
       refute has_selector?(html, "#send_phone_code")
       assert html =~ "•••• 0123"
       refute html =~ "555"
@@ -92,7 +161,8 @@ defmodule RiddlrWeb.ProfilePhoneTest do
 
     test "hides the phone section and refuses phone actions", %{conn: conn} do
       html = conn |> get(~p"/profile") |> html_response(200)
-      refute has_selector?(html, "#profile-phone")
+      refute has_selector?(html, "#send_phone_code")
+      refute has_selector?(html, "[name='user[notify_sms]']")
 
       conn = send_code(conn, @ca)
       assert redirected_to(conn) == ~p"/profile"
@@ -133,7 +203,7 @@ defmodule RiddlrWeb.ProfilePhoneTest do
 
       html = conn |> confirm(wrong(code)) |> html_response(200)
 
-      assert has_selector?(html, "#confirm_phone input[name='phone[code]']")
+      assert has_selector?(html, "input[form=confirm_phone][name='phone[code]']")
       assert html =~ "Invalid verification code. Try again"
     end
 

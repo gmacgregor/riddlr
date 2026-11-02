@@ -179,9 +179,9 @@ code. Only confirmed numbers are kept on an account.
 _Avoid_: verified phone, phone
 
 **Notification**:
-A message that tells a player a riddle is about to go live. Players opt in;
-it is off by default. At most one per player, riddle and channel. Email only
-for now; SMS later.
+A message that tells a player a riddle is about to go live, by email, by
+text, or both. Players opt in to each channel; both are off by default. At
+most one per player, riddle and channel.
 _Avoid_: alert, reminder
 
 **Notification consent**:

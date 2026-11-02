@@ -62,15 +62,37 @@ defmodule RiddlrWeb.AuthComponents do
   @doc """
   The "Notify me of upcoming games" group: one checkbox per channel the
   player can turn on. Sign-up and the profile both use it.
+
+  With `text`, it adds a Text box and renders the `text_steps` slot under it,
+  e.g. the profile's phone steps.
   """
   attr :form, Phoenix.HTML.Form, required: true
+  attr :text, :boolean, default: false, doc: "show the Text box"
+  slot :text_steps, doc: "shown under the Text box"
 
   def notify_me_group(assigns) do
     ~H"""
     <fieldset class="rg-notify">
       <legend class="rg-field__label">Notify me of upcoming games</legend>
       <.input field={@form[:notify_email]} type="checkbox" label="Email" />
+      <.input :if={@text} field={@form[:notify_sms]} type="checkbox" label="Text" />
+      {render_slot(@text_steps)}
     </fieldset>
+    """
+  end
+
+  @doc """
+  What a player agrees to by turning Text on, with a link to the info page
+  (contact and privacy).
+  """
+  def text_consent(assigns) do
+    assigns = assign(assigns, :info_url, Application.fetch_env!(:riddlr, :info_url))
+
+    ~H"""
+    <p class="rg-phone__note rg-notify__consent">
+      Kriddle will text you before riddles go live. Message and data rates may apply.
+      Reply STOP to end, HELP for help. <a href={@info_url} class="rg-auth__link">Privacy policy</a>
+    </p>
     """
   end
 
@@ -79,10 +101,12 @@ defmodule RiddlrWeb.AuthComponents do
   numbers. Every place a player can give a number for texts uses it.
   """
   attr :field, Phoenix.HTML.FormField, required: true
+  attr :rest, :global, include: ~w(form)
 
   def phone_field(assigns) do
     ~H"""
     <.input
+      {@rest}
       field={@field}
       type="tel"
       label="Mobile number"

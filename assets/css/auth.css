@@ -99,12 +99,24 @@
   margin-bottom: var(--space-2xs);
 }
 
-/* The mobile number steps on /profile: enter, code, confirmed. */
-.rg-phone {
+/* The phone steps under the Text box on /profile. */
+.rg-notify__phone {
   display: grid;
-  gap: var(--space-2xs);
+  gap: var(--space-xs);
+  padding-left: var(--space-m);
 }
 
+.rg-notify__phone .rg-field {
+  margin-bottom: 0;
+}
+
+/* A player with no number sees the number step only while Text is ticked. */
+.rg-notify:has(input[type="checkbox"][name="user[notify_sms]"]:not(:checked))
+  .rg-notify__phone[data-needs-text] {
+  display: none;
+}
+
+/* Bits of the phone steps: notes, the confirmed number, links. */
 .rg-phone__note {
   font-size: var(--step--1);
   line-height: 1.4;

@@ -55,24 +55,34 @@ defmodule Riddlr.Accounts.User do
   @doc """
   A changeset for a player's own notification choices.
 
-  Casts `notify_email` and `notification_lead_time`. SMS joins when players
-  can set it.
+  Casts `notify_email`, `notify_sms` and `notification_lead_time`. Text can
+  turn on only with a confirmed number; turning it off keeps the number.
   """
   @spec notification_changeset(t(), map()) :: Ecto.Changeset.t()
   def notification_changeset(user, attrs) do
-    cast(user, attrs, [:notify_email, :notification_lead_time])
+    user
+    |> cast(attrs, [:notify_email, :notify_sms, :notification_lead_time])
+    |> validate_change(:notify_sms, fn :notify_sms, on? ->
+      if on? and is_nil(user.phone_confirmed_at),
+        do: [notify_sms: "confirm a mobile number first"],
+        else: []
+    end)
   end
 
   @doc """
   Makes `e164` the player's confirmed number, replacing any old one. Call
   only after a texted code checks out.
+
+  A first number turns Text on: the player reached the number step by
+  ticking Text. A changed number keeps Text as it was, so paused stays paused.
   """
   @spec confirm_phone_changeset(t(), String.t()) :: Ecto.Changeset.t()
   def confirm_phone_changeset(user, e164) do
     now = Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
+    notify_sms = is_nil(user.phone_confirmed_at) or user.notify_sms
 
     user
-    |> change(phone: e164, phone_hash: e164, phone_confirmed_at: now)
+    |> change(phone: e164, phone_hash: e164, phone_confirmed_at: now, notify_sms: notify_sms)
     |> unique_constraint(:phone_hash,
       error_key: :phone,
       message: "is already used by another account"

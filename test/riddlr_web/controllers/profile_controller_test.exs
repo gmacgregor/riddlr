@@ -181,8 +181,6 @@ defmodule RiddlrWeb.ProfileControllerTest do
                "#update_notifications input[name='user[notify_email]'][checked]"
              )
 
-      refute has_selector?(response, "[name='user[notify_sms]']")
-
       assert has_selector?(
                response,
                "#update_notifications select[name='user[notification_lead_time]'] option[value=lobby_open][selected]"

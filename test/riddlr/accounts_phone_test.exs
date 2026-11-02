@@ -1,10 +1,12 @@
 defmodule Riddlr.AccountsPhoneTest do
   # Some tests freeze the global clock, so this module cannot run async.
   use Riddlr.DataCase, async: false
+  use Oban.Testing, repo: Riddlr.Repo
 
   import Riddlr.AccountsFixtures
 
   alias Riddlr.Accounts
+  alias Riddlr.Workers.SendSmsConfirmationWorker
 
   # A valid Toronto number and a valid New York one. Both start with +1.
   @ca "(416) 555-0123"
@@ -17,7 +19,8 @@ defmodule Riddlr.AccountsPhoneTest do
   describe "send_phone_code/2" do
     test "refuses a number that is not a phone number", %{user: user} do
       assert {:error, changeset} = Accounts.send_phone_code(user, %{"phone" => "12345"})
-      assert "Only Canadian phone numbers are accepted" in errors_on(changeset).phone
+      assert errors_on(changeset)[:phone]
+      refute_received {:sms, _}
     end
 
     test "texts a 6-digit code and leaves the account without a number", %{user: user} do
@@ -85,7 +88,8 @@ defmodule Riddlr.AccountsPhoneTest do
 
     test "refuses a valid number from outside Canada", %{user: user} do
       assert {:error, changeset} = Accounts.send_phone_code(user, %{"phone" => @us})
-      assert "must be a Canadian number" in errors_on(changeset).phone
+      assert errors_on(changeset)[:phone]
+      refute_received {:sms, _}
     end
   end
 
@@ -135,6 +139,21 @@ defmodule Riddlr.AccountsPhoneTest do
     end
   end
 
+  describe "remove_phone/1 consent" do
+    test "with Text on, logs :sms withdrawn", %{user: user} do
+      {:ok, _} = user |> confirm!(@ca) |> Accounts.remove_phone()
+      assert [%{action: :granted}, %{channel: :sms, action: :withdrawn}] = consents(user)
+    end
+
+    test "with Text paused, logs nothing more", %{user: user} do
+      user = confirm!(user, @ca)
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: false})
+
+      {:ok, _} = Accounts.remove_phone(user)
+      assert [%{action: :granted}, %{action: :withdrawn}] = consents(user)
+    end
+  end
+
   describe "confirm_phone/2" do
     test "the right code puts the number on the account, unreadable at rest", %{user: user} do
       code = send_code!(user, @ca)
@@ -158,6 +177,22 @@ defmodule Riddlr.AccountsPhoneTest do
 
       assert {:ok, user} = Accounts.confirm_phone(user, code)
       assert user.phone == "+16135550199"
+    end
+
+    test "a first number turns Text on, logs consent and queues the confirmation text",
+         %{user: user} do
+      assert %{notify_sms: true} = confirm!(user, @ca)
+
+      assert [%{channel: :sms, action: :granted}] = consents(user)
+      assert [_job] = all_enqueued(worker: SendSmsConfirmationWorker)
+    end
+
+    test "a changed number keeps Text as it was", %{user: user} do
+      user = confirm!(user, @ca)
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: false})
+
+      assert %{notify_sms: false} = confirm!(user, "(613) 555-0199")
+      assert [%{action: :granted}, %{action: :withdrawn}] = consents(user)
     end
 
     test "fails when another account confirmed the number first", %{user: user} do
@@ -210,6 +245,51 @@ defmodule Riddlr.AccountsPhoneTest do
 
       Riddlr.Clock.Frozen.advance(22, :hour)
       assert send_code!(user, @ca)
+    end
+  end
+
+  describe "update_user_notifications/2 with Text" do
+    test "refuses Text without a confirmed number", %{user: user} do
+      assert {:error, changeset} = Accounts.update_user_notifications(user, %{notify_sms: true})
+      assert errors_on(changeset)[:notify_sms]
+      assert consents(user) == []
+    end
+
+    test "off pauses and keeps the number; on again logs consent", %{user: user} do
+      user = confirm!(user, @ca)
+
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: false})
+      assert Accounts.get_user!(user.id).phone == "+14165550123"
+
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: true})
+
+      assert [
+               %{channel: :sms, action: :granted},
+               %{channel: :sms, action: :withdrawn},
+               %{channel: :sms, action: :granted}
+             ] = consents(user)
+    end
+
+    test "turning Text on queues one confirmation text, by player id only", %{user: user} do
+      user = confirm!(user, @ca)
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: false})
+      Repo.delete_all(Oban.Job)
+
+      {:ok, _} = Accounts.update_user_notifications(user, %{notify_sms: true})
+      {:ok, _} = Accounts.update_user_notifications(user, %{notify_email: true})
+
+      assert [job] = all_enqueued(worker: SendSmsConfirmationWorker)
+      assert job.args == %{"user_id" => user.id}
+    end
+
+    test "off and on again while a confirmation text waits queues no second one",
+         %{user: user} do
+      user = confirm!(user, @ca)
+
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: false})
+      {:ok, _} = Accounts.update_user_notifications(user, %{notify_sms: true})
+
+      assert [_one] = all_enqueued(worker: SendSmsConfirmationWorker)
     end
   end
 

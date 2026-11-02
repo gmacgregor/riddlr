@@ -30,7 +30,7 @@ defmodule Riddlr.Notifications.Email do
     |> to(user.email)
     |> from({"Team Kriddle", "contact@example.com"})
     |> subject(
-      "Kriddle riddle No. #{riddle.number} goes live in #{minutes_left(riddle, now)} min"
+      "Kriddle riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} min"
     )
     |> header("List-Unsubscribe", "<#{unsubscribe_url}>")
     |> header("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
@@ -48,6 +48,7 @@ defmodule Riddlr.Notifications.Email do
 
     ---
     You received this update because you turned on email notifications for new Kriddle games. You may disable email notifications here: #{unsubscribe_url}
+    Questions? Contact us: #{Application.fetch_env!(:riddlr, :info_url)}
     """)
   end
 
@@ -70,13 +71,6 @@ defmodule Riddlr.Notifications.Email do
     """
 
     {intro, url(~p"/")}
-  end
-
-  # Rounded up, so a send a few seconds late still says the full lead time.
-  @spec minutes_left(Riddle.t(), DateTime.t()) :: pos_integer()
-  defp minutes_left(riddle, now) do
-    seconds = DateTime.diff(riddle.live_date, now, :second)
-    max(div(seconds + 59, 60), 1)
   end
 
   @spec display_time(DateTime.t()) :: String.t()

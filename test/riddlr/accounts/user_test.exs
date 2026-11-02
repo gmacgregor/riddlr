@@ -110,14 +110,18 @@ defmodule Riddlr.Accounts.UserTest do
                Accounts.update_user_notifications(user, %{"notify_email" => "false"})
     end
 
-    test "notification_changeset/2 ignores fields players cannot set yet" do
-      changeset =
-        User.notification_changeset(%User{}, %{
-          "notify_sms" => "true",
-          "role" => "super_admin"
-        })
-
+    test "notification_changeset/2 ignores fields players cannot set" do
+      changeset = User.notification_changeset(%User{}, %{"role" => "super_admin"})
       assert changeset.changes == %{}
+    end
+
+    test "notification_changeset/2 allows Text on only with a confirmed number" do
+      refute User.notification_changeset(%User{}, %{"notify_sms" => "true"}).valid?
+
+      confirmed = %User{phone_confirmed_at: ~U[2026-11-01 12:00:00Z]}
+      changeset = User.notification_changeset(confirmed, %{"notify_sms" => "true"})
+      assert changeset.valid?
+      assert changeset.changes == %{notify_sms: true}
     end
 
     test "notification_changeset/2 sets the lead time" do

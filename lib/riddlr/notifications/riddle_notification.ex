@@ -7,11 +7,13 @@ defmodule Riddlr.Notifications.RiddleNotification do
 
   use Ecto.Schema
 
+  @type channel :: :email | :sms
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           riddle_id: integer() | nil,
           user_id: integer() | nil,
-          channel: :email | :sms | nil,
+          channel: channel() | nil,
           sent_at: DateTime.t() | nil
         }
 

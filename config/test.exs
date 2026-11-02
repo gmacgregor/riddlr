@@ -61,3 +61,7 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# One page with contact and privacy details, linked from emails, texts and
+# the text consent copy.
+config :riddlr, info_url: "http://localhost:4000/info"

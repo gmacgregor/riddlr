@@ -7,6 +7,7 @@ defmodule Riddlr.Accounts do
   alias Riddlr.Repo
 
   alias Riddlr.Accounts.{NotificationConsent, PhoneCode, User, UserToken, UserNotifier}
+  alias Riddlr.Workers.SendSmsConfirmationWorker
 
   ## Database getters
 
@@ -88,10 +89,10 @@ defmodule Riddlr.Accounts do
     save_with_consent(fn -> User.registration_changeset(%User{}, attrs) end, &Repo.insert/1)
   end
 
-  # Builds the changeset and saves the user inside one transaction, and logs a
-  # consent row when the email opt-in changes. Building inside the transaction
-  # lets callers lock and read the stored row first, so two saves at once
-  # cannot both log the same change.
+  # Builds the changeset and saves the user inside one transaction, and logs
+  # each channel turned on or off. Building inside the transaction lets
+  # callers lock and read the stored row first, so two saves at once cannot
+  # both log the same change.
   @typep save_result :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   @spec save_with_consent((-> Ecto.Changeset.t()), (Ecto.Changeset.t() -> save_result())) ::
           save_result()
@@ -100,16 +101,36 @@ defmodule Riddlr.Accounts do
       changeset = build_changeset.()
 
       with {:ok, user} <- save.(changeset) do
-        case NotificationConsent.for_email_change(user, changeset) do
-          nil -> :ok
-          consent -> Repo.insert!(consent)
-        end
-
+        log_channel_changes(user, changeset)
         user
       else
         {:error, changeset} -> Repo.rollback(changeset)
       end
     end)
+  end
+
+  # Inside the caller's transaction: one consent row per channel turned on or
+  # off, and the confirmation text when Text turns on.
+  @spec log_channel_changes(User.t(), Ecto.Changeset.t()) :: :ok
+  defp log_channel_changes(user, changeset) do
+    user
+    |> NotificationConsent.for_changes(changeset)
+    |> Enum.each(&Repo.insert!/1)
+
+    if Ecto.Changeset.get_change(changeset, :notify_sms) == true,
+      do: Oban.insert!(SendSmsConfirmationWorker.new(%{"user_id" => user.id}))
+
+    :ok
+  end
+
+  # Reads the stored user row and locks it until the transaction ends, so
+  # two saves at once see each other's changes.
+  @spec lock_user!(integer()) :: User.t()
+  defp lock_user!(id) do
+    User
+    |> where(id: ^id)
+    |> lock("FOR UPDATE")
+    |> Repo.one!()
   end
 
   ## Settings
@@ -223,10 +244,8 @@ defmodule Riddlr.Accounts do
   def update_user_notifications(%User{id: id}, attrs) do
     save_with_consent(
       fn ->
-        User
-        |> where(id: ^id)
-        |> lock("FOR UPDATE")
-        |> Repo.one!()
+        id
+        |> lock_user!()
         |> User.notification_changeset(attrs)
       end,
       &Repo.update/1
@@ -423,12 +442,14 @@ defmodule Riddlr.Accounts do
   defp apply_phone_code(%PhoneCode{user_id: user_id, phone: phone} = phone_code) do
     Repo.update!(Ecto.Changeset.change(phone_code, phone: nil, code_hash: nil))
 
-    User
-    |> Repo.get!(user_id)
-    |> User.confirm_phone_changeset(phone)
-    |> Repo.update()
-    |> case do
+    changeset =
+      user_id
+      |> lock_user!()
+      |> User.confirm_phone_changeset(phone)
+
+    case Repo.update(changeset) do
       {:ok, user} ->
+        log_channel_changes(user, changeset)
         {:ok, user}
 
       {:error, changeset} ->
@@ -437,8 +458,9 @@ defmodule Riddlr.Accounts do
   end
 
   @doc """
-  Wipes the player's number, confirmed or pending, and turns texts off. The
-  player's sent-code rows stay, empty, so they still count toward the hourly
+  Wipes the player's number, confirmed or pending, and turns texts off,
+  logging the withdrawal if Text was on. The player's sent-code rows stay,
+  empty, so they still count toward the hourly
   send limit.
   """
   @spec remove_phone(User.t()) :: {:ok, User.t()}
@@ -449,10 +471,15 @@ defmodule Riddlr.Accounts do
         set: [phone: nil, phone_hash: nil, code_hash: nil]
       )
 
-      User
-      |> Repo.get!(user_id)
-      |> User.remove_phone_changeset()
-      |> Repo.update()
+      changeset =
+        user_id
+        |> lock_user!()
+        |> User.remove_phone_changeset()
+
+      with {:ok, user} <- Repo.update(changeset) do
+        log_channel_changes(user, changeset)
+        {:ok, user}
+      end
     end)
   end
 

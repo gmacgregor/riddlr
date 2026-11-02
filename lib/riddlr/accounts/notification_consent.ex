@@ -23,15 +23,18 @@ defmodule Riddlr.Accounts.NotificationConsent do
   end
 
   @doc """
-  A new consent row for `user`, or `nil` when `changeset` does not change
-  `notify_email`.
+  New consent rows for `user`: one per channel (`notify_email`,
+  `notify_sms`) that `changeset` turns on or off. Empty when neither changes.
   """
-  @spec for_email_change(User.t(), Ecto.Changeset.t()) :: t() | nil
-  def for_email_change(%User{id: user_id}, changeset) do
-    case Ecto.Changeset.fetch_change(changeset, :notify_email) do
-      {:ok, true} -> %__MODULE__{user_id: user_id, channel: :email, action: :granted}
-      {:ok, false} -> %__MODULE__{user_id: user_id, channel: :email, action: :withdrawn}
-      :error -> nil
+  @spec for_changes(User.t(), Ecto.Changeset.t()) :: [t()]
+  def for_changes(%User{id: user_id}, changeset) do
+    for {field, channel} <- [notify_email: :email, notify_sms: :sms],
+        {:ok, on?} <- [Ecto.Changeset.fetch_change(changeset, field)] do
+      %__MODULE__{user_id: user_id, channel: channel, action: action(on?)}
     end
   end
+
+  @spec action(boolean()) :: action()
+  defp action(true), do: :granted
+  defp action(false), do: :withdrawn
 end

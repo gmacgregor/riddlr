@@ -36,9 +36,10 @@ Each player has one account page, `/profile`, and sees only their own. It
 shows their username and email and holds the account forms. Changing email
 needs a log-in in the last 10 minutes; other forms need only a log-in.
 
-A player can opt in to email **Notifications** at sign-up or on their profile.
-It is off by default. On their profile they also pick a **Notification lead
-time**, and the page sums up their choice, e.g. "Email, 30 min before". See
+A player can opt in to email **Notifications** at sign-up or on their profile,
+and to texts on their profile. Both are off by default. On their profile they
+also pick a **Notification lead time**, and the page sums up their choice,
+e.g. "Email + Text (•••• 1234), 30 min before". See
 [Notifications](#notifications).
 
 ## Riddle lifecycle
@@ -139,34 +140,52 @@ lead time**:
   already passed when the riddle is scheduled or rescheduled but the Live
   date is still ahead, it goes out at once.
 
+A Notification goes by email, by text, or both: one per channel the player
+turned on. Both channels use the same lead time.
+
 The email says "Riddle No. N goes live in X min". It names the category and
 the Live date (in the display time zone, Toronto by default) and never shows
 the riddle text. If the Lobby is open it links there; if not, it says when the
 Lobby opens and links to Home. Only active players with a confirmed email who
-turned email on get it.
+turned email on get it. The email also links to the info page (contact and
+privacy).
 
-A player gets at most one email per riddle. A repeat ready step, a retry, a
-Reschedule or a change of lead time does not send again. Just before sending,
-the system checks again: no email goes out if the riddle was unscheduled, its
-Live date has passed, or the player turned email off or was banned since. An
+The text fits one 160-character message: "Kriddle: Riddle No. N goes live in
+X min.", the same link as the email, an info page link and "Reply STOP to
+end".
+It never shows the riddle text. Only active players with a **Confirmed
+number** who turned Text on get it.
+
+A player gets at most one email and one text per riddle. A repeat ready step,
+a retry, a Reschedule or a change of lead time does not send again. Just
+before sending, the system checks again: nothing goes out if the riddle was
+unscheduled, its Live date has passed, or the player turned that channel off,
+lost their confirmed email or number, or was banned or suspended since. An
 Unschedule drops unsent Notifications, so a later Schedule can send them.
 
 Each email has an unsubscribe link that needs no log-in. The link opens a
 page with one button that turns email off. Mail clients that offer one-click
 unsubscribe turn it off at once.
 
-Every time a player turns email on or off (sign-up, profile, unsubscribe),
-the system logs a **Notification consent**: the channel, granted or
-withdrawn, and when. The log is only ever added to, as proof of consent.
+Every time a player turns email or Text on or off (sign-up, profile,
+unsubscribe, confirming a first number, removing a number), the system logs a
+**Notification consent**: the channel, granted or withdrawn, and when. The log
+is only ever added to, as proof of consent.
 
-To get texts later, a player adds a mobile number on their profile. Only
-Canadian numbers work. The system texts a 6-digit code; the player types it
+To get texts, a player ticks Text on their profile. With no confirmed number,
+ticking it shows the number step and what they agree to (rates may apply,
+reply STOP to end, HELP for help, with an info page link). Confirming a first
+number turns Text on. Changing to a new number keeps Text as it was. Turning
+Text on sends one text that confirms it. Unticking Text pauses texts and
+keeps the number.
+
+Only Canadian numbers work. The system texts a 6-digit code; the player types it
 in within 10 min and 5 tries. Only then does the number join their account as
 their **Confirmed number**. A number not confirmed in time is wiped. Changing
 numbers keeps the old one until the new one is confirmed. Two accounts cannot
-hold the same number. Five wrong tries on a code block new codes for a day. Screens show only its last four digits. A player gets
-at most 3 codes an hour, and a number at most 5 a day. "Remove number"
-deletes it and turns texts off. Texts themselves come later.
+hold the same number. Five wrong tries on a code block new codes for a day. Screens show only
+its last four digits. A player gets at most 3 codes an hour, and a number at
+most 5 a day. "Remove number" deletes it and turns texts off.
 
 ### Game clock
 

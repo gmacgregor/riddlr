@@ -2,15 +2,15 @@ defmodule Riddlr.Notifications do
   @moduledoc """
   Notifications: messages that tell a player a riddle is about to go live.
 
-  Email only for now. The send flow has two steps, both Oban jobs on the
-  `notifications` queue:
+  Sent by email, by text, or both. The send flow has two steps, both Oban
+  jobs on the `notifications` queue:
 
     1. Fan-out (`fan_out/2`) writes one `RiddleNotification` row per eligible
-       player and queues one send job per new row.
+       player and channel, and queues one send job per new row.
     2. Send (`deliver/1`) checks the riddle and player again, sends the email
-       and stamps `sent_at`.
+       or text and stamps `sent_at`.
 
-  The unique row per riddle, player and channel is what stops a second email.
+  The unique row per riddle, player and channel is what stops a second send.
   """
 
   import Ecto.Query, warn: false
@@ -20,7 +20,8 @@ defmodule Riddlr.Notifications do
   alias Riddlr.Clock
   alias Riddlr.Games.Riddle
   alias Riddlr.Mailer
-  alias Riddlr.Notifications.{Email, RiddleNotification}
+  alias Riddlr.Notifications.{Email, RiddleNotification, Text}
+  alias Riddlr.SMS
   alias Riddlr.Repo
   alias Riddlr.Workers.{NotificationFanOutWorker, SendNotificationWorker}
 
@@ -73,8 +74,9 @@ defmodule Riddlr.Notifications do
   Writes a Notification row for every player who wants one at `lead_time` and
   queues a send job for each **new** row.
 
-  An eligible player has email notifications on, this lead time, an active
-  account and a confirmed email. Rows that already exist are left alone, so
+  An eligible player has this lead time, an active account, and per channel:
+  email on with a confirmed email, or Text on with a confirmed number. A
+  player with both gets one row per channel. Rows that already exist are left alone, so
   running this twice sends nothing twice.
 
   Returns `{:ok, new_row_count}`, or `{:skip, reason}` when the riddle is gone
@@ -89,45 +91,60 @@ defmodule Riddlr.Notifications do
     # block a later Schedule from notifying those players.
     Multi.new()
     |> Multi.run(:riddle, fn _repo, _changes -> lock_upcoming(riddle_id) end)
-    |> Multi.insert_all(
-      :rows,
-      RiddleNotification,
-      fn %{riddle: riddle} -> eligible_rows(riddle, lead_time) end,
-      on_conflict: :nothing,
-      returning: [:id]
-    )
-    |> Multi.run(:send_jobs, fn _repo, %{rows: {_count, rows}} ->
-      rows
+    |> insert_rows(:email, lead_time)
+    |> insert_rows(:sms, lead_time)
+    |> Multi.run(:send_jobs, fn _repo, %{email: {_, email_rows}, sms: {_, sms_rows}} ->
+      (email_rows ++ sms_rows)
       |> Enum.map(&SendNotificationWorker.new(%{"notification_id" => &1.id}))
       |> Oban.insert_all()
       |> then(&{:ok, &1})
     end)
     |> Repo.transaction()
     |> case do
-      {:ok, %{rows: {count, _rows}}} -> {:ok, count}
+      {:ok, %{email: {email_count, _}, sms: {sms_count, _}}} -> {:ok, email_count + sms_count}
       {:error, :riddle, {:skip, reason}, _changes} -> {:skip, reason}
       {:error, _step, reason, _changes} -> {:error, reason}
     end
   end
 
-  # One query feeds the insert, so the rows land in a single statement.
-  @spec eligible_rows(Riddle.t(), atom()) :: Ecto.Query.t()
-  defp eligible_rows(riddle, lead_time) do
+  # Adds one channel's rows under the step named for the channel. One query
+  # feeds the insert, so the rows land in a single statement.
+  @spec insert_rows(Multi.t(), RiddleNotification.channel(), atom()) :: Multi.t()
+  defp insert_rows(multi, channel, lead_time) do
+    Multi.insert_all(
+      multi,
+      channel,
+      RiddleNotification,
+      fn %{riddle: riddle} -> eligible_rows(riddle, lead_time, channel) end,
+      on_conflict: :nothing,
+      returning: [:id]
+    )
+  end
+
+  @spec eligible_rows(Riddle.t(), atom(), RiddleNotification.channel()) :: Ecto.Query.t()
+  defp eligible_rows(riddle, lead_time, channel) do
     now = Clock.utc_now() |> DateTime.truncate(:second)
 
-    from u in User,
-      where: u.notify_email == true,
+    from(u in User,
       where: u.notification_lead_time == ^lead_time,
       where: u.account_status == ^:active,
-      where: not is_nil(u.confirmed_at),
       select: %{
         riddle_id: type(^riddle.id, :integer),
         user_id: u.id,
-        channel: type(^"email", :string),
+        channel: type(^Atom.to_string(channel), :string),
         inserted_at: type(^now, :utc_datetime),
         updated_at: type(^now, :utc_datetime)
       }
+    )
+    |> wants(channel)
   end
+
+  @spec wants(Ecto.Query.t(), RiddleNotification.channel()) :: Ecto.Query.t()
+  defp wants(query, :email),
+    do: where(query, [u], u.notify_email == true and not is_nil(u.confirmed_at))
+
+  defp wants(query, :sms),
+    do: where(query, [u], u.notify_sms == true and not is_nil(u.phone_confirmed_at))
 
   @spec lock_upcoming(integer()) :: {:ok, Riddle.t()} | {:error, {:skip, String.t()}}
   defp lock_upcoming(riddle_id) do
@@ -171,7 +188,7 @@ defmodule Riddlr.Notifications do
   eligible.
 
   Returns `{:ok, row}`, `{:skip, reason}`, or `{:error, reason}` when the mail
-  provider fails (the caller may retry).
+  or SMS provider fails (the caller may retry).
 
   ## Options
 
@@ -191,10 +208,8 @@ defmodule Riddlr.Notifications do
       with {:ok, row} <- lock_unsent(notification_id),
            {:ok, riddle} <- lock_riddle(row.riddle_id),
            :ok <- check_riddle(riddle, now),
-           :ok <- check_player(row.user),
-           token = unsubscribe_token(row.user),
-           email = Email.notification(riddle, row.user, token, now),
-           {:ok, _meta} <- Mailer.deliver(email, opts[:mailer_config] || []),
+           :ok <- check_player(row.user, row.channel),
+           :ok <- send_message(row, riddle, now, opts),
            {:ok, sent} <- mark_sent(row, now) do
         sent
       else
@@ -208,6 +223,22 @@ defmodule Riddlr.Notifications do
       {:error, {:error, reason}} -> {:error, reason}
     end
   end
+
+  # The number is read here only, from the loaded player, and goes no further
+  # than the SMS adapter.
+  @spec send_message(RiddleNotification.t(), Riddle.t(), DateTime.t(), keyword()) ::
+          :ok | {:error, term()}
+  defp send_message(%RiddleNotification{channel: :email, user: user}, riddle, now, opts) do
+    email = Email.notification(riddle, user, unsubscribe_token(user), now)
+
+    case Mailer.deliver(email, opts[:mailer_config] || []) do
+      {:ok, _meta} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp send_message(%RiddleNotification{channel: :sms, user: user}, riddle, now, _opts),
+    do: riddle |> Text.notification(user, now) |> SMS.deliver()
 
   @spec lock_unsent(integer()) :: {:ok, RiddleNotification.t()} | {:skip, String.t()}
   defp lock_unsent(id) do
@@ -253,15 +284,48 @@ defmodule Riddlr.Notifications do
   defp check_riddle(%Riddle{} = riddle, _now),
     do: {:skip, "riddle #{riddle.id} is #{riddle.play_status}, not upcoming"}
 
-  @spec check_player(User.t()) :: :ok | {:skip, String.t()}
-  defp check_player(%User{
-         notify_email: true,
-         account_status: :active,
-         confirmed_at: %DateTime{}
-       }),
+  @spec check_player(User.t(), RiddleNotification.channel()) :: :ok | {:skip, String.t()}
+  defp check_player(
+         %User{notify_email: true, account_status: :active, confirmed_at: %DateTime{}},
+         :email
+       ),
        do: :ok
 
-  defp check_player(%User{id: id}), do: {:skip, "player #{id} no longer eligible"}
+  defp check_player(
+         %User{notify_sms: true, account_status: :active, phone_confirmed_at: %DateTime{}},
+         :sms
+       ),
+       do: :ok
+
+  defp check_player(%User{id: id}, _channel), do: {:skip, "player #{id} no longer eligible"}
+
+  @doc """
+  Whole minutes from `now` to the riddle's Live date, rounded up, so a send a
+  few seconds late still says the full lead time. At least 1.
+  """
+  @spec minutes_left(Riddle.t(), DateTime.t()) :: pos_integer()
+  def minutes_left(%Riddle{live_date: live_date}, now) do
+    seconds = DateTime.diff(live_date, now, :second)
+    max(div(seconds + 59, 60), 1)
+  end
+
+  @doc """
+  Sends the one text that confirms a player turned Text on. Skips when Text
+  is off again, the number is gone, or the account is not active.
+
+  Returns `:ok`, `{:skip, reason}`, or `{:error, reason}` when the SMS
+  provider fails (the caller may retry).
+  """
+  @spec deliver_sms_confirmation(integer()) :: :ok | {:skip, String.t()} | {:error, term()}
+  def deliver_sms_confirmation(user_id) do
+    with %User{} = user <- Repo.get(User, user_id),
+         :ok <- check_player(user, :sms) do
+      user |> Text.confirmation() |> SMS.deliver()
+    else
+      nil -> {:skip, "player #{user_id} not found"}
+      {:skip, reason} -> {:skip, reason}
+    end
+  end
 
   @doc """
   A signed token that lets the holder turn off one player's email

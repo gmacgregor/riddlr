@@ -92,7 +92,8 @@ defmodule RiddlrWeb.ProfileController do
       {:error, %Ecto.Changeset{} = changeset} ->
         render(conn, :show,
           phone_form: Phoenix.Component.to_form(changeset, as: :phone),
-          phone_step: :enter
+          phone_step: :enter,
+          phone_gated?: false
         )
 
       result ->
@@ -227,9 +228,11 @@ defmodule RiddlrWeb.ProfileController do
     |> assign(:notifications_changeset, Accounts.change_user_notifications(user))
   end
 
-  # The phone section: whether it shows at all, and which step it is on.
+  # The phone steps: whether they show at all, and which step is up.
   # `:enter` asks for a number, `:code` asks for the texted code, `nil` shows
   # only the confirmed number. `?phone=new` asks for a new number.
+  # `phone_gated?`: the number step shows only while Text is ticked, for a
+  # player with no number who has not started adding one.
   @spec assign_phone(Plug.Conn.t(), term()) :: Plug.Conn.t()
   defp assign_phone(conn, _opts) do
     user = conn.assigns.current_scope.user
@@ -246,6 +249,10 @@ defmodule RiddlrWeb.ProfileController do
     conn
     |> assign(:sms_enabled?, Riddlr.SMS.enabled?())
     |> assign(:phone_step, step)
+    |> assign(
+      :phone_gated?,
+      step == :enter and is_nil(user.phone_confirmed_at) and conn.params["phone"] != "new"
+    )
     |> assign(:pending_phone, pending && Riddlr.SMS.mask(pending.phone))
     |> assign(:phone_form, Phoenix.Component.to_form(%{}, as: :phone))
     |> assign(:code_form, Phoenix.Component.to_form(%{}, as: :phone))
