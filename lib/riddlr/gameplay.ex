@@ -35,6 +35,7 @@ defmodule Riddlr.Gameplay do
   """
 
   alias Ecto.Multi
+  alias Riddlr.Cache
   alias Riddlr.Clock
   alias Riddlr.Gameplay.Answer
   alias Riddlr.Gameplay.Entry
@@ -50,6 +51,8 @@ defmodule Riddlr.Gameplay do
   # Postgres caps one statement at 65,535 bound parameters. A solve row binds
   # 7, so one insert of more than ~9,300 solvers fails.
   @result_row_chunk 5_000
+  # Results shows this many solvers, plus the viewer's own row if lower down.
+  @board_limit 50
 
   @doc """
   Runs a player's answer through the Answer race.
@@ -403,6 +406,85 @@ defmodule Riddlr.Gameplay do
     |> Repo.one()
   end
 
+  @typedoc """
+  One row of a Results board. `username` is nil when the account is gone.
+  """
+  @type board_row :: %{
+          user_id: integer() | nil,
+          username: String.t() | nil,
+          placement: pos_integer(),
+          points: non_neg_integer(),
+          solve_time_ms: non_neg_integer() | nil
+        }
+
+  @typedoc "The top of a riddle's saved solves, by placement, and how many there are."
+  @type board :: %{top: [board_row()], total: non_neg_integer()}
+
+  @doc """
+  The first #{@board_limit} saved solves of a riddle, by placement, with
+  usernames, and the count of all its solves. Always reads the database; see
+  `board/1` for the cached read.
+  """
+  @spec list_board(integer()) :: board()
+  def list_board(riddle_id) do
+    top =
+      from(s in Solve,
+        left_join: u in assoc(s, :user),
+        where: s.riddle_id == ^riddle_id,
+        order_by: s.placement,
+        limit: @board_limit,
+        select: %{
+          user_id: s.user_id,
+          username: u.username,
+          placement: s.placement,
+          points: s.points,
+          solve_time_ms: s.solve_time_ms
+        }
+      )
+      |> Repo.all()
+
+    total = if length(top) < @board_limit, do: length(top), else: count_solves(riddle_id)
+    %{top: top, total: total}
+  end
+
+  @doc """
+  A riddle's Results board (`list_board/1`).
+
+  A completed riddle's board is cached: `warm_board/1` fills it when the
+  riddle completes, before every Play view is told to move to Results, and
+  `cleanup_riddle/1` drops it at archive. A miss reads the database and fills
+  the cache. An archived riddle's board is read from the database every time,
+  so no entry outlives the archive.
+
+  A cached board keeps the usernames it was read with until archive.
+  """
+  @spec board(Riddlr.Games.Riddle.t()) :: board()
+  def board(%{play_status: "completed", id: id}) do
+    Cache.fetch(board_key(id), fn -> list_board(id) end)
+  end
+
+  def board(%{id: id}), do: list_board(id)
+
+  @doc """
+  A completed riddle's board if the cache holds it, else `nil`. Never reads
+  the database, for a first render that must not.
+  """
+  @spec cached_board(Riddlr.Games.Riddle.t()) :: board() | nil
+  def cached_board(%{play_status: "completed", id: id}) do
+    case Cache.get(board_key(id)) do
+      {:ok, board} -> board
+      :error -> nil
+    end
+  end
+
+  def cached_board(_riddle), do: nil
+
+  @doc "Reads a riddle's board and stores it in the cache. See `board/1`."
+  @spec warm_board(integer()) :: :ok
+  def warm_board(riddle_id), do: Cache.put(board_key(riddle_id), list_board(riddle_id))
+
+  defp board_key(riddle_id), do: {:results, riddle_id}
+
   @doc """
   A user's saved solve of a riddle, or `nil` if they did not solve it or the
   riddle has not completed.
@@ -419,8 +501,12 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
-  Removes all ETS entries for a riddle (call on archive).
+  Removes all ETS entries for a riddle, its cached board included (call on
+  archive and delete).
   """
   @spec cleanup_riddle(integer()) :: :ok
-  defdelegate cleanup_riddle(riddle_id), to: Store
+  def cleanup_riddle(riddle_id) do
+    Cache.delete(board_key(riddle_id))
+    Store.cleanup_riddle(riddle_id)
+  end
 end

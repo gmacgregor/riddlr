@@ -20,7 +20,7 @@
       <p class="rg-results__riddle">“{@riddle.description}”</p>
       <h1
         id="res-h"
-        class={["rg-answer", @board == [] && "is-unsolved"]}
+        class={["rg-answer", @board_ready? && @board == [] && "is-unsolved"]}
         tabindex="-1"
         aria-label={"Answer: #{@answer}"}
         style={"--n: #{@answer_longest}"}
@@ -33,11 +33,11 @@
           >{char}</span>
         </span>
       </h1>
-      <p id="res-by" class="rg-results__by">
+      <p :if={@board_ready?} id="res-by" class="rg-results__by">
         <%= if first = List.first(@board) do %>
           {GameCopy.results_by_lead()} <b>{first.shown_as}</b>
           in <span class="rg-nowrap">{first.secs}</span>
-          · {GameCopy.solved_count(length(@board))}
+          · {GameCopy.solved_count(@board_total)}
         <% else %>
           {GameCopy.results_unsolved()}
         <% end %>
@@ -130,7 +130,20 @@
           <span class="rg-row__t">{solver.secs}</span>
           <span class="rg-row__pts">+{solver.points}</span>
         </li>
-        <li :if={@board == []} class="rg-board__empty">{GameCopy.board_empty()}</li>
+        <li :if={@my_row} id="board-me" class="rg-row is-me">
+          <span class="rg-row__place">{@my_row.placement}</span>
+          <GameComponents.tile
+            initial={GameComponents.initial(@my_row.username)}
+            tone={GameComponents.tone(@my_row.username, @current_user && @current_user.username)}
+            size="sm"
+          />
+          <span class="rg-row__name">{@my_row.shown_as}</span>
+          <span class="rg-row__t">{@my_row.secs}</span>
+          <span class="rg-row__pts">+{@my_row.points}</span>
+        </li>
+        <li :if={@board_ready? and @board == []} class="rg-board__empty">
+          {GameCopy.board_empty()}
+        </li>
       </ol>
       <section class="rg-payout" aria-labelledby="payout-h">
         <h3 id="payout-h" class="rg-panel__h">{GameCopy.payout_heading()}</h3>

@@ -458,6 +458,9 @@ defmodule Riddlr.Games do
   # that never went live.
   defp after_commit({:ok, riddle}, to) do
     cleanup(to, riddle)
+    # Every Play view moves to Results on the broadcast below, so the board
+    # must be cached first.
+    if to == :completed, do: Riddlr.Gameplay.warm_board(riddle.id)
 
     broadcast_riddle = preload_assoc(riddle)
     {topic, message} = broadcast_for(to)

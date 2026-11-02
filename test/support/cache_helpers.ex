@@ -33,21 +33,44 @@ defmodule Riddlr.CacheHelpers do
   """
   @spec count_queries((-> result)) :: {non_neg_integer(), result} when result: var
   def count_queries(fun) do
-    counter = :counters.new(1, [])
-    handler = "count-queries-#{System.unique_integer([:positive])}"
+    {sources, result} = query_sources(fun)
+    {length(sources), result}
+  end
+
+  @doc """
+  Runs `fun` and returns `{sources, result}`: the table each Repo query read,
+  in any process, in the order they ran. A query with no table gives `nil`.
+
+  Sees every query on the node, so use it only in `async: false` tests.
+  """
+  @spec query_sources((-> result)) :: {[String.t() | nil], result} when result: var
+  def query_sources(fun) do
+    test = self()
+    ref = make_ref()
+    handler = "query-sources-#{System.unique_integer([:positive])}"
 
     :telemetry.attach(
       handler,
       [:riddlr, :repo, :query],
-      fn _event, _measurements, _meta, counter -> :counters.add(counter, 1, 1) end,
-      counter
+      fn _event, _measurements, meta, _config -> send(test, {ref, meta.source}) end,
+      nil
     )
 
-    try do
-      result = fun.()
-      {:counters.get(counter, 1), result}
+    result =
+      try do
+        fun.()
+      after
+        :telemetry.detach(handler)
+      end
+
+    {collect(ref, []), result}
+  end
+
+  defp collect(ref, sources) do
+    receive do
+      {^ref, source} -> collect(ref, [source | sources])
     after
-      :telemetry.detach(handler)
+      0 -> Enum.reverse(sources)
     end
   end
 end
