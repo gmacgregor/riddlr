@@ -53,7 +53,9 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host =
+    System.get_env("PHX_HOST") ||
+      raise "environment variable PHX_HOST is missing. Set it to the site's domain."
 
   config :riddlr, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
