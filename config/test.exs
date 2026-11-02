@@ -41,6 +41,9 @@ config :riddlr, RiddlrWeb.GameLive.Lobby, room_flush_ms: 60_000
 # would read each other's entries. Riddlr.CacheHelpers turns it on per test.
 config :riddlr, Riddlr.Cache, enabled: false
 
+# Small, so a test can fill it.
+config :riddlr, Riddlr.ModerationSupervisor, max_children: 2
+
 # Navigate at once when a riddle goes live or ends.
 config :riddlr, RiddlrWeb.GameLive.Stagger, max_ms: 0
 

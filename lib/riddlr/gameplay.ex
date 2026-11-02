@@ -285,14 +285,26 @@ defmodule Riddlr.Gameplay do
   # The local blocklist already ran synchronously in Answer.new/4 — this is
   # only the external layer (stubbed today). Fails open, off the submission
   # path — moderation must never block or slow the race, so a flagged answer
-  # is retracted from feeds after the fact.
+  # is retracted from feeds after the fact. When the supervisor is full the
+  # check is skipped, and a [:riddlr, :moderation, :dropped] event counts it.
+  @spec moderate_answer_async(Answer.t()) :: :ok
   defp moderate_answer_async(%Answer{} = answer) do
-    Task.Supervisor.start_child(Riddlr.TaskSupervisor, fn ->
+    task = fn ->
       case Riddlr.Moderation.check_external(answer.text) do
         {:flagged, _reason} -> broadcast_answer_flagged(answer)
         :ok -> :noop
       end
-    end)
+    end
+
+    case Task.Supervisor.start_child(Riddlr.ModerationSupervisor, task) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, :max_children} ->
+        :telemetry.execute([:riddlr, :moderation, :dropped], %{count: 1}, %{
+          riddle_id: answer.riddle_id
+        })
+    end
   end
 
   @doc """
