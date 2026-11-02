@@ -2,7 +2,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   use RiddlrWeb, :admin_live_view
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
-  alias Riddlr.Authorization
+  alias RiddlrWeb.AdminAuth
   import Riddlr.Utils.Datetime
 
   # Moderators are admins but may not manage riddles or read their answers.
@@ -47,9 +47,8 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    # Authorization check required - on_mount hooks only run at mount time
-    # Event handlers must verify permissions independently
-    case Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+    # on_mount checks only run at mount, so a delete checks again.
+    case AdminAuth.authorized?(socket, :manage_riddles) do
       true ->
         riddle = Games.get_riddle!(id)
         {:ok, _} = Games.delete_riddle(riddle)

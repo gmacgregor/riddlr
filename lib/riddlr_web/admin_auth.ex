@@ -23,7 +23,7 @@ defmodule RiddlrWeb.AdminAuth do
 
     # A signed-in player who is not an admin gets a 404 rather than a hint
     # that the page exists. The router has sent any guest to log in already.
-    unless Authorization.is_admin?(socket.assigns.current_user) do
+    unless Authorization.admin?(socket.assigns.current_user) do
       raise RiddlrWeb.NotFoundError
     end
 
@@ -45,9 +45,41 @@ defmodule RiddlrWeb.AdminAuth do
   # `:require_admin`, which lets every admin role in, including moderators.
   def on_mount({:require_permission, permission}, _params, _session, socket) do
     if Authorization.has_permission?(socket.assigns[:current_user], permission) do
-      {:cont, socket}
+      {:cont,
+       attach_hook(socket, :recheck_permission, :handle_params, fn _params, _url, socket ->
+         recheck_permission(socket, permission)
+       end)}
     else
       socket = socket |> put_flash(:error, "You don't have permission.") |> redirect(to: ~p"/")
+      {:halt, socket}
+    end
+  end
+
+  @doc """
+  Returns true if the socket's user holds `permission` right now.
+
+  Admin events call this, not the role on the socket: on_mount ran once, and a
+  role can change after that by iex or SQL, which tells no LiveView. So it
+  reads the user again from the database on each call.
+  """
+  @spec authorized?(Phoenix.LiveView.Socket.t(), atom()) :: boolean()
+  def authorized?(%{assigns: %{current_user: %{id: id}}}, permission) do
+    id |> Accounts.get_user!() |> Authorization.has_permission?(permission)
+  end
+
+  def authorized?(_socket, _permission), do: false
+
+  # A live_patch runs handle_params with no new mount, so without this a
+  # demoted editor could still patch to a riddle and read its answers.
+  @spec recheck_permission(Phoenix.LiveView.Socket.t(), atom()) ::
+          {:cont | :halt, Phoenix.LiveView.Socket.t()}
+  defp recheck_permission(socket, permission) do
+    if authorized?(socket, permission) do
+      {:cont, socket}
+    else
+      socket =
+        socket |> put_flash(:error, "You don't have permission.") |> push_navigate(to: ~p"/")
+
       {:halt, socket}
     end
   end

@@ -7,8 +7,9 @@ defmodule Riddlr.Workers.SendSmsConfirmationWorker do
   use Oban.Worker,
     queue: :notifications,
     max_attempts: 5,
-    # A quick off-and-on again while a text waits sends one, not two.
-    unique: [period: :infinity, keys: [:user_id], states: [:available, :scheduled, :retryable]]
+    # Turning Text off and on again sends at most one text a day. No
+    # phone_codes row records it, so the SMS rate limits cannot see it.
+    unique: [period: {24, :hours}, keys: [:user_id], states: :successful]
 
   alias Riddlr.Notifications
 

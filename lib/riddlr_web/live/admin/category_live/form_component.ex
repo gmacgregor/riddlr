@@ -1,7 +1,7 @@
 defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
   use RiddlrWeb, :admin_live_component
   alias Riddlr.Games
-  alias Riddlr.Authorization
+  alias RiddlrWeb.AdminAuth
 
   @impl true
   def render(assigns) do
@@ -44,7 +44,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
   end
 
   def handle_event("save", %{"category" => params}, socket) do
-    if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+    if AdminAuth.authorized?(socket, :manage_riddles) do
       save(socket, socket.assigns.action, params)
     else
       {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}

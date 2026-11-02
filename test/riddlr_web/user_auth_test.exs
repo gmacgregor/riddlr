@@ -27,6 +27,13 @@ defmodule RiddlrWeb.UserAuthTest do
       assert Accounts.get_user_by_session_token(token)
     end
 
+    test "names the LiveView socket after the session token", %{conn: conn, user: user} do
+      conn = UserAuth.log_in_user(conn, user)
+      token = get_session(conn, :user_token)
+
+      assert get_session(conn, :live_socket_id) == "users_sessions:#{Base.url_encode64(token)}"
+    end
+
     test "clears everything previously stored in the session", %{conn: conn, user: user} do
       conn = conn |> put_session(:to_be_removed, "value") |> UserAuth.log_in_user(user)
       refute get_session(conn, :to_be_removed)
@@ -113,6 +120,35 @@ defmodule RiddlrWeb.UserAuthTest do
       refute Accounts.get_user_by_session_token(user_token)
     end
 
+    test "disconnects the session's LiveViews", %{conn: conn} do
+      live_socket_id = "users_sessions:abcdef-token"
+      RiddlrWeb.Endpoint.subscribe(live_socket_id)
+
+      conn
+      |> put_session(:live_socket_id, live_socket_id)
+      |> UserAuth.log_out_user()
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^live_socket_id}
+    end
+
+    test "also logs out the token a reissue replaced", %{conn: conn, user: user} do
+      old_token = Accounts.generate_user_session_token(user)
+      offset_user_token(old_token, -10, :day)
+      old_topic = "users_sessions:#{Base.url_encode64(old_token)}"
+      RiddlrWeb.Endpoint.subscribe(old_topic)
+
+      conn =
+        conn |> put_session(:user_token, old_token) |> UserAuth.fetch_current_scope_for_user([])
+
+      assert get_session(conn, :user_token) != old_token
+      assert Accounts.get_user_by_session_token(old_token)
+
+      UserAuth.log_out_user(conn)
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^old_topic}
+      refute Accounts.get_user_by_session_token(old_token)
+    end
+
     test "works even if user is already logged out", %{conn: conn} do
       conn = conn |> fetch_cookies() |> UserAuth.log_out_user()
       refute get_session(conn, :user_token)
@@ -151,6 +187,40 @@ defmodule RiddlrWeb.UserAuthTest do
       assert get_session(conn, :user_remember_me)
     end
 
+    test "names the LiveView socket for a session made before it was named", %{
+      conn: conn,
+      user: user
+    } do
+      user_token = Accounts.generate_user_session_token(user)
+
+      conn =
+        conn |> put_session(:user_token, user_token) |> UserAuth.fetch_current_scope_for_user([])
+
+      assert get_session(conn, :live_socket_id) ==
+               "users_sessions:#{Base.url_encode64(user_token)}"
+    end
+
+    test "leaves the socket name alone when the session has one", %{conn: conn, user: user} do
+      user_token = Accounts.generate_user_session_token(user)
+
+      conn =
+        conn
+        |> put_session(:user_token, user_token)
+        |> put_session(:live_socket_id, "users_sessions:kept")
+        |> UserAuth.fetch_current_scope_for_user([])
+
+      assert get_session(conn, :live_socket_id) == "users_sessions:kept"
+    end
+
+    test "does not name a socket for a dead token", %{conn: conn} do
+      conn =
+        conn
+        |> put_session(:user_token, "dead token")
+        |> UserAuth.fetch_current_scope_for_user([])
+
+      refute get_session(conn, :live_socket_id)
+    end
+
     test "does not authenticate if data is missing", %{conn: conn, user: user} do
       _ = Accounts.generate_user_session_token(user)
       conn = UserAuth.fetch_current_scope_for_user(conn, [])
@@ -182,6 +252,18 @@ defmodule RiddlrWeb.UserAuthTest do
       assert %{value: new_signed_token, max_age: max_age} = conn.resp_cookies[@remember_me_cookie]
       assert new_signed_token != signed_token
       assert max_age == @remember_me_cookie_max_age
+    end
+  end
+
+  describe "disconnect_sessions/1" do
+    test "disconnects the LiveViews of each session token", %{user: user} do
+      token = Accounts.generate_user_session_token(user)
+      topic = "users_sessions:#{Base.url_encode64(token)}"
+      RiddlrWeb.Endpoint.subscribe(topic)
+
+      UserAuth.disconnect_sessions([%Accounts.UserToken{token: token}])
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^topic}
     end
   end
 

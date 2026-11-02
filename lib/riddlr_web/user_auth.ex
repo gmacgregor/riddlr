@@ -53,6 +53,11 @@ defmodule RiddlrWeb.UserAuth do
       RiddlrWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
     end
 
+    if previous_token = get_session(conn, :previous_user_token) do
+      Accounts.delete_user_session_token(previous_token)
+      RiddlrWeb.Endpoint.broadcast(user_session_topic(previous_token), "disconnect", %{})
+    end
+
     conn
     |> renew_session(nil)
     |> delete_resp_cookie(@remember_me_cookie)
@@ -69,7 +74,8 @@ defmodule RiddlrWeb.UserAuth do
          {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
       conn
       |> assign(:current_scope, Scope.for_user(user))
-      |> maybe_reissue_user_session_token(user, token_inserted_at)
+      |> maybe_put_live_socket_id(token)
+      |> maybe_reissue_user_session_token(user, token, token_inserted_at)
     else
       nil -> assign(conn, :current_scope, Scope.for_user(nil))
     end
@@ -89,13 +95,29 @@ defmodule RiddlrWeb.UserAuth do
     end
   end
 
+  # Sessions made before :live_socket_id existed lack it, so logout could not
+  # reach their LiveViews until the token expired.
+  @spec maybe_put_live_socket_id(Plug.Conn.t(), binary()) :: Plug.Conn.t()
+  defp maybe_put_live_socket_id(conn, token) do
+    if get_session(conn, :live_socket_id),
+      do: conn,
+      else: put_session(conn, :live_socket_id, user_session_topic(token))
+  end
+
   # Reissue the session token if it is older than the configured reissue age.
-  defp maybe_reissue_user_session_token(conn, user, token_inserted_at) do
+  #
+  # The old token stays valid, as tabs opened before the reissue still hold
+  # it. Logout reads :previous_user_token to delete it and close those tabs.
+  # One is enough: a token lives 14 days and reissues at 7, so the one before
+  # it has expired by the next reissue.
+  defp maybe_reissue_user_session_token(conn, user, token, token_inserted_at) do
     now = Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
     token_age = DateTime.diff(now, token_inserted_at, :day)
 
     if token_age >= @session_reissue_age_in_days do
-      create_or_extend_session(conn, user, %{})
+      conn
+      |> create_or_extend_session(user, %{})
+      |> put_session(:previous_user_token, token)
     else
       conn
     end
@@ -163,9 +185,27 @@ defmodule RiddlrWeb.UserAuth do
     |> put_resp_cookie(@remember_me_cookie, token, @remember_me_options)
   end
 
+  # LiveView names each socket after the session's :live_socket_id, so a
+  # broadcast on that topic closes every LiveView the session has open.
   defp put_token_in_session(conn, token) do
-    put_session(conn, :user_token, token)
+    conn
+    |> put_session(:user_token, token)
+    |> put_session(:live_socket_id, user_session_topic(token))
   end
+
+  @doc """
+  Disconnects the LiveViews of each session token given, as returned when
+  tokens are deleted.
+  """
+  @spec disconnect_sessions([%Accounts.UserToken{}]) :: :ok
+  def disconnect_sessions(tokens) do
+    Enum.each(tokens, fn %{token: token} ->
+      RiddlrWeb.Endpoint.broadcast(user_session_topic(token), "disconnect", %{})
+    end)
+  end
+
+  @spec user_session_topic(binary()) :: String.t()
+  defp user_session_topic(token), do: "users_sessions:#{Base.url_encode64(token)}"
 
   @doc """
   Plug for routes that require sudo mode.

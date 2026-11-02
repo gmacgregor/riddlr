@@ -202,7 +202,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
     end
 
     test "rejects submissions from a banned user", %{riddle: riddle, user: user} do
-      {:ok, banned} = Riddlr.Accounts.set_user_status(user, :banned)
+      {:ok, {banned, _tokens}} = Riddlr.Accounts.set_user_status(user, :banned)
 
       assert Gameplay.submit_answer(riddle, banned, "keyboard") == {:error, :banned}
       assert Gameplay.get_answers(riddle.id) == []

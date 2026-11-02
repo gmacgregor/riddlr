@@ -102,6 +102,35 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert index_live |> element("#riddles-#{riddle.id} a[data-confirm]") |> render_click()
       refute has_element?(index_live, "#riddles-#{riddle.id}")
     end
+
+    test "refuses a delete once the editor's role is taken away", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+
+      admin |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               index_live |> element("#riddles-#{riddle.id} a[data-confirm]") |> render_click()
+
+      assert Riddlr.Games.get_riddle!(riddle.id)
+    end
+
+    test "refuses to show or edit a riddle once the editor's role is taken away",
+         %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, show_live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, edit_live, _html} = live(conn, ~p"/admin/riddles")
+
+      admin |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               render_patch(show_live, ~p"/admin/riddles/#{riddle.id}")
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               render_patch(edit_live, ~p"/admin/riddles/#{riddle.id}/edit")
+    end
   end
 
   describe "index page riddle number" do
@@ -134,6 +163,25 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       {:ok, view, _html} = live(conn, ~p"/admin/riddles")
 
       assert has_element?(view, "#riddles-#{riddle.id} .adm-badge.adm-badge--live")
+    end
+  end
+
+  describe "status" do
+    test "a ban logs an editor out of the admin pages", %{conn: conn, admin: admin} do
+      conn = log_in_user(conn, admin)
+
+      {:ok, _} = Riddlr.Accounts.set_user_status(admin, :banned)
+
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/admin/riddles")
+      refute Riddlr.Repo.get_by(Riddlr.Accounts.UserToken, user_id: admin.id)
+    end
+
+    test "answers 404 to a suspended editor", %{conn: conn, admin: admin} do
+      conn = log_in_user(conn, admin)
+
+      {:ok, _} = Riddlr.Accounts.set_user_status(admin, :suspended)
+
+      assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, ~p"/admin/riddles") end
     end
   end
 

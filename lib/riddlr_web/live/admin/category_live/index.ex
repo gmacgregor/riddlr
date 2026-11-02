@@ -2,7 +2,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
   use RiddlrWeb, :admin_live_view
   alias Riddlr.Games
   alias Riddlr.Games.Category
-  alias Riddlr.Authorization
+  alias RiddlrWeb.AdminAuth
 
   # Moderators are admins but may not manage riddles or read their answers.
   on_mount {RiddlrWeb.AdminAuth, {:require_permission, :manage_riddles}}
@@ -32,8 +32,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    # Authorization check - on_mount hooks only run at mount time
-    if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+    if AdminAuth.authorized?(socket, :manage_riddles) do
       category = Games.get_category!(id)
       {:ok, _} = Games.delete_category(category)
 

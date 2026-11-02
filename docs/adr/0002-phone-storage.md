@@ -24,8 +24,11 @@ number back, not just a way to check it. We must also:
 
 - `users.phone` and `phone_codes.phone` hold the E.164 number encrypted with
   AES-256-GCM (`cloak_ecto`, `Riddlr.Vault`). The key comes from `CLOAK_KEY`.
-  Each value names its key by tag (`AES.GCM.V1`), so we can rotate: add the
-  new key first, keep the old one to decrypt, re-encrypt, drop the old key.
+  Each value names its key by tag, so we can rotate: add the new key first,
+  keep the old one to decrypt, re-encrypt, drop the old key. `CLOAK_KEY_TAG`
+  names the current key and is required; `CLOAK_KEY_OLD_TAG` names the old
+  one. Values written while the tag had a default carry `AES.GCM.V1`, so one
+  of the two tags must be `AES.GCM.V1` while those values remain.
 - `phone_hash` holds HMAC-SHA256 of the E.164 number (`Riddlr.Hashed.HMAC`), a
   blind index. The secret comes from a separate env var, `PHONE_HMAC_KEY`, so
   a leak of one key does not give away the other.

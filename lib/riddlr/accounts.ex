@@ -45,7 +45,8 @@ defmodule Riddlr.Accounts do
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: email)
-    if User.valid_password?(user, password), do: user
+    # Checks the password first, so a banned account takes as long to refuse.
+    if User.valid_password?(user, password) and not User.banned?(user), do: user
   end
 
   @doc """
@@ -304,7 +305,8 @@ defmodule Riddlr.Accounts do
   prove they own it. The number stays pending, off the account, until
   `confirm_phone/2` gets the right code.
 
-  Sends are limited to #{PhoneCode.user_hourly_limit()} per player per hour and
+  Sends are limited to #{PhoneCode.user_hourly_limit()} per player per hour,
+  #{PhoneCode.user_daily_limit()} per player per day and
   #{PhoneCode.number_daily_limit()} per number per day. A code that used up all
   its tries blocks new codes (`:locked`) for a day after it was sent.
   """
@@ -414,9 +416,11 @@ defmodule Riddlr.Accounts do
     day_ago = DateTime.add(now, -1, :day)
 
     by_user = from c in PhoneCode, where: c.user_id == ^user_id and c.inserted_at > ^hour_ago
+    by_user_day = from c in PhoneCode, where: c.user_id == ^user_id and c.inserted_at > ^day_ago
     by_number = from c in PhoneCode, where: c.phone_hash == ^e164 and c.inserted_at > ^day_ago
 
     Repo.aggregate(by_user, :count) >= PhoneCode.user_hourly_limit() or
+      Repo.aggregate(by_user_day, :count) >= PhoneCode.user_daily_limit() or
       Repo.aggregate(by_number, :count) >= PhoneCode.number_daily_limit()
   end
 
@@ -710,23 +714,25 @@ defmodule Riddlr.Accounts do
 
   Broadcasts `{:user_status_changed, status}` to `"user:{user_id}"` so live views
   can react immediately without polling the database.
+
+  A ban also deletes all the user's tokens, in the same transaction, so the
+  user is logged out everywhere. Returns `{:ok, {user, deleted_tokens}}`; pass
+  the tokens to `RiddlrWeb.UserAuth.disconnect_sessions/1` to close open
+  LiveViews. Any other status deletes no tokens and returns `[]`.
   """
+  @spec set_user_status(User.t(), :active | :banned | :suspended) ::
+          {:ok, {User.t(), [%UserToken{}]}} | {:error, Ecto.Changeset.t()}
   def set_user_status(%User{} = user, status) when status in [:active, :banned, :suspended] do
-    user
-    |> User.status_changeset(%{account_status: status})
-    |> Repo.update()
-    |> case do
-      {:ok, _updated} = result ->
-        Phoenix.PubSub.broadcast(
-          Riddlr.PubSub,
-          "user:#{user.id}",
-          {:user_status_changed, status}
-        )
+    changeset = User.status_changeset(user, %{account_status: status})
 
-        result
+    result =
+      if status == :banned,
+        do: update_user_and_delete_all_tokens(changeset),
+        else: with({:ok, user} <- Repo.update(changeset), do: {:ok, {user, []}})
 
-      error ->
-        error
+    with {:ok, _} <- result do
+      Phoenix.PubSub.broadcast(Riddlr.PubSub, "user:#{user.id}", {:user_status_changed, status})
+      result
     end
   end
 

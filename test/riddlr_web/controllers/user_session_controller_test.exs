@@ -237,6 +237,16 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       assert Riddlr.Repo.get_by!(Accounts.UserToken, user_id: user.id).context == "login"
     end
 
+    test "sends a banned user nothing, with the same message", %{conn: conn, user: user} do
+      user = user |> Ecto.Changeset.change(account_status: :banned) |> Riddlr.Repo.update!()
+
+      conn = post(conn, ~p"/users/log-in", %{"user" => %{"email" => user.email}})
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "If your email is in our system"
+      refute Riddlr.Repo.get_by(Accounts.UserToken, user_id: user.id, context: "login")
+    end
+
     test "logs the user in", %{conn: conn, user: user} do
       {token, _hashed_token} = generate_user_magic_link_token(user)
 
@@ -272,6 +282,20 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       # Now do a logged in request
       conn = get(conn, ~p"/")
       assert html_response(conn, 200) =~ ~s(id="topbar-log-out")
+    end
+
+    test "the first log-in disconnects the user's other sessions", %{
+      conn: conn,
+      unconfirmed_user: user
+    } do
+      other_token = Accounts.generate_user_session_token(user)
+      topic = "users_sessions:#{Base.url_encode64(other_token)}"
+      RiddlrWeb.Endpoint.subscribe(topic)
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^topic}
     end
 
     test "first log-in texts a code to the held number and links to the code step", %{

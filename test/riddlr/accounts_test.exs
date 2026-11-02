@@ -35,6 +35,12 @@ defmodule Riddlr.AccountsTest do
       assert %User{id: ^id} =
                Accounts.get_user_by_email_and_password(user.email, valid_user_password())
     end
+
+    test "does not return a banned user" do
+      user = user_fixture() |> set_password() |> put_status(:banned)
+
+      refute Accounts.get_user_by_email_and_password(user.email, valid_user_password())
+    end
   end
 
   describe "get_user!/1" do
@@ -420,6 +426,18 @@ defmodule Riddlr.AccountsTest do
       {1, nil} = Repo.update_all(UserToken, set: [inserted_at: dt, authenticated_at: dt])
       refute Accounts.get_user_by_session_token(token)
     end
+
+    test "does not return a banned user", %{user: user, token: token} do
+      put_status(user, :banned)
+
+      refute Accounts.get_user_by_session_token(token)
+    end
+
+    test "still returns a suspended user", %{user: user, token: token} do
+      put_status(user, :suspended)
+
+      assert {%User{}, _} = Accounts.get_user_by_session_token(token)
+    end
   end
 
   describe "get_user_by_magic_link_token/1" do
@@ -440,6 +458,12 @@ defmodule Riddlr.AccountsTest do
 
     test "does not return user for expired token", %{token: token} do
       {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
+      refute Accounts.get_user_by_magic_link_token(token)
+    end
+
+    test "does not return a banned user", %{user: user, token: token} do
+      put_status(user, :banned)
+
       refute Accounts.get_user_by_magic_link_token(token)
     end
   end
@@ -506,6 +530,46 @@ defmodule Riddlr.AccountsTest do
         Accounts.login_user_by_magic_link(encoded_token)
       end
     end
+
+    test "neither logs in nor confirms a banned user" do
+      user = unconfirmed_user_fixture() |> put_status(:banned)
+      {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
+
+      assert {:error, :not_found} = Accounts.login_user_by_magic_link(encoded_token)
+      refute Accounts.get_user!(user.id).confirmed_at
+    end
+  end
+
+  describe "set_user_status/2" do
+    test "a ban deletes the user's tokens and returns them" do
+      user = user_fixture()
+      token = Accounts.generate_user_session_token(user)
+
+      assert {:ok, {%User{account_status: :banned}, tokens}} =
+               Accounts.set_user_status(user, :banned)
+
+      assert token in Enum.map(tokens, & &1.token)
+      refute Repo.exists?(from t in UserToken, where: t.user_id == ^user.id)
+    end
+
+    test "a ban still tells the user's LiveViews" do
+      user = user_fixture()
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
+
+      {:ok, _} = Accounts.set_user_status(user, :banned)
+
+      assert_receive {:user_status_changed, :banned}
+    end
+
+    test "any other status keeps the tokens" do
+      user = user_fixture()
+      token = Accounts.generate_user_session_token(user)
+
+      assert {:ok, {%User{account_status: :suspended}, []}} =
+               Accounts.set_user_status(user, :suspended)
+
+      assert Accounts.get_user_by_session_token(token)
+    end
   end
 
   describe "delete_user_session_token/1" do
@@ -540,5 +604,9 @@ defmodule Riddlr.AccountsTest do
     test "does not include password" do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
     end
+  end
+
+  defp put_status(user, status) do
+    user |> Ecto.Changeset.change(account_status: status) |> Repo.update!()
   end
 end

@@ -24,7 +24,9 @@ defmodule Riddlr.Gameplay do
 
   Ephemeral game state lives in ETS tables:
   - `:riddle_answers` (:bag) — all answer submissions per riddle/user
-  - `:answer_cooldowns` (:set) — per-user cooldown timestamps
+  - `:answer_cooldowns` (:set) — per-user cooldown timestamps, keyed
+    `{riddle_id, user_id}` for guesses and `{riddle_id, {:chat, user_id}}` for
+    chat, so a chat never costs a guess and `cleanup_riddle/1` drops both
 
   Both tables are owned by `Riddlr.Gameplay.EtsOwner` (a supervised GenServer)
   and are recreated automatically if that process restarts. A restart wipes every
@@ -76,8 +78,24 @@ defmodule Riddlr.Gameplay do
          :ok <- check_already_solved(riddle.id, user.id),
          :ok <- validate_input(text),
          # Mutates — keep last, and call it exactly once per submission.
-         :ok <- check_cooldown(riddle.id, user.id) do
+         :ok <- check_cooldown({riddle.id, user.id}) do
       race(riddle, user, text)
+    end
+  end
+
+  @doc """
+  Puts a post-game chat message on the riddle's feed.
+
+  Chat has its own 1s cooldown per user, apart from the guess cooldown. The
+  caller checks the text first.
+
+  Returns `:ok` or `{:error, :cooldown}`.
+  """
+  @spec send_chat(Riddlr.Games.Riddle.t(), Riddlr.Accounts.User.t(), String.t()) ::
+          :ok | {:error, :cooldown}
+  def send_chat(riddle, user, text) do
+    with :ok <- check_cooldown({riddle.id, {:chat, user.id}}) do
+      broadcast_answer(Answer.new(riddle.id, user, text, chat: true))
     end
   end
 
@@ -154,9 +172,9 @@ defmodule Riddlr.Gameplay do
     Enum.any?(answers, fn a -> a |> String.trim() |> String.downcase() == normalized end)
   end
 
-  defp check_cooldown(riddle_id, user_id) do
+  @spec check_cooldown({integer(), term()}) :: :ok | {:error, :cooldown}
+  defp check_cooldown(key) do
     now = Clock.monotonic_us()
-    key = {riddle_id, user_id}
 
     case :ets.lookup(@cooldowns_table, key) do
       [{^key, last_time}] when now - last_time < @cooldown_us ->

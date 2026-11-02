@@ -53,7 +53,9 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
+  host =
+    System.get_env("PHX_HOST") ||
+      raise "environment variable PHX_HOST is missing. Set it to the site's domain."
 
   config :riddlr, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -105,8 +107,12 @@ if config_env() == :prod do
   # CLOAK_KEY: base64 of 32 random bytes (`openssl rand -base64 32`). It
   # encrypts phone numbers. To rotate, set CLOAK_KEY to the new key and
   # CLOAK_KEY_OLD to the old one, deploy, run `mix cloak.migrate.ecto`, then
-  # drop CLOAK_KEY_OLD. Bump CLOAK_KEY_TAG (e.g. "AES.GCM.V2") with each new
-  # key so stored values name the key that made them.
+  # drop CLOAK_KEY_OLD. CLOAK_KEY_TAG (required) names the key; bump it with
+  # each new key and move the old tag to CLOAK_KEY_OLD_TAG, so stored values
+  # name the key that made them. Each stored value finds its key by tag, so
+  # data written before tags were required needs "AES.GCM.V1", as CLOAK_KEY_TAG
+  # or as CLOAK_KEY_OLD_TAG. With any other tag the app boots but cannot read
+  # those numbers.
   #
   # PHONE_HMAC_KEY: a separate secret for the phone blind index. Changing it
   # orphans every stored hash, so do not rotate it without a re-hash.
@@ -114,14 +120,24 @@ if config_env() == :prod do
     System.get_env("CLOAK_KEY") ||
       raise "environment variable CLOAK_KEY is missing. Generate with: openssl rand -base64 32"
 
+  cloak_key_tag =
+    System.get_env("CLOAK_KEY_TAG") ||
+      raise "environment variable CLOAK_KEY_TAG is missing. For example: AES.GCM.V1"
+
   old_cloak_keys =
     case System.get_env("CLOAK_KEY_OLD") do
-      nil -> []
-      key -> [{System.get_env("CLOAK_KEY_OLD_TAG", "AES.GCM.V1"), key}]
+      nil ->
+        []
+
+      key ->
+        tag =
+          System.get_env("CLOAK_KEY_OLD_TAG") ||
+            raise "CLOAK_KEY_OLD is set, so CLOAK_KEY_OLD_TAG must be too: the old key's tag"
+
+        [{tag, key}]
     end
 
-  config :riddlr, Riddlr.Vault,
-    keys: [{System.get_env("CLOAK_KEY_TAG", "AES.GCM.V1"), cloak_key} | old_cloak_keys]
+  config :riddlr, Riddlr.Vault, keys: [{cloak_key_tag, cloak_key} | old_cloak_keys]
 
   config :riddlr, Riddlr.Hashed.HMAC,
     secret:
@@ -135,7 +151,14 @@ if config_env() == :prod do
   # No SMS provider is chosen yet. SMS_ADAPTER names a module under
   # Riddlr.SMS. With none set, the phone UI stays hidden.
   if sms_adapter = System.get_env("SMS_ADAPTER") do
-    config :riddlr, Riddlr.SMS, adapter: Module.concat(Riddlr.SMS, sms_adapter)
+    adapter = Module.concat(Riddlr.SMS, sms_adapter)
+
+    # Local logs each text, codes included; Test sends to a test process.
+    if adapter in [Riddlr.SMS.Local, Riddlr.SMS.Test] do
+      raise "SMS_ADAPTER=#{sms_adapter} is for dev and test only"
+    end
+
+    config :riddlr, Riddlr.SMS, adapter: adapter
   end
 
   # ## Mailer

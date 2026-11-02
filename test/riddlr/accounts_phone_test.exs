@@ -76,6 +76,29 @@ defmodule Riddlr.AccountsPhoneTest do
       assert send_code!(other, @ca)
     end
 
+    test "allows 10 codes per player per day", %{user: user} do
+      Riddlr.Clock.Frozen.freeze()
+
+      # Three numbers an hour, so neither the hourly nor the per-number limit
+      # trips first.
+      for number <- ["(416) 555-0123", "(613) 555-0199", "(514) 555-0100"] do
+        for _ <- 1..3, do: send_code!(user, number)
+        Riddlr.Clock.Frozen.advance(1, :hour)
+      end
+
+      assert send_code!(user, "(905) 555-0100")
+
+      assert {:error, :rate_limited} =
+               Accounts.send_phone_code(user, %{"phone" => "(905) 555-0100"})
+
+      refute_received {:sms, %{to: "+19055550100", body: _}}
+
+      # The first three codes are now more than a day old.
+      Riddlr.Clock.Frozen.advance(21, :hour)
+      Riddlr.Clock.Frozen.advance(1, :second)
+      assert send_code!(user, "(905) 555-0100")
+    end
+
     test "a failed text keeps the earlier code working", %{user: user} do
       code = send_code!(user, @ca)
       fail_sms()
@@ -344,6 +367,17 @@ defmodule Riddlr.AccountsPhoneTest do
       {:ok, _} = Accounts.update_user_notifications(user, %{notify_sms: true})
 
       assert [_one] = all_enqueued(worker: SendSmsConfirmationWorker)
+    end
+
+    test "off and on again after a confirmation text went out sends no second one that day",
+         %{user: user} do
+      user = confirm!(user, @ca)
+      Repo.update_all(Oban.Job, set: [state: "completed", completed_at: DateTime.utc_now()])
+
+      {:ok, user} = Accounts.update_user_notifications(user, %{notify_sms: false})
+      {:ok, _} = Accounts.update_user_notifications(user, %{notify_sms: true})
+
+      assert [] = all_enqueued(worker: SendSmsConfirmationWorker)
     end
   end
 

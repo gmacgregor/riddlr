@@ -12,7 +12,7 @@ defmodule RiddlrWeb.AdminController do
   # any guest to log in already. The browser pipeline assigns only
   # :current_scope, never :current_user.
   defp require_admin(conn, _opts) do
-    unless Authorization.is_admin?(conn.assigns.current_scope.user) do
+    unless Authorization.admin?(conn.assigns.current_scope.user) do
       raise RiddlrWeb.NotFoundError
     end
 

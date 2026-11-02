@@ -10,14 +10,27 @@ defmodule Riddlr.Vault do
   """
   use Cloak.Vault, otp_app: :riddlr
 
+  # Cloak picks the key to decrypt by the tag stored with each value, so two
+  # keys with one tag make the second key unreachable.
+  @labels [:default, :old]
+
   @impl GenServer
   def init(config) do
+    keys = Keyword.fetch!(config, :keys)
+    tags = Enum.map(keys, &elem(&1, 0))
+
+    if length(keys) > length(@labels) do
+      raise ArgumentError, "Riddlr.Vault takes at most #{length(@labels)} keys"
+    end
+
+    if Enum.uniq(tags) != tags do
+      raise ArgumentError, "Riddlr.Vault keys need distinct tags, got: #{inspect(tags)}"
+    end
+
     ciphers =
-      config
-      |> Keyword.fetch!(:keys)
-      |> Enum.with_index()
-      |> Enum.map(fn {{tag, key}, index} ->
-        label = if index == 0, do: :default, else: String.to_atom(tag)
+      @labels
+      |> Enum.zip(keys)
+      |> Enum.map(fn {label, {tag, key}} ->
         {label, {Cloak.Ciphers.AES.GCM, tag: tag, key: Base.decode64!(key), iv_length: 12}}
       end)
 

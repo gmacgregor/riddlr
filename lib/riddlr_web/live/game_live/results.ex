@@ -21,11 +21,10 @@ defmodule RiddlrWeb.GameLive.Results do
   use RiddlrWeb, :live_view
 
   alias Riddlr.{Clock, GameClock, Games, Gameplay}
+  alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
   alias RiddlrWeb.GameLive.Feed
-
-  import Riddlr.Utils.User
 
   @message_max_length 500
   # Guesses loaded at mount, and rows kept in the feed once chat joins them.
@@ -86,7 +85,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
         {:ok,
          socket
-         |> assign(:banned, user != nil and is_banned?(user))
+         |> assign(:banned, User.banned?(user))
          |> assign(:chat_open?, chat_open?)
          # Sent to the countdown hook once. Nil once archived: no countdown.
          |> assign(:archive_at, if(chat_open?, do: GameClock.archive_at(riddle)))
@@ -152,8 +151,8 @@ defmodule RiddlrWeb.GameLive.Results do
     %{current_user: user, riddle: riddle} = socket.assigns
 
     with :ok <- validate_input(text),
-         :ok <- check_not_banned(socket.assigns) do
-      Gameplay.broadcast_answer(Answer.new(riddle.id, user, text, chat: true))
+         :ok <- check_not_banned(socket.assigns),
+         :ok <- Gameplay.send_chat(riddle, user, text) do
       {:noreply, push_event(socket, "chat-sent", %{})}
     else
       {:error, :banned} ->
@@ -168,6 +167,9 @@ defmodule RiddlrWeb.GameLive.Results do
       # The post-game screen has no place to show an error, so an over-long
       # message is dropped.
       {:error, :message_too_long} ->
+        {:noreply, socket}
+
+      {:error, :cooldown} ->
         {:noreply, socket}
     end
   end
