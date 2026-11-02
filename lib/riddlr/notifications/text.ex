@@ -24,7 +24,7 @@ defmodule Riddlr.Notifications.Text do
     %Message{
       to: phone,
       body:
-        "Kriddle: Riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} min. " <>
+        "Kriddle: Riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} minutes. " <>
           "#{link(riddle)} Info: #{info} Reply STOP to end"
     }
   end

@@ -244,7 +244,7 @@ defmodule Riddlr.NotificationsTest do
 
       assert_received {:email, %{subject: "Kriddle riddle No. " <> _} = email}
       assert email.to == [{"", user.email}]
-      assert email.subject == "Kriddle riddle No. #{riddle.number} goes live in 10 min"
+      assert email.subject == "Kriddle riddle No. #{riddle.number} goes live in 10 minutes"
       assert email.text_body =~ "/game/#{riddle.id}/lobby"
       assert email.text_body =~ riddle.category.name
       assert email.text_body =~ "/notifications/unsubscribe/"
@@ -328,7 +328,7 @@ defmodule Riddlr.NotificationsTest do
       refute_received {:sms, _}
 
       assert to == user.phone
-      assert body =~ "Riddle No. #{riddle.number} goes live in 30 min"
+      assert body =~ "Riddle No. #{riddle.number} goes live in 30 minutes"
       assert body =~ "/game/#{riddle.id}/lobby"
       assert body =~ Application.fetch_env!(:riddlr, :info_url)
       assert body =~ "Reply STOP to end"

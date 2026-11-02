@@ -30,7 +30,7 @@ defmodule Riddlr.Notifications.Email do
     |> to(user.email)
     |> from({"Team Kriddle", "contact@example.com"})
     |> subject(
-      "Kriddle riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} min"
+      "Kriddle riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} minutes"
     )
     |> header("List-Unsubscribe", "<#{unsubscribe_url}>")
     |> header("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
@@ -47,7 +47,8 @@ defmodule Riddlr.Notifications.Email do
 
 
     ---
-    You received this update because you turned on email notifications for new Kriddle games. You may disable email notifications here: #{unsubscribe_url}
+    You received this update because you turned on email notifications for new Kriddle games. You may disable email notifications here: #{unsubscribe_url}\n
+
     Questions? Contact us: #{Application.fetch_env!(:riddlr, :info_url)}
     """)
   end

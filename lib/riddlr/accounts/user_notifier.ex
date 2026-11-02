@@ -34,6 +34,8 @@ defmodule Riddlr.Accounts.UserNotifier do
 
     If you didn't request this change, please ignore this.
 
+    ✌️Team Kriddle
+
     ==============================
     """)
   end
@@ -55,11 +57,13 @@ defmodule Riddlr.Accounts.UserNotifier do
 
     Hi #{user.email},
 
-    You can log into your account by visiting the URL below:
+    You can log into your account by visiting the link below:
 
     #{url}
 
-    If you didn't request this email, please ignore this.
+    If you didn't recently try to log into your account, you may safely ignore this request.
+
+    ✌️Team Kriddle
 
     ==============================
     """)
@@ -77,6 +81,8 @@ defmodule Riddlr.Accounts.UserNotifier do
     #{url}
 
     If you didn't create an account with us, please ignore this.
+
+    ✌️Team Kriddle
 
     ==============================
     """)

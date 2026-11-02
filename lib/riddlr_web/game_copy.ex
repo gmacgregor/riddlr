@@ -263,7 +263,7 @@ defmodule RiddlrWeb.GameCopy do
   def rules do
     [
       "The riddle appears for everyone at the same second.",
-      "Guess as often as you like — one guess per second.",
+      "Guess as often as you like, one guess per second.",
       "The ten fastest correct answers score, from 10 points down to 1. Spelling counts."
     ]
   end
@@ -635,7 +635,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The Standings page heading."
   @spec standings_heading() :: String.t()
-  def standings_heading, do: "Standings"
+  def standings_heading, do: "Leaderboard & stats"
 
   @doc "The link that opens the note on how each Standings board is counted."
   @spec standings_how_link() :: String.t()
@@ -709,7 +709,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The link to the Standings page from Home and Results."
   @spec standings_link() :: String.t()
-  def standings_link, do: "See the standings"
+  def standings_link, do: "Leaderboard & game stats"
 
   # Formats a count with commas between thousands, e.g. 1234 as "1,234".
   @spec delimit(non_neg_integer()) :: String.t()
