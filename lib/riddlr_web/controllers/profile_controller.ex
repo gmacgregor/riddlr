@@ -61,7 +61,9 @@ defmodule RiddlrWeb.ProfileController do
     user = conn.assigns.current_scope.user
 
     case Accounts.update_user_password(user, user_params) do
-      {:ok, {user, _}} ->
+      {:ok, {user, expired_tokens}} ->
+        UserAuth.disconnect_sessions(expired_tokens)
+
         conn
         |> put_flash(:info, "Password updated successfully.")
         |> put_session(:user_return_to, ~p"/profile")

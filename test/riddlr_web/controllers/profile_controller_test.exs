@@ -83,6 +83,22 @@ defmodule RiddlrWeb.ProfileControllerTest do
       assert Accounts.get_user_by_email_and_password(user.email, "new valid password")
     end
 
+    test "disconnects the LiveViews of the user's other sessions", %{conn: conn, user: user} do
+      other_token = Accounts.generate_user_session_token(user)
+      topic = "users_sessions:#{Base.url_encode64(other_token)}"
+      RiddlrWeb.Endpoint.subscribe(topic)
+
+      put(conn, ~p"/profile", %{
+        "action" => "update_password",
+        "user" => %{
+          "password" => "new valid password",
+          "password_confirmation" => "new valid password"
+        }
+      })
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^topic}
+    end
+
     @tag token_authenticated_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
     test "requires sudo mode", %{conn: conn, user: user} do
       conn =

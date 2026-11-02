@@ -102,6 +102,19 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert index_live |> element("#riddles-#{riddle.id} a[data-confirm]") |> render_click()
       refute has_element?(index_live, "#riddles-#{riddle.id}")
     end
+
+    test "refuses a delete once the editor's role is taken away", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+
+      admin |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               index_live |> element("#riddles-#{riddle.id} a[data-confirm]") |> render_click()
+
+      assert Riddlr.Games.get_riddle!(riddle.id)
+    end
   end
 
   describe "index page riddle number" do

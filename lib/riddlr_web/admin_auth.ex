@@ -52,6 +52,20 @@ defmodule RiddlrWeb.AdminAuth do
     end
   end
 
+  @doc """
+  Returns true if the socket's user holds `permission` right now.
+
+  Admin events call this, not the role on the socket: on_mount ran once, and a
+  role can change after that by iex or SQL, which tells no LiveView. So it
+  reads the user again from the database on each call.
+  """
+  @spec authorized?(Phoenix.LiveView.Socket.t(), atom()) :: boolean()
+  def authorized?(%{assigns: %{current_user: %{id: id}}}, permission) do
+    id |> Accounts.get_user!() |> Authorization.has_permission?(permission)
+  end
+
+  def authorized?(_socket, _permission), do: false
+
   # The admin layout reads :current_path to mark the current nav link.
   defp assign_current_path(_params, url, socket) do
     {:cont, assign(socket, :current_path, URI.parse(url).path)}

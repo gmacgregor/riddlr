@@ -274,6 +274,20 @@ defmodule RiddlrWeb.UserSessionControllerTest do
       assert html_response(conn, 200) =~ ~s(id="topbar-log-out")
     end
 
+    test "the first log-in disconnects the user's other sessions", %{
+      conn: conn,
+      unconfirmed_user: user
+    } do
+      other_token = Accounts.generate_user_session_token(user)
+      topic = "users_sessions:#{Base.url_encode64(other_token)}"
+      RiddlrWeb.Endpoint.subscribe(topic)
+      {token, _hashed_token} = generate_user_magic_link_token(user)
+
+      post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+
+      assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^topic}
+    end
+
     test "first log-in texts a code to the held number and links to the code step", %{
       conn: conn
     } do

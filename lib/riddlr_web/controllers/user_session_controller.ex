@@ -20,7 +20,9 @@ defmodule RiddlrWeb.UserSessionController do
       end
 
     case Accounts.login_user_by_magic_link(token) do
-      {:ok, {user, _expired_tokens, text_prompt}} ->
+      {:ok, {user, expired_tokens, text_prompt}} ->
+        UserAuth.disconnect_sessions(expired_tokens)
+
         conn
         |> put_flash(:info, text_prompt_flash(text_prompt) || info)
         |> UserAuth.log_in_user(user, user_params)

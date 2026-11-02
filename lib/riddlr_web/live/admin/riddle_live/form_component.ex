@@ -2,7 +2,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   use RiddlrWeb, :admin_live_component
   alias Riddlr.Games
   alias Riddlr.Games.RiddleName
-  alias Riddlr.Authorization
+  alias RiddlrWeb.AdminAuth
   import Riddlr.Utils.Datetime
 
   defp hint_delay() do
@@ -207,7 +207,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   end
 
   def handle_event("save", %{"riddle" => params}, socket) do
-    if Authorization.has_permission?(socket.assigns.current_user, :manage_riddles) do
+    if AdminAuth.authorized?(socket, :manage_riddles) do
       params = prepare_params_for_changeset(params)
       params = convert_live_date_param(params)
       save(socket, socket.assigns.action, params)

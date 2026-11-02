@@ -220,6 +220,21 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   end
 
   describe "Edit riddle" do
+    test "refuses a save once the editor's role is taken away", %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, edit_live, _html} = live(conn, ~p"/admin/riddles/#{riddle.id}/edit")
+
+      admin |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
+
+      assert {:error, {:live_redirect, %{to: "/"}}} =
+               edit_live
+               |> form("#riddle-form", riddle: %{name: "Taken over"})
+               |> render_submit()
+
+      assert Riddlr.Games.get_riddle!(riddle.id).name == riddle.name
+    end
+
     test "updates riddle with valid data", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
