@@ -34,6 +34,12 @@ config :riddlr, clock: Riddlr.Clock.Frozen
 # for a flush. GameClock tests turn batching on.
 config :riddlr, Riddlr.GameClock, batch_feed: false
 
+# Lobby tests apply presence diffs by sending :flush_room themselves.
+config :riddlr, RiddlrWeb.GameLive.Lobby, room_flush_ms: 60_000
+
+# Navigate at once when a riddle goes live or ends.
+config :riddlr, RiddlrWeb.GameLive.Stagger, max_ms: 0
+
 # Test-only keys for phone encryption and its blind index.
 config :riddlr, Riddlr.Vault,
   keys: [{"AES.GCM.V1", "DK9n/Z+Qm/aL3aYHe8LKIci3vbLxJYIaxKh2YtgH0qM="}]

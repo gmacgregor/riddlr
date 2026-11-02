@@ -12,6 +12,7 @@ defmodule RiddlrWeb.GameLive.Play do
   alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
+  alias RiddlrWeb.GameLive.Stagger
 
   @answer_max_length 500
   # The most guesses the feed keeps in the DOM; older ones drop off the top.
@@ -151,10 +152,14 @@ defmodule RiddlrWeb.GameLive.Play do
       {:noreply,
        socket
        |> assign(:riddle, riddle)
-       |> push_navigate(to: ~p"/game/#{riddle.id}/results?celebrate=1")}
+       |> Stagger.navigate(~p"/game/#{riddle.id}/results?celebrate=1")}
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_info({:stagger_navigate, path}, socket) do
+    {:noreply, push_navigate(socket, to: path)}
   end
 
   def handle_info({:countdown_tick, :play, seconds}, socket) do

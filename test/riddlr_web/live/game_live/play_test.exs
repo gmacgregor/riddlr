@@ -752,6 +752,24 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert_redirect(live, "/game/#{riddle.id}/results?celebrate=1")
     end
 
+    test "waits a random moment before leaving, so players spread out", %{
+      conn: conn,
+      user: user
+    } do
+      config = Application.get_env(:riddlr, RiddlrWeb.GameLive.Stagger)
+      Application.put_env(:riddlr, RiddlrWeb.GameLive.Stagger, max_ms: 60_000)
+      on_exit(fn -> Application.put_env(:riddlr, RiddlrWeb.GameLive.Stagger, config) end)
+
+      riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/play")
+
+      send(live.pid, {:riddle_completed, riddle})
+      assert has_element?(live, "#answer-form")
+
+      send(live.pid, {:stagger_navigate, "/game/#{riddle.id}/results?celebrate=1"})
+      assert_redirect(live, "/game/#{riddle.id}/results?celebrate=1")
+    end
+
     test "ignores :riddle_completed for a different riddle", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
       other = GamesFixtures.riddle_fixture() |> set_play_status_direct("live")
