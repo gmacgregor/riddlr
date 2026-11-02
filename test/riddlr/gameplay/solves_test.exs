@@ -41,6 +41,8 @@ defmodule Riddlr.Gameplay.SolvesTest do
                Gameplay.first_solve(riddle.id)
 
       assert user.id == first.id
+      assert user.username == first.username
+      assert user.email == nil
     end
 
     test "is nil for a riddle with no solves" do

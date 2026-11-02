@@ -397,12 +397,18 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
-  A riddle's saved placement-1 solve, with `:user` loaded, or `nil` if nobody
-  solved it or it has not completed.
+  A riddle's saved placement-1 solve, or `nil` if nobody solved it or it has
+  not completed. `:user` is loaded with only its `id` and `username`, or nil
+  for a deleted account.
   """
   @spec first_solve(integer()) :: Solve.t() | nil
   def first_solve(riddle_id) do
-    from(s in Solve, where: s.riddle_id == ^riddle_id and s.placement == 1, preload: :user)
+    users = from(u in Riddlr.Accounts.User, select: struct(u, [:id, :username]))
+
+    from(s in Solve,
+      where: s.riddle_id == ^riddle_id and s.placement == 1,
+      preload: [user: ^users]
+    )
     |> Repo.one()
   end
 
