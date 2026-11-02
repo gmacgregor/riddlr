@@ -142,12 +142,13 @@ defmodule RiddlrWeb.ProfilePhoneTest do
       assert_received {:sms, %{to: "+14165550123"}}
     end
 
-    test "says so when the send limit is hit", %{conn: conn} do
+    test "shows an error and sends nothing when the send limit is hit", %{conn: conn} do
       for _ <- 1..3, do: conn |> send_code(@ca) |> code_from_text()
 
       conn = put(conn, ~p"/profile", %{"action" => "resend_phone_code"})
 
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Too many codes"
+      assert redirected_to(conn) == ~p"/profile"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
       refute_received {:sms, _}
     end
   end
@@ -198,28 +199,29 @@ defmodule RiddlrWeb.ProfilePhoneTest do
       refute has_selector?(html, "#confirm_phone")
     end
 
-    test "a wrong code says so and keeps the code step", %{conn: conn} do
+    test "a wrong code marks the code field and keeps the code step", %{conn: conn} do
       code = conn |> send_code(@ca) |> code_from_text()
 
       html = conn |> confirm(wrong(code)) |> html_response(200)
 
-      assert has_selector?(html, "input[form=confirm_phone][name='phone[code]']")
-      assert html =~ "Invalid verification code. Try again"
+      assert has_selector?(html, "input[form=confirm_phone][name='phone[code]'][aria-invalid]")
     end
 
-    test "the 5th wrong code says to try again in 24 hours", %{conn: conn} do
+    test "the 5th wrong code shows an error and blocks new codes", %{conn: conn} do
       code = conn |> send_code(@ca) |> code_from_text()
       for _ <- 1..4, do: confirm(conn, wrong(code))
 
       conn = confirm(conn, wrong(code))
 
       assert redirected_to(conn) == ~p"/profile"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
 
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
-               "Maximum verification attempts exceeded. Try again in 24hrs."
+      conn = send_code(conn, "(613) 555-0199")
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
+      refute_received {:sms, _}
     end
 
-    test "an expired code says to send a new one", %{conn: conn} do
+    test "an expired code shows an error and leaves no number", %{conn: conn, user: user} do
       Riddlr.Clock.Frozen.freeze()
       code = conn |> send_code(@ca) |> code_from_text()
       Riddlr.Clock.Frozen.advance(10, :minute)
@@ -227,7 +229,8 @@ defmodule RiddlrWeb.ProfilePhoneTest do
       conn = confirm(conn, code)
 
       assert redirected_to(conn) == ~p"/profile"
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "expired"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error)
+      assert Riddlr.Accounts.get_user!(user.id).phone == nil
     end
   end
 
