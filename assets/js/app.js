@@ -28,8 +28,9 @@ import topbar from "../vendor/topbar"
 // ─── View transitions for in-page swaps ──────────────────────────────────────
 // The server sends "view-transition" before a patch (push_event with
 // dispatch: :before) when the patch should slide, e.g. "Another riddle" on
-// Home. The next patch then runs inside document.startViewTransition, but
-// only when the browser has it and the player allows motion.
+// Home. Live navigation sets the same flag (see below). The next patch then
+// runs inside document.startViewTransition, but only when the browser has it
+// and the player allows motion.
 let transitionNext = false
 window.addEventListener("phx:view-transition", () => { transitionNext = true })
 
@@ -101,36 +102,15 @@ window.addEventListener("phx:page-loading-stop", () => {
 })
 
 // ─── CSS View Transitions for LiveView navigation ────────────────────────────
-// Wraps LiveView page loads in document.startViewTransition so that elements
-// sharing a view-transition-name morph between pages (e.g. the admin header and main).
-if (document.startViewTransition) {
-  let resolveTransition = null
-  let transitionTimeout = null
-
-  window.addEventListener("phx:page-loading-start", ({ detail }) => {
-    // Skip form submits — only animate navigations
-    if (detail.kind === "submit") return
-    clearTimeout(transitionTimeout)
-    document.startViewTransition(() => {
-      return new Promise(resolve => {
-        resolveTransition = resolve
-        // Safety valve: resolve after 5s if stop event never fires
-        transitionTimeout = setTimeout(() => {
-          resolve()
-          resolveTransition = null
-        }, 5000)
-      })
-    })
-  })
-
-  window.addEventListener("phx:page-loading-stop", () => {
-    if (resolveTransition) {
-      clearTimeout(transitionTimeout)
-      resolveTransition()
-      resolveTransition = null
-    }
-  })
-}
+// Live navigation marks the next patch for onDocumentPatch, so elements that
+// share a view-transition-name (e.g. the admin header and main) morph between
+// pages. Do not start the transition here with a callback that waits for
+// page-loading-stop: the browser runs that callback late, stop can fire first,
+// and the browser then stops painting until the callback's promise settles.
+window.addEventListener("phx:page-loading-start", ({ detail }) => {
+  if (detail.kind === "redirect" || detail.kind === "patch") transitionNext = true
+})
+window.addEventListener("phx:page-loading-stop", () => { transitionNext = false })
 
 // expose liveSocket on window for web console debug logs and latency simulation:
 // >> liveSocket.enableDebug()
