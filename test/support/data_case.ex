@@ -16,6 +16,8 @@ defmodule Riddlr.DataCase do
 
   use ExUnit.CaseTemplate
 
+  import ExUnit.Assertions
+
   using do
     quote do
       alias Riddlr.Repo
@@ -54,5 +56,38 @@ defmodule Riddlr.DataCase do
         opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
       end)
     end)
+  end
+
+  @doc """
+  Runs `fun` and returns its result with a real clock reading taken on each
+  side of it.
+
+  Oban's `schedule_in` reads the real clock, not `Riddlr.Clock`, so a frozen
+  clock can't pin a job's `scheduled_at`. These two readings can: pass them to
+  `assert_scheduled_in/3`.
+
+      {{:ok, _}, window} = between_clock_reads(fn -> Games.transition(id, :live) end)
+      assert_scheduled_in(job, 120, window)
+
+  """
+  @spec between_clock_reads((-> result)) :: {result, {DateTime.t(), DateTime.t()}}
+        when result: term()
+  def between_clock_reads(fun) do
+    before = DateTime.utc_now()
+    result = fun.()
+    {result, {before, DateTime.utc_now()}}
+  end
+
+  @doc """
+  Asserts that `job` is scheduled `seconds` after some instant inside `window`,
+  as returned by `between_clock_reads/1`.
+  """
+  @spec assert_scheduled_in(Oban.Job.t(), integer(), {DateTime.t(), DateTime.t()}) :: true
+  def assert_scheduled_in(%Oban.Job{scheduled_at: at}, seconds, {before, later}) do
+    earliest = DateTime.add(before, seconds, :second)
+    latest = DateTime.add(later, seconds, :second)
+
+    assert DateTime.compare(at, earliest) != :lt and DateTime.compare(at, latest) != :gt,
+           "expected #{inspect(at)} between #{inspect(earliest)} and #{inspect(latest)}"
   end
 end

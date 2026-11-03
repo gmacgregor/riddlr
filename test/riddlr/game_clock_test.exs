@@ -50,11 +50,15 @@ defmodule Riddlr.GameClockTest do
       :ok = GameClock.ensure_started(riddle(ctx, live_in: 1, solve_time: 60))
       assert_receive {:countdown_tick, :lobby, 1}
 
+      pid = clock_pid(ctx.riddle_id)
+      ref = Process.monitor(pid)
+
       Frozen.advance(1, :second)
-      send(clock_pid(ctx.riddle_id), :tick)
+      send(pid, :tick)
 
       assert_receive {:countdown_tick, :play, 60}
-      assert Process.alive?(clock_pid(ctx.riddle_id))
+      _ = :sys.get_state(pid)
+      refute_received {:DOWN, ^ref, :process, ^pid, _}
     end
 
     test "stops itself once the solve time has run out", ctx do
@@ -69,7 +73,7 @@ defmodule Riddlr.GameClockTest do
 
       assert_receive {:countdown_tick, :play, 0}
       assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
-      refute_restarted(ctx.riddle_id)
+      refute_restarted(ctx.riddle_id, pid)
     end
   end
 
@@ -90,9 +94,10 @@ defmodule Riddlr.GameClockTest do
       :ok = GameClock.ensure_started(riddle(ctx, live_in: 10))
       assert_receive {:countdown_tick, :lobby, 10}
 
-      broadcast("games:riddle:changed", {:riddle_saved, riddle(ctx, live_in: 300)})
+      pid = clock_pid(ctx.riddle_id)
+      broadcast("games:riddle:changed", {:riddle_saved, riddle(ctx, live_in: 300)}, pid)
 
-      send(clock_pid(ctx.riddle_id), :tick)
+      send(pid, :tick)
 
       assert_receive {:countdown_tick, :lobby, 300}
     end
@@ -102,9 +107,10 @@ defmodule Riddlr.GameClockTest do
       assert_receive {:countdown_tick, :lobby, 10}
 
       other = %{riddle(ctx, live_in: 300) | id: ctx.riddle_id + 1}
-      broadcast("games:riddle:changed", {:riddle_saved, other})
+      pid = clock_pid(ctx.riddle_id)
+      broadcast("games:riddle:changed", {:riddle_saved, other}, pid)
 
-      send(clock_pid(ctx.riddle_id), :tick)
+      send(pid, :tick)
 
       assert_receive {:countdown_tick, :lobby, 10}
     end
@@ -118,7 +124,7 @@ defmodule Riddlr.GameClockTest do
       send(pid, :tick)
       assert_receive {:countdown_tick, :play, 59}
 
-      broadcast("games:riddle:changed", {:riddle_saved, riddle(ctx, live_in: 400)})
+      broadcast("games:riddle:changed", {:riddle_saved, riddle(ctx, live_in: 400)}, pid)
       send(pid, :tick)
 
       assert_receive {:countdown_tick, :lobby, 389}
@@ -136,10 +142,14 @@ defmodule Riddlr.GameClockTest do
         pid = clock_pid(ctx.riddle_id)
         ref = Process.monitor(pid)
 
-        broadcast(unquote(topic), {unquote(message), riddle(ctx, live_in: 10)})
+        Phoenix.PubSub.broadcast(
+          Riddlr.PubSub,
+          unquote(topic),
+          {unquote(message), riddle(ctx, live_in: 10)}
+        )
 
         assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
-        refute_restarted(ctx.riddle_id)
+        refute_restarted(ctx.riddle_id, pid)
       end
     end
   end
@@ -279,18 +289,21 @@ defmodule Riddlr.GameClockTest do
     }
   end
 
-  defp broadcast(topic, message) do
+  # Returns once the clock has handled the broadcast, so the :tick sent next
+  # sees the change.
+  defp broadcast(topic, message, clock) do
     Phoenix.PubSub.broadcast(Riddlr.PubSub, topic, message)
-    # Give the clock time to process the broadcast before the :tick sent next.
-    # A GenServer.call would be more precise, but the clock exposes none.
-    Process.sleep(10)
+    _ = :sys.get_state(clock)
   end
 
   # A clock that stops on purpose must stay stopped. The supervisor handles the
   # exit before this call returns, so a restarted clock is registered by then.
-  defp refute_restarted(riddle_id) do
+  # The Registry drops a dead process's entry on its own time, so the stopped
+  # clock may still be listed; only a different pid means a restart.
+  defp refute_restarted(riddle_id, stopped) do
     _ = :sys.get_state(Riddlr.GameClockSupervisor)
-    assert Registry.lookup(Riddlr.GameClockRegistry, riddle_id) == []
+
+    assert Registry.lookup(Riddlr.GameClockRegistry, riddle_id) in [[], [{stopped, nil}]]
   end
 
   defp clock_pid(riddle_id) do

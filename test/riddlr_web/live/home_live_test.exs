@@ -820,19 +820,26 @@ defmodule RiddlrWeb.HomeLiveTest do
 
   # Tracks a fake player in a riddle's lobby from its own process, the way the
   # Lobby does. Returns the pid; kill it to make the player leave.
+  # Supervised, so the player leaves when the test ends.
   defp track_player(riddle, id, username) do
     test = self()
 
     pid =
-      spawn(fn ->
-        {:ok, _ref} =
-          Presence.track(self(), Presence.lobby_topic(riddle.id), to_string(id), %{
-            username: username
-          })
+      start_supervised!(
+        Supervisor.child_spec(
+          {Task,
+           fn ->
+             {:ok, _ref} =
+               Presence.track(self(), Presence.lobby_topic(riddle.id), to_string(id), %{
+                 username: username
+               })
 
-        send(test, {:tracked, self()})
-        Process.sleep(:infinity)
-      end)
+             send(test, {:tracked, self()})
+             Process.sleep(:infinity)
+           end},
+          id: {:player, id}
+        )
+      )
 
     assert_receive {:tracked, ^pid}
     pid

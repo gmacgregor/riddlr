@@ -3,6 +3,10 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   use Oban.Testing, repo: Riddlr.Repo
   import Phoenix.LiveViewTest
   import Ecto.Query
+
+  # Fixed instants in summer, away from a DST change: a date the form reads in
+  # Eastern time could otherwise land in an hour that happens twice.
+  @future ~U[2099-06-15 16:00:00Z]
   alias Riddlr.AccountsFixtures
   alias Riddlr.GamesFixtures
 
@@ -155,7 +159,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       admin: admin,
       category: category
     } do
-      future_live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      future_live_date = @future
 
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
@@ -194,7 +198,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       admin: admin,
       category: category
     } do
-      future_live_date = DateTime.add(DateTime.utc_now(), 3600, :second)
+      future_live_date = @future
 
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
@@ -280,7 +284,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       riddle = GamesFixtures.scheduled_riddle_fixture()
       old_job_ids = riddle.id |> pending_jobs() |> Enum.map(& &1.id) |> Enum.sort()
 
-      new_live_date = DateTime.add(DateTime.utc_now(), 172_800, :second)
+      new_live_date = DateTime.add(@future, 2, :day)
       conn = log_in_user(conn, admin)
       {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle}/edit")
 
@@ -316,7 +320,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       admin: admin
     } do
       riddle = GamesFixtures.riddle_fixture(%{publish_status: "published"})
-      past = DateTime.add(DateTime.utc_now(), -3600, :second)
+      past = ~U[2020-06-15 16:00:00Z]
 
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")

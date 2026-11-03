@@ -186,10 +186,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
   end
 
   describe "countdown tick" do
-    test "shows the seconds until the riddle drops", %{conn: conn, user: user} do
+    setup do
       now = ~U[2026-08-01 12:00:00.000000Z]
       Frozen.freeze(now)
+      %{now: now}
+    end
 
+    test "shows the seconds until the riddle drops", %{conn: conn, user: user, now: now} do
       riddle =
         GamesFixtures.riddle_fixture(%{live_date: DateTime.add(now, 90, :second)})
         |> set_play_status("scheduled")
@@ -205,8 +208,12 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert html =~ ~s(aria-label="01:30 #{GameCopy.clock_label_tail()}")
     end
 
-    test "handles :tick and updates time_remaining and data-seconds", %{conn: conn, user: user} do
-      live_date = DateTime.add(DateTime.utc_now(), 120, :second)
+    test "handles :tick and updates time_remaining and data-seconds", %{
+      conn: conn,
+      user: user,
+      now: now
+    } do
+      live_date = DateTime.add(now, 120, :second)
 
       riddle =
         GamesFixtures.riddle_fixture(%{live_date: live_date})
@@ -225,10 +232,11 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
     test "tells players to get ready only in the last five seconds", %{
       conn: conn,
-      user: user
+      user: user,
+      now: now
     } do
       riddle =
-        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(DateTime.utc_now(), 120, :second)})
+        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(now, 120, :second)})
         |> set_play_status("scheduled")
         |> set_play_status("ready")
 
@@ -251,9 +259,9 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       refute has_element?(live, "#lobby-ready", GameCopy.Lobby.lobby_ready())
     end
 
-    test "does not tell a guest to get ready", %{conn: conn} do
+    test "does not tell a guest to get ready", %{conn: conn, now: now} do
       riddle =
-        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(DateTime.utc_now(), 120, :second)})
+        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(now, 120, :second)})
         |> set_play_status("scheduled")
         |> set_play_status("ready")
 
@@ -263,9 +271,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       refute has_element?(live, "#lobby-ready")
     end
 
-    test "sets the topbar countdown dot from the seconds left", %{conn: conn, user: user} do
+    test "sets the topbar countdown dot from the seconds left", %{
+      conn: conn,
+      user: user,
+      now: now
+    } do
       riddle =
-        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(DateTime.utc_now(), 120, :second)})
+        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(now, 120, :second)})
         |> set_play_status("scheduled")
         |> set_play_status("ready")
 
@@ -284,7 +296,9 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
   describe "drop time" do
     test "shows the drop time in Eastern time, with a local-time line", %{conn: conn, user: user} do
-      live_date = DateTime.utc_now() |> DateTime.add(600, :second) |> DateTime.truncate(:second)
+      now = ~U[2026-08-01 12:00:00.000000Z]
+      Frozen.freeze(now)
+      live_date = DateTime.add(now, 600, :second) |> DateTime.truncate(:second)
 
       riddle =
         GamesFixtures.riddle_fixture(%{live_date: live_date})
@@ -302,7 +316,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert has_element?(
                live,
                ".rg-lobby__when time#lobby-drop-time[datetime='#{iso}']",
-               RiddlrWeb.DropTime.short(live_date, DateTime.utc_now(), mid_sentence: true)
+               RiddlrWeb.DropTime.short(live_date, now, mid_sentence: true)
              )
 
       assert has_element?(live, "#lobby-drop-local.rg-drop-local[hidden][data-at='#{iso}']")
@@ -616,19 +630,26 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
   # Tracks a fake player in a riddle's lobby from its own process, the way a
   # LiveView would. Returns the pid; kill it to make the player leave.
+  # Supervised, so the player leaves when the test ends.
   defp track_player(riddle, id, username) do
     test = self()
 
     pid =
-      spawn(fn ->
-        {:ok, _ref} =
-          Riddlr.Gameplay.Presence.track(self(), lobby_topic(riddle), to_string(id), %{
-            username: username
-          })
+      start_supervised!(
+        Supervisor.child_spec(
+          {Task,
+           fn ->
+             {:ok, _ref} =
+               Riddlr.Gameplay.Presence.track(self(), lobby_topic(riddle), to_string(id), %{
+                 username: username
+               })
 
-        send(test, {:tracked, self()})
-        Process.sleep(:infinity)
-      end)
+             send(test, {:tracked, self()})
+             Process.sleep(:infinity)
+           end},
+          id: {:player, id}
+        )
+      )
 
     assert_receive {:tracked, ^pid}
     pid

@@ -27,7 +27,7 @@ Done when the plan has been presented and the user has confirmed it.
 
 ## 3. Implement
 
-Work through the plan step by step. Use red/green/refactor, one test at a time in tracer-bullet style, no exceptions.
+Work through the plan step by step. Prime implementation directive: use red/green/refactor, one test at a time in tracer-bullet style, no exceptions.
 
 1. Write a single failing test for the smallest vertical slice of behaviour
 2. Run the test and confirm it fails (red)
@@ -35,9 +35,7 @@ Work through the plan step by step. Use red/green/refactor, one test at a time i
 4. Repeat from step 1 for the next slice of behaviour
 5. Refactor if needed while keeping tests green
 
-Each test should target one thin vertical slice through the system. Do not write all tests upfront: write one, make it pass then move to the next. Asserting on specific page element text i.e. the copy in a hero element, creates brittle tests. Avoid doing so.
-
-Invoke either the phx:quick (low effort) or the phx:work (medium - high effort) skill tool based on the size of the task. Tell the user which of these skills you are invoking.
+Each test should target one thin vertical slice through the system. Do not write all tests upfront: write one, make it pass then move to the next. Asserting on specific page element text i.e. the copy in a hero element, creates brittle tests. Avoid doing so. Invoke either the phx:quick (low effort) or the phx:work (medium - high effort) skill tool based on the size of the task. Tell the user which of these skills you are invoking.
 
 Done when every slice in the plan is implemented and all tests pass.
 
