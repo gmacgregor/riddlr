@@ -64,24 +64,24 @@ defmodule RiddlrWeb.GameComponentsTest do
 
   describe "clock_str/1" do
     test "shows MM:SS under an hour" do
-      assert GameComponents.clock_str(0) == "00:00"
-      assert GameComponents.clock_str(45) == "00:45"
-      assert GameComponents.clock_str(3599) == "59:59"
+      assert GameComponents.Clock.clock_str(0) == "00:00"
+      assert GameComponents.Clock.clock_str(45) == "00:45"
+      assert GameComponents.Clock.clock_str(3599) == "59:59"
     end
 
     test "shows HH:MM:SS from one hour up" do
-      assert GameComponents.clock_str(3600) == "01:00:00"
-      assert GameComponents.clock_str(90_061) == "25:01:01"
+      assert GameComponents.Clock.clock_str(3600) == "01:00:00"
+      assert GameComponents.Clock.clock_str(90_061) == "25:01:01"
     end
 
     test "treats negative seconds as zero" do
-      assert GameComponents.clock_str(-3) == "00:00"
+      assert GameComponents.Clock.clock_str(-3) == "00:00"
     end
   end
 
   describe "flaps/1" do
     test "renders one flap per digit as a timer" do
-      html = render_component(&GameComponents.flaps/1, id: "clock", seconds: 125)
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 125)
 
       assert html =~ ~s(id="clock")
       assert html =~ ~s(role="timer")
@@ -96,7 +96,7 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     test "warns at 6 to 10 seconds and turns critical at 5 or less" do
       classes = fn seconds ->
-        html = render_component(&GameComponents.flaps/1, id: "clock", seconds: seconds)
+        html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: seconds)
         [_, class] = Regex.run(~r/<div[^>]*class="([^"]*)"/, html)
         class
       end
@@ -111,7 +111,7 @@ defmodule RiddlrWeb.GameComponentsTest do
     end
 
     test "renders a blank clock with empty tiles and no countdown" do
-      html = render_component(&GameComponents.flaps/1, id: "clock", blank: true)
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", blank: true)
 
       # It never counts, so it is a picture with a label, not a timer.
       assert html =~ ~s(role="img")
@@ -124,7 +124,7 @@ defmodule RiddlrWeb.GameComponentsTest do
     end
 
     test "uses the long style from one hour up" do
-      html = render_component(&GameComponents.flaps/1, id: "clock", seconds: 3600)
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 3600)
 
       assert html =~ "rg-flaps--long"
       assert length(Regex.scan(~r/class="rg-flap"/, html)) == 6
@@ -136,16 +136,16 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     test "shows the riddle, its place in the set and a hidden answer" do
       html =
-        render_component(&GameComponents.practice_note/1,
+        render_component(&GameComponents.Practice.practice_note/1,
           id: "practice",
           riddle: @riddle,
           n: 2,
           total: 5
         )
 
-      assert html =~ GameCopy.practice_heading()
-      assert html =~ GameCopy.practice_tag(2, 5)
-      assert html =~ escape(GameCopy.practice_note())
+      assert html =~ GameCopy.Home.practice_heading()
+      assert html =~ GameCopy.Home.practice_tag(2, 5)
+      assert html =~ escape(GameCopy.Home.practice_note())
       assert html =~ escape(@riddle.description)
       # One tile per letter and a gap for the space; the answer starts closed.
       assert length(Regex.scan(~r/class="rg-pk"/, html)) == 6
@@ -153,27 +153,27 @@ defmodule RiddlrWeb.GameComponentsTest do
       refute html =~ "rg-peek__a is-open"
       assert html =~ ~s(aria-expanded="false")
       assert html =~ ~s(aria-controls="practice-answer")
-      assert html =~ GameCopy.practice_peek()
+      assert html =~ GameCopy.Home.practice_peek()
       assert html =~ ~s(role="status")
     end
 
     test "puts both button texts and both status lines on the peek button for the JS toggle" do
       html =
-        render_component(&GameComponents.practice_note/1,
+        render_component(&GameComponents.Practice.practice_note/1,
           id: "practice",
           riddle: @riddle,
           n: 1,
           total: 1
         )
 
-      assert html =~ GameCopy.practice_hide()
-      assert html =~ GameCopy.practice_status_shown("Big Ben")
-      assert html =~ GameCopy.practice_status_hidden("Big Ben")
+      assert html =~ GameCopy.Home.practice_hide()
+      assert html =~ GameCopy.Home.practice_status_shown("Big Ben")
+      assert html =~ GameCopy.Home.practice_status_hidden("Big Ben")
     end
 
     test "offers Another riddle only when there is another to show" do
       note = fn total ->
-        render_component(&GameComponents.practice_note/1,
+        render_component(&GameComponents.Practice.practice_note/1,
           id: "practice",
           riddle: @riddle,
           n: 1,
@@ -182,18 +182,18 @@ defmodule RiddlrWeb.GameComponentsTest do
         )
       end
 
-      assert note.(2) =~ GameCopy.practice_another()
-      refute note.(1) =~ GameCopy.practice_another()
+      assert note.(2) =~ GameCopy.Home.practice_another()
+      refute note.(1) =~ GameCopy.Home.practice_another()
     end
 
     test "counts only letters and digits in the hidden answer's status" do
-      assert GameCopy.practice_status_hidden("Big Ben") =~ whole_number("6")
-      assert GameCopy.practice_status_hidden("R2-D2!") =~ whole_number("4")
-      assert GameCopy.practice_status_hidden("I") =~ whole_number("1")
+      assert GameCopy.Home.practice_status_hidden("Big Ben") =~ whole_number("6")
+      assert GameCopy.Home.practice_status_hidden("R2-D2!") =~ whole_number("4")
+      assert GameCopy.Home.practice_status_hidden("I") =~ whole_number("1")
 
       # One letter reads as singular.
-      one = String.replace(GameCopy.practice_status_hidden("I"), "1", "N")
-      six = String.replace(GameCopy.practice_status_hidden("Big Ben"), "6", "N")
+      one = String.replace(GameCopy.Home.practice_status_hidden("I"), "1", "N")
+      six = String.replace(GameCopy.Home.practice_status_hidden("Big Ben"), "6", "N")
       refute one == six
     end
 
@@ -205,7 +205,7 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     @spec drop_time(keyword()) :: String.t()
     defp drop_time(attrs) do
-      render_component(&GameComponents.drop_time/1, [id: "t", now: @now] ++ attrs)
+      render_component(&GameComponents.Clock.drop_time/1, [id: "t", now: @now] ++ attrs)
     end
 
     test "renders the short form in Eastern time" do
@@ -249,7 +249,7 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert LazyHTML.attribute(line, "data-at") == ["2030-07-08T17:17:00Z"]
       assert LazyHTML.attribute(line, "data-zone") == ["America/Toronto"]
       assert LazyHTML.attribute(line, "phx-hook") != []
-      assert LazyHTML.text(line) =~ GameCopy.drop_local_lead()
+      assert LazyHTML.text(line) =~ GameCopy.Home.drop_local_lead()
     end
 
     test "leaves out the local-time line when told to" do

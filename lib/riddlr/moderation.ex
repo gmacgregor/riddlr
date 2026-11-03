@@ -102,6 +102,7 @@ defmodule Riddlr.Moderation do
   def check_external(text), do: @external_check.(text)
 
   @doc false
+  @spec default_external_check(String.t()) :: :ok
   def default_external_check(_text), do: :ok
 
   # Walks the lowercased tokens left to right, greedily matching the longest

@@ -62,7 +62,12 @@ defmodule RiddlrWeb.StandingsWindowLiveTest do
 
     {:ok, live, _html} = live(conn, ~p"/standings?window=month")
 
-    assert has_element?(live, "#standings-empty", RiddlrWeb.GameCopy.standings_empty(:month))
+    assert has_element?(
+             live,
+             "#standings-empty",
+             RiddlrWeb.GameCopy.Standings.standings_empty(:month)
+           )
+
     refute has_element?(live, "#standings-board")
   end
 end

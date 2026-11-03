@@ -125,13 +125,18 @@ defmodule Riddlr.NotificationsTest do
       opted_in()
       assert {:ok, 1} = Notifications.fan_out(riddle.id, :lobby_open)
 
-      {:ok, riddle} = Riddlr.Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      {:ok, riddle} =
+        Riddlr.Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
+
       assert Repo.all(RiddleNotification) == []
 
       later = DateTime.utc_now() |> DateTime.add(7200, :second) |> DateTime.truncate(:second)
 
       {:ok, riddle} =
-        Riddlr.Games.save_riddle(riddle, %{"publish_status" => "published", "live_date" => later})
+        Riddlr.Games.save_riddle(system_scope(), riddle, %{
+          "publish_status" => "published",
+          "live_date" => later
+        })
 
       {:ok, _} = Riddlr.Games.transition(riddle.id, :ready)
       assert {:ok, 1} = Notifications.fan_out(riddle.id, :lobby_open)
@@ -140,7 +145,7 @@ defmodule Riddlr.NotificationsTest do
     test "skips a riddle that is no longer upcoming" do
       riddle = ready_riddle()
       opted_in()
-      {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      {:ok, _} = Riddlr.Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
 
       assert {:skip, _reason} = Notifications.fan_out(riddle.id, :lobby_open)
       assert {:skip, _reason} = Notifications.fan_out(-1, :lobby_open)
@@ -192,7 +197,8 @@ defmodule Riddlr.NotificationsTest do
       run_fan_outs_and_sends(due_fan_outs(riddle.id))
       assert_received {:email, %{subject: "Kriddle riddle No. " <> _}}
 
-      {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"live_date" => from_now(25 * 60)})
+      {:ok, _} =
+        Riddlr.Games.save_riddle(system_scope(), riddle, %{"live_date" => from_now(25 * 60)})
 
       run_fan_outs_and_sends(due_fan_outs(riddle.id))
       refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
@@ -279,7 +285,7 @@ defmodule Riddlr.NotificationsTest do
     end
 
     test "skips an unscheduled riddle", %{riddle: riddle, row: row} do
-      {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      {:ok, _} = Riddlr.Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
 
       assert {:skip, _} = Notifications.deliver(row.id)
       refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
@@ -418,7 +424,7 @@ defmodule Riddlr.NotificationsTest do
     end
 
     test "skips after Unschedule", %{riddle: riddle, row: row} do
-      {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      {:ok, _} = Riddlr.Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
 
       assert {:skip, _} = Notifications.deliver(row.id)
       refute_received {:sms, _}

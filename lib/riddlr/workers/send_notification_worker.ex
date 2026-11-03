@@ -34,6 +34,7 @@ defmodule Riddlr.Workers.SendNotificationWorker do
   def timeout(_job), do: :timer.seconds(30)
 
   # Snoozing does not spend an attempt, so the cap counts snoozes.
+  @spec snooze(Oban.Job.t()) :: {:error, String.t()} | {:snooze, pos_integer()}
   defp snooze(%Oban.Job{meta: meta}) do
     if Map.get(meta, "snoozed", 0) >= @max_snoozes,
       do: {:error, "notification still claimed by another job"},

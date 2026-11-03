@@ -5,6 +5,8 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
   alias Riddlr.AccountsFixtures
   alias Riddlr.Games
 
+  import Riddlr.GamesFixtures, only: [system_scope: 0]
+
   setup do
     %{editor: AccountsFixtures.user_fixture(%{role: :editor})}
   end
@@ -13,7 +15,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
     {:ok, practice} =
       attrs
       |> Enum.into(%{description: "What gets wetter the more it dries?", answer: "towel"})
-      |> Games.create_practice_riddle()
+      |> then(&Games.create_practice_riddle(system_scope(), &1))
 
     practice
   end

@@ -1,7 +1,6 @@
 defmodule RiddlrWeb.Admin.CategoryLive.Index do
   use RiddlrWeb, :admin_live_view
   alias Riddlr.Games
-  alias Riddlr.Games.Category
   alias RiddlrWeb.AdminAuth
 
   # Moderators are admins but may not manage riddles or read their answers.
@@ -22,7 +21,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
   end
 
   defp apply_action(socket, :new, _params) do
-    socket |> assign(:category, %Category{}) |> assign(:page_title, "New Category")
+    socket |> assign(:category, Games.new_category()) |> assign(:page_title, "New Category")
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -32,14 +31,15 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    if AdminAuth.authorized?(socket, :manage_riddles) do
-      category = Games.get_category!(id)
-      {:ok, _} = Games.delete_category(category)
+    category = Games.get_category!(id)
 
-      {:noreply,
-       socket |> stream_delete(:categories, category) |> put_flash(:info, "Category deleted")}
-    else
-      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
+    case Games.delete_category(socket.assigns.current_scope, category) do
+      {:ok, _} ->
+        {:noreply,
+         socket |> stream_delete(:categories, category) |> put_flash(:info, "Category deleted")}
+
+      {:error, :unauthorized} ->
+        {:noreply, AdminAuth.unauthorized(socket)}
     end
   end
 

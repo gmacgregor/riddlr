@@ -35,12 +35,12 @@ defmodule Riddlr.Games.Riddle do
   - **Archive cooldown**: Configurable via `archive_after_seconds` (default: 180)
     - Set to 0 to skip cooldown and archive immediately
 
-  All of the above happen inside `Games.save_riddle/2`, which owns the schedule.
+  All of the above happen inside `Games.save_riddle/3`, which owns the schedule.
 
   ### Example Flow
 
       # Publishing with a future live date schedules the riddle
-      {:ok, riddle} = Games.save_riddle(riddle, %{
+      {:ok, riddle} = Games.save_riddle(scope, riddle, %{
         publish_status: "published",
         live_date: ~U[2026-04-01 14:00:00Z]
       })
@@ -108,6 +108,7 @@ defmodule Riddlr.Games.Riddle do
   end
 
   @doc false
+  @spec changeset(t() | Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   def changeset(riddle, attrs) do
     riddle
     |> cast(attrs, [
@@ -149,6 +150,7 @@ defmodule Riddlr.Games.Riddle do
     |> unique_constraint(:number)
   end
 
+  @spec cast_answers(Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
   defp cast_answers(changeset, attrs) do
     # Custom cast for answers to preserve empty strings for validation
     case Map.get(attrs, :answers) || Map.get(attrs, "answers") do
@@ -163,6 +165,7 @@ defmodule Riddlr.Games.Riddle do
     end
   end
 
+  @spec validate_answers(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp validate_answers(changeset) do
     # Get the answers value from changes or data to handle explicit empty arrays
     answers = get_field(changeset, :answers)
@@ -185,6 +188,7 @@ defmodule Riddlr.Games.Riddle do
     end)
   end
 
+  @spec maybe_add_empty_answers_error(Ecto.Changeset.t(), term()) :: Ecto.Changeset.t()
   defp maybe_add_empty_answers_error(changeset, answers) when is_list(answers) do
     if length(answers) == 0 do
       add_error(changeset, :answers, "must have at least one answer")
@@ -195,6 +199,7 @@ defmodule Riddlr.Games.Riddle do
 
   defp maybe_add_empty_answers_error(changeset, _), do: changeset
 
+  @spec validate_play_status_transition(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp validate_play_status_transition(changeset) do
     case {changeset.data.id, get_change(changeset, :play_status)} do
       # New record, skip validation
@@ -205,6 +210,8 @@ defmodule Riddlr.Games.Riddle do
     end
   end
 
+  @spec validate_transition(Ecto.Changeset.t(), String.t() | nil, String.t()) ::
+          Ecto.Changeset.t()
   defp validate_transition(changeset, current, new) when current == new, do: changeset
   defp validate_transition(changeset, nil, _new), do: changeset
 
@@ -222,19 +229,38 @@ defmodule Riddlr.Games.Riddle do
   Single source of truth for the Play state machine — used both by the
   changeset validation here and by `Riddlr.Games.transition/3`.
   """
+  @spec valid_transitions() :: %{String.t() => [String.t()]}
   def valid_transitions, do: @valid_transitions
 
   @doc """
   Whether `from` may transition to `to`. Both accept strings or atoms.
   """
+  @spec can_transition?(String.t() | atom(), String.t() | atom()) :: boolean()
   def can_transition?(from, to) do
     to_string(to) in Map.get(@valid_transitions, to_string(from), [])
   end
 
+  @doc "The play status values a riddle may take."
+  @spec play_statuses() :: [String.t()]
   def play_statuses, do: @play_statuses
+
+  @doc "The publish status values a riddle may take."
+  @spec publish_statuses() :: [String.t()]
   def publish_statuses, do: @publish_statuses
+
+  @doc "The difficulty values a riddle may take."
+  @spec difficulties() :: [String.t()]
   def difficulties, do: @difficulties
+
+  @doc "The solve time, in seconds, a new riddle starts with."
+  @spec default_solve_time() :: pos_integer()
   def default_solve_time, do: @solve_time
+
+  @doc "The hint delay, in seconds, a new riddle starts with."
+  @spec default_hint_delay() :: non_neg_integer()
   def default_hint_delay, do: @hint_delay
+
+  @doc "How many seconds before its live date a new riddle turns ready."
+  @spec default_ready_before_seconds() :: pos_integer()
   def default_ready_before_seconds, do: @ready_before_seconds
 end

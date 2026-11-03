@@ -96,6 +96,7 @@ defmodule Riddlr.Accounts.PhoneCode do
     |> validate_canadian_phone()
   end
 
+  @spec validate_canadian_phone(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp validate_canadian_phone(%{changes: %{phone: raw}} = changeset) do
     case parse_canadian(raw) do
       {:ok, e164} ->

@@ -1,6 +1,7 @@
 defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
   use RiddlrWeb.ConnCase
   import Phoenix.LiveViewTest
+  import Riddlr.GamesFixtures, only: [system_scope: 0]
 
   setup do
     admin = Riddlr.AccountsFixtures.user_fixture(%{role: :editor})
@@ -9,7 +10,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
 
   test "lists categories", %{conn: conn, admin: admin} do
     conn = log_in_user(conn, admin)
-    {:ok, category} = Riddlr.Games.create_category(%{name: "test category"})
+    {:ok, category} = Riddlr.Games.create_category(system_scope(), %{name: "test category"})
     {:ok, live, _html} = live(conn, ~p"/admin/categories")
     assert has_element?(live, "header.rg-pagehead h1")
     assert has_element?(live, "#categories", category.name)
@@ -47,7 +48,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
   end
 
   test "updates category", %{conn: conn, admin: admin} do
-    {:ok, category} = Riddlr.Games.create_category(%{name: "original name"})
+    {:ok, category} = Riddlr.Games.create_category(system_scope(), %{name: "original name"})
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")
 
@@ -64,7 +65,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
   end
 
   test "deletes category", %{conn: conn, admin: admin} do
-    {:ok, category} = Riddlr.Games.create_category(%{name: "to delete"})
+    {:ok, category} = Riddlr.Games.create_category(system_scope(), %{name: "to delete"})
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")
 
@@ -76,7 +77,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
 
   describe "role taken away mid-session" do
     setup %{conn: conn, admin: admin} do
-      {:ok, category} = Riddlr.Games.create_category(%{name: "kept"})
+      {:ok, category} = Riddlr.Games.create_category(system_scope(), %{name: "kept"})
       {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/categories")
       %{category: category, live: live}
     end
@@ -125,7 +126,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
   end
 
   test "validates unique name", %{conn: conn, admin: admin} do
-    {:ok, _existing} = Riddlr.Games.create_category(%{name: "existing"})
+    {:ok, _existing} = Riddlr.Games.create_category(system_scope(), %{name: "existing"})
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")
 
@@ -142,7 +143,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
   # A moderator is an admin, just not one who edits categories.
   describe "access" do
     setup do
-      {:ok, category} = Riddlr.Games.create_category(%{name: "access category"})
+      {:ok, category} = Riddlr.Games.create_category(system_scope(), %{name: "access category"})
 
       paths = [
         ~p"/admin/categories",

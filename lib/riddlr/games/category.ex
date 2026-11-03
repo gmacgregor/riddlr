@@ -2,6 +2,8 @@ defmodule Riddlr.Games.Category do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   schema "categories" do
     field :name, :string
 
@@ -11,6 +13,7 @@ defmodule Riddlr.Games.Category do
   end
 
   @doc false
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(category, attrs) do
     category
     |> cast(attrs, [:name])

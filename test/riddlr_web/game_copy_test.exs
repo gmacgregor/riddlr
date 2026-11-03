@@ -7,11 +7,11 @@ defmodule RiddlrWeb.GameCopyTest do
 
   describe "counts" do
     test "group thousands with commas" do
-      assert GameCopy.room_count(0) =~ whole_number("0")
-      assert GameCopy.room_count(999) =~ whole_number("999")
-      assert GameCopy.room_count(1000) =~ whole_number("1,000")
-      assert GameCopy.room_more(1_234_567) =~ whole_number("1,234,567")
-      assert GameCopy.ticker_tail(2500) =~ whole_number("2,500")
+      assert GameCopy.Lobby.room_count(0) =~ whole_number("0")
+      assert GameCopy.Lobby.room_count(999) =~ whole_number("999")
+      assert GameCopy.Lobby.room_count(1000) =~ whole_number("1,000")
+      assert GameCopy.Lobby.room_more(1_234_567) =~ whole_number("1,234,567")
+      assert GameCopy.Lobby.ticker_tail(2500) =~ whole_number("2,500")
     end
   end
 
@@ -44,12 +44,12 @@ defmodule RiddlrWeb.GameCopyTest do
     end
 
     test "guess count is singular for one guess" do
-      assert GameCopy.guess_count(0) =~ whole_number("0")
-      assert GameCopy.guess_count(1) =~ whole_number("1")
-      assert GameCopy.guess_count(1200) =~ whole_number("1,200")
+      assert GameCopy.Play.guess_count(0) =~ whole_number("0")
+      assert GameCopy.Play.guess_count(1) =~ whole_number("1")
+      assert GameCopy.Play.guess_count(1200) =~ whole_number("1,200")
 
-      one = String.replace(GameCopy.guess_count(1), "1", "N")
-      two = String.replace(GameCopy.guess_count(2), "2", "N")
+      one = String.replace(GameCopy.Play.guess_count(1), "1", "N")
+      two = String.replace(GameCopy.Play.guess_count(2), "2", "N")
       refute one == two
     end
 
@@ -66,24 +66,24 @@ defmodule RiddlrWeb.GameCopyTest do
     end
 
     test "solved title differs for first, a scoring place and off the board" do
-      first = GameCopy.solved_title(1, 10)
-      second = GameCopy.solved_title(2, 9)
-      off_board = GameCopy.solved_title(11, 0)
+      first = GameCopy.Play.solved_title(1, 10)
+      second = GameCopy.Play.solved_title(2, 9)
+      off_board = GameCopy.Play.solved_title(11, 0)
 
       assert second =~ GameCopy.ordinal(2)
       assert Enum.uniq([first, second, off_board]) == [first, second, off_board]
     end
 
     test "solved sub shows the points and the time left" do
-      sub = GameCopy.solved_sub(9, 75)
+      sub = GameCopy.Play.solved_sub(9, 75)
 
       assert sub =~ "+9"
       assert sub =~ GameCopy.m_ss(75)
     end
 
     test "quip never repeats the last one" do
-      for last <- GameCopy.quips() do
-        assert GameCopy.quip(last) != last
+      for last <- GameCopy.Play.quips() do
+        assert GameCopy.Play.quip(last) != last
       end
     end
   end
@@ -97,25 +97,25 @@ defmodule RiddlrWeb.GameCopyTest do
     end
 
     test "you card for a viewer who did not join" do
-      assert %{stamp: "—", none?: true} = GameCopy.you_card(nil, false)
+      assert %{stamp: "—", none?: true} = GameCopy.Results.you_card(nil, false)
     end
 
     test "you card for a viewer who guessed but did not solve" do
-      card = GameCopy.you_card(nil, true)
+      card = GameCopy.Results.you_card(nil, true)
 
       assert %{stamp: "0", none?: true} = card
-      refute card.title == GameCopy.you_card(nil, false).title
+      refute card.title == GameCopy.Results.you_card(nil, false).title
     end
 
     test "you card for the winner" do
-      card = GameCopy.you_card(%{placement: 1, points: 10}, true)
+      card = GameCopy.Results.you_card(%{placement: 1, points: 10}, true)
 
       assert %{stamp: "1ST", none?: false} = card
       assert card.sub =~ "+10"
     end
 
     test "you card for a scoring place" do
-      card = GameCopy.you_card(%{placement: 3, points: 8}, true)
+      card = GameCopy.Results.you_card(%{placement: 3, points: 8}, true)
 
       assert %{stamp: "3RD", none?: false} = card
       assert card.title =~ GameCopy.ordinal(3)
@@ -123,11 +123,11 @@ defmodule RiddlrWeb.GameCopyTest do
     end
 
     test "you card for a solve outside the top 10" do
-      card = GameCopy.you_card(%{placement: 11, points: 0}, true)
+      card = GameCopy.Results.you_card(%{placement: 11, points: 0}, true)
 
       assert %{stamp: "11TH", none?: true} = card
       assert card.title =~ GameCopy.ordinal(11)
-      refute card.sub == GameCopy.you_card(%{placement: 3, points: 8}, true).sub
+      refute card.sub == GameCopy.Results.you_card(%{placement: 3, points: 8}, true).sub
     end
   end
 

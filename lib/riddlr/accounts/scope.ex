@@ -1,33 +1,36 @@
 defmodule Riddlr.Accounts.Scope do
   @moduledoc """
-  Defines the scope of the caller to be used throughout the app.
+  Says who is calling a context function.
 
-  The `Riddlr.Accounts.Scope` allows public interfaces to receive
-  information about the caller, such as if the call is initiated from an
-  end-user, and if so, which user. Additionally, such a scope can carry fields
-  such as "super user" or other privileges for use as authorization, or to
-  ensure specific code paths can only be access for a given scope.
+  A user scope carries the signed-in user, or no user for a guest. Context
+  write functions take a scope and check its permissions themselves, so the
+  web layer cannot forget to.
 
-  It is useful for logging as well as for scoping pubsub subscriptions and
-  broadcasts when a caller subscribes to an interface or performs a particular
-  action.
-
-  Feel free to extend the fields on this struct to fit the needs of
-  growing application requirements.
+  The system scope stands for the app itself: seeds and jobs that write data
+  with no user behind them. It holds every permission.
   """
 
   alias Riddlr.Accounts.User
 
-  defstruct user: nil
+  defstruct user: nil, system?: false
+
+  @type t :: %__MODULE__{user: User.t() | nil, system?: boolean()}
 
   @doc """
   Creates a scope for the given user.
 
   Returns nil if no user is given.
   """
+  @spec for_user(User.t() | nil) :: t() | nil
   def for_user(%User{} = user) do
     %__MODULE__{user: user}
   end
 
   def for_user(nil), do: nil
+
+  @doc """
+  Creates the system scope, for writes that no user makes.
+  """
+  @spec for_system() :: t()
+  def for_system, do: %__MODULE__{system?: true}
 end

@@ -55,7 +55,7 @@ defmodule Riddlr.Gameplay.Answer do
           riddle_id: term(),
           user_id: term(),
           username: String.t() | nil,
-          text: String.t(),
+          text: String.t() | nil,
           timestamp: integer(),
           offset_ms: non_neg_integer() | nil,
           placement: pos_integer() | nil,
@@ -70,6 +70,7 @@ defmodule Riddlr.Gameplay.Answer do
   Options: `:correct`, `:offset_ms`, `:placement`, `:chat`, and `:timestamp` for
   callers that already took a reading and need the same one on the stored row.
   """
+  @spec new(integer(), Riddlr.Accounts.User.t(), String.t(), keyword()) :: t()
   def new(riddle_id, user, text, opts \\ []) do
     timestamp = Keyword.get_lazy(opts, :timestamp, &Clock.monotonic_us/0)
 
@@ -97,21 +98,25 @@ defmodule Riddlr.Gameplay.Answer do
   Reveal is simply not calling this — after completion the stored answer is fed
   to the feed as-is.
   """
+  @spec for_live_feed(t()) :: t()
   def for_live_feed(%__MODULE__{correct: true} = answer), do: %{answer | text: nil}
   def for_live_feed(%__MODULE__{} = answer), do: answer
 
   @doc """
   The DOM/stream id an answer is known by, here and in moderation.
   """
+  @spec id(integer(), integer(), integer()) :: String.t()
   def id(riddle_id, user_id, timestamp), do: "#{riddle_id}-#{user_id}-#{timestamp}"
 
   @doc """
   Topic every answer and chat message for a riddle is broadcast on.
   """
+  @spec topic(integer()) :: String.t()
   def topic(riddle_id), do: "gameplay:#{riddle_id}:answer_submitted"
 
   @doc """
   Topic a retraction is broadcast on when moderation flags an answer.
   """
+  @spec flagged_topic(integer()) :: String.t()
   def flagged_topic(riddle_id), do: "gameplay:#{riddle_id}:answer_flagged"
 end

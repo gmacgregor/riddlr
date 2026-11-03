@@ -24,7 +24,7 @@ defmodule RiddlrWeb.HomeLive do
 
   With nothing next, the card also shows a blank clock and a link to Coming
   up. With nothing next, or a riddle whose Lobby is not open yet, it shows a
-  "While you wait" practice note (`GameComponents.practice_note/1`)
+  "While you wait" practice note (`GameComponents.Practice.practice_note/1`)
   with a random practice riddle. "Another riddle" swaps in a different one.
   The note is hidden when there are no practice riddles.
 
@@ -169,7 +169,7 @@ defmodule RiddlrWeb.HomeLive do
     <div class="rg-hero__row">
       <span class="rg-hero__label">{GameCopy.riddle_title(@riddle)}</span>
     </div>
-    <GameComponents.flaps id="hero-flaps" seconds={@seconds} />
+    <GameComponents.Clock.flaps id="hero-flaps" seconds={@seconds} />
     """
   end
 
@@ -179,7 +179,7 @@ defmodule RiddlrWeb.HomeLive do
 
   defp practice_note(assigns) do
     ~H"""
-    <GameComponents.practice_note
+    <GameComponents.Practice.practice_note
       :if={@practice}
       id="practice"
       riddle={@practice.riddle}
@@ -341,7 +341,7 @@ defmodule RiddlrWeb.HomeLive do
 
   # The hero card's state, one per Next riddle case. A `scheduled` riddle is
   # `future`: its Lobby is not open yet.
-  @spec hero_state(Games.Riddle.t() | nil) :: GameCopy.hero_state()
+  @spec hero_state(Games.Riddle.t() | nil) :: GameCopy.Home.hero_state()
   defp hero_state(nil), do: :none
   defp hero_state(%{play_status: "live"}), do: :live
   defp hero_state(%{play_status: "ready"}), do: :lobby
@@ -349,7 +349,7 @@ defmodule RiddlrWeb.HomeLive do
 
   # The last time on the timeline: when the next riddle's round ends.
   @spec round_end(Games.Riddle.t() | nil) :: String.t()
-  defp round_end(nil), do: GameCopy.timeline_end_default()
+  defp round_end(nil), do: GameCopy.Home.timeline_end_default()
   defp round_end(riddle), do: GameCopy.m_ss(riddle.solve_time)
 
   @spec waiting(Games.Riddle.t() | nil) :: non_neg_integer()

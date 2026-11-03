@@ -1,58 +1,29 @@
 defmodule Riddlr.Games do
   @moduledoc """
   The Games context.
+
+  The admin write functions (create, save, update and delete of riddles,
+  categories and practice riddles) take a `Riddlr.Accounts.Scope` first. They
+  return `{:error, :unauthorized}` unless the scope holds `:manage_riddles`.
   """
 
   import Ecto.Query, warn: false
 
-  alias Ecto.Multi
+  alias Riddlr.Accounts.Scope
+  alias Riddlr.Authorization
   alias Riddlr.Cache
-  alias Riddlr.Clock
   alias Riddlr.Repo
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
+  alias Riddlr.Games.Practice
   alias Riddlr.Games.PracticeRiddle
-  alias Riddlr.Notifications
-
-  alias Riddlr.Workers.{
-    ArchiveRiddleTransitionWorker,
-    CompleteRiddleWorker,
-    LiveRiddleTransitionWorker,
-    NotificationFanOutWorker,
-    ReadyRiddleTransitionWorker
-  }
+  alias Riddlr.Games.Transitions
+  alias Riddlr.Games.RiddleName
+  alias Riddlr.Games.Schedule
 
   # What every riddle read loads, and every broadcast riddle carries, so a
   # broadcast riddle equals a fetched one. Nothing reads first_solver.
   @riddle_preload [:category]
-
-  # The four workers that take a riddle_id argument. Cancelling a riddle's
-  # pending work means cancelling jobs from this list, which is why it exists as
-  # one list rather than a filter written out at each call site.
-  #
-  # Stored as strings because Oban's `worker` column holds the module name
-  # without the `Elixir.` prefix — which is what `inspect/1` produces and
-  # `to_string/1` does not.
-  @riddle_workers Enum.map(
-                    [
-                      ReadyRiddleTransitionWorker,
-                      LiveRiddleTransitionWorker,
-                      ArchiveRiddleTransitionWorker,
-                      CompleteRiddleWorker
-                    ],
-                    &inspect/1
-                  )
-
-  # Unschedule and delete also drop every pending Notification fan-out: the
-  # riddle will not go live, so no one should hear that it will. Schedule and
-  # Reschedule replace only the 30 min and 1 hour fan-outs (see
-  # `Notifications.replace_timed_fan_outs/2`); a pending Lobby-open fan-out
-  # stays, and the send job reads the new Live date.
-  @drop_workers @riddle_workers ++ [inspect(NotificationFanOutWorker)]
-
-  # A job in any other state has already run, been cancelled or been discarded,
-  # so there is nothing left to cancel.
-  @cancellable_states ["available", "scheduled", "retryable"]
 
   @doc """
   Returns the newest riddles, newest first, at most `limit` (default 100).
@@ -95,6 +66,18 @@ defmodule Riddlr.Games do
   end
 
   @doc """
+  Gets a single riddle, or `nil` if the Riddle does not exist.
+
+  Takes the options `get_riddle!/2` takes.
+  """
+  @spec get_riddle(term(), keyword()) :: Riddle.t() | nil
+  def get_riddle(id, opts \\ []) do
+    Riddle
+    |> preload(^Keyword.get(opts, :preload, @riddle_preload))
+    |> Repo.get(id)
+  end
+
+  @doc """
   Fetches a riddle by ID, returning `{:ok, riddle}` or `{:error, :not_found}`. Rescues i.e Ecto.NoResultsError, Ecto.Query.CastError
 
   Takes the options `get_riddle!/2` takes.
@@ -110,26 +93,44 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Creates a riddle. A thin alias over `save_riddle/2` for seeds and fixtures —
+  Gets a riddle and takes a share lock on its row until the caller's
+  transaction ends. Returns `nil` if the Riddle does not exist.
+
+  The lock makes a save to the riddle wait for the caller's transaction, and
+  makes the caller wait for a save already in flight. It must run inside a
+  transaction. The riddle comes without preloads.
+  """
+  @spec lock_riddle_for_share(integer()) :: Riddle.t() | nil
+  def lock_riddle_for_share(id) do
+    Riddle
+    |> where([r], r.id == ^id)
+    |> lock("FOR SHARE")
+    |> Repo.one()
+  end
+
+  @doc """
+  Creates a riddle. A thin alias over `save_riddle/3` for seeds and fixtures —
   it schedules too, if the attrs say so.
 
   ## Examples
 
-      iex> create_riddle(%{field: value})
+      iex> create_riddle(scope, %{field: value})
       {:ok, %Riddle{}}
 
-      iex> create_riddle(%{field: bad_value})
+      iex> create_riddle(scope, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_riddle(attrs \\ %{}), do: save_riddle(%Riddle{}, attrs)
+  @spec create_riddle(Scope.t(), map()) ::
+          {:ok, Riddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def create_riddle(%Scope{} = scope, attrs), do: save_riddle(scope, %Riddle{}, attrs)
 
   @doc """
   The one way to write a Riddle from the admin.
 
   Takes the row the admin edited (a bare `%Riddle{}` for a create) and the form
   attrs, and writes the row *and* its Oban jobs in a single transaction. The
-  caller says nothing about scheduling: `save_riddle/2` reads the persisted
+  caller says nothing about scheduling: `save_riddle/3` reads the persisted
   state and the changeset and decides between four intents.
 
     * `:schedule` — a closed, published riddle with a future Live date
@@ -140,174 +141,16 @@ defmodule Riddlr.Games do
   A riddle that cannot be scheduled (draft, past Live date, already live) is not
   an error: it is simply not a schedule, and the row is written anyway.
 
-  Returns `{:ok, riddle}` or `{:error, changeset}` — no other shape.
+  The scope must hold `:manage_riddles`.
+
+  Returns `{:ok, riddle}`, `{:error, changeset}` or `{:error, :unauthorized}`.
   """
-  def save_riddle(%Riddle{} = riddle, attrs) do
-    changeset = Riddle.changeset(riddle, attrs)
-
-    # An invalid changeset gets `:none`: the transaction will roll back anyway,
-    # and skipping the intent avoids running the validations twice and doubling
-    # every error message in the form.
-    intent = if changeset.valid?, do: intent(riddle, changeset), else: :none
-
-    Multi.new()
-    |> Multi.insert_or_update(:riddle, apply_intent(changeset, intent))
-    |> write_jobs(intent)
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{riddle: saved}} -> {:ok, saved |> preload_assoc_force() |> announce(intent)}
-      {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
+  @spec save_riddle(Scope.t(), Riddle.t(), map()) ::
+          {:ok, Riddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def save_riddle(%Scope{} = scope, %Riddle{} = riddle, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      Schedule.save(riddle, attrs)
     end
-  end
-
-  # Decides whether a save also changes the schedule: given the riddle as it is
-  # stored and the changes the admin just submitted, which of the four intents
-  # applies?
-  #
-  # Clause order is part of the rule, not an implementation detail:
-  #
-  #   1. Un-publishing wins over everything. A draft riddle with pending jobs is
-  #      the one state that must never survive a save.
-  #   2. A draft riddle is never scheduled, so nothing else can apply.
-  #   3. No Live date, no schedule — the jobs have nothing to hang off.
-  #   4. From `closed` this is a first schedule, and only a *future* Live date
-  #      earns one. A past date is the admin filling in a form, not asking for a
-  #      game that already started.
-  #   5. From `scheduled`/`ready` the jobs already exist, so the question is only
-  #      whether they still match the row. A past date *does* reschedule here:
-  #      the admin is moving a game they already scheduled, and Oban running the
-  #      job immediately is the honest result.
-  #
-  # Anything that falls through is `:none` — a riddle that cannot be scheduled is
-  # not an error, it is simply not a schedule, and the row is written regardless.
-  # That is what lets `save_riddle/2` return one error shape.
-  defp intent(%Riddle{} = riddle, changeset) do
-    live_date = Ecto.Changeset.get_field(changeset, :live_date)
-
-    cond do
-      unscheduling?(riddle, changeset) ->
-        :unschedule
-
-      Ecto.Changeset.get_field(changeset, :publish_status) != "published" ->
-        :none
-
-      is_nil(live_date) ->
-        :none
-
-      riddle.play_status == "closed" ->
-        if DateTime.compare(live_date, Clock.utc_now()) == :lt, do: :none, else: :schedule
-
-      riddle.play_status in ["scheduled", "ready"] and schedule_moved?(changeset) ->
-        :reschedule
-
-      true ->
-        :none
-    end
-  end
-
-  # Rolling back to draft is the only way to un-schedule: the pending jobs would
-  # otherwise take an unpublished riddle live.
-  defp unscheduling?(%Riddle{play_status: play_status}, changeset)
-       when play_status in ["scheduled", "ready"],
-       do: Ecto.Changeset.get_field(changeset, :publish_status) != "published"
-
-  defp unscheduling?(_riddle, _changeset), do: false
-
-  # The two fields the pending jobs are derived from — `live_date` sets the live
-  # job and, minus the lead time, the ready job. Either one moving means the jobs
-  # on disk no longer match the row, so both are rewritten.
-  defp schedule_moved?(changeset) do
-    Enum.any?([:live_date, :ready_before_seconds], fn field ->
-      not is_nil(Ecto.Changeset.get_change(changeset, field))
-    end)
-  end
-
-  # The intent is also a Play status change. Re-running `Riddle.changeset/2` over
-  # the changeset (rather than `put_change/3`) keeps the transition table in
-  # `Riddle` the only judge of whether the move is legal.
-  defp apply_intent(changeset, :schedule),
-    do: Riddle.changeset(changeset, %{play_status: "scheduled"})
-
-  defp apply_intent(changeset, :unschedule),
-    do: Riddle.changeset(changeset, %{play_status: "closed"})
-
-  defp apply_intent(changeset, _intent), do: changeset
-
-  defp write_jobs(multi, intent) when intent in [:schedule, :reschedule] do
-    multi
-    |> Multi.run(:cancel_jobs, fn repo, %{riddle: riddle} ->
-      cancel_jobs(repo, riddle.id, @riddle_workers)
-    end)
-    |> Multi.insert(:ready_job, fn %{riddle: riddle} ->
-      ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle.id},
-        scheduled_at: DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
-      )
-    end)
-    |> Multi.insert(:live_job, fn %{riddle: riddle} ->
-      LiveRiddleTransitionWorker.new(%{"riddle_id" => riddle.id},
-        scheduled_at: riddle.live_date
-      )
-    end)
-    |> Multi.run(:timed_fan_out_jobs, fn repo, %{riddle: riddle} ->
-      Notifications.replace_timed_fan_outs(repo, riddle)
-    end)
-  end
-
-  defp write_jobs(multi, :unschedule) do
-    multi
-    |> Multi.run(:cancel_jobs, fn repo, %{riddle: riddle} ->
-      cancel_jobs(repo, riddle.id, @drop_workers)
-    end)
-    |> Multi.run(:drop_notifications, fn repo, %{riddle: riddle} ->
-      Notifications.drop_unsent(repo, riddle.id)
-    end)
-  end
-
-  defp write_jobs(multi, :none), do: multi
-
-  # Broadcasts run after COMMIT, never inside the transaction: announcing a
-  # schedule that then rolled back would leave every subscriber with a riddle
-  # that is not actually scheduled.
-  #
-  # Two topics, two audiences. `games:riddle:changed` says a riddle row was
-  # written or removed, whatever the reason — that is what the admin index needs
-  # to re-render. `games:riddle:scheduled` reports what happened to the schedule
-  # itself — a riddle is now upcoming, its start time moved, or it is no longer
-  # upcoming — which is what a homepage listing or a player notification needs.
-  defp announce(riddle, intent) do
-    refresh_home()
-
-    Phoenix.PubSub.broadcast(Riddlr.PubSub, "games:riddle:changed", {:riddle_saved, riddle})
-
-    case schedule_event(intent) do
-      nil -> :ok
-      message -> broadcast_schedule_event(message, riddle)
-    end
-
-    riddle
-  end
-
-  defp broadcast_schedule_event(message, riddle) do
-    Phoenix.PubSub.broadcast(Riddlr.PubSub, "games:riddle:scheduled", {message, riddle})
-  end
-
-  defp schedule_event(:schedule), do: :riddle_scheduled
-  defp schedule_event(:reschedule), do: :riddle_rescheduled
-  defp schedule_event(:unschedule), do: :riddle_unscheduled
-  defp schedule_event(_intent), do: nil
-
-  # The one place that cancels a riddle's jobs. Callers pass the worker list they
-  # want cancelled, and the repo, so this can run inside the same transaction as
-  # the write that made the cancellation necessary.
-  defp cancel_jobs(repo, riddle_id, workers) do
-    {count, _} =
-      Oban.Job
-      |> where([j], j.state in @cancellable_states)
-      |> where([j], j.worker in ^workers)
-      |> where([j], fragment("? @> ?", j.args, type(^%{"riddle_id" => riddle_id}, :map)))
-      |> repo.update_all(set: [state: "cancelled", cancelled_at: Clock.utc_now()])
-
-    {:ok, count}
   end
 
   @doc """
@@ -315,43 +158,44 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> delete_riddle(riddle)
+      iex> delete_riddle(scope, riddle)
       {:ok, %Riddle{}}
 
-      iex> delete_riddle(riddle)
+      iex> delete_riddle(scope, riddle)
       {:error, %Ecto.Changeset{}}
 
   """
-  def delete_riddle(%Riddle{} = riddle) do
-    Multi.new()
-    |> Multi.run(:cancel_jobs, fn repo, _changes ->
-      cancel_jobs(repo, riddle.id, @drop_workers)
-    end)
-    |> Multi.delete(:riddle, riddle)
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{riddle: deleted}} ->
-        Riddlr.Gameplay.cleanup_riddle(deleted.id)
-        # Its solves went with it.
-        Riddlr.Standings.invalidate()
-        refresh_home()
-
-        Phoenix.PubSub.broadcast(
-          Riddlr.PubSub,
-          "games:riddle:changed",
-          {:riddle_deleted, deleted}
-        )
-
-        if deleted.play_status in ["scheduled", "ready"] do
-          broadcast_schedule_event(:riddle_unscheduled, deleted)
-        end
-
-        {:ok, deleted}
-
-      {:error, _failed_operation, changeset, _changes} ->
-        {:error, changeset}
+  @spec delete_riddle(Scope.t(), Riddle.t()) ::
+          {:ok, Riddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def delete_riddle(%Scope{} = scope, %Riddle{} = riddle) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      Schedule.delete(riddle)
     end
   end
+
+  @doc "Returns a blank riddle for a new-riddle form."
+  @spec new_riddle() :: Riddle.t()
+  def new_riddle, do: %Riddle{}
+
+  @doc "Returns a random riddle name, such as a new riddle gets."
+  @spec generate_riddle_name() :: String.t()
+  defdelegate generate_riddle_name, to: RiddleName, as: :generate
+
+  @doc "The difficulty values a riddle may take."
+  @spec riddle_difficulties() :: [String.t()]
+  defdelegate riddle_difficulties, to: Riddle, as: :difficulties
+
+  @doc "The publish status values a riddle may take."
+  @spec riddle_publish_statuses() :: [String.t()]
+  defdelegate riddle_publish_statuses, to: Riddle, as: :publish_statuses
+
+  @doc "The hint delay a new riddle starts with."
+  @spec default_hint_delay() :: non_neg_integer()
+  defdelegate default_hint_delay, to: Riddle
+
+  @doc "The solve time a new riddle starts with."
+  @spec default_solve_time() :: pos_integer()
+  defdelegate default_solve_time, to: Riddle
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking riddle changes.
@@ -362,142 +206,10 @@ defmodule Riddlr.Games do
       %Ecto.Changeset{data: %Riddle{}}
 
   """
+  @spec change_riddle(Riddle.t(), map()) :: Ecto.Changeset.t()
   def change_riddle(%Riddle{} = riddle, attrs \\ %{}) do
     Riddle.changeset(riddle, attrs)
   end
-
-  @doc """
-  Transitions a riddle's play status.
-
-  One interface for every Play status transition: it owns the guards, the write,
-  the follow-on job, the broadcast and any cleanup. Callers (Oban workers,
-  Gameplay) supply only the target status and, for `:completed`, stats.
-
-  For `:completed`, `stats` also carries the `:solves` and `:entries` rows.
-  `Riddlr.Gameplay.persist_results/3` saves them in the same transaction as
-  the status change.
-
-  Returns:
-
-    * `{:ok, riddle}` — transitioned and committed
-    * `{:error, :not_found}` — no such riddle
-    * `{:unpublished, publish_status}` — riddle is not published
-    * `{:invalid, from, to}` — forbidden by `Riddle.valid_transitions/0`
-    * `{:error, changeset}` — the write failed
-
-  The three non-changeset failures are permanent: callers should not retry.
-  """
-  def transition(riddle_id, to, stats \\ %{}) do
-    with {:ok, riddle} <- fetch_transitionable(riddle_id, to) do
-      riddle
-      |> run_transition(to, stats)
-      |> after_commit(to)
-    end
-  end
-
-  defp fetch_transitionable(riddle_id, to) do
-    case Repo.get(Riddle, riddle_id) do
-      nil ->
-        {:error, :not_found}
-
-      %Riddle{publish_status: publish_status} when publish_status != "published" ->
-        {:unpublished, publish_status}
-
-      riddle ->
-        if Riddle.can_transition?(riddle.play_status, to) do
-          {:ok, riddle}
-        else
-          {:invalid, riddle.play_status, to}
-        end
-    end
-  end
-
-  defp run_transition(riddle, to, stats) do
-    Multi.new()
-    |> Multi.update(:riddle, Riddle.changeset(riddle, transition_attrs(to, stats)))
-    |> save_results(to, stats)
-    |> enqueue_next_job(to)
-    |> Repo.transaction()
-    |> case do
-      {:ok, %{riddle: riddle}} -> {:ok, riddle}
-      {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
-    end
-  end
-
-  # The solves and entries go in with the move to `completed`, so the board,
-  # the solve rate and the status commit or roll back as one. A retry after
-  # rollback writes them again; a second run after commit is refused as an
-  # invalid transition.
-  @spec save_results(Multi.t(), atom(), map()) :: Multi.t()
-  defp save_results(multi, :completed, stats),
-    do: Riddlr.Gameplay.persist_results(multi, stats)
-
-  defp save_results(multi, _to, _stats), do: multi
-
-  defp enqueue_next_job(multi, :ready) do
-    Multi.insert(multi, :fan_out_job, fn %{riddle: riddle} ->
-      NotificationFanOutWorker.new(%{
-        "riddle_id" => riddle.id,
-        "lead_time" => "lobby_open"
-      })
-    end)
-  end
-
-  defp enqueue_next_job(multi, :live) do
-    Multi.insert(multi, :complete_job, fn %{riddle: riddle} ->
-      %{"riddle_id" => riddle.id}
-      |> Riddlr.Workers.CompleteRiddleWorker.new(schedule_in: riddle.solve_time)
-    end)
-  end
-
-  defp enqueue_next_job(multi, :completed) do
-    Multi.insert(multi, :archive_job, fn %{riddle: riddle} ->
-      %{"riddle_id" => riddle.id}
-      |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(
-        schedule_in: riddle.archive_after_seconds
-      )
-    end)
-  end
-
-  defp enqueue_next_job(multi, _to), do: multi
-
-  defp transition_attrs(:completed, stats) do
-    stats
-    |> Map.take([:first_solver_id, :first_solve_time, :completion_rate])
-    |> Map.put(:play_status, "completed")
-  end
-
-  defp transition_attrs(to, _stats), do: %{play_status: to_string(to)}
-
-  # Everything that must not happen until the transaction has committed:
-  # broadcasting a rolled-back transition would move every Lobby to a riddle
-  # that never went live.
-  defp after_commit({:ok, riddle}, to) do
-    cleanup(to, riddle)
-    # Every Play view moves to Results on the broadcast below, so the board
-    # must be cached first.
-    if to == :completed, do: Riddlr.Gameplay.warm_board(riddle.id)
-    refresh_home()
-
-    broadcast_riddle = preload_assoc(riddle)
-    {topic, message} = broadcast_for(to)
-
-    Phoenix.PubSub.broadcast(Riddlr.PubSub, topic, {message, broadcast_riddle})
-    if to == :completed, do: Riddlr.Standings.broadcast_changed()
-
-    {:ok, riddle}
-  end
-
-  defp after_commit(other, _to), do: other
-
-  # An archived riddle takes no more answers, so its ETS rows are dead weight.
-  defp cleanup(:archived, riddle), do: Riddlr.Gameplay.cleanup_riddle(riddle.id)
-  defp cleanup(_to, _riddle), do: :ok
-
-  defp broadcast_for(:ready), do: {"games:riddle:ready", :riddle_ready}
-  defp broadcast_for(:live), do: {"games:riddle:live", :riddle_live}
-  defp broadcast_for(:completed), do: {"games:riddle:completed", :riddle_completed}
-  defp broadcast_for(:archived), do: {"games:riddle:archived", :riddle_archived}
 
   @doc """
   The riddle players can join next: the published riddle that is `scheduled`,
@@ -570,8 +282,12 @@ defmodule Riddlr.Games do
   @spec home_snapshot() :: home_snapshot()
   def home_snapshot, do: Cache.fetch(:home, &build_home_snapshot/0)
 
+  @doc """
+  Rebuilds the Home snapshot in `Riddlr.Cache`. Every write Home could show
+  calls this before it broadcasts.
+  """
   @spec refresh_home() :: :ok
-  defp refresh_home, do: Cache.put(:home, build_home_snapshot())
+  def refresh_home, do: Cache.put(:home, build_home_snapshot())
 
   @spec build_home_snapshot() :: home_snapshot()
   defp build_home_snapshot do
@@ -582,7 +298,7 @@ defmodule Riddlr.Games do
       upcoming: list_upcoming_riddles(@home_upcoming),
       last: last,
       last_solve: last && Riddlr.Gameplay.first_solve(last.id),
-      practice: list_practice_riddles()
+      practice: Practice.list()
     }
   end
 
@@ -601,6 +317,8 @@ defmodule Riddlr.Games do
   Uses atomic update to avoid race conditions.
   Optionally stores `first_solve_time` (milliseconds from live_date) in the same operation.
   """
+  @spec record_first_solver(integer(), integer(), non_neg_integer() | nil) ::
+          {:ok, :recorded | :already_set}
   def record_first_solver(riddle_id, user_id, first_solve_time \\ nil) do
     updates =
       if first_solve_time,
@@ -616,13 +334,13 @@ defmodule Riddlr.Games do
     if count > 0, do: {:ok, :recorded}, else: {:ok, :already_set}
   end
 
-  defp preload_assoc(%Riddle{} = riddle) do
-    Repo.preload(riddle, @riddle_preload)
-  end
-
-  defp preload_assoc_force(%Riddle{} = riddle) do
-    Repo.preload(riddle, @riddle_preload, force: true)
-  end
+  @doc """
+  Loads what every riddle read loads, so a broadcast riddle equals a fetched
+  one. Pass `force: true` to load them again over what the riddle already holds.
+  """
+  @spec preload_riddle(Riddle.t(), keyword()) :: Riddle.t()
+  def preload_riddle(%Riddle{} = riddle, opts \\ []),
+    do: Repo.preload(riddle, @riddle_preload, opts)
 
   @doc """
   Returns the list of categories.
@@ -633,6 +351,7 @@ defmodule Riddlr.Games do
       [%Category{}, ...]
 
   """
+  @spec list_categories() :: [Category.t()]
   def list_categories do
     Repo.all(from c in Category, order_by: c.name)
   end
@@ -651,6 +370,7 @@ defmodule Riddlr.Games do
       ** (Ecto.NoResultsError)
 
   """
+  @spec get_category!(integer() | String.t()) :: Category.t()
   def get_category!(id), do: Repo.get!(Category, id)
 
   @doc """
@@ -658,17 +378,21 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> create_category(%{field: value})
+      iex> create_category(scope, %{field: value})
       {:ok, %Category{}}
 
-      iex> create_category(%{field: bad_value})
+      iex> create_category(scope, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_category(attrs \\ %{}) do
-    %Category{}
-    |> Category.changeset(attrs)
-    |> Repo.insert()
+  @spec create_category(Scope.t(), map()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def create_category(%Scope{} = scope, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      %Category{}
+      |> Category.changeset(attrs)
+      |> Repo.insert()
+    end
   end
 
   @doc """
@@ -676,17 +400,21 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> update_category(category, %{field: new_value})
+      iex> update_category(scope, category, %{field: new_value})
       {:ok, %Category{}}
 
-      iex> update_category(category, %{field: bad_value})
+      iex> update_category(scope, category, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_category(%Category{} = category, attrs) do
-    category
-    |> Category.changeset(attrs)
-    |> Repo.update()
+  @spec update_category(Scope.t(), Category.t(), map()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def update_category(%Scope{} = scope, %Category{} = category, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      category
+      |> Category.changeset(attrs)
+      |> Repo.update()
+    end
   end
 
   @doc """
@@ -694,16 +422,24 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> delete_category(category)
+      iex> delete_category(scope, category)
       {:ok, %Category{}}
 
-      iex> delete_category(category)
+      iex> delete_category(scope, category)
       {:error, %Ecto.Changeset{}}
 
   """
-  def delete_category(%Category{} = category) do
-    Repo.delete(category)
+  @spec delete_category(Scope.t(), Category.t()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def delete_category(%Scope{} = scope, %Category{} = category) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      Repo.delete(category)
+    end
   end
+
+  @doc "Returns a blank category for a new-category form."
+  @spec new_category() :: Category.t()
+  def new_category, do: %Category{}
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking category changes.
@@ -714,107 +450,52 @@ defmodule Riddlr.Games do
       %Ecto.Changeset{data: %Category{}}
 
   """
+  @spec change_category(Category.t(), map()) :: Ecto.Changeset.t()
   def change_category(%Category{} = category, attrs \\ %{}) do
     Category.changeset(category, attrs)
   end
 
   @doc """
-  Returns every practice riddle, oldest first.
+  Transitions a riddle's play status. See `Riddlr.Games.Transitions.transition/3`.
   """
+  @spec transition(integer(), Transitions.status(), map()) :: Transitions.result()
+  defdelegate transition(riddle_id, to, stats \\ %{}), to: Transitions
+
+  # Practice riddles live in Riddlr.Games.Practice.
+
   @spec list_practice_riddles() :: [PracticeRiddle.t()]
-  def list_practice_riddles do
-    Repo.all(from p in PracticeRiddle, order_by: p.id)
-  end
+  defdelegate list_practice_riddles, to: Practice, as: :list
 
-  @doc """
-  Creates a practice riddle.
-  """
-  @spec create_practice_riddle(map()) ::
-          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
-  def create_practice_riddle(attrs \\ %{}) do
-    %PracticeRiddle{}
-    |> PracticeRiddle.changeset(attrs)
-    |> Repo.insert()
-    |> tap(&refresh_home_on_ok/1)
-  end
+  @spec create_practice_riddle(Scope.t(), map()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  defdelegate create_practice_riddle(scope, attrs), to: Practice, as: :create
 
-  @doc """
-  Gets a practice riddle. Raises `Ecto.NoResultsError` if there is none.
-  """
   @spec get_practice_riddle!(integer() | String.t()) :: PracticeRiddle.t()
-  def get_practice_riddle!(id), do: Repo.get!(PracticeRiddle, id)
+  defdelegate get_practice_riddle!(id), to: Practice, as: :get!
 
-  @doc """
-  Gets a practice riddle, or nil if there is none with that id.
-  """
   @spec get_practice_riddle(integer()) :: PracticeRiddle.t() | nil
-  def get_practice_riddle(id), do: Repo.get(PracticeRiddle, id)
+  defdelegate get_practice_riddle(id), to: Practice, as: :get
 
-  @doc """
-  Updates a practice riddle.
-  """
-  @spec update_practice_riddle(PracticeRiddle.t(), map()) ::
-          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
-  def update_practice_riddle(%PracticeRiddle{} = practice_riddle, attrs) do
-    practice_riddle
-    |> PracticeRiddle.changeset(attrs)
-    |> Repo.update()
-    |> tap(&refresh_home_on_ok/1)
-  end
+  @spec update_practice_riddle(Scope.t(), PracticeRiddle.t(), map()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  defdelegate update_practice_riddle(scope, practice_riddle, attrs), to: Practice, as: :update
 
-  @doc """
-  Deletes a practice riddle.
-  """
-  @spec delete_practice_riddle(PracticeRiddle.t()) ::
-          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
-  def delete_practice_riddle(%PracticeRiddle{} = practice_riddle) do
-    practice_riddle
-    |> Repo.delete()
-    |> tap(&refresh_home_on_ok/1)
-  end
+  @spec delete_practice_riddle(Scope.t(), PracticeRiddle.t()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  defdelegate delete_practice_riddle(scope, practice_riddle), to: Practice, as: :delete
 
-  defp refresh_home_on_ok({:ok, _}), do: refresh_home()
-  defp refresh_home_on_ok(_error), do: :ok
+  @spec new_practice_riddle() :: PracticeRiddle.t()
+  defdelegate new_practice_riddle, to: Practice, as: :new
 
-  @doc """
-  Returns a changeset for a practice riddle form.
-  """
   @spec change_practice_riddle(PracticeRiddle.t(), map()) :: Ecto.Changeset.t()
-  def change_practice_riddle(%PracticeRiddle{} = practice_riddle, attrs \\ %{}) do
-    PracticeRiddle.changeset(practice_riddle, attrs)
-  end
+  defdelegate change_practice_riddle(practice_riddle, attrs \\ %{}), to: Practice, as: :change
 
-  @doc """
-  Picks a practice riddle at random, or returns nil when there are none.
-
-  Pass the id of the one on screen as `exclude_id` to get a different one
-  ("Another riddle"). With only that one left, this returns nil.
-  """
   @spec random_practice_riddle(integer() | nil) :: PracticeRiddle.t() | nil
-  def random_practice_riddle(exclude_id \\ nil) do
-    PracticeRiddle
-    |> exclude_practice_riddle(exclude_id)
-    |> order_by(fragment("RANDOM()"))
-    |> limit(1)
-    |> Repo.one()
-  end
+  defdelegate random_practice_riddle(exclude_id \\ nil), to: Practice, as: :random
 
-  @spec exclude_practice_riddle(Ecto.Queryable.t(), integer() | nil) :: Ecto.Query.t()
-  defp exclude_practice_riddle(query, nil), do: from(p in query)
-  defp exclude_practice_riddle(query, id), do: from(p in query, where: p.id != ^id)
-
-  @doc """
-  Counts the practice riddles: the M in "Practice riddle N of M".
-  """
   @spec count_practice_riddles() :: non_neg_integer()
-  def count_practice_riddles, do: Repo.aggregate(PracticeRiddle, :count)
+  defdelegate count_practice_riddles, to: Practice, as: :count
 
-  @doc """
-  The place of a practice riddle among all of them, oldest first, counting
-  from 1: the N in "Practice riddle N of M".
-  """
   @spec practice_riddle_number(PracticeRiddle.t()) :: non_neg_integer()
-  def practice_riddle_number(%PracticeRiddle{id: id}) do
-    Repo.aggregate(from(p in PracticeRiddle, where: p.id <= ^id), :count)
-  end
+  defdelegate practice_riddle_number(practice_riddle), to: Practice, as: :number
 end

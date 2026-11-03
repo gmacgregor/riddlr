@@ -242,7 +242,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       assert has_element?(live, "#answer-input[aria-invalid='true']")
       assert has_element?(live, "#guess-msg.is-wrong[role='status']")
-      assert Enum.any?(GameCopy.quips(), &has_element?(live, "#guess-msg", &1))
+      assert Enum.any?(GameCopy.Play.quips(), &has_element?(live, "#guess-msg", &1))
     end
 
     test "a second wrong guess never repeats the same line", %{
@@ -340,12 +340,17 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       refute has_element?(live, "#answer-form")
       assert has_element?(live, "#solved-panel #solved-stamp:not(.is-none)", stamp(1))
-      assert has_element?(live, "#solved-panel .rg-solved__title", GameCopy.solved_title(1, 10))
+
+      assert has_element?(
+               live,
+               "#solved-panel .rg-solved__title",
+               GameCopy.Play.solved_title(1, 10)
+             )
 
       assert has_element?(
                live,
                "#solved-panel .rg-solved__sub",
-               GameCopy.solved_sub(10, riddle.solve_time)
+               GameCopy.Play.solved_sub(10, riddle.solve_time)
              )
     end
 
@@ -361,7 +366,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
         {:countdown_tick, :play, 75}
       )
 
-      assert has_element?(live, "#solved-panel .rg-solved__sub", GameCopy.solved_sub(10, 75))
+      assert has_element?(live, "#solved-panel .rg-solved__sub", GameCopy.Play.solved_sub(10, 75))
     end
 
     test "a player who solved and reloads sees their result again", %{
@@ -380,8 +385,8 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       refute has_element?(live, "#answer-form")
       assert has_element?(live, "#solved-stamp", stamp(2))
-      assert has_element?(live, ".rg-solved__title", GameCopy.solved_title(2, 9))
-      assert has_element?(live, ".rg-solved__sub", GameCopy.solved_sub(9, riddle.solve_time))
+      assert has_element?(live, ".rg-solved__title", GameCopy.Play.solved_title(2, 9))
+      assert has_element?(live, ".rg-solved__sub", GameCopy.Play.solved_sub(9, riddle.solve_time))
     end
 
     test "a solve outside the top 10 gets a grey stamp", %{conn: conn, riddle: riddle, user: user} do
@@ -399,8 +404,8 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       live |> form("#answer-form", %{answer: "keyboard"}) |> render_submit()
 
       assert has_element?(live, "#solved-stamp.is-none", stamp(11))
-      assert has_element?(live, ".rg-solved__title", GameCopy.solved_title(11, 0))
-      assert has_element?(live, ".rg-solved__sub", GameCopy.solved_sub(0, riddle.solve_time))
+      assert has_element?(live, ".rg-solved__title", GameCopy.Play.solved_title(11, 0))
+      assert has_element?(live, ".rg-solved__sub", GameCopy.Play.solved_sub(0, riddle.solve_time))
     end
 
     test "shows placement and points for correct answer", %{
@@ -417,7 +422,12 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       # 1st place = 10 points
       assert has_element?(live, "#solved-stamp", stamp(1))
-      assert has_element?(live, ".rg-solved__sub", GameCopy.solved_sub(10, riddle.solve_time))
+
+      assert has_element?(
+               live,
+               ".rg-solved__sub",
+               GameCopy.Play.solved_sub(10, riddle.solve_time)
+             )
     end
 
     test "empty answer shows error feedback", %{conn: conn, riddle: riddle, user: user} do
@@ -428,7 +438,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       |> form("#answer-form", %{answer: "   "})
       |> render_submit()
 
-      assert has_element?(live, "#guess-msg.is-wrong", GameCopy.guess_empty())
+      assert has_element?(live, "#guess-msg.is-wrong", GameCopy.Play.guess_empty())
       assert has_element?(live, "#guess-btn:not([disabled])")
     end
 
@@ -442,7 +452,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       assert has_element?(live, "#guess-msg", "#{@answer_max_length}")
       assert has_element?(live, "#answer-form")
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(0))
+      assert has_element?(live, "#feed-count", GameCopy.Play.guess_count(0))
     end
 
     test "cooldown blocks rapid submissions", %{conn: conn, riddle: riddle, user: user} do
@@ -461,7 +471,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       # by then, so this stands in for a guess that slips through.
       render_submit(live, "submit_answer", %{answer: "keyboard"})
 
-      assert has_element?(live, "#guess-msg", GameCopy.guess_cooldown())
+      assert has_element?(live, "#guess-msg", GameCopy.Play.guess_cooldown())
     end
 
     test "turns away a guess once the solve time is up", %{conn: conn, user: user} do
@@ -479,7 +489,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       Frozen.advance(60, :second)
       render_submit(live, "submit_answer", %{answer: "keyboard"})
 
-      assert has_element?(live, "#guess-msg", GameCopy.guess_time_up())
+      assert has_element?(live, "#guess-msg", GameCopy.Play.guess_time_up())
       refute has_element?(live, "#solved-panel")
       refute Gameplay.guessed?(riddle.id, user.id)
     end
@@ -522,7 +532,12 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       |> render_submit()
 
       assert has_element?(live2, "#solved-stamp", stamp(2))
-      assert has_element?(live2, ".rg-solved__sub", GameCopy.solved_sub(9, riddle.solve_time))
+
+      assert has_element?(
+               live2,
+               ".rg-solved__sub",
+               GameCopy.Play.solved_sub(9, riddle.solve_time)
+             )
     end
 
     test "3rd solver gets 8 points", %{user: user} do
@@ -544,7 +559,12 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       |> render_submit()
 
       assert has_element?(live3, "#solved-stamp", stamp(3))
-      assert has_element?(live3, ".rg-solved__sub", GameCopy.solved_sub(8, riddle.solve_time))
+
+      assert has_element?(
+               live3,
+               ".rg-solved__sub",
+               GameCopy.Play.solved_sub(8, riddle.solve_time)
+             )
     end
   end
 
@@ -732,7 +752,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       :incorrect = Gameplay.submit_answer(riddle, other, "nope")
       Gameplay.broadcast_answer(Answer.new(riddle.id, other, "gg", chat: true))
 
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(1))
+      assert has_element?(live, "#feed-count", GameCopy.Play.guess_count(1))
       assert has_element?(live, "#play-solved", GameCopy.solved_count(0))
     end
   end
@@ -847,14 +867,14 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
       assert has_element?(live, "#feed-h")
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(0))
+      assert has_element?(live, "#feed-count", GameCopy.Play.guess_count(0))
 
-      assert has_element?(live, "#answer-feed .rg-feed__empty", GameCopy.feed_empty())
+      assert has_element?(live, "#answer-feed .rg-feed__empty", GameCopy.Play.feed_empty())
 
       assert has_element?(live, "ol#answer-feed[aria-live='polite'][aria-relevant='additions']")
 
       send(live.pid, batch([Answer.new(riddle.id, user, "piano", offset_ms: 900)]))
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(1))
+      assert has_element?(live, "#feed-count", GameCopy.Play.guess_count(1))
     end
 
     test "counts guesses already made before the player arrived", %{conn: conn, riddle: riddle} do
@@ -867,7 +887,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       conn = log_in_user(conn, AccountsFixtures.user_fixture())
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/play")
 
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(2))
+      assert has_element?(live, "#feed-count", GameCopy.Play.guess_count(2))
     end
 
     test "a wrong guess shows struck through, and the viewer reads as you", %{
@@ -888,7 +908,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert has_element?(
                live,
                "#answer-feed .rg-msg.is-me.is-wrong .rg-msg__name",
-               GameCopy.room_you()
+               GameCopy.Lobby.room_you()
              )
 
       assert has_element?(live, "#answer-feed .rg-msg.is-me .rg-msg__text", "piano")
@@ -923,7 +943,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert has_element?(
                live,
                "#answer-feed .rg-msg.is-me.is-solve .rg-msg__stamp",
-               GameCopy.feed_solved(1)
+               GameCopy.Play.feed_solved(1)
              )
 
       refute render(live) =~ "keyboard"
@@ -961,7 +981,7 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       html = render(live)
       assert has_element?(live, "#answer-feed .rg-msg.is-solve", solver.username)
-      assert has_element?(live, "#answer-feed .rg-msg__stamp", GameCopy.feed_solved(2))
+      assert has_element?(live, "#answer-feed .rg-msg__stamp", GameCopy.Play.feed_solved(2))
       refute html =~ "keyboard"
     end
 
@@ -995,13 +1015,13 @@ defmodule RiddlrWeb.GameLive.PlayTest do
       assert has_element?(
                live,
                "#answer-feed .rg-msg:nth-last-child(2) .rg-msg__stamp",
-               GameCopy.feed_solved(1)
+               GameCopy.Play.feed_solved(1)
              )
 
       assert has_element?(
                live,
                "#answer-feed .rg-msg:last-child .rg-msg__stamp",
-               GameCopy.feed_solved(2)
+               GameCopy.Play.feed_solved(2)
              )
 
       refute html =~ "keyboard"
@@ -1013,10 +1033,10 @@ defmodule RiddlrWeb.GameLive.PlayTest do
 
       answer = Answer.new(riddle.id, user, "piano", offset_ms: 500)
       send(live.pid, batch([answer]))
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(1))
+      assert has_element?(live, "#feed-count", GameCopy.Play.guess_count(1))
 
       send(live.pid, {:answer_flagged, answer.id})
-      assert has_element?(live, "#feed-count", GameCopy.guess_count(0))
+      assert has_element?(live, "#feed-count", GameCopy.Play.guess_count(0))
     end
 
     test "guesses made before the player arrived keep their time", %{

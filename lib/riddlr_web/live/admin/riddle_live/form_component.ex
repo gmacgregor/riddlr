@@ -1,16 +1,15 @@
 defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   use RiddlrWeb, :admin_live_component
   alias Riddlr.Games
-  alias Riddlr.Games.RiddleName
   alias RiddlrWeb.AdminAuth
-  import Riddlr.Utils.Datetime
+  import RiddlrWeb.AdminTime
 
   defp hint_delay() do
-    Riddlr.Games.Riddle.default_hint_delay()
+    Games.default_hint_delay()
   end
 
   defp solve_time() do
-    Riddlr.Games.Riddle.default_solve_time()
+    Games.default_solve_time()
   end
 
   @impl true
@@ -68,7 +67,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
               type="select"
               label="Difficulty"
               prompt="Choose"
-              options={Riddlr.Games.Riddle.difficulties()}
+              options={Games.riddle_difficulties()}
             />
           </div>
           <div>
@@ -130,7 +129,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
               field={f[:publish_status]}
               type="select"
               label="Publish status"
-              options={Riddlr.Games.Riddle.publish_statuses()}
+              options={Games.riddle_publish_statuses()}
             />
           </div>
           <div>
@@ -166,7 +165,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
     riddle =
       if assigns.action == :new && is_nil(riddle.name) do
-        %{riddle | name: RiddleName.generate()}
+        %{riddle | name: Games.generate_riddle_name()}
       else
         riddle
       end
@@ -196,7 +195,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     # Start from the form's current params so a new name does not wipe what
     # the editor has typed in the other fields.
     %{params: params, source: source} = socket.assigns.form
-    params = Map.put(params, "name", RiddleName.generate())
+    params = Map.put(params, "name", Games.generate_riddle_name())
 
     changeset =
       socket.assigns.riddle
@@ -207,29 +206,28 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   end
 
   def handle_event("save", %{"riddle" => params}, socket) do
-    if AdminAuth.authorized?(socket, :manage_riddles) do
-      params = prepare_params_for_changeset(params)
-      params = convert_live_date_param(params)
-      save(socket, socket.assigns.action, params)
-    else
-      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
-    end
+    params = prepare_params_for_changeset(params)
+    params = convert_live_date_param(params)
+    save(socket, socket.assigns.action, params)
   end
 
   defp save(socket, action, params) do
-    case Games.save_riddle(socket.assigns.riddle, params) do
+    case Games.save_riddle(socket.assigns.current_scope, socket.assigns.riddle, params) do
       {:ok, riddle} ->
         {:noreply,
          socket
          |> put_flash(:info, saved_message(riddle, action))
          |> push_patch(to: socket.assigns.patch)}
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
+
+      {:error, :unauthorized} ->
+        {:noreply, AdminAuth.unauthorized(socket)}
     end
   end
 
-  # `save_riddle/2` decides whether a save is also a schedule; the flash just
+  # `save_riddle/3` decides whether a save is also a schedule; the flash just
   # reports what came back.
   defp saved_message(%{play_status: "scheduled"} = riddle, _action) do
     ready_at = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)

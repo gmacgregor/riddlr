@@ -27,11 +27,11 @@ defmodule RiddlrWeb.ErrorHTML do
   """
   @spec render(String.t(), map()) :: Phoenix.HTML.safe() | String.t()
   def render("404.html", assigns) do
-    page(assigns, GameCopy.not_found_title(), &not_found/1, "404.html")
+    page(assigns, GameCopy.Errors.not_found_title(), &not_found/1, "404.html")
   end
 
   def render(template, assigns) do
-    page(assigns, GameCopy.crisis_title(), &crisis/1, template)
+    page(assigns, GameCopy.Errors.crisis_title(), &crisis/1, template)
   end
 
   # Renders to iodata right here rather than handing back a lazy template, so
@@ -86,7 +86,7 @@ defmodule RiddlrWeb.ErrorHTML do
         {render_slot(@doodle)}
         <h1 id={"#{@id}-h"} class="rg-lost__riddle" tabindex="-1">{@riddle}</h1>
         <p :if={@tail} class="rg-lost__tail">{@tail}</p>
-        <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.not_found_home()}</.link>
+        <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.Errors.not_found_home()}</.link>
       </section>
     </Layouts.game>
     """

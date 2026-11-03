@@ -39,6 +39,8 @@ defmodule Riddlr.Gameplay.Store do
   @typedoc "A solver: user id, placement, and milliseconds from the live date."
   @type solve :: {integer(), pos_integer(), non_neg_integer() | nil}
 
+  @typep counter :: :answers | :players | :solved
+
   @doc """
   Creates the tables. Only `Riddlr.Gameplay.EtsOwner` calls this, from its
   `init/1`, so the tables live as long as that process.
@@ -83,6 +85,8 @@ defmodule Riddlr.Gameplay.Store do
   end
 
   # update_counter is atomic, so only the first claim sees 1.
+  @spec claim({integer(), integer()}, Answer.t()) ::
+          {:ok, pos_integer() | nil} | {:error, :already_solved}
   defp claim(_key, %Answer{correct: false}), do: {:ok, nil}
 
   defp claim({rid, _uid} = key, %Answer{offset_ms: offset_ms}) do
@@ -97,6 +101,7 @@ defmodule Riddlr.Gameplay.Store do
     end
   end
 
+  @spec bump(integer(), counter()) :: pos_integer()
   defp bump(rid, counter) do
     key = {rid, counter}
     :ets.update_counter(@counters, key, 1, {key, 0})
@@ -114,6 +119,7 @@ defmodule Riddlr.Gameplay.Store do
   @spec solved_count(integer()) :: non_neg_integer()
   def solved_count(riddle_id), do: count(riddle_id, :solved)
 
+  @spec count(integer(), counter()) :: non_neg_integer()
   defp count(rid, counter), do: :ets.lookup_element(@counters, {rid, counter}, 2, 0)
 
   @doc "Whether a player has guessed a riddle."
@@ -160,8 +166,10 @@ defmodule Riddlr.Gameplay.Store do
     end
   end
 
+  @spec answers_spec(integer()) :: :ets.match_spec()
   defp answers_spec(rid), do: [{{{rid, :_, :_}, :_, :_, :_, :_, :_}, [], [:"$_"]}]
 
+  @spec to_answer(tuple()) :: Answer.t()
   defp to_answer({{rid, ts, uid}, username, text, correct?, offset_ms, placement}) do
     %Answer{
       id: Answer.id(rid, uid, ts),

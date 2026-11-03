@@ -2,14 +2,14 @@ defmodule Riddlr.GamesTest do
   use Riddlr.DataCase, async: true
   use Oban.Testing, repo: Riddlr.Repo
 
+  import Riddlr.GamesFixtures
+
   alias Riddlr.Games
   alias Riddlr.Gameplay.Answer
   alias Riddlr.Gameplay.Store
 
   describe "riddles" do
     alias Riddlr.Games.Riddle
-
-    import Riddlr.GamesFixtures
 
     @invalid_attrs %{name: nil, description: nil, answers: [], solve_time: nil, category_id: nil}
 
@@ -31,6 +31,12 @@ defmodule Riddlr.GamesTest do
       assert Games.get_riddle!(riddle.id) == riddle
     end
 
+    test "get_riddle/2 returns the riddle, or nil if it does not exist" do
+      riddle = riddle_fixture()
+      assert Games.get_riddle(riddle.id) == riddle
+      refute Games.get_riddle(-1)
+    end
+
     test "create_riddle/1 with valid data creates a riddle" do
       # Get or create logic category for test
       category =
@@ -46,7 +52,7 @@ defmodule Riddlr.GamesTest do
         difficulty: "medium"
       }
 
-      assert {:ok, %Riddle{} = riddle} = Games.create_riddle(valid_attrs)
+      assert {:ok, %Riddle{} = riddle} = Games.create_riddle(system_scope(), valid_attrs)
       assert riddle.name == "Test Riddle"
       assert riddle.description == "A test riddle description"
       assert riddle.answers == ["answer1", "answer2"]
@@ -56,7 +62,7 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_riddle/1 with invalid data returns error changeset" do
-      assert {:error, %Ecto.Changeset{}} = Games.create_riddle(@invalid_attrs)
+      assert {:error, %Ecto.Changeset{}} = Games.create_riddle(system_scope(), @invalid_attrs)
     end
 
     test "create_riddle/1 requires at least one answer" do
@@ -70,7 +76,7 @@ defmodule Riddlr.GamesTest do
         category_id: category.id
       }
 
-      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
       assert %{answers: ["must have at least one answer"]} = errors_on(changeset)
     end
 
@@ -86,7 +92,7 @@ defmodule Riddlr.GamesTest do
         play_status: "invalid_status"
       }
 
-      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
       assert %{play_status: ["is invalid"]} = errors_on(changeset)
     end
 
@@ -102,7 +108,7 @@ defmodule Riddlr.GamesTest do
         difficulty: "impossible"
       }
 
-      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
       assert %{difficulty: ["is invalid"]} = errors_on(changeset)
     end
 
@@ -118,7 +124,7 @@ defmodule Riddlr.GamesTest do
         publish_status: "invalid_status"
       }
 
-      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
       assert %{publish_status: ["is invalid"]} = errors_on(changeset)
     end
 
@@ -133,7 +139,7 @@ defmodule Riddlr.GamesTest do
         category_id: category.id
       }
 
-      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
       assert %{answers: ["all answers must be non-empty strings"]} = errors_on(changeset)
     end
 
@@ -156,7 +162,7 @@ defmodule Riddlr.GamesTest do
 
     test "delete_riddle/1 deletes the riddle" do
       riddle = riddle_fixture()
-      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+      assert {:ok, %Riddle{}} = Games.delete_riddle(system_scope(), riddle)
       assert_raise Ecto.NoResultsError, fn -> Games.get_riddle!(riddle.id) end
     end
 
@@ -168,7 +174,7 @@ defmodule Riddlr.GamesTest do
       {:ok, 1} = Store.record(Answer.new(riddle.id, user, "answer", correct: true))
       :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
 
-      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+      assert {:ok, %Riddle{}} = Games.delete_riddle(system_scope(), riddle)
 
       refute Store.guessed?(riddle.id, user_id)
       assert Store.recent_answers(riddle.id) == []
@@ -179,7 +185,7 @@ defmodule Riddlr.GamesTest do
       riddle = scheduled_riddle_fixture()
       {:ok, _} = Games.transition(riddle.id, :ready)
 
-      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+      assert {:ok, %Riddle{}} = Games.delete_riddle(system_scope(), riddle)
 
       pending =
         Oban.Job
@@ -194,7 +200,7 @@ defmodule Riddlr.GamesTest do
       riddle = scheduled_riddle_fixture()
       other = scheduled_riddle_fixture()
 
-      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+      assert {:ok, %Riddle{}} = Games.delete_riddle(system_scope(), riddle)
 
       assert [_ | _] = Riddlr.ObanMonitor.riddle_jobs(other.id)
 
@@ -211,7 +217,7 @@ defmodule Riddlr.GamesTest do
       riddle_id = riddle.id
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:changed")
 
-      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+      assert {:ok, %Riddle{}} = Games.delete_riddle(system_scope(), riddle)
 
       assert_receive {:riddle_deleted, %{id: ^riddle_id}}
     end
@@ -221,7 +227,7 @@ defmodule Riddlr.GamesTest do
       riddle_id = riddle.id
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
 
-      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+      assert {:ok, %Riddle{}} = Games.delete_riddle(system_scope(), riddle)
 
       assert_receive {:riddle_unscheduled, %{id: ^riddle_id}}
     end
@@ -233,8 +239,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "riddle state machine" do
-    import Riddlr.GamesFixtures
-
     test "full riddle lifecycle from closed to archived" do
       live_date = DateTime.add(DateTime.utc_now(), 600, :second) |> DateTime.truncate(:second)
 
@@ -381,8 +385,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "transition/3 complete job scheduling" do
-    import Riddlr.GamesFixtures
-
     test "CompleteRiddleWorker scheduled after solve_time seconds" do
       riddle =
         riddle_fixture(%{play_status: "ready", publish_status: "published", solve_time: 120})
@@ -396,8 +398,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "transition/3 to ready" do
-    import Riddlr.GamesFixtures
-
     test "queues the Lobby-open notification fan-out" do
       riddle = riddle_fixture(%{play_status: "scheduled", publish_status: "published"})
 
@@ -412,8 +412,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "next_riddle/0" do
-    import Riddlr.GamesFixtures
-
     test "returns nil when no riddle is upcoming or live" do
       assert Games.next_riddle() == nil
     end
@@ -447,8 +445,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "list_upcoming_riddles/1" do
-    import Riddlr.GamesFixtures
-
     test "returns upcoming published riddles, the next one included, soonest first" do
       first = put_state(riddle_fixture(), "ready", "published", 60)
       third = put_state(riddle_fixture(), "scheduled", "published", 7200)
@@ -478,8 +474,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "last_finished_riddle/0" do
-    import Riddlr.GamesFixtures
-
     test "returns nil when no riddle has finished" do
       put_state(riddle_fixture(), "live", "published", -30)
 
@@ -520,7 +514,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "record_first_solver/3" do
-    import Riddlr.GamesFixtures
     import Riddlr.AccountsFixtures
 
     test "records first solver when field is nil" do
@@ -552,8 +545,6 @@ defmodule Riddlr.GamesTest do
   end
 
   describe "archive_after_seconds" do
-    import Riddlr.GamesFixtures
-
     test "defaults to 180 seconds" do
       riddle = riddle_fixture()
       assert riddle.archive_after_seconds == 180
@@ -571,7 +562,7 @@ defmodule Riddlr.GamesTest do
         archive_after_seconds: 300
       }
 
-      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert {:ok, riddle} = Games.create_riddle(system_scope(), attrs)
       assert riddle.archive_after_seconds == 300
     end
 
@@ -587,7 +578,7 @@ defmodule Riddlr.GamesTest do
         archive_after_seconds: -1
       }
 
-      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
 
       assert %{archive_after_seconds: ["must be greater than or equal to 0"]} =
                errors_on(changeset)
@@ -605,14 +596,12 @@ defmodule Riddlr.GamesTest do
         archive_after_seconds: 0
       }
 
-      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert {:ok, riddle} = Games.create_riddle(system_scope(), attrs)
       assert riddle.archive_after_seconds == 0
     end
   end
 
   describe "ready_before_seconds" do
-    import Riddlr.GamesFixtures
-
     test "defaults to 600 seconds" do
       riddle = riddle_fixture()
       assert riddle.ready_before_seconds == 600
@@ -630,7 +619,7 @@ defmodule Riddlr.GamesTest do
         ready_before_seconds: 15
       }
 
-      assert {:ok, riddle} = Games.create_riddle(attrs)
+      assert {:ok, riddle} = Games.create_riddle(system_scope(), attrs)
       assert riddle.ready_before_seconds == 15
     end
 
@@ -646,7 +635,7 @@ defmodule Riddlr.GamesTest do
         ready_before_seconds: 0
       }
 
-      assert {:error, changeset} = Games.create_riddle(attrs)
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
       assert %{ready_before_seconds: ["must be greater than 0"]} = errors_on(changeset)
     end
   end
@@ -654,7 +643,7 @@ defmodule Riddlr.GamesTest do
   describe "practice riddles" do
     test "create_practice_riddle/1 saves a description and an answer" do
       assert {:ok, practice} =
-               Games.create_practice_riddle(%{
+               Games.create_practice_riddle(system_scope(), %{
                  description: "What gets wetter the more it dries?",
                  answer: "towel"
                })
@@ -664,7 +653,8 @@ defmodule Riddlr.GamesTest do
     end
 
     test "create_practice_riddle/1 refuses a blank description or answer" do
-      assert {:error, changeset} = Games.create_practice_riddle(%{description: " ", answer: ""})
+      assert {:error, changeset} =
+               Games.create_practice_riddle(system_scope(), %{description: " ", answer: ""})
 
       assert %{description: ["can't be blank"], answer: ["can't be blank"]} =
                errors_on(changeset)
@@ -672,7 +662,7 @@ defmodule Riddlr.GamesTest do
 
     test "create_practice_riddle/1 refuses an answer too long for the tiles" do
       assert {:error, changeset} =
-               Games.create_practice_riddle(%{
+               Games.create_practice_riddle(system_scope(), %{
                  description: "Too long?",
                  answer: String.duplicate("a", 21)
                })
@@ -682,7 +672,7 @@ defmodule Riddlr.GamesTest do
 
     test "create_practice_riddle/1 refuses a description over 500 characters" do
       assert {:error, changeset} =
-               Games.create_practice_riddle(%{
+               Games.create_practice_riddle(system_scope(), %{
                  description: String.duplicate("a", 501),
                  answer: "echo"
                })
@@ -692,7 +682,7 @@ defmodule Riddlr.GamesTest do
 
     test "create_practice_riddle/1 trims the outer spaces of both fields" do
       assert {:ok, practice} =
-               Games.create_practice_riddle(%{
+               Games.create_practice_riddle(system_scope(), %{
                  description: "  What has hands?\n",
                  answer: " a clock "
                })
@@ -711,14 +701,16 @@ defmodule Riddlr.GamesTest do
     test "update_practice_riddle/2 changes the answer, which get_practice_riddle!/1 then returns" do
       practice = practice_fixture("ecko")
 
-      assert {:ok, _practice} = Games.update_practice_riddle(practice, %{answer: "echo"})
+      assert {:ok, _practice} =
+               Games.update_practice_riddle(system_scope(), practice, %{answer: "echo"})
+
       assert Games.get_practice_riddle!(practice.id).answer == "echo"
     end
 
     test "delete_practice_riddle/1 removes it" do
       practice = practice_fixture("poof")
 
-      assert {:ok, _practice} = Games.delete_practice_riddle(practice)
+      assert {:ok, _practice} = Games.delete_practice_riddle(system_scope(), practice)
       assert Games.list_practice_riddles() == []
     end
 
@@ -759,7 +751,7 @@ defmodule Riddlr.GamesTest do
       echo = practice_fixture("echo")
       towel = practice_fixture("towel")
       clock = practice_fixture("clock")
-      {:ok, _} = Games.delete_practice_riddle(towel)
+      {:ok, _} = Games.delete_practice_riddle(system_scope(), towel)
 
       assert Games.practice_riddle_number(echo) == 1
       assert Games.practice_riddle_number(clock) == 2
@@ -767,7 +759,10 @@ defmodule Riddlr.GamesTest do
 
     defp practice_fixture(answer) do
       {:ok, practice} =
-        Games.create_practice_riddle(%{description: "What am I? (#{answer})", answer: answer})
+        Games.create_practice_riddle(system_scope(), %{
+          description: "What am I? (#{answer})",
+          answer: answer
+        })
 
       practice
     end

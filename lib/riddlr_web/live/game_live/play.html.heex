@@ -46,7 +46,9 @@
       <section class="rg-play__feed" aria-labelledby="feed-h">
         <div class="rg-feed__head">
           <h2 id="feed-h" class="rg-panel__h">Guesses</h2>
-          <span id="feed-count" class="rg-count rg-nowrap">{GameCopy.guess_count(@guess_count)}</span>
+          <span id="feed-count" class="rg-count rg-nowrap">{GameCopy.Play.guess_count(
+            @guess_count
+          )}</span>
         </div>
         <ol
           id="answer-feed"
@@ -56,29 +58,34 @@
           aria-live="polite"
           aria-relevant="additions"
         >
-          <li id="feed-empty" class="rg-feed__empty">{GameCopy.feed_empty()}</li>
+          <li id="feed-empty" class="rg-feed__empty">{GameCopy.Play.feed_empty()}</li>
           <li
             :for={{dom_id, answer} <- @streams.answers}
             id={dom_id}
             class={[
               "rg-msg",
-              @current_user && answer.user_id == @current_user.id && "is-me",
+              @current_scope && answer.user_id == @current_scope.user.id && "is-me",
               if(answer.correct, do: "is-solve", else: "is-wrong")
             ]}
           >
             <GameComponents.tile
               initial={GameComponents.initial(answer.username)}
-              tone={GameComponents.tone(answer.username, @current_user && @current_user.username)}
+              tone={
+                GameComponents.tone(
+                  answer.username,
+                  @current_scope && @current_scope.user.username
+                )
+              }
               size="sm"
             />
             <span class="rg-msg__body">
               <span class="rg-msg__name">
-                {if @current_user && answer.user_id == @current_user.id,
-                  do: GameCopy.room_you(),
+                {if @current_scope && answer.user_id == @current_scope.user.id,
+                  do: GameCopy.Lobby.room_you(),
                   else: answer.username}
               </span>
               <span :if={answer.correct} class="rg-msg__stamp">
-                <GameComponents.icon name="check" /> {GameCopy.feed_solved(answer.placement)}
+                <GameComponents.icon name="check" /> {GameCopy.Play.feed_solved(answer.placement)}
               </span>
               <span :if={not answer.correct} class="rg-msg__text">{answer.text}</span>
             </span>
@@ -92,7 +99,7 @@
       <div class="rg-play__input">
         <GameComponents.join_note current_scope={@current_scope} />
         <form
-          :if={@current_user && !@solve}
+          :if={@current_scope && !@solve}
           id="answer-form"
           class="rg-guess"
           phx-submit="submit_answer"
@@ -130,9 +137,11 @@
           </span>
           <div class="rg-solved__text">
             <p class="rg-solved__title" role="status">
-              {GameCopy.solved_title(@solve.placement, @solve.points)}
+              {GameCopy.Play.solved_title(@solve.placement, @solve.points)}
             </p>
-            <p class="rg-solved__sub">{GameCopy.solved_sub(@solve.points, @time_remaining)}</p>
+            <p class="rg-solved__sub">
+              {GameCopy.Play.solved_sub(@solve.points, @time_remaining)}
+            </p>
           </div>
         </div>
       </div>

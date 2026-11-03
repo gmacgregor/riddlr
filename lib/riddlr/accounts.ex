@@ -6,11 +6,16 @@ defmodule Riddlr.Accounts do
   import Ecto.Query, warn: false
   alias Riddlr.Repo
 
-  alias Riddlr.Accounts.{NotificationConsent, PhoneCode, User, UserToken, UserNotifier}
-  alias Riddlr.Workers.SendSmsConfirmationWorker
+  alias Riddlr.Accounts.{NotificationPreferences, Phone, PhoneCode, User, UserToken, UserNotifier}
 
   @typedoc "What to tell a player about texts at their first log-in."
   @type text_prompt :: {:code_sent, PhoneCode.t()} | :add_number | nil
+
+  @typedoc "A saved user and the tokens deleted with the change."
+  @type user_and_expired_tokens :: {User.t(), [UserToken.t()]}
+
+  @typedoc "Builds the link sent in an email from an encoded token."
+  @type url_fun :: (String.t() -> String.t())
 
   ## Database getters
 
@@ -26,6 +31,7 @@ defmodule Riddlr.Accounts do
       nil
 
   """
+  @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email) when is_binary(email) do
     Repo.get_by(User, email: email)
   end
@@ -42,6 +48,7 @@ defmodule Riddlr.Accounts do
       nil
 
   """
+  @spec get_user_by_email_and_password(String.t(), String.t()) :: User.t() | nil
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: email)
@@ -63,7 +70,18 @@ defmodule Riddlr.Accounts do
       ** (Ecto.NoResultsError)
 
   """
+  @spec get_user!(term()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id)
+
+  @doc """
+  Gets a single user, or `nil` if the User does not exist.
+  """
+  @spec get_user(term()) :: User.t() | nil
+  def get_user(id), do: Repo.get(User, id)
+
+  @doc "Returns true if the user is banned. A guest (`nil`) is not."
+  @spec banned?(User.t() | nil) :: boolean()
+  defdelegate banned?(user), to: User
 
   ## User registration
 
@@ -82,50 +100,18 @@ defmodule Riddlr.Accounts do
   """
   @spec register_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
   def register_user(attrs) do
-    save_with_consent(
+    NotificationPreferences.save_with_consent(
       fn -> User.registration_changeset(%User{}, attrs, text: Riddlr.SMS.enabled?()) end,
       &Repo.insert/1
     )
   end
 
-  # Builds the changeset and saves the user inside one transaction, and logs
-  # each channel turned on or off. Building inside the transaction lets
-  # callers lock and read the stored row first, so two saves at once cannot
-  # both log the same change.
-  @typep save_result :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
-  @spec save_with_consent((-> Ecto.Changeset.t()), (Ecto.Changeset.t() -> save_result())) ::
-          save_result()
-  defp save_with_consent(build_changeset, save) do
-    Repo.transaction(fn ->
-      changeset = build_changeset.()
-
-      with {:ok, user} <- save.(changeset) do
-        log_channel_changes(user, changeset)
-        user
-      else
-        {:error, changeset} -> Repo.rollback(changeset)
-      end
-    end)
-  end
-
-  # Inside the caller's transaction: one consent row per channel turned on or
-  # off, and the confirmation text when Text turns on.
-  @spec log_channel_changes(User.t(), Ecto.Changeset.t()) :: :ok
-  defp log_channel_changes(user, changeset) do
-    user
-    |> NotificationConsent.for_changes(changeset)
-    |> Enum.each(&Repo.insert!/1)
-
-    if Ecto.Changeset.get_change(changeset, :notify_sms) == true,
-      do: Oban.insert!(SendSmsConfirmationWorker.new(%{"user_id" => user.id}))
-
-    :ok
-  end
-
-  # Reads the stored user row and locks it until the transaction ends, so
-  # two saves at once see each other's changes.
+  @doc """
+  Inside a transaction: reads the stored user row and locks it until the
+  transaction ends, so two saves at once see each other's changes.
+  """
   @spec lock_user!(integer()) :: User.t()
-  defp lock_user!(id) do
+  def lock_user!(id) do
     User
     |> where(id: ^id)
     |> lock("FOR UPDATE")
@@ -140,6 +126,7 @@ defmodule Riddlr.Accounts do
   The user is in sudo mode when the last authentication was done no further
   than 20 minutes ago. The limit can be given as second argument in minutes.
   """
+  @spec sudo_mode?(User.t() | nil, integer()) :: boolean()
   def sudo_mode?(user, minutes \\ -20)
 
   def sudo_mode?(%User{authenticated_at: ts}, minutes) when is_struct(ts, DateTime) do
@@ -159,13 +146,19 @@ defmodule Riddlr.Accounts do
       %Ecto.Changeset{data: %User{}}
 
   """
+  @spec change_user_email(User.t(), map(), keyword()) :: Ecto.Changeset.t()
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     User.email_changeset(user, attrs, opts)
   end
 
+  @doc "Returns a blank user for a registration form."
+  @spec new_user() :: User.t()
+  def new_user, do: %User{}
+
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking user registration changes.
   """
+  @spec change_user_registration(User.t(), map(), keyword()) :: Ecto.Changeset.t()
   def change_user_registration(user, attrs \\ %{}, opts \\ []) do
     User.registration_changeset(user, attrs, opts)
   end
@@ -175,6 +168,8 @@ defmodule Riddlr.Accounts do
 
   If the token matches, the user email is updated and the token is deleted.
   """
+  @spec update_user_email(User.t(), String.t()) ::
+          {:ok, User.t()} | {:error, :transaction_aborted}
   def update_user_email(user, token) do
     context = "change:#{user.email}"
 
@@ -202,6 +197,7 @@ defmodule Riddlr.Accounts do
       %Ecto.Changeset{data: %User{}}
 
   """
+  @spec change_user_password(User.t(), map(), keyword()) :: Ecto.Changeset.t()
   def change_user_password(user, attrs \\ %{}, opts \\ []) do
     User.password_changeset(user, attrs, opts)
   end
@@ -220,355 +216,73 @@ defmodule Riddlr.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
+  @spec update_user_password(User.t(), map()) ::
+          {:ok, user_and_expired_tokens()} | {:error, Ecto.Changeset.t()}
   def update_user_password(user, attrs) do
     user
     |> User.password_changeset(attrs)
     |> update_user_and_delete_all_tokens()
   end
 
-  @doc """
-  Returns a changeset for the user's notification choices.
-  """
-  @spec change_user_notifications(User.t(), map()) :: Ecto.Changeset.t()
-  def change_user_notifications(%User{} = user, attrs \\ %{}) do
-    User.notification_changeset(user, attrs)
-  end
+  ## Notification preferences (Riddlr.Accounts.NotificationPreferences)
 
-  @doc """
-  Saves the user's notification choices. An email on/off change also logs a
-  consent row in the same transaction.
-  """
+  @typedoc "A way to reach a player with a Notification."
+  @type notification_channel :: NotificationPreferences.notification_channel()
+
+  @spec change_user_notifications(User.t(), map()) :: Ecto.Changeset.t()
+  defdelegate change_user_notifications(user, attrs \\ %{}), to: NotificationPreferences
+
   @spec update_user_notifications(User.t(), map()) ::
           {:ok, User.t()} | {:error, Ecto.Changeset.t()}
-  def update_user_notifications(%User{id: id}, attrs) do
-    save_with_consent(
-      fn ->
-        id
-        |> lock_user!()
-        |> User.notification_changeset(attrs)
-      end,
-      &Repo.update/1
-    )
-  end
+  defdelegate update_user_notifications(user, attrs), to: NotificationPreferences
 
-  ## Phone
+  @spec notification_recipients_query(atom(), notification_channel()) :: Ecto.Query.t()
+  defdelegate notification_recipients_query(lead_time, channel), to: NotificationPreferences
 
-  @doc """
-  Whether to ask the player for a mobile number: they ticked Text at sign-up
-  and have no confirmed number yet. False while texting is off.
-  """
+  @spec notifiable?(User.t(), notification_channel()) :: boolean()
+  defdelegate notifiable?(user, channel), to: NotificationPreferences
+
+  ## Phone (Riddlr.Accounts.Phone)
+
+  @spec phone_code_ttl_minutes() :: pos_integer()
+  defdelegate phone_code_ttl_minutes, to: Phone
+
   @spec ask_for_number?(User.t()) :: boolean()
-  def ask_for_number?(%User{text_requested: requested, phone_confirmed_at: confirmed_at}),
-    do: requested and is_nil(confirmed_at) and Riddlr.SMS.enabled?()
+  defdelegate ask_for_number?(user), to: Phone
 
-  @doc """
-  Texts a code to the number the player gave at sign-up, then wipes it from
-  the account whatever the result. Call at the first log-in. The usual send
-  limits and the taken-number check apply. `:none` when no number is held or
-  texting is off.
-
-  Reads the stored row, not `user`, and takes the number off in one locked
-  step, so two log-ins at once text it only once.
-  """
   @spec text_signup_phone(User.t()) :: {:ok, PhoneCode.t()} | {:error, term()} | :none
-  def text_signup_phone(%User{id: id} = user) do
-    {:ok, phone} = Repo.transaction(fn -> take_signup_phone!(id) end)
+  defdelegate text_signup_phone(user), to: Phone
 
-    if phone && Riddlr.SMS.enabled?(),
-      do: send_phone_code(user, %{"phone" => phone}),
-      else: :none
-  end
-
-  # Inside a transaction: the held number, wiped from the locked row.
-  @spec take_signup_phone!(integer()) :: String.t() | nil
-  defp take_signup_phone!(id) do
-    case lock_user!(id) do
-      %User{signup_phone: nil} ->
-        nil
-
-      %User{signup_phone: phone} = locked ->
-        Repo.update!(Ecto.Changeset.change(locked, signup_phone: nil))
-        phone
-    end
-  end
-
-  @doc """
-  Texts a code to the Canadian number in `attrs["phone"]` so the player can
-  prove they own it. The number stays pending, off the account, until
-  `confirm_phone/2` gets the right code.
-
-  Sends are limited to #{PhoneCode.user_hourly_limit()} per player per hour,
-  #{PhoneCode.user_daily_limit()} per player per day and
-  #{PhoneCode.number_daily_limit()} per number per day. A code that used up all
-  its tries blocks new codes (`:locked`) for a day after it was sent.
-  """
   @spec send_phone_code(User.t(), map()) ::
           {:ok, PhoneCode.t()}
           | {:error, Ecto.Changeset.t() | :locked | :rate_limited | term()}
-  def send_phone_code(%User{id: user_id}, attrs) do
-    code = PhoneCode.generate_code()
+  defdelegate send_phone_code(user, attrs), to: Phone
 
-    changeset =
-      %PhoneCode{
-        user_id: user_id,
-        code_hash: PhoneCode.hash_code(code),
-        inserted_at: Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
-      }
-      |> PhoneCode.request_changeset(attrs)
-
-    with {:ok, phone_code} <- insert_phone_code(changeset) do
-      deliver_phone_code(phone_code, code)
-    end
-  end
-
-  @doc """
-  The player's pending number's code row, while its code is still live, or
-  `nil`.
-  """
   @spec get_pending_phone_code(User.t()) :: PhoneCode.t() | nil
-  def get_pending_phone_code(%User{id: user_id}) do
-    case latest_phone_code(user_id, lock: false) do
-      %PhoneCode{phone: phone} = phone_code when is_binary(phone) ->
-        if PhoneCode.expired?(phone_code) or PhoneCode.used_up?(phone_code),
-          do: nil,
-          else: phone_code
+  defdelegate get_pending_phone_code(user), to: Phone
 
-      _ ->
-        nil
-    end
-  end
-
-  @doc """
-  Texts a new code to the player's pending number. Earlier codes stop
-  working. Counts toward the same send limits as `send_phone_code/2`.
-  """
   @spec resend_phone_code(User.t()) ::
           {:ok, PhoneCode.t()} | {:error, :no_code | :locked | :rate_limited | term()}
-  def resend_phone_code(%User{id: user_id} = user) do
-    cond do
-      phone_locked?(user_id) -> {:error, :locked}
-      pending = get_pending_phone_code(user) -> send_phone_code(user, %{"phone" => pending.phone})
-      true -> {:error, :no_code}
-    end
-  end
+  defdelegate resend_phone_code(user), to: Phone
 
-  defp insert_phone_code(%{valid?: false} = changeset),
-    do: Ecto.Changeset.apply_action(changeset, :insert)
-
-  # Locks the player's row and the number, so two sends at once, from one
-  # account or several, cannot both slip under a limit. Commits even when
-  # it refuses, so a refused "number taken" still counts toward the limit.
-  defp insert_phone_code(%{data: %PhoneCode{user_id: user_id} = data} = changeset) do
-    e164 = Ecto.Changeset.fetch_change!(changeset, :phone_hash)
-
-    {:ok, result} =
-      Repo.transaction(fn ->
-        Repo.one!(from u in User, where: u.id == ^user_id, lock: "FOR UPDATE", select: u.id)
-        Repo.query!("SELECT pg_advisory_xact_lock($1)", [:erlang.phash2({PhoneCode, e164})])
-
-        cond do
-          phone_locked?(user_id) ->
-            {:error, :locked}
-
-          rate_limited?(user_id, e164) ->
-            {:error, :rate_limited}
-
-          phone_taken?(user_id, e164) ->
-            # Counted like a send, so this check cannot probe numbers freely.
-            Repo.insert!(%PhoneCode{user_id: user_id, inserted_at: data.inserted_at})
-
-            changeset
-            |> Ecto.Changeset.add_error(:phone, "is already used by another account")
-            |> Ecto.Changeset.apply_action(:insert)
-
-          true ->
-            {:ok, Repo.insert!(changeset)}
-        end
-      end)
-
-    result
-  end
-
-  # A code that took every wrong try blocks new codes for a day after it was
-  # sent. Rows are pruned at a day, so the block ends with them.
-  defp phone_locked?(user_id) do
-    day_ago = DateTime.add(Riddlr.Clock.utc_now(), -1, :day)
-
-    Repo.exists?(
-      from c in PhoneCode,
-        where:
-          c.user_id == ^user_id and c.attempts >= ^PhoneCode.max_attempts() and
-            c.inserted_at > ^day_ago
-    )
-  end
-
-  defp rate_limited?(user_id, e164) do
-    now = Riddlr.Clock.utc_now()
-    hour_ago = DateTime.add(now, -1, :hour)
-    day_ago = DateTime.add(now, -1, :day)
-
-    by_user = from c in PhoneCode, where: c.user_id == ^user_id and c.inserted_at > ^hour_ago
-    by_user_day = from c in PhoneCode, where: c.user_id == ^user_id and c.inserted_at > ^day_ago
-    by_number = from c in PhoneCode, where: c.phone_hash == ^e164 and c.inserted_at > ^day_ago
-
-    Repo.aggregate(by_user, :count) >= PhoneCode.user_hourly_limit() or
-      Repo.aggregate(by_user_day, :count) >= PhoneCode.user_daily_limit() or
-      Repo.aggregate(by_number, :count) >= PhoneCode.number_daily_limit()
-  end
-
-  defp phone_taken?(user_id, e164) do
-    Repo.exists?(from u in User, where: u.phone_hash == ^e164 and u.id != ^user_id)
-  end
-
-  # Only once the text goes out do older codes stop working. A failed text
-  # wipes its own row, which still counts toward the limits.
-  defp deliver_phone_code(%PhoneCode{id: id, user_id: user_id, phone: phone} = phone_code, code) do
-    message = %Riddlr.SMS.Message{
-      to: phone,
-      body: "Your Riddlr code is #{code}. It expires in #{PhoneCode.ttl_minutes()} min."
-    }
-
-    case Riddlr.SMS.deliver(message) do
-      :ok ->
-        wipe_phone_codes(from c in PhoneCode, where: c.user_id == ^user_id and c.id != ^id)
-        {:ok, phone_code}
-
-      {:error, _reason} = error ->
-        wipe_phone_codes(from c in PhoneCode, where: c.id == ^id)
-        error
-    end
-  end
-
-  defp wipe_phone_codes(query) do
-    Repo.update_all(query, set: [phone: nil, code_hash: nil])
-  end
-
-  @doc """
-  Checks `code` against the player's newest code. When it matches, the
-  pending number becomes the account's confirmed number, replacing any old
-  one, and the pending row is wiped.
-
-  A wrong code uses up one of #{PhoneCode.max_attempts()} tries. The last
-  wrong try returns `:too_many_attempts` and starts a day-long block on new
-  codes.
-  """
   @spec confirm_phone(User.t(), String.t()) ::
           {:ok, User.t()}
           | {:error,
              :no_code | :expired | :invalid_code | :too_many_attempts | Ecto.Changeset.t()}
-  def confirm_phone(%User{id: user_id}, code) when is_binary(code) do
-    # The transaction commits on a wrong code too, so the used try sticks.
-    Repo.transaction(fn ->
-      phone_code = latest_phone_code(user_id, lock: true)
+  defdelegate confirm_phone(user, code), to: Phone
 
-      case PhoneCode.check(phone_code, code) do
-        :ok ->
-          apply_phone_code(phone_code)
-
-        {:error, :invalid_code} = error ->
-          attempts = phone_code.attempts + 1
-          Repo.update!(Ecto.Changeset.change(phone_code, attempts: attempts))
-          if attempts >= PhoneCode.max_attempts(), do: {:error, :too_many_attempts}, else: error
-
-        error ->
-          error
-      end
-    end)
-    |> case do
-      {:ok, result} -> result
-      {:error, _changeset} = error -> error
-    end
-  end
-
-  defp apply_phone_code(%PhoneCode{user_id: user_id, phone: phone} = phone_code) do
-    Repo.update!(Ecto.Changeset.change(phone_code, phone: nil, code_hash: nil))
-
-    changeset =
-      user_id
-      |> lock_user!()
-      |> User.confirm_phone_changeset(phone)
-
-    case Repo.update(changeset) do
-      {:ok, user} ->
-        log_channel_changes(user, changeset)
-        {:ok, user}
-
-      {:error, changeset} ->
-        Repo.rollback(changeset)
-    end
-  end
-
-  @doc """
-  Wipes the player's number, confirmed or pending, and turns texts off,
-  logging the withdrawal if Text was on. The player's sent-code rows stay,
-  empty, so they still count toward the hourly
-  send limit.
-  """
   @spec remove_phone(User.t()) :: {:ok, User.t()}
-  def remove_phone(%User{id: user_id}) do
-    Repo.transact(fn ->
-      Repo.update_all(
-        from(c in PhoneCode, where: c.user_id == ^user_id),
-        set: [phone: nil, phone_hash: nil, code_hash: nil]
-      )
+  defdelegate remove_phone(user), to: Phone
 
-      changeset =
-        user_id
-        |> lock_user!()
-        |> User.remove_phone_changeset()
-
-      with {:ok, user} <- Repo.update(changeset) do
-        log_channel_changes(user, changeset)
-        {:ok, user}
-      end
-    end)
-  end
-
-  @doc """
-  Wipes pending numbers and codes once their code has expired. Deletes rows
-  older than a day, which the per-number send limit no longer needs. Wipes
-  a number held from sign-up once the account is a day old. Runs hourly, so
-  data can outlive these limits by up to an hour; codes still fail on time.
-  """
   @spec prune_phone_codes() :: :ok
-  def prune_phone_codes do
-    expired_before = PhoneCode.expiry_cutoff()
-    day_ago = DateTime.add(Riddlr.Clock.utc_now(), -1, :day)
-
-    Repo.update_all(
-      from(c in PhoneCode,
-        where: c.inserted_at <= ^expired_before and not is_nil(c.phone)
-      ),
-      set: [phone: nil, code_hash: nil]
-    )
-
-    Repo.delete_all(from c in PhoneCode, where: c.inserted_at <= ^day_ago)
-
-    # Only sign-up sets `signup_phone`, so the account's age is the number's.
-    Repo.update_all(
-      from(u in User, where: u.inserted_at <= ^day_ago and not is_nil(u.signup_phone)),
-      set: [signup_phone: nil]
-    )
-
-    :ok
-  end
-
-  defp latest_phone_code(user_id, opts) do
-    query =
-      from c in PhoneCode,
-        where: c.user_id == ^user_id and not is_nil(c.phone),
-        order_by: [desc: c.inserted_at, desc: c.id],
-        limit: 1
-
-    query = if opts[:lock], do: lock(query, "FOR UPDATE"), else: query
-    Repo.one(query)
-  end
+  defdelegate prune_phone_codes, to: Phone
 
   ## Session
 
   @doc """
   Generates a session token.
   """
+  @spec generate_user_session_token(User.t()) :: binary()
   def generate_user_session_token(user) do
     {token, user_token} = UserToken.build_session_token(user)
     Repo.insert!(user_token)
@@ -580,6 +294,7 @@ defmodule Riddlr.Accounts do
 
   If the token is valid `{user, token_inserted_at}` is returned, otherwise `nil` is returned.
   """
+  @spec get_user_by_session_token(binary()) :: {User.t(), DateTime.t()} | nil
   def get_user_by_session_token(token) do
     {:ok, query} = UserToken.verify_session_token_query(token)
     Repo.one(query)
@@ -588,6 +303,7 @@ defmodule Riddlr.Accounts do
   @doc """
   Gets the user with the given magic link token.
   """
+  @spec get_user_by_magic_link_token(String.t()) :: User.t() | nil
   def get_user_by_magic_link_token(token) do
     with {:ok, query} <- UserToken.verify_magic_link_token_query(token),
          {user, _token} <- Repo.one(query) do
@@ -673,6 +389,8 @@ defmodule Riddlr.Accounts do
       {:ok, %{to: ..., body: ...}}
 
   """
+  @spec deliver_user_update_email_instructions(User.t(), String.t(), url_fun()) ::
+          UserNotifier.delivery()
   def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
       when is_function(update_email_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_email_token(user, "change:#{current_email}")
@@ -684,6 +402,7 @@ defmodule Riddlr.Accounts do
   @doc """
   Delivers the magic link login instructions to the given user.
   """
+  @spec deliver_login_instructions(User.t(), url_fun()) :: UserNotifier.delivery()
   def deliver_login_instructions(%User{} = user, magic_link_url_fun)
       when is_function(magic_link_url_fun, 1) do
     {encoded_token, user_token} = UserToken.build_email_token(user, "login")
@@ -694,6 +413,7 @@ defmodule Riddlr.Accounts do
   @doc """
   Deletes the signed token with the given context.
   """
+  @spec delete_user_session_token(binary()) :: :ok
   def delete_user_session_token(token) do
     Repo.delete_all(from(UserToken, where: [token: ^token, context: "session"]))
     :ok
@@ -732,6 +452,8 @@ defmodule Riddlr.Accounts do
 
   ## Token helper
 
+  @spec update_user_and_delete_all_tokens(Ecto.Changeset.t()) ::
+          {:ok, user_and_expired_tokens()} | {:error, Ecto.Changeset.t()}
   defp update_user_and_delete_all_tokens(changeset) do
     Repo.transact(fn ->
       with {:ok, user} <- Repo.update(changeset) do

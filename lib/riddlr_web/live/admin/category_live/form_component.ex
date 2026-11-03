@@ -44,38 +44,31 @@ defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
   end
 
   def handle_event("save", %{"category" => params}, socket) do
-    if AdminAuth.authorized?(socket, :manage_riddles) do
-      save(socket, socket.assigns.action, params)
-    else
-      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
-    end
+    save(socket, socket.assigns.action, params)
   end
 
   defp save(socket, :edit, params) do
-    case Games.update_category(socket.assigns.category, params) do
-      {:ok, category} ->
-        send(self(), {:category_saved, category})
-
-        {:noreply,
-         socket |> put_flash(:info, "Category updated") |> push_patch(to: socket.assigns.patch)}
-
-      {:error, changeset} ->
-        {:noreply, assign_form(socket, changeset)}
-    end
+    socket.assigns.current_scope
+    |> Games.update_category(socket.assigns.category, params)
+    |> saved(socket, "Category updated")
   end
 
   defp save(socket, :new, params) do
-    case Games.create_category(params) do
-      {:ok, category} ->
-        send(self(), {:category_saved, category})
-
-        {:noreply,
-         socket |> put_flash(:info, "Category created") |> push_patch(to: socket.assigns.patch)}
-
-      {:error, changeset} ->
-        {:noreply, assign_form(socket, changeset)}
-    end
+    socket.assigns.current_scope
+    |> Games.create_category(params)
+    |> saved(socket, "Category created")
   end
+
+  defp saved({:ok, category}, socket, message) do
+    send(self(), {:category_saved, category})
+    {:noreply, socket |> put_flash(:info, message) |> push_patch(to: socket.assigns.patch)}
+  end
+
+  defp saved({:error, %Ecto.Changeset{} = changeset}, socket, _message),
+    do: {:noreply, assign_form(socket, changeset)}
+
+  defp saved({:error, :unauthorized}, socket, _message),
+    do: {:noreply, AdminAuth.unauthorized(socket)}
 
   defp assign_form(socket, changeset), do: assign(socket, :form, to_form(changeset))
   defp title(:new), do: "New Category"

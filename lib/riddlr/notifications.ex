@@ -23,8 +23,10 @@ defmodule Riddlr.Notifications do
   import Ecto.Query, warn: false
 
   alias Ecto.Multi
+  alias Riddlr.Accounts
   alias Riddlr.Accounts.User
   alias Riddlr.Clock
+  alias Riddlr.Games
   alias Riddlr.Games.Riddle
   alias Riddlr.Mailer
   alias Riddlr.Notifications.{Email, RiddleNotification, Text}
@@ -89,9 +91,8 @@ defmodule Riddlr.Notifications do
   Writes a Notification row for every player who wants one at `lead_time` and
   queues a send job for each **new** row.
 
-  An eligible player has this lead time, an active account, and per channel:
-  email on with a confirmed email, or Text on with a confirmed number. A
-  player with both gets one row per channel. Rows that already exist are left alone, so
+  `Accounts.notification_recipients_query/2` decides who is eligible. A
+  player eligible on both channels gets one row per channel. Rows that already exist are left alone, so
   running this twice sends nothing twice.
 
   Send jobs go in batches of `:chunk_size` (default #{@send_job_chunk}), all
@@ -147,34 +148,20 @@ defmodule Riddlr.Notifications do
   defp eligible_rows(riddle, lead_time, channel) do
     now = Clock.utc_now() |> DateTime.truncate(:second)
 
-    from(u in User,
-      where: u.notification_lead_time == ^lead_time,
-      where: u.account_status == ^:active,
-      select: %{
-        riddle_id: type(^riddle.id, :integer),
-        user_id: u.id,
-        channel: type(^Atom.to_string(channel), :string),
-        inserted_at: type(^now, :utc_datetime),
-        updated_at: type(^now, :utc_datetime)
-      }
-    )
-    |> wants(channel)
+    lead_time
+    |> Accounts.notification_recipients_query(channel)
+    |> select([u], %{
+      riddle_id: type(^riddle.id, :integer),
+      user_id: u.id,
+      channel: type(^Atom.to_string(channel), :string),
+      inserted_at: type(^now, :utc_datetime),
+      updated_at: type(^now, :utc_datetime)
+    })
   end
-
-  @spec wants(Ecto.Query.t(), RiddleNotification.channel()) :: Ecto.Query.t()
-  defp wants(query, :email),
-    do: where(query, [u], u.notify_email == true and not is_nil(u.confirmed_at))
-
-  defp wants(query, :sms),
-    do: where(query, [u], u.notify_sms == true and not is_nil(u.phone_confirmed_at))
 
   @spec lock_upcoming(integer()) :: {:ok, Riddle.t()} | {:error, {:skip, String.t()}}
   defp lock_upcoming(riddle_id) do
-    Riddle
-    |> where([r], r.id == ^riddle_id)
-    |> lock("FOR SHARE")
-    |> Repo.one()
-    |> case do
+    case Games.lock_riddle_for_share(riddle_id) do
       nil ->
         {:error, {:skip, "riddle #{riddle_id} not found"}}
 
@@ -251,9 +238,9 @@ defmodule Riddlr.Notifications do
 
   @spec fetch_riddle(integer()) :: {:ok, Riddle.t()} | {:skip, String.t()}
   defp fetch_riddle(id) do
-    case Repo.get(Riddle, id) do
+    case Games.get_riddle(id, preload: [:category]) do
       nil -> {:skip, "riddle #{id} not found"}
-      riddle -> {:ok, Repo.preload(riddle, :category)}
+      riddle -> {:ok, riddle}
     end
   end
 
@@ -334,19 +321,11 @@ defmodule Riddlr.Notifications do
     do: {:skip, "riddle #{riddle.id} is #{riddle.play_status}, not upcoming"}
 
   @spec check_player(User.t(), RiddleNotification.channel()) :: :ok | {:skip, String.t()}
-  defp check_player(
-         %User{notify_email: true, account_status: :active, confirmed_at: %DateTime{}},
-         :email
-       ),
-       do: :ok
-
-  defp check_player(
-         %User{notify_sms: true, account_status: :active, phone_confirmed_at: %DateTime{}},
-         :sms
-       ),
-       do: :ok
-
-  defp check_player(%User{id: id}, _channel), do: {:skip, "player #{id} no longer eligible"}
+  defp check_player(%User{id: id} = user, channel) do
+    if Accounts.notifiable?(user, channel),
+      do: :ok,
+      else: {:skip, "player #{id} no longer eligible"}
+  end
 
   @doc """
   Whole minutes from `now` to the riddle's Live date, rounded up, so a send a
@@ -367,7 +346,7 @@ defmodule Riddlr.Notifications do
   """
   @spec deliver_sms_confirmation(integer()) :: :ok | {:skip, String.t()} | {:error, term()}
   def deliver_sms_confirmation(user_id) do
-    with %User{} = user <- Repo.get(User, user_id),
+    with %User{} = user <- Accounts.get_user(user_id),
          :ok <- check_player(user, :sms) do
       user |> Text.confirmation() |> SMS.deliver()
     else
@@ -403,8 +382,8 @@ defmodule Riddlr.Notifications do
   @spec unsubscribe(String.t()) :: {:ok, User.t()} | {:error, :invalid}
   def unsubscribe(token) when is_binary(token) do
     with {:ok, id} <- verify_unsubscribe_token(token),
-         %User{} = user <- Repo.get(User, id),
-         {:ok, user} <- Riddlr.Accounts.update_user_notifications(user, %{notify_email: false}) do
+         %User{} = user <- Accounts.get_user(id),
+         {:ok, user} <- Accounts.update_user_notifications(user, %{notify_email: false}) do
       {:ok, user}
     else
       _ -> {:error, :invalid}

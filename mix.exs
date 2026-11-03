@@ -99,8 +99,12 @@ defmodule Riddlr.MixProject do
       ],
       # Node's built-in runner, so no npm deps. Pure JS only (no DOM).
       "test.js": ["cmd node --test 'assets/js/**/*.test.js'"],
+      # Fails on any compile-connected cycle: one compile-time edge in a cycle
+      # makes every module in it recompile together.
+      "xref.cycles": ["xref graph --format cycles --label compile-connected --fail-above 0"],
       precommit: [
         "compile --warnings-as-errors",
+        "xref.cycles",
         "deps.unlock --unused",
         "format",
         "test",

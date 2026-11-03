@@ -18,7 +18,8 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       assert riddle.play_status == "closed"
 
       # Step 1: Publishing a riddle with a future live date schedules it
-      {:ok, riddle} = Games.save_riddle(riddle, %{"publish_status" => "published"})
+      {:ok, riddle} =
+        Games.save_riddle(system_scope(), riddle, %{"publish_status" => "published"})
 
       assert riddle.play_status == "scheduled"
       assert [ready_job, live_job] = ordered_pending_jobs(riddle.id)
@@ -27,7 +28,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
 
       # Step 2: Change live_date -> should reschedule
       new_live_date = future(7200)
-      {:ok, riddle} = Games.save_riddle(riddle, %{"live_date" => new_live_date})
+      {:ok, riddle} = Games.save_riddle(system_scope(), riddle, %{"live_date" => new_live_date})
 
       assert [updated_ready_job, updated_live_job] = ordered_pending_jobs(riddle.id)
       assert updated_ready_job.id != ready_job.id
@@ -38,14 +39,14 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       assert DateTime.compare(updated_live_job.scheduled_at, new_live_date) == :eq
 
       # Step 3: Move to draft -> should cancel all jobs
-      {:ok, riddle} = Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      {:ok, riddle} = Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
 
       assert riddle.play_status == "closed"
       assert ordered_pending_jobs(riddle.id) == []
 
       # Step 4: Republish with a custom cooldown, then run the riddle to completion
       {:ok, riddle} =
-        Games.save_riddle(riddle, %{
+        Games.save_riddle(system_scope(), riddle, %{
           "publish_status" => "published",
           "archive_after_seconds" => 600
         })
@@ -93,7 +94,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       assert length(ordered_pending_jobs(riddle.id)) == 2
 
       # Roll back to draft: jobs are cancelled and the riddle reopens for scheduling
-      {:ok, riddle} = Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      {:ok, riddle} = Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
       assert riddle.publish_status == "draft"
       assert riddle.play_status == "closed"
       assert ordered_pending_jobs(riddle.id) == []
@@ -102,7 +103,7 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
       new_live_date = future(5400)
 
       {:ok, riddle} =
-        Games.save_riddle(riddle, %{
+        Games.save_riddle(system_scope(), riddle, %{
           "publish_status" => "published",
           "live_date" => new_live_date
         })

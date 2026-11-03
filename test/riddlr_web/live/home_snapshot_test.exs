@@ -11,7 +11,12 @@ defmodule RiddlrWeb.HomeSnapshotTest do
 
   # The fixtures write past Games, so nothing rebuilds the snapshot; start cold.
   setup do
-    {:ok, practice} = Games.create_practice_riddle(%{description: "What am I?", answer: "echo"})
+    {:ok, practice} =
+      Games.create_practice_riddle(GamesFixtures.system_scope(), %{
+        description: "What am I?",
+        answer: "echo"
+      })
+
     next = upcoming("ready", ~U[2030-01-01 14:05:00Z])
     Cache.clear()
     %{next: next, practice: practice}
@@ -55,7 +60,8 @@ defmodule RiddlrWeb.HomeSnapshotTest do
   test "a practice riddle change rebuilds the snapshot", %{practice: practice} do
     Games.home_snapshot()
 
-    {:ok, _} = Games.update_practice_riddle(practice, %{answer: "shadow"})
+    {:ok, _} =
+      Games.update_practice_riddle(GamesFixtures.system_scope(), practice, %{answer: "shadow"})
 
     assert {:ok, %{practice: [%{answer: "shadow"}]}} = Cache.get(:home)
   end

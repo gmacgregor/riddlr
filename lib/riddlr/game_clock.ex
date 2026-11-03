@@ -57,11 +57,15 @@ defmodule Riddlr.GameClock do
   @typedoc "How many players wait in the Lobby and how many have solved."
   @type stats :: %{waiting: non_neg_integer(), solved: non_neg_integer()}
 
+  @typedoc "A countdown phase and the whole seconds left in it."
+  @type countdown :: {:lobby | :play, non_neg_integer()}
+
   # ── Public API ──────────────────────────────────────────────────────────────
 
   @doc """
   The PubSub topic a riddle's ticks are broadcast on.
   """
+  @spec topic(integer()) :: String.t()
   def topic(riddle_id), do: "game:clock:#{riddle_id}"
 
   @doc """
@@ -81,6 +85,7 @@ defmodule Riddlr.GameClock do
   A riddle with no live date has not been scheduled; it reports its full solve
   time.
   """
+  @spec countdown(Riddle.t()) :: countdown()
   def countdown(%Riddle{live_date: nil, solve_time: solve_time}), do: {:play, solve_time}
 
   def countdown(%Riddle{} = riddle) do
@@ -104,6 +109,7 @@ defmodule Riddlr.GameClock do
     DateTime.add(riddle.live_date, riddle.solve_time + riddle.archive_after_seconds, :second)
   end
 
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     riddle = Keyword.fetch!(opts, :riddle)
 
@@ -120,6 +126,7 @@ defmodule Riddlr.GameClock do
 
   A riddle with no live date has nothing to count down to, so no clock starts.
   """
+  @spec ensure_started(Riddle.t()) :: :ok
   def ensure_started(%Riddle{live_date: nil}), do: :ok
 
   def ensure_started(%Riddle{} = riddle) do
@@ -209,6 +216,7 @@ defmodule Riddlr.GameClock do
 
   # ── Helpers ──────────────────────────────────────────────────────────────────
 
+  @spec broadcast_stats(state()) :: state()
   defp broadcast_stats(%{riddle: %{id: id}} = state) do
     stats = %{
       waiting: id |> Presence.lobby_topic() |> Presence.list() |> map_size(),
@@ -222,13 +230,18 @@ defmodule Riddlr.GameClock do
     %{state | stats: stats}
   end
 
+  @spec batch_feed?() :: boolean()
   defp batch_feed?, do: config(:batch_feed, true)
+
+  @spec flush_ms() :: non_neg_integer()
   defp flush_ms, do: config(:feed_flush_ms, 100)
 
+  @spec config(atom(), term()) :: term()
   defp config(key, default) do
     :riddlr |> Application.get_env(__MODULE__, []) |> Keyword.get(key, default)
   end
 
+  @spec broadcast(Riddle.t()) :: countdown()
   defp broadcast(riddle) do
     {phase, seconds} = countdown(riddle)
 
@@ -242,6 +255,7 @@ defmodule Riddlr.GameClock do
   end
 
   # Align to the next wall-clock second boundary to prevent timer drift.
+  @spec schedule_tick() :: reference()
   defp schedule_tick do
     ms = 1000 - rem(DateTime.to_unix(Clock.utc_now(), :millisecond), 1000)
     Process.send_after(self(), :tick, ms)

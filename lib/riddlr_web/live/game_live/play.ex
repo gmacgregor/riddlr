@@ -8,8 +8,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.{GameClock, Games, Gameplay}
-  alias Riddlr.Accounts.User
+  alias Riddlr.{Accounts, GameClock, Games, Gameplay}
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
   alias RiddlrWeb.GameLive.Stagger
@@ -46,13 +45,13 @@ defmodule RiddlrWeb.GameLive.Play do
             {:ok, push_navigate(socket, to: ~p"/game/#{id}/results")}
 
           "live" ->
-            user = socket.assigns.current_user
+            scope = socket.assigns.current_scope
+            user = scope && scope.user
 
             {initial_answers, guess_count, solved} =
               if connected?(socket) do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(id))
+                Gameplay.subscribe_answers(id)
                 if user, do: Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
                 GameClock.ensure_started(riddle)
@@ -63,7 +62,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
             {:ok,
              socket
-             |> assign(:banned, User.banned?(user))
+             |> assign(:banned, Accounts.banned?(user))
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:words, String.split(riddle.description))
@@ -85,7 +84,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
   # A guest has no form, but a guess could still be sent by hand.
   @impl true
-  def handle_event("submit_answer", _params, %{assigns: %{current_user: nil}} = socket) do
+  def handle_event("submit_answer", _params, %{assigns: %{current_scope: nil}} = socket) do
     {:noreply, socket}
   end
 
@@ -94,7 +93,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
     result =
       case check_not_banned(socket.assigns) do
-        :ok -> Gameplay.submit_answer(riddle, socket.assigns.current_user, text)
+        :ok -> Gameplay.submit_answer(riddle, socket.assigns.current_scope.user, text)
         {:error, :banned} = error -> error
       end
 
@@ -105,7 +104,7 @@ defmodule RiddlrWeb.GameLive.Play do
       :incorrect ->
         {:noreply,
          socket
-         |> put_guess_msg(GameCopy.quip(socket.assigns.guess_msg), true)
+         |> put_guess_msg(GameCopy.Play.quip(socket.assigns.guess_msg), true)
          |> start_cooldown()
          |> push_event("guess-wrong", %{})}
 
@@ -116,7 +115,7 @@ defmodule RiddlrWeb.GameLive.Play do
          |> push_navigate(to: ~p"/")}
 
       {:error, :empty_answer} ->
-        {:noreply, put_guess_msg(socket, GameCopy.guess_empty(), true)}
+        {:noreply, put_guess_msg(socket, GameCopy.Play.guess_empty(), true)}
 
       {:error, reason} ->
         {:noreply, put_guess_msg(socket, format_error(reason), false)}
@@ -204,8 +203,8 @@ defmodule RiddlrWeb.GameLive.Play do
     assign(socket, cooling?: true, cooldown_timer: timer)
   end
 
-  defp format_error(:cooldown), do: GameCopy.guess_cooldown()
-  defp format_error(:time_up), do: GameCopy.guess_time_up()
+  defp format_error(:cooldown), do: GameCopy.Play.guess_cooldown()
+  defp format_error(:time_up), do: GameCopy.Play.guess_time_up()
   defp format_error(:already_solved), do: "You've already solved this riddle!"
 
   defp format_error(:answer_too_long),
@@ -215,15 +214,11 @@ defmodule RiddlrWeb.GameLive.Play do
 
   # Builds feed items for the newest answers in ETS when the LiveView mounts,
   # oldest first, plus how many guesses and solves the riddle has so far.
-  # Correct answers stay masked while the race runs (Answer.for_live_feed/1).
+  # Correct answers stay masked while the race runs.
   @spec build_initial_feed(integer()) ::
           {[Answer.t()], non_neg_integer(), non_neg_integer()}
   defp build_initial_feed(riddle_id) do
-    feed =
-      riddle_id
-      |> Gameplay.get_answers(@feed_limit)
-      |> Enum.reverse()
-      |> Enum.map(&Answer.for_live_feed/1)
+    feed = Gameplay.get_live_feed(riddle_id, @feed_limit)
 
     {feed, Gameplay.answer_count(riddle_id), Gameplay.solved_count(riddle_id)}
   end

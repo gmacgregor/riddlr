@@ -4,6 +4,9 @@ defmodule Riddlr.GamesFixtures do
   entities via the `Riddlr.Games` context.
   """
 
+  @doc "The scope seeds and fixtures write with: it holds every permission."
+  def system_scope, do: Riddlr.Accounts.Scope.for_system()
+
   def unique_riddle_name, do: "Riddle #{System.unique_integer([:positive])}"
 
   def riddle_fixture(attrs \\ %{}) do
@@ -20,7 +23,7 @@ defmodule Riddlr.GamesFixtures do
         category_id: category_id,
         difficulty: "easy"
       })
-      |> Riddlr.Games.create_riddle()
+      |> then(&Riddlr.Games.create_riddle(system_scope(), &1))
 
     # Reload with category preloaded to match Games.get_riddle! and Games.list_riddles
     Riddlr.Games.get_riddle!(riddle.id)
@@ -38,7 +41,9 @@ defmodule Riddlr.GamesFixtures do
 
     riddle = riddle_fixture(Map.put(attrs, :publish_status, "published"))
 
-    {:ok, scheduled} = Riddlr.Games.save_riddle(riddle, %{"live_date" => live_date})
+    {:ok, scheduled} =
+      Riddlr.Games.save_riddle(system_scope(), riddle, %{"live_date" => live_date})
+
     scheduled
   end
 
@@ -73,7 +78,7 @@ defmodule Riddlr.GamesFixtures do
   defp get_or_create_default_category do
     case Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") do
       nil ->
-        {:ok, category} = Riddlr.Games.create_category(%{name: "logic"})
+        {:ok, category} = Riddlr.Games.create_category(system_scope(), %{name: "logic"})
         category.id
 
       category ->

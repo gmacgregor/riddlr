@@ -2,7 +2,6 @@ defmodule RiddlrWeb.UserSessionController do
   use RiddlrWeb, :controller
 
   alias Riddlr.Accounts
-  alias Riddlr.Accounts.User
   alias RiddlrWeb.UserAuth
 
   def new(conn, _params) do
@@ -56,7 +55,7 @@ defmodule RiddlrWeb.UserSessionController do
   def create(conn, %{"user" => %{"email" => email}}) do
     user = Accounts.get_user_by_email(email)
 
-    if user && not User.banned?(user) do
+    if user && not Accounts.banned?(user) do
       Accounts.deliver_login_instructions(
         user,
         &url(~p"/users/log-in/#{&1}")

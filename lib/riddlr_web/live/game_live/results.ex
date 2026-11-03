@@ -25,7 +25,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.{Clock, GameClock, Games, Gameplay}
+  alias Riddlr.{Accounts, Clock, GameClock, Games, Gameplay}
   alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
@@ -71,7 +71,8 @@ defmodule RiddlrWeb.GameLive.Results do
 
     case Games.fetch_riddle(id) do
       {:ok, %{play_status: status} = riddle} when status in ["completed", "archived"] ->
-        user = socket.assigns.current_user
+        scope = socket.assigns.current_scope
+        user = scope && scope.user
         # Chat is open until Archive. An open page closes it when the
         # `:riddle_archived` broadcast arrives.
         chat_open? = status == "completed"
@@ -97,7 +98,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
         {:ok,
          socket
-         |> assign(:banned, User.banned?(user))
+         |> assign(:banned, Accounts.banned?(user))
          |> assign(:chat_open?, chat_open?)
          # Sent to the countdown hook once. Nil once archived: no countdown.
          |> assign(:archive_at, if(chat_open?, do: GameClock.archive_at(riddle)))
@@ -156,7 +157,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   # A guest has no chat form, but a message could still be sent by hand.
   @impl true
-  def handle_event("send_chat", _params, %{assigns: %{current_user: nil}} = socket) do
+  def handle_event("send_chat", _params, %{assigns: %{current_scope: nil}} = socket) do
     {:noreply, socket}
   end
 
@@ -166,7 +167,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   def handle_event("send_chat", %{"message" => text}, socket) do
     text = String.trim(text)
-    %{current_user: user, riddle: riddle} = socket.assigns
+    %{current_scope: %{user: user}, riddle: riddle} = socket.assigns
 
     with :ok <- validate_input(text),
          :ok <- check_not_banned(socket.assigns),
@@ -207,7 +208,7 @@ defmodule RiddlrWeb.GameLive.Results do
       if socket.assigns.chat_open? do
         socket
         |> assign(:chat_open?, false)
-        |> assign(:closed_emoji, GameCopy.chat_closed_emoji())
+        |> assign(:closed_emoji, GameCopy.Results.chat_closed_emoji())
       else
         socket
       end
@@ -240,8 +241,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   @spec subscribe_to_chat(String.t()) :: :ok | {:error, term()}
   defp subscribe_to_chat(riddle_id) do
-    Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle_id))
-    Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(riddle_id))
+    Gameplay.subscribe_answers(riddle_id)
   end
 
   @spec check_not_banned(map()) :: :ok | {:error, :banned}
@@ -258,7 +258,7 @@ defmodule RiddlrWeb.GameLive.Results do
   # The countdown's first text. The `.ChatCountdown` hook takes over from it.
   @spec countdown_text(DateTime.t()) :: String.t()
   defp countdown_text(archive_at) do
-    archive_at |> DateTime.diff(Clock.utc_now()) |> GameCopy.chat_countdown()
+    archive_at |> DateTime.diff(Clock.utc_now()) |> GameCopy.Results.chat_countdown()
   end
 
   # Splits the answer into words of {letter, index} pairs. The index counts across the
@@ -292,7 +292,7 @@ defmodule RiddlrWeb.GameLive.Results do
   end
 
   # The riddle's last @log_limit answers from ETS, oldest first. Play masks correct
-  # answers (Answer.for_live_feed/1) while the race runs. The race is over, so
+  # answers (Gameplay.get_live_feed/2) while the race runs. The race is over, so
   # they show in full here. Offsets go: they only mean something next to a
   # running timer.
   @spec load_feed(integer()) :: [Answer.t()]
@@ -305,9 +305,9 @@ defmodule RiddlrWeb.GameLive.Results do
 
   # The viewer's card. Joining means guessing while the riddle was live; ETS
   # knows that until archive, after which only solvers count as joined.
-  @spec you_card(board_entry() | nil, integer(), integer()) :: GameCopy.you_card()
+  @spec you_card(board_entry() | nil, integer(), integer()) :: GameCopy.Results.you_card()
   defp you_card(mine, riddle_id, user_id) do
-    GameCopy.you_card(mine, mine != nil or Gameplay.guessed?(riddle_id, user_id))
+    GameCopy.Results.you_card(mine, mine != nil or Gameplay.guessed?(riddle_id, user_id))
   end
 
   # One cell per scoring place: its points and the solver who took it, if any.
@@ -341,7 +341,7 @@ defmodule RiddlrWeb.GameLive.Results do
       placement: row.placement,
       points: row.points,
       username: username,
-      shown_as: if(me?, do: GameCopy.room_you(), else: username),
+      shown_as: if(me?, do: GameCopy.Lobby.room_you(), else: username),
       me?: me?,
       secs: GameCopy.solve_secs(row.solve_time_ms)
     }
