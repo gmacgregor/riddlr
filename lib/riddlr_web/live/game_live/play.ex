@@ -8,8 +8,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.{GameClock, Games, Gameplay}
-  alias Riddlr.Accounts.User
+  alias Riddlr.{Accounts, GameClock, Games, Gameplay}
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
   alias RiddlrWeb.GameLive.Stagger
@@ -51,8 +50,7 @@ defmodule RiddlrWeb.GameLive.Play do
             {initial_answers, guess_count, solved} =
               if connected?(socket) do
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:completed")
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(id))
-                Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(id))
+                Gameplay.subscribe_answers(id)
                 if user, do: Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
                 Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
                 GameClock.ensure_started(riddle)
@@ -63,7 +61,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
             {:ok,
              socket
-             |> assign(:banned, User.banned?(user))
+             |> assign(:banned, Accounts.banned?(user))
              |> assign(:page_title, "Play — #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:words, String.split(riddle.description))
@@ -215,15 +213,11 @@ defmodule RiddlrWeb.GameLive.Play do
 
   # Builds feed items for the newest answers in ETS when the LiveView mounts,
   # oldest first, plus how many guesses and solves the riddle has so far.
-  # Correct answers stay masked while the race runs (Answer.for_live_feed/1).
+  # Correct answers stay masked while the race runs.
   @spec build_initial_feed(integer()) ::
           {[Answer.t()], non_neg_integer(), non_neg_integer()}
   defp build_initial_feed(riddle_id) do
-    feed =
-      riddle_id
-      |> Gameplay.get_answers(@feed_limit)
-      |> Enum.reverse()
-      |> Enum.map(&Answer.for_live_feed/1)
+    feed = Gameplay.get_live_feed(riddle_id, @feed_limit)
 
     {feed, Gameplay.answer_count(riddle_id), Gameplay.solved_count(riddle_id)}
   end

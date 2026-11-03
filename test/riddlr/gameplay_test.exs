@@ -146,6 +146,28 @@ defmodule Riddlr.GameplayTest do
     end
   end
 
+  describe "get_live_feed/2" do
+    test "returns the newest answers, oldest first, with correct ones masked" do
+      rid = unique_riddle_id()
+      seed_answer(rid, unique_user_id(), "first", false, 1)
+      seed_answer(rid, unique_user_id(), "second", false, 2)
+      seed_answer(rid, unique_user_id(), "right", true, 3)
+
+      assert [%{text: "second"}, %{text: nil, correct: true}] = Gameplay.get_live_feed(rid, 2)
+    end
+  end
+
+  describe "subscribe_answers/1" do
+    test "delivers answer batches for the riddle" do
+      rid = unique_riddle_id()
+      :ok = Gameplay.subscribe_answers(rid)
+
+      Gameplay.broadcast_answers(rid, [])
+
+      assert_receive {:answers_batch, [], _totals}
+    end
+  end
+
   describe "get_completion_stats/1" do
     test "returns 0.0 completion_rate when no answers exist" do
       rid = unique_riddle_id()

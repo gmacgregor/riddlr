@@ -1,7 +1,6 @@
 defmodule RiddlrWeb.Admin.RiddleLive.Index do
   use RiddlrWeb, :admin_live_view
   alias Riddlr.Games
-  alias Riddlr.Games.Riddle
   alias RiddlrWeb.AdminAuth
   import Riddlr.Utils.Datetime
 
@@ -35,7 +34,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   end
 
   defp apply_action(socket, :new, _params) do
-    socket |> assign(:riddle, %Riddle{}) |> assign(:page_title, "New riddle")
+    socket |> assign(:riddle, Games.new_riddle()) |> assign(:page_title, "New riddle")
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do

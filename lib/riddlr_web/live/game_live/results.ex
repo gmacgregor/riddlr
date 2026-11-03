@@ -25,7 +25,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.{Clock, GameClock, Games, Gameplay}
+  alias Riddlr.{Accounts, Clock, GameClock, Games, Gameplay}
   alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
@@ -97,7 +97,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
         {:ok,
          socket
-         |> assign(:banned, User.banned?(user))
+         |> assign(:banned, Accounts.banned?(user))
          |> assign(:chat_open?, chat_open?)
          # Sent to the countdown hook once. Nil once archived: no countdown.
          |> assign(:archive_at, if(chat_open?, do: GameClock.archive_at(riddle)))
@@ -240,8 +240,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   @spec subscribe_to_chat(String.t()) :: :ok | {:error, term()}
   defp subscribe_to_chat(riddle_id) do
-    Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle_id))
-    Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(riddle_id))
+    Gameplay.subscribe_answers(riddle_id)
   end
 
   @spec check_not_banned(map()) :: :ok | {:error, :banned}
@@ -292,7 +291,7 @@ defmodule RiddlrWeb.GameLive.Results do
   end
 
   # The riddle's last @log_limit answers from ETS, oldest first. Play masks correct
-  # answers (Answer.for_live_feed/1) while the race runs. The race is over, so
+  # answers (Gameplay.get_live_feed/2) while the race runs. The race is over, so
   # they show in full here. Offsets go: they only mean something next to a
   # running timer.
   @spec load_feed(integer()) :: [Answer.t()]

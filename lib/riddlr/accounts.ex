@@ -71,6 +71,10 @@ defmodule Riddlr.Accounts do
   @spec get_user(term()) :: User.t() | nil
   def get_user(id), do: Repo.get(User, id)
 
+  @doc "Returns true if the user is banned. A guest (`nil`) is not."
+  @spec banned?(User.t() | nil) :: boolean()
+  defdelegate banned?(user), to: User
+
   ## User registration
 
   @doc """
@@ -168,6 +172,10 @@ defmodule Riddlr.Accounts do
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     User.email_changeset(user, attrs, opts)
   end
+
+  @doc "Returns a blank user for a registration form."
+  @spec new_user() :: User.t()
+  def new_user, do: %User{}
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking user registration changes.
@@ -305,6 +313,10 @@ defmodule Riddlr.Accounts do
   def notifiable?(%User{}, _channel), do: false
 
   ## Phone
+
+  @doc "How many minutes a phone code works for."
+  @spec phone_code_ttl_minutes() :: pos_integer()
+  defdelegate phone_code_ttl_minutes, to: PhoneCode, as: :ttl_minutes
 
   @doc """
   Whether to ask the player for a mobile number: they ticked Text at sign-up

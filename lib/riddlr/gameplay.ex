@@ -238,6 +238,30 @@ defmodule Riddlr.Gameplay do
   defdelegate get_answers(riddle_id, limit \\ :infinity), to: Store, as: :recent_answers
 
   @doc """
+  A riddle's newest answers, at most `limit`, oldest first and with correct
+  answers masked as on the live feed (`Answer.for_live_feed/1`). A viewer
+  that joins mid-race starts its feed from this.
+  """
+  @spec get_live_feed(integer(), pos_integer()) :: [Answer.t()]
+  def get_live_feed(riddle_id, limit) do
+    riddle_id
+    |> get_answers(limit)
+    |> Enum.reverse()
+    |> Enum.map(&Answer.for_live_feed/1)
+  end
+
+  @doc """
+  Subscribes the caller to a riddle's live feed: answer batches from
+  `broadcast_answers/2` and flags on answers already shown.
+  """
+  @spec subscribe_answers(integer()) :: :ok | {:error, term()}
+  def subscribe_answers(riddle_id) do
+    with :ok <- Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.topic(riddle_id)) do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, Answer.flagged_topic(riddle_id))
+    end
+  end
+
+  @doc """
   Puts guesses on a riddle's live feed in one message, oldest first, with the
   riddle's guess and solve totals as they stand now:
 

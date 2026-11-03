@@ -1,7 +1,6 @@
 defmodule RiddlrWeb.Admin.CategoryLive.Index do
   use RiddlrWeb, :admin_live_view
   alias Riddlr.Games
-  alias Riddlr.Games.Category
   alias RiddlrWeb.AdminAuth
 
   # Moderators are admins but may not manage riddles or read their answers.
@@ -22,7 +21,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
   end
 
   defp apply_action(socket, :new, _params) do
-    socket |> assign(:category, %Category{}) |> assign(:page_title, "New Category")
+    socket |> assign(:category, Games.new_category()) |> assign(:page_title, "New Category")
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do

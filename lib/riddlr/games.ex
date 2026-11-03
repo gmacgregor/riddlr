@@ -12,6 +12,7 @@ defmodule Riddlr.Games do
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
   alias Riddlr.Games.PracticeRiddle
+  alias Riddlr.Games.RiddleName
   alias Riddlr.Notifications
 
   alias Riddlr.Workers.{
@@ -387,6 +388,30 @@ defmodule Riddlr.Games do
     end
   end
 
+  @doc "Returns a blank riddle for a new-riddle form."
+  @spec new_riddle() :: Riddle.t()
+  def new_riddle, do: %Riddle{}
+
+  @doc "Returns a random riddle name, such as a new riddle gets."
+  @spec generate_riddle_name() :: String.t()
+  defdelegate generate_riddle_name, to: RiddleName, as: :generate
+
+  @doc "The difficulty values a riddle may take."
+  @spec riddle_difficulties() :: [String.t()]
+  defdelegate riddle_difficulties, to: Riddle, as: :difficulties
+
+  @doc "The publish status values a riddle may take."
+  @spec riddle_publish_statuses() :: [String.t()]
+  defdelegate riddle_publish_statuses, to: Riddle, as: :publish_statuses
+
+  @doc "The hint delay a new riddle starts with."
+  @spec default_hint_delay() :: non_neg_integer()
+  defdelegate default_hint_delay, to: Riddle
+
+  @doc "The solve time a new riddle starts with."
+  @spec default_solve_time() :: pos_integer()
+  defdelegate default_solve_time, to: Riddle
+
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking riddle changes.
 
@@ -737,6 +762,10 @@ defmodule Riddlr.Games do
     Repo.delete(category)
   end
 
+  @doc "Returns a blank category for a new-category form."
+  @spec new_category() :: Category.t()
+  def new_category, do: %Category{}
+
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking category changes.
 
@@ -807,6 +836,10 @@ defmodule Riddlr.Games do
 
   defp refresh_home_on_ok({:ok, _}), do: refresh_home()
   defp refresh_home_on_ok(_error), do: :ok
+
+  @doc "Returns a blank practice riddle for a new-practice-riddle form."
+  @spec new_practice_riddle() :: PracticeRiddle.t()
+  def new_practice_riddle, do: %PracticeRiddle{}
 
   @doc """
   Returns a changeset for a practice riddle form.

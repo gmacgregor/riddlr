@@ -91,7 +91,7 @@
 
           <div :if={@phone_step == :code} class="rg-notify__phone">
             <p class="rg-phone__note">
-              We texted a 6-digit code to {@pending_phone}. It works for {Riddlr.Accounts.PhoneCode.ttl_minutes()} min.
+              We texted a 6-digit code to {@pending_phone}. It works for {Riddlr.Accounts.phone_code_ttl_minutes()} min.
             </p>
             <.input
               field={@code_form[:code]}

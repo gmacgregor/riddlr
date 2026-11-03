@@ -7,7 +7,6 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.Index do
   use RiddlrWeb, :admin_live_view
 
   alias Riddlr.Games
-  alias Riddlr.Games.PracticeRiddle
   alias RiddlrWeb.AdminAuth
 
   # Moderators are admins but may not manage riddles or read their answers.
@@ -35,7 +34,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.Index do
 
   defp apply_action(socket, :new, _params) do
     socket
-    |> assign(:practice_riddle, %PracticeRiddle{})
+    |> assign(:practice_riddle, Games.new_practice_riddle())
     |> assign(:page_title, "New practice riddle")
   end
 

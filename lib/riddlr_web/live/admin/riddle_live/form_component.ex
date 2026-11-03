@@ -1,16 +1,15 @@
 defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   use RiddlrWeb, :admin_live_component
   alias Riddlr.Games
-  alias Riddlr.Games.RiddleName
   alias RiddlrWeb.AdminAuth
   import Riddlr.Utils.Datetime
 
   defp hint_delay() do
-    Riddlr.Games.Riddle.default_hint_delay()
+    Games.default_hint_delay()
   end
 
   defp solve_time() do
-    Riddlr.Games.Riddle.default_solve_time()
+    Games.default_solve_time()
   end
 
   @impl true
@@ -68,7 +67,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
               type="select"
               label="Difficulty"
               prompt="Choose"
-              options={Riddlr.Games.Riddle.difficulties()}
+              options={Games.riddle_difficulties()}
             />
           </div>
           <div>
@@ -130,7 +129,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
               field={f[:publish_status]}
               type="select"
               label="Publish status"
-              options={Riddlr.Games.Riddle.publish_statuses()}
+              options={Games.riddle_publish_statuses()}
             />
           </div>
           <div>
@@ -166,7 +165,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
     riddle =
       if assigns.action == :new && is_nil(riddle.name) do
-        %{riddle | name: RiddleName.generate()}
+        %{riddle | name: Games.generate_riddle_name()}
       else
         riddle
       end
@@ -196,7 +195,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
     # Start from the form's current params so a new name does not wipe what
     # the editor has typed in the other fields.
     %{params: params, source: source} = socket.assigns.form
-    params = Map.put(params, "name", RiddleName.generate())
+    params = Map.put(params, "name", Games.generate_riddle_name())
 
     changeset =
       socket.assigns.riddle
