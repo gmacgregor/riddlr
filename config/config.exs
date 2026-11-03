@@ -29,7 +29,7 @@ config :riddlr,
 
 # Guesses reach the live feed in one batch per riddle every feed_flush_ms,
 # not one message each.
-config :riddlr, Riddlr.GameClock, batch_feed: true, feed_flush_ms: 250
+config :riddlr, Riddlr.GameClock, batch_feed: true, feed_flush_ms: 100
 
 # Configure Oban
 # Queue limits add up to 15, under the Repo pool of 20, so jobs at full tilt

@@ -223,7 +223,7 @@ defmodule Riddlr.GameClock do
   end
 
   defp batch_feed?, do: config(:batch_feed, true)
-  defp flush_ms, do: config(:feed_flush_ms, 250)
+  defp flush_ms, do: config(:feed_flush_ms, 100)
 
   defp config(key, default) do
     :riddlr |> Application.get_env(__MODULE__, []) |> Keyword.get(key, default)
