@@ -37,8 +37,8 @@ npm-debug.log
 
 /.worktrees
 
-/.claude
-/.claude/settings.local.json
+.claude/*
+!.claude/skills
 
 /design
 
