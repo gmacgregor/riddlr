@@ -64,24 +64,24 @@ defmodule RiddlrWeb.GameComponentsTest do
 
   describe "clock_str/1" do
     test "shows MM:SS under an hour" do
-      assert GameComponents.clock_str(0) == "00:00"
-      assert GameComponents.clock_str(45) == "00:45"
-      assert GameComponents.clock_str(3599) == "59:59"
+      assert GameComponents.Clock.clock_str(0) == "00:00"
+      assert GameComponents.Clock.clock_str(45) == "00:45"
+      assert GameComponents.Clock.clock_str(3599) == "59:59"
     end
 
     test "shows HH:MM:SS from one hour up" do
-      assert GameComponents.clock_str(3600) == "01:00:00"
-      assert GameComponents.clock_str(90_061) == "25:01:01"
+      assert GameComponents.Clock.clock_str(3600) == "01:00:00"
+      assert GameComponents.Clock.clock_str(90_061) == "25:01:01"
     end
 
     test "treats negative seconds as zero" do
-      assert GameComponents.clock_str(-3) == "00:00"
+      assert GameComponents.Clock.clock_str(-3) == "00:00"
     end
   end
 
   describe "flaps/1" do
     test "renders one flap per digit as a timer" do
-      html = render_component(&GameComponents.flaps/1, id: "clock", seconds: 125)
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 125)
 
       assert html =~ ~s(id="clock")
       assert html =~ ~s(role="timer")
@@ -96,7 +96,7 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     test "warns at 6 to 10 seconds and turns critical at 5 or less" do
       classes = fn seconds ->
-        html = render_component(&GameComponents.flaps/1, id: "clock", seconds: seconds)
+        html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: seconds)
         [_, class] = Regex.run(~r/<div[^>]*class="([^"]*)"/, html)
         class
       end
@@ -111,7 +111,7 @@ defmodule RiddlrWeb.GameComponentsTest do
     end
 
     test "renders a blank clock with empty tiles and no countdown" do
-      html = render_component(&GameComponents.flaps/1, id: "clock", blank: true)
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", blank: true)
 
       # It never counts, so it is a picture with a label, not a timer.
       assert html =~ ~s(role="img")
@@ -124,7 +124,7 @@ defmodule RiddlrWeb.GameComponentsTest do
     end
 
     test "uses the long style from one hour up" do
-      html = render_component(&GameComponents.flaps/1, id: "clock", seconds: 3600)
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 3600)
 
       assert html =~ "rg-flaps--long"
       assert length(Regex.scan(~r/class="rg-flap"/, html)) == 6
@@ -136,7 +136,7 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     test "shows the riddle, its place in the set and a hidden answer" do
       html =
-        render_component(&GameComponents.practice_note/1,
+        render_component(&GameComponents.Practice.practice_note/1,
           id: "practice",
           riddle: @riddle,
           n: 2,
@@ -159,7 +159,7 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     test "puts both button texts and both status lines on the peek button for the JS toggle" do
       html =
-        render_component(&GameComponents.practice_note/1,
+        render_component(&GameComponents.Practice.practice_note/1,
           id: "practice",
           riddle: @riddle,
           n: 1,
@@ -173,7 +173,7 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     test "offers Another riddle only when there is another to show" do
       note = fn total ->
-        render_component(&GameComponents.practice_note/1,
+        render_component(&GameComponents.Practice.practice_note/1,
           id: "practice",
           riddle: @riddle,
           n: 1,
@@ -205,7 +205,7 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     @spec drop_time(keyword()) :: String.t()
     defp drop_time(attrs) do
-      render_component(&GameComponents.drop_time/1, [id: "t", now: @now] ++ attrs)
+      render_component(&GameComponents.Clock.drop_time/1, [id: "t", now: @now] ++ attrs)
     end
 
     test "renders the short form in Eastern time" do

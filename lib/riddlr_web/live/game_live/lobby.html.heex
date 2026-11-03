@@ -11,22 +11,22 @@
           category={@riddle.category.name}
         />
         <h1 id="lobby-h" class="rg-lobby__h" tabindex="-1">{GameCopy.Lobby.lobby_heading()}</h1>
-        <GameComponents.flaps id="lobby-flaps" seconds={@time_remaining} />
+        <GameComponents.Clock.flaps id="lobby-flaps" seconds={@time_remaining} />
         <p :if={@riddle.live_date} class="rg-lobby__when">
           {GameCopy.Lobby.lobby_when_lead()}
-          <b><GameComponents.drop_time
+          <b><GameComponents.Clock.drop_time
             id="lobby-drop-time"
             at={@riddle.live_date}
             local={false}
             mid_sentence
           /></b>
-          <GameComponents.drop_local id="lobby-drop-local" at={@riddle.live_date} /><br />
+          <GameComponents.Clock.drop_local id="lobby-drop-local" at={@riddle.live_date} /><br />
           {if GameCopy.Lobby.lobby_when_tail() != "", do: GameCopy.Lobby.lobby_when_tail()}
         </p>
         <ul class="rg-facts">
           <li class="rg-fact">
             <GameComponents.icon name="clock" /> {GameCopy.Lobby.solve_time(
-              GameComponents.clock_str(@riddle.solve_time)
+              GameComponents.Clock.clock_str(@riddle.solve_time)
             )}
           </li>
         </ul>

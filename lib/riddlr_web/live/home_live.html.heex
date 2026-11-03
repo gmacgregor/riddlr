@@ -21,7 +21,7 @@
             <span class="rg-hl">{GameCopy.Home.hero_heading(@hero)}</span>
           </h1>
           <p :if={@hero != :none} id="hero-date" class="rg-hero__date">
-            <GameComponents.drop_time
+            <GameComponents.Clock.drop_time
               id={"hero-date-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
               at={@next.live_date}
               now={@today}
@@ -55,7 +55,7 @@
                 </h2>
                 <p class="rg-hero__meta">{GameCopy.Home.hero_none_text()}</p>
                 <div class="rg-none__clock">
-                  <GameComponents.flaps id="hero-blank-flaps" blank />
+                  <GameComponents.Clock.flaps id="hero-blank-flaps" blank />
                   <p class="rg-none__tbc">
                     {GameCopy.Home.hero_none_tbc_lead()} <b>{GameCopy.Home.hero_none_tbc()}</b>
                   </p>
@@ -190,13 +190,13 @@
           <li :for={riddle <- @upcoming} id={"sched-#{riddle.id}"} class="rg-sched">
             <span class="rg-sched__body">
               <span class="rg-sched__sub">
-                <GameComponents.drop_time
+                <GameComponents.Clock.drop_time
                   id={"sched-at-#{riddle.id}-#{DateTime.to_unix(riddle.live_date)}"}
                   at={riddle.live_date}
                   now={@today}
                   local={false}
                 /> · {riddle.category.name}
-                <GameComponents.drop_local
+                <GameComponents.Clock.drop_local
                   id={"sched-local-#{riddle.id}-#{DateTime.to_unix(riddle.live_date)}"}
                   at={riddle.live_date}
                 />
@@ -204,7 +204,9 @@
               <span class="rg-sched__cat">{GameCopy.riddle_name(riddle)}</span>
             </span>
             <span class="rg-sched__solve">
-              <GameComponents.icon name="clock" /> {GameComponents.clock_str(riddle.solve_time)}
+              <GameComponents.icon name="clock" /> {GameComponents.Clock.clock_str(
+                riddle.solve_time
+              )}
             </span>
           </li>
         </ol>

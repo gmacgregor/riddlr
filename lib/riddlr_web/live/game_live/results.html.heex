@@ -183,13 +183,13 @@
         <span :if={@next && @next.play_status != "live"} class="rg-next__t">
           {GameCopy.Results.next_lead()} <b>{@next.category.name}</b>
           · {GameCopy.Results.next_drops()}
-          <b><GameComponents.drop_time
+          <b><GameComponents.Clock.drop_time
             id={"res-next-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
             at={@next.live_date}
             local={false}
             mid_sentence
           /></b>
-          <GameComponents.drop_local
+          <GameComponents.Clock.drop_local
             id={"res-next-local-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
             at={@next.live_date}
           />

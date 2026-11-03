@@ -24,7 +24,7 @@ defmodule RiddlrWeb.HomeLive do
 
   With nothing next, the card also shows a blank clock and a link to Coming
   up. With nothing next, or a riddle whose Lobby is not open yet, it shows a
-  "While you wait" practice note (`GameComponents.practice_note/1`)
+  "While you wait" practice note (`GameComponents.Practice.practice_note/1`)
   with a random practice riddle. "Another riddle" swaps in a different one.
   The note is hidden when there are no practice riddles.
 
@@ -169,7 +169,7 @@ defmodule RiddlrWeb.HomeLive do
     <div class="rg-hero__row">
       <span class="rg-hero__label">{GameCopy.riddle_title(@riddle)}</span>
     </div>
-    <GameComponents.flaps id="hero-flaps" seconds={@seconds} />
+    <GameComponents.Clock.flaps id="hero-flaps" seconds={@seconds} />
     """
   end
 
@@ -179,7 +179,7 @@ defmodule RiddlrWeb.HomeLive do
 
   defp practice_note(assigns) do
     ~H"""
-    <GameComponents.practice_note
+    <GameComponents.Practice.practice_note
       :if={@practice}
       id="practice"
       riddle={@practice.riddle}
