@@ -55,11 +55,9 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
 
       {:ok, riddle} = Games.transition(riddle.id, :ready)
       {:ok, riddle} = Games.transition(riddle.id, :live)
-      {:ok, _} = Games.transition(riddle.id, :completed)
+      {{:ok, _}, window} = between_clock_reads(fn -> Games.transition(riddle.id, :completed) end)
 
-      # Verify 600-second delay
-      expected_time = DateTime.add(DateTime.utc_now(), 600)
-      assert DateTime.diff(archive_job(riddle.id).scheduled_at, expected_time, :second) < 5
+      assert_scheduled_in(archive_job(riddle.id), 600, window)
     end
 
     test "zero cooldown archives immediately" do
@@ -67,13 +65,9 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
 
       {:ok, riddle} = Games.transition(riddle.id, :ready)
       {:ok, riddle} = Games.transition(riddle.id, :live)
-      {:ok, _} = Games.transition(riddle.id, :completed)
+      {{:ok, _}, window} = between_clock_reads(fn -> Games.transition(riddle.id, :completed) end)
 
-      # Job should be available immediately (scheduled_at <= now)
-      assert DateTime.compare(archive_job(riddle.id).scheduled_at, DateTime.utc_now()) in [
-               :lt,
-               :eq
-             ]
+      assert_scheduled_in(archive_job(riddle.id), 0, window)
     end
 
     test "default cooldown is 180 seconds" do
@@ -82,11 +76,9 @@ defmodule Riddlr.Integration.RiddleLifecycleTest do
 
       {:ok, riddle} = Games.transition(riddle.id, :ready)
       {:ok, riddle} = Games.transition(riddle.id, :live)
-      {:ok, _} = Games.transition(riddle.id, :completed)
+      {{:ok, _}, window} = between_clock_reads(fn -> Games.transition(riddle.id, :completed) end)
 
-      # Verify 3-minute delay (180 seconds)
-      expected_time = DateTime.add(DateTime.utc_now(), 180)
-      assert DateTime.diff(archive_job(riddle.id).scheduled_at, expected_time, :second) < 5
+      assert_scheduled_in(archive_job(riddle.id), 180, window)
     end
 
     test "republishing after draft rollback works correctly" do

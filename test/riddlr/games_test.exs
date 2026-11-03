@@ -325,7 +325,8 @@ defmodule Riddlr.GamesTest do
           archive_after_seconds: 300
         })
 
-      {:ok, updated_riddle} = Games.transition(riddle.id, :completed)
+      {{:ok, updated_riddle}, window} =
+        between_clock_reads(fn -> Games.transition(riddle.id, :completed) end)
 
       assert updated_riddle.play_status == "completed"
 
@@ -335,14 +336,8 @@ defmodule Riddlr.GamesTest do
         args: %{riddle_id: riddle.id}
       )
 
-      # Verify the job is scheduled in the future (approximately 300 seconds)
       [job] = all_enqueued(worker: Riddlr.Workers.ArchiveRiddleTransitionWorker)
-      scheduled_at = job.scheduled_at
-      now = DateTime.utc_now()
-
-      # Should be scheduled approximately 300 seconds in the future (allowing 5 second tolerance)
-      scheduled_diff = DateTime.diff(scheduled_at, now)
-      assert scheduled_diff >= 295 and scheduled_diff <= 305
+      assert_scheduled_in(job, 300, window)
     end
 
     test "completing supports zero cooldown for immediate archiving" do
@@ -353,7 +348,8 @@ defmodule Riddlr.GamesTest do
           archive_after_seconds: 0
         })
 
-      {:ok, updated_riddle} = Games.transition(riddle.id, :completed)
+      {{:ok, updated_riddle}, window} =
+        between_clock_reads(fn -> Games.transition(riddle.id, :completed) end)
 
       assert updated_riddle.play_status == "completed"
 
@@ -363,13 +359,8 @@ defmodule Riddlr.GamesTest do
         args: %{riddle_id: riddle.id}
       )
 
-      # Verify the job is scheduled for immediate execution (within 5 seconds)
       [job] = all_enqueued(worker: Riddlr.Workers.ArchiveRiddleTransitionWorker)
-      scheduled_at = job.scheduled_at
-      now = DateTime.utc_now()
-
-      scheduled_diff = DateTime.diff(scheduled_at, now)
-      assert scheduled_diff >= -5 and scheduled_diff <= 5
+      assert_scheduled_in(job, 0, window)
     end
 
     test "state validation prevents invalid changeset transitions" do
@@ -389,11 +380,10 @@ defmodule Riddlr.GamesTest do
       riddle =
         riddle_fixture(%{play_status: "ready", publish_status: "published", solve_time: 120})
 
-      {:ok, _riddle} = Games.transition(riddle.id, :live)
+      {{:ok, _riddle}, window} = between_clock_reads(fn -> Games.transition(riddle.id, :live) end)
 
       [job] = all_enqueued(worker: Riddlr.Workers.CompleteRiddleWorker)
-      diff = DateTime.diff(job.scheduled_at, DateTime.utc_now())
-      assert diff >= 115 and diff <= 125
+      assert_scheduled_in(job, 120, window)
     end
   end
 

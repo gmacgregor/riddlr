@@ -16,7 +16,7 @@ defmodule Riddlr.ClockTest do
 
     test "monotonic_us/0 advances with real time" do
       first = Clock.monotonic_us()
-      Process.sleep(1)
+      let_real_time_pass()
 
       assert Clock.monotonic_us() > first
     end
@@ -28,7 +28,7 @@ defmodule Riddlr.ClockTest do
       Clock.Frozen.freeze(instant)
 
       assert Clock.utc_now() == instant
-      Process.sleep(2)
+      let_real_time_pass()
       assert Clock.utc_now() == instant
     end
 
@@ -36,7 +36,7 @@ defmodule Riddlr.ClockTest do
       Clock.Frozen.freeze()
 
       first = Clock.monotonic_us()
-      Process.sleep(2)
+      let_real_time_pass()
 
       assert Clock.monotonic_us() == first
     end
@@ -117,5 +117,19 @@ defmodule Riddlr.ClockTest do
              #{Enum.map_join(offenders, "\n", &("  " <> &1))}
              """
     end
+  end
+
+  # Waits until the system clock has moved at least a microsecond, so a test
+  # can show a reading did or did not move with it. A sleep would race the
+  # clock's resolution instead.
+  @spec let_real_time_pass() :: :ok
+  defp let_real_time_pass do
+    start = Clock.System.monotonic_us()
+    wait_past(start)
+  end
+
+  @spec wait_past(integer()) :: :ok
+  defp wait_past(start) do
+    if Clock.System.monotonic_us() > start, do: :ok, else: wait_past(start)
   end
 end
