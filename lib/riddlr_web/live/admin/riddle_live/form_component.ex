@@ -206,29 +206,28 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   end
 
   def handle_event("save", %{"riddle" => params}, socket) do
-    if AdminAuth.authorized?(socket, :manage_riddles) do
-      params = prepare_params_for_changeset(params)
-      params = convert_live_date_param(params)
-      save(socket, socket.assigns.action, params)
-    else
-      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
-    end
+    params = prepare_params_for_changeset(params)
+    params = convert_live_date_param(params)
+    save(socket, socket.assigns.action, params)
   end
 
   defp save(socket, action, params) do
-    case Games.save_riddle(socket.assigns.riddle, params) do
+    case Games.save_riddle(socket.assigns.current_scope, socket.assigns.riddle, params) do
       {:ok, riddle} ->
         {:noreply,
          socket
          |> put_flash(:info, saved_message(riddle, action))
          |> push_patch(to: socket.assigns.patch)}
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
+
+      {:error, :unauthorized} ->
+        {:noreply, AdminAuth.unauthorized(socket)}
     end
   end
 
-  # `save_riddle/2` decides whether a save is also a schedule; the flash just
+  # `save_riddle/3` decides whether a save is also a schedule; the flash just
   # reports what came back.
   defp saved_message(%{play_status: "scheduled"} = riddle, _action) do
     ready_at = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)

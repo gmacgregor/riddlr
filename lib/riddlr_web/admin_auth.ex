@@ -56,31 +56,28 @@ defmodule RiddlrWeb.AdminAuth do
   end
 
   @doc """
-  Returns true if the socket's user holds `permission` right now.
-
-  Admin events call this, not the role on the socket: on_mount ran once, and a
-  role can change after that by iex or SQL, which tells no LiveView. So it
-  reads the user again from the database on each call.
+  Flashes "Unauthorized" and sends the user home. Admin events call this when
+  a context write returns `{:error, :unauthorized}`.
   """
-  @spec authorized?(Phoenix.LiveView.Socket.t(), atom()) :: boolean()
-  def authorized?(%{assigns: %{current_user: %{id: id}}}, permission) do
-    id |> Accounts.get_user!() |> Authorization.has_permission?(permission)
+  @spec unauthorized(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def unauthorized(socket) do
+    socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")
   end
-
-  def authorized?(_socket, _permission), do: false
 
   # A live_patch runs handle_params with no new mount, so without this a
   # demoted editor could still patch to a riddle and read its answers.
   @spec recheck_permission(Phoenix.LiveView.Socket.t(), atom()) ::
           {:cont | :halt, Phoenix.LiveView.Socket.t()}
   defp recheck_permission(socket, permission) do
-    if authorized?(socket, permission) do
-      {:cont, socket}
-    else
-      socket =
-        socket |> put_flash(:error, "You don't have permission.") |> push_navigate(to: ~p"/")
+    case Authorization.authorize(socket.assigns.current_scope, permission) do
+      :ok ->
+        {:cont, socket}
 
-      {:halt, socket}
+      {:error, :unauthorized} ->
+        socket =
+          socket |> put_flash(:error, "You don't have permission.") |> push_navigate(to: ~p"/")
+
+        {:halt, socket}
     end
   end
 

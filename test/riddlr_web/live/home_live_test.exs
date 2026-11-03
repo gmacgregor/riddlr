@@ -548,7 +548,10 @@ defmodule RiddlrWeb.HomeLiveTest do
       next = GamesFixtures.scheduled_riddle_fixture(%{live_date: ~U[2030-01-01 14:00:00Z]})
       {:ok, live, _html} = live(conn, ~p"/")
 
-      {:ok, _} = Games.save_riddle(next, %{"live_date" => ~U[2030-01-01 13:01:00Z]})
+      {:ok, _} =
+        Games.save_riddle(GamesFixtures.system_scope(), next, %{
+          "live_date" => ~U[2030-01-01 13:01:00Z]
+        })
 
       assert_push_event(live, "countdown-tick", %{seconds: 60})
 
@@ -619,7 +622,7 @@ defmodule RiddlrWeb.HomeLiveTest do
       last = upcoming_fixture("archived", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
 
-      {:ok, _} = Games.save_riddle(last, %{"answers" => ["piano"]})
+      {:ok, _} = Games.save_riddle(GamesFixtures.system_scope(), last, %{"answers" => ["piano"]})
 
       assert has_element?(live, "#last .rg-lastcard__answer", "piano")
     end
@@ -837,7 +840,10 @@ defmodule RiddlrWeb.HomeLiveTest do
 
   defp practice_fixture(answer) do
     {:ok, practice} =
-      Games.create_practice_riddle(%{description: "What am I? (#{answer})", answer: answer})
+      Games.create_practice_riddle(GamesFixtures.system_scope(), %{
+        description: "What am I? (#{answer})",
+        answer: answer
+      })
 
     practice
   end

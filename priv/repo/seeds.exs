@@ -11,6 +11,7 @@
 # and so on) as they will fail if something goes wrong.
 
 alias Riddlr.Accounts
+alias Riddlr.Accounts.Scope
 alias Riddlr.Games
 alias Riddlr.Repo
 
@@ -75,7 +76,7 @@ riddles =
   end)
 
 Enum.each(riddles, fn riddle_attrs ->
-  case Games.create_riddle(riddle_attrs) do
+  case Games.create_riddle(Scope.for_system(), riddle_attrs) do
     {:ok, riddle} ->
       IO.puts("Created riddle: #{riddle.name}")
 
@@ -105,7 +106,7 @@ practice_riddles = [
 
 if Games.count_practice_riddles() == 0 do
   Enum.each(practice_riddles, fn attrs ->
-    {:ok, practice} = Games.create_practice_riddle(attrs)
+    {:ok, practice} = Games.create_practice_riddle(Scope.for_system(), attrs)
     IO.puts("Created practice riddle: #{practice.answer}")
   end)
 else

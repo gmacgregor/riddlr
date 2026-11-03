@@ -63,29 +63,26 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.FormComponent do
     {:noreply, assign_form(socket, changeset)}
   end
 
-  # on_mount checks only run at mount, so a save checks again.
   def handle_event("save", %{"practice_riddle" => params}, socket) do
-    if AdminAuth.authorized?(socket, :manage_riddles) do
-      save(socket, socket.assigns.action, params)
-    else
-      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
-    end
+    save(socket, socket.assigns.action, params)
   end
 
   @spec save(Phoenix.LiveView.Socket.t(), :new | :edit, map()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   defp save(socket, :new, params) do
-    params |> Games.create_practice_riddle() |> saved(socket, "Practice riddle created")
+    socket.assigns.current_scope
+    |> Games.create_practice_riddle(params)
+    |> saved(socket, "Practice riddle created")
   end
 
   defp save(socket, :edit, params) do
-    socket.assigns.practice_riddle
-    |> Games.update_practice_riddle(params)
+    socket.assigns.current_scope
+    |> Games.update_practice_riddle(socket.assigns.practice_riddle, params)
     |> saved(socket, "Practice riddle updated")
   end
 
   @spec saved(
-          {:ok, Games.PracticeRiddle.t()} | {:error, Ecto.Changeset.t()},
+          {:ok, Games.PracticeRiddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized},
           Phoenix.LiveView.Socket.t(),
           String.t()
         ) :: {:noreply, Phoenix.LiveView.Socket.t()}
@@ -94,8 +91,11 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.FormComponent do
     {:noreply, socket |> put_flash(:info, message) |> push_patch(to: socket.assigns.patch)}
   end
 
-  defp saved({:error, changeset}, socket, _message),
+  defp saved({:error, %Ecto.Changeset{} = changeset}, socket, _message),
     do: {:noreply, assign_form(socket, changeset)}
+
+  defp saved({:error, :unauthorized}, socket, _message),
+    do: {:noreply, AdminAuth.unauthorized(socket)}
 
   @spec assign_form(Phoenix.LiveView.Socket.t(), Ecto.Changeset.t()) ::
           Phoenix.LiveView.Socket.t()

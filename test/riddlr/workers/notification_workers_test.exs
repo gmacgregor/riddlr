@@ -67,7 +67,7 @@ defmodule Riddlr.Workers.NotificationWorkersTest do
   end
 
   test "fan-out cancels for an unscheduled riddle", %{riddle: riddle} do
-    {:ok, _} = Riddlr.Games.save_riddle(riddle, %{"publish_status" => "draft"})
+    {:ok, _} = Riddlr.Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
 
     assert {:cancel, _} =
              perform_job(NotificationFanOutWorker, %{

@@ -1,11 +1,17 @@
 defmodule Riddlr.Games do
   @moduledoc """
   The Games context.
+
+  The admin write functions (create, save, update and delete of riddles,
+  categories and practice riddles) take a `Riddlr.Accounts.Scope` first. They
+  return `{:error, :unauthorized}` unless the scope holds `:manage_riddles`.
   """
 
   import Ecto.Query, warn: false
 
   alias Ecto.Multi
+  alias Riddlr.Accounts.Scope
+  alias Riddlr.Authorization
   alias Riddlr.Cache
   alias Riddlr.Clock
   alias Riddlr.Repo
@@ -145,26 +151,28 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Creates a riddle. A thin alias over `save_riddle/2` for seeds and fixtures —
+  Creates a riddle. A thin alias over `save_riddle/3` for seeds and fixtures —
   it schedules too, if the attrs say so.
 
   ## Examples
 
-      iex> create_riddle(%{field: value})
+      iex> create_riddle(scope, %{field: value})
       {:ok, %Riddle{}}
 
-      iex> create_riddle(%{field: bad_value})
+      iex> create_riddle(scope, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_riddle(attrs \\ %{}), do: save_riddle(%Riddle{}, attrs)
+  @spec create_riddle(Scope.t(), map()) ::
+          {:ok, Riddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def create_riddle(%Scope{} = scope, attrs), do: save_riddle(scope, %Riddle{}, attrs)
 
   @doc """
   The one way to write a Riddle from the admin.
 
   Takes the row the admin edited (a bare `%Riddle{}` for a create) and the form
   attrs, and writes the row *and* its Oban jobs in a single transaction. The
-  caller says nothing about scheduling: `save_riddle/2` reads the persisted
+  caller says nothing about scheduling: `save_riddle/3` reads the persisted
   state and the changeset and decides between four intents.
 
     * `:schedule` — a closed, published riddle with a future Live date
@@ -175,9 +183,20 @@ defmodule Riddlr.Games do
   A riddle that cannot be scheduled (draft, past Live date, already live) is not
   an error: it is simply not a schedule, and the row is written anyway.
 
-  Returns `{:ok, riddle}` or `{:error, changeset}` — no other shape.
+  The scope must hold `:manage_riddles`.
+
+  Returns `{:ok, riddle}`, `{:error, changeset}` or `{:error, :unauthorized}`.
   """
-  def save_riddle(%Riddle{} = riddle, attrs) do
+  @spec save_riddle(Scope.t(), Riddle.t(), map()) ::
+          {:ok, Riddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def save_riddle(%Scope{} = scope, %Riddle{} = riddle, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      write_riddle(riddle, attrs)
+    end
+  end
+
+  @spec write_riddle(Riddle.t(), map()) :: {:ok, Riddle.t()} | {:error, Ecto.Changeset.t()}
+  defp write_riddle(riddle, attrs) do
     changeset = Riddle.changeset(riddle, attrs)
 
     # An invalid changeset gets `:none`: the transaction will roll back anyway,
@@ -215,7 +234,7 @@ defmodule Riddlr.Games do
   #
   # Anything that falls through is `:none` — a riddle that cannot be scheduled is
   # not an error, it is simply not a schedule, and the row is written regardless.
-  # That is what lets `save_riddle/2` return one error shape.
+  # That is what lets `save_riddle/3` return one error shape.
   defp intent(%Riddle{} = riddle, changeset) do
     live_date = Ecto.Changeset.get_field(changeset, :live_date)
 
@@ -350,14 +369,23 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> delete_riddle(riddle)
+      iex> delete_riddle(scope, riddle)
       {:ok, %Riddle{}}
 
-      iex> delete_riddle(riddle)
+      iex> delete_riddle(scope, riddle)
       {:error, %Ecto.Changeset{}}
 
   """
-  def delete_riddle(%Riddle{} = riddle) do
+  @spec delete_riddle(Scope.t(), Riddle.t()) ::
+          {:ok, Riddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def delete_riddle(%Scope{} = scope, %Riddle{} = riddle) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      remove_riddle(riddle)
+    end
+  end
+
+  @spec remove_riddle(Riddle.t()) :: {:ok, Riddle.t()} | {:error, Ecto.Changeset.t()}
+  defp remove_riddle(riddle) do
     Multi.new()
     |> Multi.run(:cancel_jobs, fn repo, _changes ->
       cancel_jobs(repo, riddle.id, drop_workers())
@@ -715,17 +743,21 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> create_category(%{field: value})
+      iex> create_category(scope, %{field: value})
       {:ok, %Category{}}
 
-      iex> create_category(%{field: bad_value})
+      iex> create_category(scope, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_category(attrs \\ %{}) do
-    %Category{}
-    |> Category.changeset(attrs)
-    |> Repo.insert()
+  @spec create_category(Scope.t(), map()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def create_category(%Scope{} = scope, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      %Category{}
+      |> Category.changeset(attrs)
+      |> Repo.insert()
+    end
   end
 
   @doc """
@@ -733,17 +765,21 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> update_category(category, %{field: new_value})
+      iex> update_category(scope, category, %{field: new_value})
       {:ok, %Category{}}
 
-      iex> update_category(category, %{field: bad_value})
+      iex> update_category(scope, category, %{field: bad_value})
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_category(%Category{} = category, attrs) do
-    category
-    |> Category.changeset(attrs)
-    |> Repo.update()
+  @spec update_category(Scope.t(), Category.t(), map()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def update_category(%Scope{} = scope, %Category{} = category, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      category
+      |> Category.changeset(attrs)
+      |> Repo.update()
+    end
   end
 
   @doc """
@@ -751,15 +787,19 @@ defmodule Riddlr.Games do
 
   ## Examples
 
-      iex> delete_category(category)
+      iex> delete_category(scope, category)
       {:ok, %Category{}}
 
-      iex> delete_category(category)
+      iex> delete_category(scope, category)
       {:error, %Ecto.Changeset{}}
 
   """
-  def delete_category(%Category{} = category) do
-    Repo.delete(category)
+  @spec delete_category(Scope.t(), Category.t()) ::
+          {:ok, Category.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def delete_category(%Scope{} = scope, %Category{} = category) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      Repo.delete(category)
+    end
   end
 
   @doc "Returns a blank category for a new-category form."
@@ -790,13 +830,15 @@ defmodule Riddlr.Games do
   @doc """
   Creates a practice riddle.
   """
-  @spec create_practice_riddle(map()) ::
-          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
-  def create_practice_riddle(attrs \\ %{}) do
-    %PracticeRiddle{}
-    |> PracticeRiddle.changeset(attrs)
-    |> Repo.insert()
-    |> tap(&refresh_home_on_ok/1)
+  @spec create_practice_riddle(Scope.t(), map()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def create_practice_riddle(%Scope{} = scope, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      %PracticeRiddle{}
+      |> PracticeRiddle.changeset(attrs)
+      |> Repo.insert()
+      |> tap(&refresh_home_on_ok/1)
+    end
   end
 
   @doc """
@@ -814,24 +856,28 @@ defmodule Riddlr.Games do
   @doc """
   Updates a practice riddle.
   """
-  @spec update_practice_riddle(PracticeRiddle.t(), map()) ::
-          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
-  def update_practice_riddle(%PracticeRiddle{} = practice_riddle, attrs) do
-    practice_riddle
-    |> PracticeRiddle.changeset(attrs)
-    |> Repo.update()
-    |> tap(&refresh_home_on_ok/1)
+  @spec update_practice_riddle(Scope.t(), PracticeRiddle.t(), map()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def update_practice_riddle(%Scope{} = scope, %PracticeRiddle{} = practice_riddle, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      practice_riddle
+      |> PracticeRiddle.changeset(attrs)
+      |> Repo.update()
+      |> tap(&refresh_home_on_ok/1)
+    end
   end
 
   @doc """
   Deletes a practice riddle.
   """
-  @spec delete_practice_riddle(PracticeRiddle.t()) ::
-          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
-  def delete_practice_riddle(%PracticeRiddle{} = practice_riddle) do
-    practice_riddle
-    |> Repo.delete()
-    |> tap(&refresh_home_on_ok/1)
+  @spec delete_practice_riddle(Scope.t(), PracticeRiddle.t()) ::
+          {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def delete_practice_riddle(%Scope{} = scope, %PracticeRiddle{} = practice_riddle) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      practice_riddle
+      |> Repo.delete()
+      |> tap(&refresh_home_on_ok/1)
+    end
   end
 
   defp refresh_home_on_ok({:ok, _}), do: refresh_home()

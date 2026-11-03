@@ -18,7 +18,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
         category_id: category_fixture().id
       }
 
-      assert {:ok, %Riddle{} = riddle} = Games.save_riddle(%Riddle{}, attrs)
+      assert {:ok, %Riddle{} = riddle} = Games.save_riddle(system_scope(), %Riddle{}, attrs)
       assert riddle.id
       assert riddle.play_status == "closed"
       assert riddle.publish_status == "draft"
@@ -37,7 +37,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "updates an existing riddle" do
       riddle = riddle_fixture()
 
-      assert {:ok, %Riddle{} = updated} = Games.save_riddle(riddle, %{name: "Renamed"})
+      assert {:ok, %Riddle{} = updated} =
+               Games.save_riddle(system_scope(), riddle, %{name: "Renamed"})
+
       assert updated.name == "Renamed"
       assert Repo.reload(riddle).name == "Renamed"
     end
@@ -45,7 +47,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "returns {:error, changeset} on invalid data" do
       riddle = riddle_fixture()
 
-      assert {:error, %Ecto.Changeset{}} = Games.save_riddle(riddle, %{name: nil})
+      assert {:error, %Ecto.Changeset{}} = Games.save_riddle(system_scope(), riddle, %{name: nil})
       assert Repo.reload(riddle).name == riddle.name
     end
 
@@ -72,7 +74,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "ignores a number in the attrs on update" do
       riddle = riddle_fixture()
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"number" => 5, "name" => "Renamed"})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"number" => 5, "name" => "Renamed"})
+
       assert saved.number == riddle.number
       assert Repo.reload(riddle).number == riddle.number
     end
@@ -83,7 +87,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle = riddle_fixture(%{publish_status: "published"})
       live_date = future(3600)
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => live_date})
+      assert {:ok, saved} = Games.save_riddle(system_scope(), riddle, %{"live_date" => live_date})
       assert saved.play_status == "scheduled"
       assert DateTime.compare(saved.live_date, live_date) == :eq
     end
@@ -92,7 +96,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle = riddle_fixture(%{publish_status: "published", ready_before_seconds: 20})
       live_date = future(3600)
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => live_date})
+      assert {:ok, saved} = Games.save_riddle(system_scope(), riddle, %{"live_date" => live_date})
 
       assert [ready] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
       assert [live] = pending_jobs(saved.id, Riddlr.Workers.LiveRiddleTransitionWorker)
@@ -104,7 +108,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle = riddle_fixture(%{publish_status: "published"})
       live_date = future(7200)
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => live_date})
+      assert {:ok, saved} = Games.save_riddle(system_scope(), riddle, %{"live_date" => live_date})
 
       assert %{"min_30" => min_30, "min_60" => min_60} = fan_out_jobs(saved.id)
       assert DateTime.diff(min_30.scheduled_at, live_date, :second) == -30 * 60
@@ -117,7 +121,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       live_date = future(3600)
 
       assert {:ok, saved} =
-               Games.save_riddle(riddle, %{
+               Games.save_riddle(system_scope(), riddle, %{
                  "publish_status" => "published",
                  "live_date" => live_date
                })
@@ -132,7 +136,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle_id = riddle.id
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
 
-      assert {:ok, _} = Games.save_riddle(riddle, %{"live_date" => future(3600)})
+      assert {:ok, _} = Games.save_riddle(system_scope(), riddle, %{"live_date" => future(3600)})
 
       assert_receive {:riddle_scheduled, %{id: ^riddle_id} = broadcast}
       assert %Riddlr.Games.Category{} = broadcast.category
@@ -141,7 +145,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "does not schedule a draft riddle" do
       riddle = riddle_fixture()
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(3600)})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => future(3600)})
+
       assert saved.play_status == "closed"
       assert pending_jobs(saved.id) == []
     end
@@ -149,7 +155,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "does not schedule a live date in the past" do
       riddle = riddle_fixture(%{publish_status: "published"})
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(-3600)})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => future(-3600)})
+
       assert saved.play_status == "closed"
       assert pending_jobs(saved.id) == []
     end
@@ -157,7 +165,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "does not schedule without a live date" do
       riddle = riddle_fixture(%{publish_status: "published"})
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"name" => "Renamed"})
+      assert {:ok, saved} = Games.save_riddle(system_scope(), riddle, %{"name" => "Renamed"})
       assert saved.play_status == "closed"
       assert pending_jobs(saved.id) == []
     end
@@ -165,7 +173,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "does not schedule a riddle that is already live" do
       riddle = riddle_fixture(%{publish_status: "published", play_status: "live"})
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(3600)})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => future(3600)})
+
       assert saved.play_status == "live"
       assert pending_jobs(saved.id) == []
     end
@@ -175,7 +185,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "leaves the number alone" do
       riddle = scheduled_riddle_fixture(%{live_date: future(3600)})
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(7200)})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => future(7200)})
+
       assert saved.play_status == "scheduled"
       assert saved.number == riddle.number
     end
@@ -185,7 +197,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
       old_ids = riddle.id |> pending_jobs() |> Enum.map(& &1.id)
       new_live_date = future(7200)
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => new_live_date})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => new_live_date})
+
       assert saved.play_status == "scheduled"
 
       assert [ready] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
@@ -204,7 +218,8 @@ defmodule Riddlr.Games.SaveRiddleTest do
       old = fan_out_jobs(riddle.id)
       new_live_date = future(10_800)
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => new_live_date})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => new_live_date})
 
       assert [_, _] = pending_jobs(saved.id, Riddlr.Workers.NotificationFanOutWorker)
       assert %{"min_30" => min_30, "min_60" => min_60} = fan_out_jobs(saved.id)
@@ -219,7 +234,8 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "a past Live date queues no 30 min or 1 hour fan-outs" do
       riddle = scheduled_riddle_fixture(%{live_date: future(7200)})
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(-60)})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => future(-60)})
 
       assert fan_out_jobs(saved.id) == %{}
     end
@@ -227,7 +243,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "moves the ready job when only the lead time changes" do
       riddle = scheduled_riddle_fixture(%{live_date: future(3600), ready_before_seconds: 600})
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"ready_before_seconds" => 1200})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"ready_before_seconds" => 1200})
+
       assert saved.ready_before_seconds == 1200
 
       assert [ready] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
@@ -239,7 +257,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
       {:ok, _} = Games.transition(riddle.id, :ready)
       riddle = Games.get_riddle!(riddle.id)
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"live_date" => future(7200)})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"live_date" => future(7200)})
+
       assert saved.play_status == "ready"
       assert [_ready] = pending_jobs(saved.id, Riddlr.Workers.ReadyRiddleTransitionWorker)
       assert [_live] = pending_jobs(saved.id, Riddlr.Workers.LiveRiddleTransitionWorker)
@@ -250,7 +270,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle = scheduled_riddle_fixture(%{live_date: future(3600)})
       job_ids = riddle.id |> pending_jobs() |> Enum.map(& &1.id) |> Enum.sort()
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"name" => "Renamed"})
+      assert {:ok, saved} = Games.save_riddle(system_scope(), riddle, %{"name" => "Renamed"})
       assert saved.id |> pending_jobs() |> Enum.map(& &1.id) |> Enum.sort() == job_ids
     end
 
@@ -259,7 +279,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle_id = riddle.id
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
 
-      assert {:ok, _} = Games.save_riddle(riddle, %{"live_date" => future(7200)})
+      assert {:ok, _} = Games.save_riddle(system_scope(), riddle, %{"live_date" => future(7200)})
 
       assert_receive {:riddle_rescheduled, %{id: ^riddle_id}}
     end
@@ -269,7 +289,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "rolling a scheduled riddle back to draft closes it and cancels its jobs" do
       riddle = scheduled_riddle_fixture()
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
+
       assert saved.publish_status == "draft"
       assert saved.play_status == "closed"
       assert pending_jobs(saved.id) == []
@@ -280,7 +302,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
       {:ok, _} = Games.transition(riddle.id, :ready)
       riddle = Games.get_riddle!(riddle.id)
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
+
       assert saved.play_status == "closed"
       assert pending_jobs(saved.id) == []
     end
@@ -290,7 +314,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle_id = riddle.id
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:scheduled")
 
-      assert {:ok, _} = Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      assert {:ok, _} = Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
 
       assert_receive {:riddle_unscheduled, %{id: ^riddle_id}}
     end
@@ -298,7 +322,9 @@ defmodule Riddlr.Games.SaveRiddleTest do
     test "a draft riddle that was never scheduled is a plain write" do
       riddle = riddle_fixture(%{publish_status: "published"})
 
-      assert {:ok, saved} = Games.save_riddle(riddle, %{"publish_status" => "draft"})
+      assert {:ok, saved} =
+               Games.save_riddle(system_scope(), riddle, %{"publish_status" => "draft"})
+
       assert saved.play_status == "closed"
       assert pending_jobs(saved.id) == []
     end
@@ -310,7 +336,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle_id = riddle.id
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:changed")
 
-      assert {:ok, _} = Games.save_riddle(riddle, %{"name" => "Renamed"})
+      assert {:ok, _} = Games.save_riddle(system_scope(), riddle, %{"name" => "Renamed"})
 
       assert_receive {:riddle_saved, %{id: ^riddle_id, name: "Renamed"} = broadcast}
       assert %Riddlr.Games.Category{} = broadcast.category
@@ -321,7 +347,7 @@ defmodule Riddlr.Games.SaveRiddleTest do
       riddle_id = riddle.id
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:changed")
 
-      assert {:error, _} = Games.save_riddle(riddle, %{"name" => nil})
+      assert {:error, _} = Games.save_riddle(system_scope(), riddle, %{"name" => nil})
 
       refute_receive {:riddle_saved, %{id: ^riddle_id}}
     end

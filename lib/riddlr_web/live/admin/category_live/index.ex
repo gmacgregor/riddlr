@@ -31,14 +31,15 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    if AdminAuth.authorized?(socket, :manage_riddles) do
-      category = Games.get_category!(id)
-      {:ok, _} = Games.delete_category(category)
+    category = Games.get_category!(id)
 
-      {:noreply,
-       socket |> stream_delete(:categories, category) |> put_flash(:info, "Category deleted")}
-    else
-      {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
+    case Games.delete_category(socket.assigns.current_scope, category) do
+      {:ok, _} ->
+        {:noreply,
+         socket |> stream_delete(:categories, category) |> put_flash(:info, "Category deleted")}
+
+      {:error, :unauthorized} ->
+        {:noreply, AdminAuth.unauthorized(socket)}
     end
   end
 

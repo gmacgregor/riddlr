@@ -49,17 +49,15 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    # on_mount checks only run at mount, so a delete checks again.
-    case AdminAuth.authorized?(socket, :manage_riddles) do
-      true ->
-        riddle = Games.get_riddle!(id)
-        {:ok, _} = Games.delete_riddle(riddle)
+    riddle = Games.get_riddle!(id)
 
+    case Games.delete_riddle(socket.assigns.current_scope, riddle) do
+      {:ok, _} ->
         {:noreply,
          socket |> stream_delete(:riddles, riddle) |> put_flash(:info, "Riddle deleted")}
 
-      false ->
-        {:noreply, socket |> put_flash(:error, "Unauthorized") |> push_navigate(to: ~p"/")}
+      {:error, :unauthorized} ->
+        {:noreply, AdminAuth.unauthorized(socket)}
     end
   end
 

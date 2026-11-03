@@ -4,6 +4,8 @@ defmodule Riddlr.Authorization do
   Permissions are hierarchical: super_admin > moderator > editor > viewer > player
   """
 
+  alias Riddlr.Accounts
+  alias Riddlr.Accounts.Scope
   alias Riddlr.Accounts.User
 
   @role_permissions %{
@@ -35,9 +37,23 @@ defmodule Riddlr.Authorization do
   def has_permission?(_user, _permission), do: false
 
   @doc """
-  Returns `:ok` if the user holds `permission`, else `{:error, :unauthorized}`.
+  Returns `:ok` if the caller holds `permission`, else `{:error, :unauthorized}`.
+
+  The system scope holds every permission. For a user scope, this reads the
+  user again from the database: a LiveView keeps the scope from its mount,
+  and a role or status can change after that by iex or SQL, which tells no
+  LiveView.
   """
-  @spec authorize(User.t() | nil, permission() | atom()) :: :ok | {:error, :unauthorized}
+  @spec authorize(Scope.t() | User.t() | nil, permission() | atom()) ::
+          :ok | {:error, :unauthorized}
+  def authorize(%Scope{system?: true}, _permission), do: :ok
+
+  def authorize(%Scope{user: %User{id: id}}, permission) do
+    id |> Accounts.get_user() |> authorize(permission)
+  end
+
+  def authorize(%Scope{}, _permission), do: {:error, :unauthorized}
+
   def authorize(user, permission) do
     if has_permission?(user, permission), do: :ok, else: {:error, :unauthorized}
   end
