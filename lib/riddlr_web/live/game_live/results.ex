@@ -208,7 +208,7 @@ defmodule RiddlrWeb.GameLive.Results do
       if socket.assigns.chat_open? do
         socket
         |> assign(:chat_open?, false)
-        |> assign(:closed_emoji, GameCopy.chat_closed_emoji())
+        |> assign(:closed_emoji, GameCopy.Results.chat_closed_emoji())
       else
         socket
       end
@@ -258,7 +258,7 @@ defmodule RiddlrWeb.GameLive.Results do
   # The countdown's first text. The `.ChatCountdown` hook takes over from it.
   @spec countdown_text(DateTime.t()) :: String.t()
   defp countdown_text(archive_at) do
-    archive_at |> DateTime.diff(Clock.utc_now()) |> GameCopy.chat_countdown()
+    archive_at |> DateTime.diff(Clock.utc_now()) |> GameCopy.Results.chat_countdown()
   end
 
   # Splits the answer into words of {letter, index} pairs. The index counts across the
@@ -305,9 +305,9 @@ defmodule RiddlrWeb.GameLive.Results do
 
   # The viewer's card. Joining means guessing while the riddle was live; ETS
   # knows that until archive, after which only solvers count as joined.
-  @spec you_card(board_entry() | nil, integer(), integer()) :: GameCopy.you_card()
+  @spec you_card(board_entry() | nil, integer(), integer()) :: GameCopy.Results.you_card()
   defp you_card(mine, riddle_id, user_id) do
-    GameCopy.you_card(mine, mine != nil or Gameplay.guessed?(riddle_id, user_id))
+    GameCopy.Results.you_card(mine, mine != nil or Gameplay.guessed?(riddle_id, user_id))
   end
 
   # One cell per scoring place: its points and the solver who took it, if any.
@@ -341,7 +341,7 @@ defmodule RiddlrWeb.GameLive.Results do
       placement: row.placement,
       points: row.points,
       username: username,
-      shown_as: if(me?, do: GameCopy.room_you(), else: username),
+      shown_as: if(me?, do: GameCopy.Lobby.room_you(), else: username),
       me?: me?,
       secs: GameCopy.solve_secs(row.solve_time_ms)
     }

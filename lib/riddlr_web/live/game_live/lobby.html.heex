@@ -10,10 +10,10 @@
           name={@riddle.name}
           category={@riddle.category.name}
         />
-        <h1 id="lobby-h" class="rg-lobby__h" tabindex="-1">{GameCopy.lobby_heading()}</h1>
+        <h1 id="lobby-h" class="rg-lobby__h" tabindex="-1">{GameCopy.Lobby.lobby_heading()}</h1>
         <GameComponents.flaps id="lobby-flaps" seconds={@time_remaining} />
         <p :if={@riddle.live_date} class="rg-lobby__when">
-          {GameCopy.lobby_when_lead()}
+          {GameCopy.Lobby.lobby_when_lead()}
           <b><GameComponents.drop_time
             id="lobby-drop-time"
             at={@riddle.live_date}
@@ -21,27 +21,27 @@
             mid_sentence
           /></b>
           <GameComponents.drop_local id="lobby-drop-local" at={@riddle.live_date} /><br />
-          {if GameCopy.lobby_when_tail() != "", do: GameCopy.lobby_when_tail()}
+          {if GameCopy.Lobby.lobby_when_tail() != "", do: GameCopy.Lobby.lobby_when_tail()}
         </p>
         <ul class="rg-facts">
           <li class="rg-fact">
-            <GameComponents.icon name="clock" /> {GameCopy.solve_time(
+            <GameComponents.icon name="clock" /> {GameCopy.Lobby.solve_time(
               GameComponents.clock_str(@riddle.solve_time)
             )}
           </li>
         </ul>
         <%!-- A guest cannot guess, so is not told to get ready. --%>
         <p :if={@current_scope} id="lobby-ready" class="rg-lobby__ready" aria-live="assertive">
-          {if @time_remaining in 1..5, do: GameCopy.lobby_ready()}
+          {if @time_remaining in 1..5, do: GameCopy.Lobby.lobby_ready()}
         </p>
         <GameComponents.join_note current_scope={@current_scope} />
       </div>
 
       <section class="rg-panel rg-room" aria-labelledby="room-h">
         <div class="rg-panel__head">
-          <h2 id="room-h" class="rg-panel__h">{GameCopy.room_heading()}</h2>
+          <h2 id="room-h" class="rg-panel__h">{GameCopy.Lobby.room_heading()}</h2>
           <span id="room-count" class="rg-count rg-nowrap" aria-live="polite">
-            {GameCopy.room_count(length(@players))}
+            {GameCopy.Lobby.room_count(length(@players))}
           </span>
         </div>
         <ul id="room-grid" class="rg-room__grid" phx-hook=".RoomGrid">
@@ -60,11 +60,11 @@
               }
             />
             <span class="rg-room__name">
-              {if player.me?, do: GameCopy.room_you(), else: player.username}
+              {if player.me?, do: GameCopy.Lobby.room_you(), else: player.username}
             </span>
           </li>
           <li :if={@room.more > 0} class="rg-room__more">
-            <span class="rg-nowrap">{GameCopy.room_more(@room.more)}</span>
+            <span class="rg-nowrap">{GameCopy.Lobby.room_more(@room.more)}</span>
           </li>
           <li :for={_ <- 1..@room.pad//1} class="rg-room__p rg-room__empty" aria-hidden="true">
             <span class="rg-tile">?</span><span class="rg-room__name">&nbsp;</span>
@@ -76,14 +76,14 @@
             :if={@last_join}
             id={"room-ticker-#{@last_join.seq}"}
             class="rg-ticker__text"
-          ><b>{@last_join.first}</b>{GameCopy.ticker_tail(@last_join.others)}</span>
+          ><b>{@last_join.first}</b>{GameCopy.Lobby.ticker_tail(@last_join.others)}</span>
         </p>
       </section>
 
       <section class="rg-panel" aria-labelledby="rules-h">
-        <h2 id="rules-h" class="rg-panel__h">{GameCopy.rules_heading()}</h2>
+        <h2 id="rules-h" class="rg-panel__h">{GameCopy.Lobby.rules_heading()}</h2>
         <ul class="rg-rules">
-          <li :for={rule <- GameCopy.rules()}>{rule}</li>
+          <li :for={rule <- GameCopy.Lobby.rules()}>{rule}</li>
         </ul>
       </section>
     </div>

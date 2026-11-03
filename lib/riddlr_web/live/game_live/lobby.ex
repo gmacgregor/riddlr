@@ -21,7 +21,7 @@ defmodule RiddlrWeb.GameLive.Lobby do
           riddle.play_status != "ready" ->
             {:ok,
              socket
-             |> put_flash(:info, GameCopy.lobby_unavailable())
+             |> put_flash(:info, GameCopy.Lobby.lobby_unavailable())
              |> push_navigate(to: ~p"/")}
 
           true ->

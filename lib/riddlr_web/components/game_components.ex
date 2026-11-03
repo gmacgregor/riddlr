@@ -346,7 +346,7 @@ defmodule RiddlrWeb.GameComponents do
       phx-update="ignore"
       hidden
     >
-      {GameCopy.drop_local_lead()} <span data-local-text></span>
+      {GameCopy.Home.drop_local_lead()} <span data-local-text></span>
     </span>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".LocalDrop">
       import {localDropText} from "@/js/drop_time"
@@ -398,8 +398,8 @@ defmodule RiddlrWeb.GameComponents do
     ~H"""
     <section id={@id} class="rg-peek" aria-labelledby={"#{@id}-h"} {@rest}>
       <div class="rg-peek__head">
-        <h3 id={"#{@id}-h"} class="rg-peek__h">{GameCopy.practice_heading()}</h3>
-        <span class="rg-peek__tag">{GameCopy.practice_tag(@n, @total)}</span>
+        <h3 id={"#{@id}-h"} class="rg-peek__h">{GameCopy.Home.practice_heading()}</h3>
+        <span class="rg-peek__tag">{GameCopy.Home.practice_tag(@n, @total)}</span>
       </div>
       <p class="rg-peek__q">“{@riddle.description}”</p>
       <div id={"#{@id}-answer"} class="rg-peek__a">
@@ -411,8 +411,8 @@ defmodule RiddlrWeb.GameComponents do
         <% end %>
       </div>
       <span class="rg-sr-only" role="status">
-        <span id={"#{@id}-sr-hidden"}>{GameCopy.practice_status_hidden(@riddle.answer)}</span>
-        <span id={"#{@id}-sr-shown"} hidden>{GameCopy.practice_status_shown(@riddle.answer)}</span>
+        <span id={"#{@id}-sr-hidden"}>{GameCopy.Home.practice_status_hidden(@riddle.answer)}</span>
+        <span id={"#{@id}-sr-shown"} hidden>{GameCopy.Home.practice_status_shown(@riddle.answer)}</span>
       </span>
       <div class="rg-peek__bar">
         <button
@@ -428,8 +428,8 @@ defmodule RiddlrWeb.GameComponents do
             |> JS.toggle_attribute({"hidden", ""}, to: "##{@id}-sr-shown")
           }
         >
-          <span class="rg-peek__show">{GameCopy.practice_peek()}</span>
-          <span class="rg-peek__hide">{GameCopy.practice_hide()}</span>
+          <span class="rg-peek__show">{GameCopy.Home.practice_peek()}</span>
+          <span class="rg-peek__hide">{GameCopy.Home.practice_hide()}</span>
         </button>
         <button
           :if={@on_another && @total > 1}
@@ -437,9 +437,11 @@ defmodule RiddlrWeb.GameComponents do
           class="rg-btn rg-peek__btn rg-peek__next"
           phx-click={close_practice(@id) |> JS.push(@on_another)}
         >
-          {GameCopy.practice_another()}
+          {GameCopy.Home.practice_another()}
         </button>
-        <p :if={GameCopy.practice_note() != ""} class="rg-peek__note">{GameCopy.practice_note()}</p>
+        <p :if={GameCopy.Home.practice_note() != ""} class="rg-peek__note">
+          {GameCopy.Home.practice_note()}
+        </p>
       </div>
     </section>
     """

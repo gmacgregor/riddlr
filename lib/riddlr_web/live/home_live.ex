@@ -341,7 +341,7 @@ defmodule RiddlrWeb.HomeLive do
 
   # The hero card's state, one per Next riddle case. A `scheduled` riddle is
   # `future`: its Lobby is not open yet.
-  @spec hero_state(Games.Riddle.t() | nil) :: GameCopy.hero_state()
+  @spec hero_state(Games.Riddle.t() | nil) :: GameCopy.Home.hero_state()
   defp hero_state(nil), do: :none
   defp hero_state(%{play_status: "live"}), do: :live
   defp hero_state(%{play_status: "ready"}), do: :lobby
@@ -349,7 +349,7 @@ defmodule RiddlrWeb.HomeLive do
 
   # The last time on the timeline: when the next riddle's round ends.
   @spec round_end(Games.Riddle.t() | nil) :: String.t()
-  defp round_end(nil), do: GameCopy.timeline_end_default()
+  defp round_end(nil), do: GameCopy.Home.timeline_end_default()
   defp round_end(riddle), do: GameCopy.m_ss(riddle.solve_time)
 
   @spec waiting(Games.Riddle.t() | nil) :: non_neg_integer()

@@ -104,7 +104,7 @@ defmodule RiddlrWeb.GameLive.Play do
       :incorrect ->
         {:noreply,
          socket
-         |> put_guess_msg(GameCopy.quip(socket.assigns.guess_msg), true)
+         |> put_guess_msg(GameCopy.Play.quip(socket.assigns.guess_msg), true)
          |> start_cooldown()
          |> push_event("guess-wrong", %{})}
 
@@ -115,7 +115,7 @@ defmodule RiddlrWeb.GameLive.Play do
          |> push_navigate(to: ~p"/")}
 
       {:error, :empty_answer} ->
-        {:noreply, put_guess_msg(socket, GameCopy.guess_empty(), true)}
+        {:noreply, put_guess_msg(socket, GameCopy.Play.guess_empty(), true)}
 
       {:error, reason} ->
         {:noreply, put_guess_msg(socket, format_error(reason), false)}
@@ -203,8 +203,8 @@ defmodule RiddlrWeb.GameLive.Play do
     assign(socket, cooling?: true, cooldown_timer: timer)
   end
 
-  defp format_error(:cooldown), do: GameCopy.guess_cooldown()
-  defp format_error(:time_up), do: GameCopy.guess_time_up()
+  defp format_error(:cooldown), do: GameCopy.Play.guess_cooldown()
+  defp format_error(:time_up), do: GameCopy.Play.guess_time_up()
   defp format_error(:already_solved), do: "You've already solved this riddle!"
 
   defp format_error(:answer_too_long),

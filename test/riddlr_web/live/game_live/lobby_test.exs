@@ -40,7 +40,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == GameCopy.lobby_unavailable()
+      assert flash["info"] == GameCopy.Lobby.lobby_unavailable()
     end
 
     test "redirects when riddle is :scheduled", %{conn: conn, user: user} do
@@ -53,7 +53,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == GameCopy.lobby_unavailable()
+      assert flash["info"] == GameCopy.Lobby.lobby_unavailable()
     end
 
     test "redirects when riddle is :completed", %{conn: conn, user: user} do
@@ -66,7 +66,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == GameCopy.lobby_unavailable()
+      assert flash["info"] == GameCopy.Lobby.lobby_unavailable()
     end
 
     test "redirects when riddle is :archived", %{conn: conn, user: user} do
@@ -79,7 +79,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert {:error, {:live_redirect, %{to: "/", flash: flash}}} =
                live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert flash["info"] == GameCopy.lobby_unavailable()
+      assert flash["info"] == GameCopy.Lobby.lobby_unavailable()
     end
 
     test "mounts successfully when riddle is :ready", %{conn: conn, user: user} do
@@ -90,7 +90,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       conn = log_in_user(conn, user)
       {:ok, _live, html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-      assert html =~ GameCopy.lobby_heading()
+      assert html =~ GameCopy.Lobby.lobby_heading()
     end
 
     test "renders the game topbar with account controls and no bottom nav", %{
@@ -149,7 +149,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
                "#{riddle.name} · #{riddle.category.name}"
              )
 
-      assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.lobby_heading())
+      assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.Lobby.lobby_heading())
     end
 
     test "shows the Lobby status pill in the topbar", %{conn: conn, riddle: riddle, user: user} do
@@ -169,7 +169,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert has_element?(live, ".rg-facts .rg-fact", GameCopy.solve_time("01:30"))
+      assert has_element?(live, ".rg-facts .rg-fact", GameCopy.Lobby.solve_time("01:30"))
       refute has_element?(live, ".rg-facts .rg-fact:nth-child(2)")
       assert has_element?(live, ".rg-fact svg.rg-icon[aria-hidden='true']")
     end
@@ -236,19 +236,19 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
       assert has_element?(live, "#lobby-ready[aria-live='assertive']")
-      refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+      refute has_element?(live, "#lobby-ready", GameCopy.Lobby.lobby_ready())
 
       send(live.pid, {:countdown_tick, :lobby, 6})
-      refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+      refute has_element?(live, "#lobby-ready", GameCopy.Lobby.lobby_ready())
 
       send(live.pid, {:countdown_tick, :lobby, 5})
-      assert has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+      assert has_element?(live, "#lobby-ready", GameCopy.Lobby.lobby_ready())
 
       send(live.pid, {:countdown_tick, :lobby, 1})
-      assert has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+      assert has_element?(live, "#lobby-ready", GameCopy.Lobby.lobby_ready())
 
       send(live.pid, {:countdown_tick, :lobby, 0})
-      refute has_element?(live, "#lobby-ready", GameCopy.lobby_ready())
+      refute has_element?(live, "#lobby-ready", GameCopy.Lobby.lobby_ready())
     end
 
     test "does not tell a guest to get ready", %{conn: conn} do
@@ -296,8 +296,8 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       iso = DateTime.to_iso8601(live_date)
 
-      assert has_element?(live, ".rg-lobby__when", GameCopy.lobby_when_lead())
-      assert has_element?(live, ".rg-lobby__when", GameCopy.lobby_when_tail())
+      assert has_element?(live, ".rg-lobby__when", GameCopy.Lobby.lobby_when_lead())
+      assert has_element?(live, ".rg-lobby__when", GameCopy.Lobby.lobby_when_tail())
 
       assert has_element?(
                live,
@@ -358,7 +358,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       send(live.pid, {:riddle_live, other_riddle})
 
       # Page still showing lobby content
-      assert has_element?(live, "#lobby-h", GameCopy.lobby_heading())
+      assert has_element?(live, "#lobby-h", GameCopy.Lobby.lobby_heading())
     end
   end
 
@@ -379,13 +379,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
     } do
       {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
 
-      assert has_element?(live, "#room-h", GameCopy.room_heading())
-      assert has_element?(live, "#room-count[aria-live='polite']", GameCopy.room_count(1))
+      assert has_element?(live, "#room-h", GameCopy.Lobby.room_heading())
+      assert has_element?(live, "#room-count[aria-live='polite']", GameCopy.Lobby.room_count(1))
 
       assert has_element?(
                live,
                "#room-grid li:first-child#room-p-#{user.id}.is-me",
-               GameCopy.room_you()
+               GameCopy.Lobby.room_you()
              )
 
       assert has_element?(
@@ -407,7 +407,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       assert has_element?(live, "#room-p-#{user.id}:not(.is-me)", user.username)
       refute has_element?(live, "#room-grid .is-me")
-      assert has_element?(live, "#room-count", GameCopy.room_count(1))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(1))
     end
 
     test "invites a guest to log in or sign up", %{conn: conn, riddle: riddle} do
@@ -438,11 +438,11 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert has_element?(
                other_live,
                "#room-grid li:first-child#room-p-#{other.id}",
-               GameCopy.room_you()
+               GameCopy.Lobby.room_you()
              )
 
       assert has_element?(other_live, "#room-p-#{user.id}", user.username)
-      assert has_element?(other_live, "#room-count", GameCopy.room_count(2))
+      assert has_element?(other_live, "#room-count", GameCopy.Lobby.room_count(2))
 
       # The first player hears of the second through a presence diff.
       await_diff(:joins, to_string(other.id))
@@ -452,10 +452,10 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert has_element?(
                live,
                "#room-grid li:first-child#room-p-#{user.id}",
-               GameCopy.room_you()
+               GameCopy.Lobby.room_you()
              )
 
-      assert has_element?(live, "#room-count", GameCopy.room_count(2))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(2))
     end
 
     test "count and grid follow players joining and leaving", %{
@@ -470,13 +470,13 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       await_diff(:joins, "p1")
       flush_room(live)
       assert has_element?(live, "#room-p-p1", "zelda")
-      assert has_element?(live, "#room-count", GameCopy.room_count(2))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(2))
 
       Process.exit(pid, :kill)
       await_diff(:leaves, "p1")
       flush_room(live)
       refute has_element?(live, "#room-p-p1")
-      assert has_element?(live, "#room-count", GameCopy.room_count(1))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(1))
     end
 
     test "fills a small room with empty tiles up to 8", %{conn: conn, riddle: riddle, user: user} do
@@ -502,10 +502,10 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
 
       # 4 columns x 3 rows = 12 cells: 10 tiles, then "more" spans two.
-      assert has_element?(live, "#room-count", GameCopy.room_count(50))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(50))
       assert count_cells(live, ".rg-room__p") == 10
       assert has_element?(live, "#room-grid li:first-child.is-me")
-      assert has_element?(live, "#room-grid .rg-room__more", GameCopy.room_more(40))
+      assert has_element?(live, "#room-grid .rg-room__more", GameCopy.Lobby.room_more(40))
       refute has_element?(live, "#room-grid .rg-room__empty")
     end
 
@@ -522,7 +522,7 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       # 6 columns x 3 rows = 18 cells: 16 tiles and the "more" cell.
       render_hook(live, "room-cols", %{"cols" => 6})
       assert count_cells(live, ".rg-room__p") == 16
-      assert has_element?(live, "#room-grid .rg-room__more", GameCopy.room_more(34))
+      assert has_element?(live, "#room-grid .rg-room__more", GameCopy.Lobby.room_more(34))
 
       # Past 12 columns the grid stops growing.
       render_hook(live, "room-cols", %{"cols" => 500})
@@ -532,9 +532,9 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
     test "shows how the game works", %{conn: conn, riddle: riddle, user: user} do
       {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
 
-      assert has_element?(live, "#rules-h", GameCopy.rules_heading())
+      assert has_element?(live, "#rules-h", GameCopy.Lobby.rules_heading())
 
-      for rule <- GameCopy.rules() do
+      for rule <- GameCopy.Lobby.rules() do
         assert has_element?(live, ".rg-rules li", rule)
       end
     end
@@ -554,9 +554,9 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       flush_room(live)
 
-      assert has_element?(live, "#room-count", GameCopy.room_count(51))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(51))
       refute has_element?(live, "#room-p-p1")
-      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.ticker_tail(49))
+      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.Lobby.ticker_tail(49))
     end
 
     test "a diff the mount already read changes nothing", %{
@@ -571,12 +571,12 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
       send(live.pid, %Phoenix.Socket.Broadcast{event: "presence_diff", payload: join})
       flush_room(live)
-      assert has_element?(live, "#room-count", GameCopy.room_count(2))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(2))
 
       Process.exit(pid, :kill)
       await_diff(:leaves, "p1")
       flush_room(live)
-      assert has_element?(live, "#room-count", GameCopy.room_count(1))
+      assert has_element?(live, "#room-count", GameCopy.Lobby.room_count(1))
     end
 
     test "the ticker names who just joined, never the viewer", %{
@@ -594,11 +594,11 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       send_diff(live, riddle, %{"p1" => "zelda"})
       assert has_element?(live, "#room-ticker .rg-ticker__text b", "zelda")
-      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.ticker_tail(0))
+      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.Lobby.ticker_tail(0))
 
       send_diff(live, riddle, %{"p2" => "ann", "p3" => "bo", to_string(user.id) => user.username})
       assert has_element?(live, "#room-ticker .rg-ticker__text b", "ann")
-      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.ticker_tail(1))
+      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.Lobby.ticker_tail(1))
 
       # A diff with only leaves keeps the last join on show.
       send_diff(live, riddle, %{}, %{"p1" => "zelda"})

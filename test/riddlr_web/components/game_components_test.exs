@@ -143,9 +143,9 @@ defmodule RiddlrWeb.GameComponentsTest do
           total: 5
         )
 
-      assert html =~ GameCopy.practice_heading()
-      assert html =~ GameCopy.practice_tag(2, 5)
-      assert html =~ escape(GameCopy.practice_note())
+      assert html =~ GameCopy.Home.practice_heading()
+      assert html =~ GameCopy.Home.practice_tag(2, 5)
+      assert html =~ escape(GameCopy.Home.practice_note())
       assert html =~ escape(@riddle.description)
       # One tile per letter and a gap for the space; the answer starts closed.
       assert length(Regex.scan(~r/class="rg-pk"/, html)) == 6
@@ -153,7 +153,7 @@ defmodule RiddlrWeb.GameComponentsTest do
       refute html =~ "rg-peek__a is-open"
       assert html =~ ~s(aria-expanded="false")
       assert html =~ ~s(aria-controls="practice-answer")
-      assert html =~ GameCopy.practice_peek()
+      assert html =~ GameCopy.Home.practice_peek()
       assert html =~ ~s(role="status")
     end
 
@@ -166,9 +166,9 @@ defmodule RiddlrWeb.GameComponentsTest do
           total: 1
         )
 
-      assert html =~ GameCopy.practice_hide()
-      assert html =~ GameCopy.practice_status_shown("Big Ben")
-      assert html =~ GameCopy.practice_status_hidden("Big Ben")
+      assert html =~ GameCopy.Home.practice_hide()
+      assert html =~ GameCopy.Home.practice_status_shown("Big Ben")
+      assert html =~ GameCopy.Home.practice_status_hidden("Big Ben")
     end
 
     test "offers Another riddle only when there is another to show" do
@@ -182,18 +182,18 @@ defmodule RiddlrWeb.GameComponentsTest do
         )
       end
 
-      assert note.(2) =~ GameCopy.practice_another()
-      refute note.(1) =~ GameCopy.practice_another()
+      assert note.(2) =~ GameCopy.Home.practice_another()
+      refute note.(1) =~ GameCopy.Home.practice_another()
     end
 
     test "counts only letters and digits in the hidden answer's status" do
-      assert GameCopy.practice_status_hidden("Big Ben") =~ whole_number("6")
-      assert GameCopy.practice_status_hidden("R2-D2!") =~ whole_number("4")
-      assert GameCopy.practice_status_hidden("I") =~ whole_number("1")
+      assert GameCopy.Home.practice_status_hidden("Big Ben") =~ whole_number("6")
+      assert GameCopy.Home.practice_status_hidden("R2-D2!") =~ whole_number("4")
+      assert GameCopy.Home.practice_status_hidden("I") =~ whole_number("1")
 
       # One letter reads as singular.
-      one = String.replace(GameCopy.practice_status_hidden("I"), "1", "N")
-      six = String.replace(GameCopy.practice_status_hidden("Big Ben"), "6", "N")
+      one = String.replace(GameCopy.Home.practice_status_hidden("I"), "1", "N")
+      six = String.replace(GameCopy.Home.practice_status_hidden("Big Ben"), "6", "N")
       refute one == six
     end
 
@@ -249,7 +249,7 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert LazyHTML.attribute(line, "data-at") == ["2030-07-08T17:17:00Z"]
       assert LazyHTML.attribute(line, "data-zone") == ["America/Toronto"]
       assert LazyHTML.attribute(line, "phx-hook") != []
-      assert LazyHTML.text(line) =~ GameCopy.drop_local_lead()
+      assert LazyHTML.text(line) =~ GameCopy.Home.drop_local_lead()
     end
 
     test "leaves out the local-time line when told to" do

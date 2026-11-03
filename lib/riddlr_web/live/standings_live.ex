@@ -42,7 +42,7 @@ defmodule RiddlrWeb.StandingsLive do
 
     {:ok,
      socket
-     |> assign(:page_title, GameCopy.standings_heading())
+     |> assign(:page_title, GameCopy.Standings.standings_heading())
      |> assign(boards: @boards, windows: @windows)
      |> stream_configure(:rows, dom_id: &"standings-#{&1.user_id}")}
   end
@@ -82,11 +82,11 @@ defmodule RiddlrWeb.StandingsLive do
             <div class="rg-stand__head">
               <.laurel />
               <h1 id="standings-h" class="rg-panel__h" tabindex="-1">
-                {GameCopy.standings_heading()}
+                {GameCopy.Standings.standings_heading()}
               </h1>
               <.laurel flip />
             </div>
-            <nav class="rg-stand__switch" aria-label={GameCopy.standings_board_label()}>
+            <nav class="rg-stand__switch" aria-label={GameCopy.Standings.standings_board_label()}>
               <.link
                 :for={board <- @boards}
                 id={"standings-board-#{board}"}
@@ -94,10 +94,10 @@ defmodule RiddlrWeb.StandingsLive do
                 class="rg-tab rg-tab--sm"
                 aria-current={if board == @board, do: "page"}
               >
-                {GameCopy.standings_board(board)}
+                {GameCopy.Standings.standings_board(board)}
               </.link>
             </nav>
-            <nav class="rg-stand__switch" aria-label={GameCopy.standings_window_label()}>
+            <nav class="rg-stand__switch" aria-label={GameCopy.Standings.standings_window_label()}>
               <.link
                 :for={window <- @windows}
                 id={"standings-window-#{window}"}
@@ -105,31 +105,37 @@ defmodule RiddlrWeb.StandingsLive do
                 class="rg-tab rg-tab--sm rg-tab--sub"
                 aria-current={if window == @window, do: "page"}
               >
-                {GameCopy.standings_window(window)}
+                {GameCopy.Standings.standings_window(window)}
               </.link>
             </nav>
             <p :if={@empty?} id="standings-empty" class="rg-board__empty">
-              {GameCopy.standings_empty(@window)}
+              {GameCopy.Standings.standings_empty(@window)}
             </p>
             <table :if={!@empty?} id="standings-board" class="rg-stand">
               <thead>
                 <tr>
-                  <th scope="col" class="rg-stand__rank">{GameCopy.standings_col(:rank)}</th>
-                  <th scope="col" class="rg-stand__player">{GameCopy.standings_col(:player)}</th>
+                  <th scope="col" class="rg-stand__rank">
+                    {GameCopy.Standings.standings_col(:rank)}
+                  </th>
+                  <th scope="col" class="rg-stand__player">
+                    {GameCopy.Standings.standings_col(:player)}
+                  </th>
                   <%= if @board == :fastest do %>
                     <th scope="col" class="rg-stand__time" aria-sort="ascending">
-                      {GameCopy.standings_col(:time)}
+                      {GameCopy.Standings.standings_col(:time)}
                     </th>
-                    <th scope="col" class="rg-stand__riddle">{GameCopy.standings_col(:riddle)}</th>
+                    <th scope="col" class="rg-stand__riddle">
+                      {GameCopy.Standings.standings_col(:riddle)}
+                    </th>
                   <% else %>
                     <th scope="col" class="rg-stand__pts" aria-sort={aria_sort(@board, :points)}>
-                      {GameCopy.standings_col(:points)}
+                      {GameCopy.Standings.standings_col(:points)}
                     </th>
                     <th scope="col" class="rg-stand__wins" aria-sort={aria_sort(@board, :wins)}>
-                      {GameCopy.standings_col(:wins)}
+                      {GameCopy.Standings.standings_col(:wins)}
                     </th>
                     <th scope="col" class="rg-stand__pods" aria-sort={aria_sort(@board, :podiums)}>
-                      {GameCopy.standings_col(:podiums)}
+                      {GameCopy.Standings.standings_col(:podiums)}
                     </th>
                   <% end %>
                 </tr>
@@ -155,15 +161,15 @@ defmodule RiddlrWeb.StandingsLive do
               </tbody>
             </table>
             <details id="standings-how" class="rg-stand__how">
-              <summary class="rg-link-btn">{GameCopy.standings_how_link()}</summary>
+              <summary class="rg-link-btn">{GameCopy.Standings.standings_how_link()}</summary>
               <dl class="rg-stand__how-list">
                 <div :for={board <- @boards} id={"standings-how-#{board}"}>
-                  <dt>{GameCopy.standings_board(board)}</dt>
-                  <dd>{GameCopy.standings_how(board)}</dd>
+                  <dt>{GameCopy.Standings.standings_board(board)}</dt>
+                  <dd>{GameCopy.Standings.standings_how(board)}</dd>
                 </div>
               </dl>
-              <p>{GameCopy.standings_how_ties()}</p>
-              <p>{GameCopy.standings_how_month()}</p>
+              <p>{GameCopy.Standings.standings_how_ties()}</p>
+              <p>{GameCopy.Standings.standings_how_month()}</p>
             </details>
           </section>
         </div>

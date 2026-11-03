@@ -35,11 +35,11 @@
       </h1>
       <p :if={@board_ready?} id="res-by" class="rg-results__by">
         <%= if first = List.first(@board) do %>
-          {GameCopy.results_by_lead()} <b>{first.shown_as}</b>
+          {GameCopy.Results.results_by_lead()} <b>{first.shown_as}</b>
           in <span class="rg-nowrap">{first.secs}</span>
           · {GameCopy.solved_count(@board_total)}
         <% else %>
-          {GameCopy.results_unsolved()}
+          {GameCopy.Results.results_unsolved()}
         <% end %>
       </p>
       <GameComponents.join_note current_scope={@current_scope} />
@@ -109,7 +109,7 @@
           <div :if={!solver} class={"rg-pod rg-pod--#{place} rg-pod--empty"}>
             <div class="rg-pod__who">
               <span class="rg-tile rg-tile--lg rg-tile--open" aria-hidden="true">?</span>
-              <span class="rg-pod__name">{GameCopy.podium_open()}</span>
+              <span class="rg-pod__name">{GameCopy.Results.podium_open()}</span>
               <span class="rg-pod__t">&nbsp;</span>
             </div>
             <div class="rg-pod__block">
@@ -152,11 +152,11 @@
           <span class="rg-row__pts">+{@my_row.points}</span>
         </li>
         <li :if={@board_ready? and @board == []} class="rg-board__empty">
-          {GameCopy.board_empty()}
+          {GameCopy.Results.board_empty()}
         </li>
       </ol>
       <section class="rg-payout" aria-labelledby="payout-h">
-        <h3 id="payout-h" class="rg-panel__h">{GameCopy.payout_heading()}</h3>
+        <h3 id="payout-h" class="rg-panel__h">{GameCopy.Results.payout_heading()}</h3>
         <ol class="rg-points__row">
           <li
             :for={cell <- @payout}
@@ -169,20 +169,20 @@
             <span class="rg-pt__p">{GameCopy.ordinal(cell.place)}</span>
             <span class="rg-pt__v">{cell.points}</span>
             <span class="rg-pt__who">
-              {if cell.solver, do: cell.solver.shown_as, else: GameCopy.payout_unclaimed()}
+              {if cell.solver, do: cell.solver.shown_as, else: GameCopy.Results.payout_unclaimed()}
             </span>
           </li>
         </ol>
       </section>
       <div id="res-next" class="rg-next">
-        <span :if={!@next} class="rg-next__t">{GameCopy.next_none()}</span>
+        <span :if={!@next} class="rg-next__t">{GameCopy.Results.next_none()}</span>
         <span :if={@next && @next.play_status == "live"} class="rg-next__t">
-          {GameCopy.next_lead()} <b :if={@next.number}>No. {@next.number}</b>
-          <span :if={@next.number}>·</span> {@next.category.name} · {GameCopy.next_live_now()}
+          {GameCopy.Results.next_lead()} <b :if={@next.number}>No. {@next.number}</b>
+          <span :if={@next.number}>·</span> {@next.category.name} · {GameCopy.Results.next_live_now()}
         </span>
         <span :if={@next && @next.play_status != "live"} class="rg-next__t">
-          {GameCopy.next_lead()} <b>{@next.category.name}</b>
-          · {GameCopy.next_drops()}
+          {GameCopy.Results.next_lead()} <b>{@next.category.name}</b>
+          · {GameCopy.Results.next_drops()}
           <b><GameComponents.drop_time
             id={"res-next-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
             at={@next.live_date}
@@ -199,16 +199,16 @@
           navigate={~p"/game/#{@next.id}/lobby"}
           class="rg-btn rg-btn--accent rg-btn--wide"
         >
-          {GameCopy.next_enter_lobby()} <GameComponents.icon name="arrow" />
+          {GameCopy.Results.next_enter_lobby()} <GameComponents.icon name="arrow" />
         </.link>
         <.link
           :if={@next && @next.play_status == "live"}
           navigate={~p"/game/#{@next.id}/play"}
           class="rg-btn rg-btn--accent rg-btn--wide"
         >
-          {GameCopy.next_jump_in()} <GameComponents.icon name="arrow" />
+          {GameCopy.Results.next_jump_in()} <GameComponents.icon name="arrow" />
         </.link>
-        <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.next_home()}</.link>
+        <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.Results.next_home()}</.link>
         <.link navigate={~p"/standings"} class="rg-link-btn">
           {GameCopy.standings_link()}
         </.link>
@@ -231,7 +231,7 @@
       >
         <%= for {dom_id, msg} <- @streams.answers do %>
           <li :if={divider?(msg)} id={dom_id} class="rg-chat__div" role="separator">
-            {GameCopy.chat_divider()}
+            {GameCopy.Results.chat_divider()}
           </li>
           <li
             :if={not divider?(msg)}
@@ -254,18 +254,18 @@
             <span class="rg-msg__body">
               <span class="rg-msg__name">
                 {if @current_scope && msg.user_id == @current_scope.user.id,
-                  do: GameCopy.room_you(),
+                  do: GameCopy.Lobby.room_you(),
                   else: msg.username}
               </span>
               <span :if={msg.correct} class="rg-msg__stamp">
-                <GameComponents.icon name="check" /> {GameCopy.feed_solved(msg.placement)}
+                <GameComponents.icon name="check" /> {GameCopy.Play.feed_solved(msg.placement)}
               </span>
               <span class="rg-msg__text">{msg.text}</span>
             </span>
           </li>
         <% end %>
         <li :if={!@chat_open? && !@closed_emoji} id="chat-empty" class="rg-chat__empty">
-          {GameCopy.chat_archived()}
+          {GameCopy.Results.chat_archived()}
         </li>
       </ol>
 
@@ -277,8 +277,8 @@
         role="timer"
         aria-live="off"
         data-archive-at={DateTime.to_iso8601(@archive_at)}
-        data-lead={GameCopy.chat_closes_in_lead()}
-        data-closing={GameCopy.chat_closing()}
+        data-lead={GameCopy.Results.chat_closes_in_lead()}
+        data-closing={GameCopy.Results.chat_closing()}
         phx-hook=".ChatCountdown"
         phx-update="ignore"
       >
@@ -305,7 +305,7 @@
             type="text"
             name="message"
             autocomplete="off"
-            placeholder={GameCopy.chat_placeholder()}
+            placeholder={GameCopy.Results.chat_placeholder()}
             disabled={!@chat_open?}
           />
           <button
@@ -318,7 +318,7 @@
           </button>
         </form>
         <p :if={@closed_emoji} id="chat-closed-emoji" class="rg-chat__closed">
-          <span class="rg-chat__closed-text">{GameCopy.chat_closed()}</span>
+          <span class="rg-chat__closed-text">{GameCopy.Results.chat_closed()}</span>
           <span class="rg-chat__closed-emoji" aria-hidden="true">{@closed_emoji}</span>
         </p>
       </div>
@@ -346,7 +346,7 @@
   // Counts down to the archive time the server sent once. At 0 it holds on
   // the closing text until the Archive broadcast removes it.
   //
-  // Mirrors GameCopy.chat_countdown/1 and m_ss/1. Change them together.
+  // Mirrors GameCopy.Results.chat_countdown/1 and m_ss/1. Change them together.
   const mSs = (secs) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`
 
   export default {

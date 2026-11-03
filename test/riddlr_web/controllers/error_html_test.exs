@@ -20,10 +20,10 @@ defmodule RiddlrWeb.ErrorHTMLTest do
       {404, _headers, body} = assert_error_sent 404, fn -> get(conn, "/no/such/page") end
       doc = LazyHTML.from_document(body)
 
-      assert text(doc, "#not-found h1.rg-lost__riddle") =~ GameCopy.not_found_riddle()
-      assert text(doc, "#not-found a.rg-link-btn") =~ GameCopy.not_found_home()
+      assert text(doc, "#not-found h1.rg-lost__riddle") =~ GameCopy.Errors.not_found_riddle()
+      assert text(doc, "#not-found a.rg-link-btn") =~ GameCopy.Errors.not_found_home()
       assert attr(doc, "#not-found a.rg-link-btn", "href") == "/"
-      assert text(doc, "title") =~ GameCopy.not_found_title()
+      assert text(doc, "title") =~ GameCopy.Errors.not_found_title()
       assert text(doc, ".rg-topbar") =~ "Log in"
     end
 
@@ -57,8 +57,8 @@ defmodule RiddlrWeb.ErrorHTMLTest do
         html = render_to_string(RiddlrWeb.ErrorHTML, unquote(status), "html", [])
 
         assert html =~ ~s(id="crisis")
-        assert html =~ GameCopy.crisis_riddle()
-        assert html =~ GameCopy.crisis_tail()
+        assert html =~ GameCopy.Errors.crisis_riddle()
+        assert html =~ GameCopy.Errors.crisis_tail()
         assert html =~ ~s(id="topbar-log-in")
       end
     end
@@ -74,9 +74,9 @@ defmodule RiddlrWeb.ErrorHTMLTest do
         assert_error_sent 403, fn -> post(conn, ~p"/users/log-in", %{}) end
 
       doc = LazyHTML.from_document(body)
-      assert text(doc, "#crisis h1.rg-lost__riddle") =~ GameCopy.crisis_riddle()
+      assert text(doc, "#crisis h1.rg-lost__riddle") =~ GameCopy.Errors.crisis_riddle()
       assert attr(doc, "#crisis a.rg-link-btn", "href") == "/"
-      assert text(doc, "title") =~ GameCopy.crisis_title()
+      assert text(doc, "title") =~ GameCopy.Errors.crisis_title()
     end
 
     test "falls back to plain text when the page itself breaks" do
