@@ -71,7 +71,8 @@ defmodule RiddlrWeb.GameLive.Results do
 
     case Games.fetch_riddle(id) do
       {:ok, %{play_status: status} = riddle} when status in ["completed", "archived"] ->
-        user = socket.assigns.current_user
+        scope = socket.assigns.current_scope
+        user = scope && scope.user
         # Chat is open until Archive. An open page closes it when the
         # `:riddle_archived` broadcast arrives.
         chat_open? = status == "completed"
@@ -156,7 +157,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   # A guest has no chat form, but a message could still be sent by hand.
   @impl true
-  def handle_event("send_chat", _params, %{assigns: %{current_user: nil}} = socket) do
+  def handle_event("send_chat", _params, %{assigns: %{current_scope: nil}} = socket) do
     {:noreply, socket}
   end
 
@@ -166,7 +167,7 @@ defmodule RiddlrWeb.GameLive.Results do
 
   def handle_event("send_chat", %{"message" => text}, socket) do
     text = String.trim(text)
-    %{current_user: user, riddle: riddle} = socket.assigns
+    %{current_scope: %{user: user}, riddle: riddle} = socket.assigns
 
     with :ok <- validate_input(text),
          :ok <- check_not_banned(socket.assigns),

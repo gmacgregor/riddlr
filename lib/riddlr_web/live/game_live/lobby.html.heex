@@ -31,7 +31,7 @@
           </li>
         </ul>
         <%!-- A guest cannot guess, so is not told to get ready. --%>
-        <p :if={@current_user} id="lobby-ready" class="rg-lobby__ready" aria-live="assertive">
+        <p :if={@current_scope} id="lobby-ready" class="rg-lobby__ready" aria-live="assertive">
           {if @time_remaining in 1..5, do: GameCopy.lobby_ready()}
         </p>
         <GameComponents.join_note current_scope={@current_scope} />
@@ -52,7 +52,12 @@
           >
             <GameComponents.tile
               initial={GameComponents.initial(player.username)}
-              tone={GameComponents.tone(player.username, @current_user && @current_user.username)}
+              tone={
+                GameComponents.tone(
+                  player.username,
+                  @current_scope && @current_scope.user.username
+                )
+              }
             />
             <span class="rg-room__name">
               {if player.me?, do: GameCopy.room_you(), else: player.username}

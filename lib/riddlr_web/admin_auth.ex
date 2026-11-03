@@ -23,7 +23,9 @@ defmodule RiddlrWeb.AdminAuth do
 
     # A signed-in player who is not an admin gets a 404 rather than a hint
     # that the page exists. The router has sent any guest to log in already.
-    unless Authorization.admin?(socket.assigns.current_user) do
+    scope = socket.assigns.current_scope
+
+    unless Authorization.admin?(scope && scope.user) do
       raise RiddlrWeb.NotFoundError
     end
 
@@ -33,7 +35,9 @@ defmodule RiddlrWeb.AdminAuth do
   def on_mount({:require_role, allowed_roles}, _params, session, socket) do
     socket = mount_current_user(socket, session)
 
-    if socket.assigns[:current_user] && socket.assigns.current_user.role in allowed_roles do
+    scope = socket.assigns.current_scope
+
+    if scope && scope.user.role in allowed_roles do
       {:cont, socket}
     else
       socket = socket |> put_flash(:error, "You don't have permission.") |> redirect(to: ~p"/")
@@ -44,7 +48,7 @@ defmodule RiddlrWeb.AdminAuth do
   # Narrows an admin page to the roles that hold one permission. It runs after
   # `:require_admin`, which lets every admin role in, including moderators.
   def on_mount({:require_permission, permission}, _params, _session, socket) do
-    if Authorization.has_permission?(socket.assigns[:current_user], permission) do
+    if Authorization.has_permission?(socket.assigns.current_scope.user, permission) do
       {:cont,
        attach_hook(socket, :recheck_permission, :handle_params, fn _params, _url, socket ->
          recheck_permission(socket, permission)
@@ -89,12 +93,9 @@ defmodule RiddlrWeb.AdminAuth do
   # As in RiddlrWeb.UserAuth: the first render reuses the conn's scope, and
   # the connected mount looks the token up again.
   defp mount_current_user(socket, session) do
-    socket =
-      assign_new(socket, :current_scope, fn ->
-        session |> session_user() |> Scope.for_user()
-      end)
-
-    assign_current_user(socket, socket.assigns.current_scope && socket.assigns.current_scope.user)
+    assign_new(socket, :current_scope, fn ->
+      session |> session_user() |> Scope.for_user()
+    end)
   end
 
   defp session_user(%{"user_token" => token}) do
@@ -105,11 +106,4 @@ defmodule RiddlrWeb.AdminAuth do
   end
 
   defp session_user(_session), do: nil
-
-  # The admin layout reads :current_scope for its account controls.
-  defp assign_current_user(socket, user) do
-    socket
-    |> assign(:current_user, user)
-    |> assign(:current_scope, Scope.for_user(user))
-  end
 end

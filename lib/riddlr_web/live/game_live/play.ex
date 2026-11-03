@@ -45,7 +45,8 @@ defmodule RiddlrWeb.GameLive.Play do
             {:ok, push_navigate(socket, to: ~p"/game/#{id}/results")}
 
           "live" ->
-            user = socket.assigns.current_user
+            scope = socket.assigns.current_scope
+            user = scope && scope.user
 
             {initial_answers, guess_count, solved} =
               if connected?(socket) do
@@ -83,7 +84,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
   # A guest has no form, but a guess could still be sent by hand.
   @impl true
-  def handle_event("submit_answer", _params, %{assigns: %{current_user: nil}} = socket) do
+  def handle_event("submit_answer", _params, %{assigns: %{current_scope: nil}} = socket) do
     {:noreply, socket}
   end
 
@@ -92,7 +93,7 @@ defmodule RiddlrWeb.GameLive.Play do
 
     result =
       case check_not_banned(socket.assigns) do
-        :ok -> Gameplay.submit_answer(riddle, socket.assigns.current_user, text)
+        :ok -> Gameplay.submit_answer(riddle, socket.assigns.current_scope.user, text)
         {:error, :banned} = error -> error
       end
 

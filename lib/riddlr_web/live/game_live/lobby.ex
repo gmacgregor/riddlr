@@ -26,7 +26,7 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
           true ->
             if connected?(socket) do
-              track_player(socket.assigns.current_user, id)
+              track_player(socket.assigns.current_scope, id)
               Phoenix.PubSub.subscribe(Riddlr.PubSub, Presence.lobby_topic(id))
               Phoenix.PubSub.subscribe(Riddlr.PubSub, GameClock.topic(riddle.id))
               Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:live")
@@ -176,10 +176,10 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
   # Puts a signed-in viewer in the room. A guest watches without being tracked,
   # so they never show in the room or its count.
-  @spec track_player(Riddlr.Accounts.User.t() | nil, String.t()) :: :ok
+  @spec track_player(Riddlr.Accounts.Scope.t() | nil, String.t()) :: :ok
   defp track_player(nil, _riddle_id), do: :ok
 
-  defp track_player(user, riddle_id) do
+  defp track_player(%{user: user}, riddle_id) do
     {:ok, _ref} =
       Presence.track(self(), Presence.lobby_topic(riddle_id), to_string(user.id), %{
         username: user.username
@@ -199,8 +199,8 @@ defmodule RiddlrWeb.GameLive.Lobby do
   # bounded slice reaches the DOM.
   @spec load_players(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_players(socket) do
-    %{riddle: riddle, current_user: user} = socket.assigns
-    me = viewer(user)
+    %{riddle: riddle, current_scope: scope} = socket.assigns
+    me = viewer(scope)
     present = riddle.id |> Presence.lobby_topic() |> Presence.list()
 
     others =
@@ -215,9 +215,9 @@ defmodule RiddlrWeb.GameLive.Lobby do
   end
 
   # The viewer's own room entry, or nil for a guest, who has none.
-  @spec viewer(Riddlr.Accounts.User.t() | nil) :: GameComponents.room_player() | nil
+  @spec viewer(Riddlr.Accounts.Scope.t() | nil) :: GameComponents.room_player() | nil
   defp viewer(nil), do: nil
-  defp viewer(user), do: %{id: to_string(user.id), username: user.username, me?: true}
+  defp viewer(%{user: user}), do: %{id: to_string(user.id), username: user.username, me?: true}
 
   @spec assign_room(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp assign_room(socket) do

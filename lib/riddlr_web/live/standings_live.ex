@@ -61,11 +61,11 @@ defmodule RiddlrWeb.StandingsLive do
   # Reads the current board and window, and the viewer's pinned row.
   @spec load_board(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_board(socket) do
-    %{board: board, window: window, current_user: user} = socket.assigns
+    %{board: board, window: window, current_scope: scope} = socket.assigns
     rows = Standings.list(board, window)
 
     socket
-    |> assign(:pinned, pinned_row(rows, user, board, window))
+    |> assign(:pinned, pinned_row(rows, scope, board, window))
     # A stream can't say whether it is empty, so the empty note reads this.
     |> assign(:empty?, rows == [])
     |> stream(:rows, rows, reset: true)
@@ -140,8 +140,8 @@ defmodule RiddlrWeb.StandingsLive do
                   id={dom_id}
                   row={row}
                   board={@board}
-                  viewer={viewer_name(@current_user)}
-                  you?={you?(row, @current_user)}
+                  viewer={viewer_name(@current_scope)}
+                  you?={you?(row, @current_scope)}
                 />
               </tbody>
               <tbody :if={@pinned} class="rg-stand__pinned">
@@ -149,7 +149,7 @@ defmodule RiddlrWeb.StandingsLive do
                   id="standings-you"
                   row={@pinned}
                   board={@board}
-                  viewer={viewer_name(@current_user)}
+                  viewer={viewer_name(@current_scope)}
                   you?
                 />
               </tbody>
@@ -268,22 +268,22 @@ defmodule RiddlrWeb.StandingsLive do
   # already listed.
   @spec pinned_row(
           [Standings.row()],
-          Riddlr.Accounts.User.t() | nil,
+          Riddlr.Accounts.Scope.t() | nil,
           Standings.board(),
           Standings.window()
         ) ::
           Standings.row() | nil
   defp pinned_row(_rows, nil, _board, _window), do: nil
 
-  defp pinned_row(rows, user, board, window) do
+  defp pinned_row(rows, %{user: user}, board, window) do
     if Enum.any?(rows, &(&1.user_id == user.id)),
       do: nil,
       else: Standings.player_row(user.id, board, window)
   end
 
-  @spec you?(Standings.row(), Riddlr.Accounts.User.t() | nil) :: boolean()
+  @spec you?(Standings.row(), Riddlr.Accounts.Scope.t() | nil) :: boolean()
   defp you?(_row, nil), do: false
-  defp you?(row, user), do: row.user_id == user.id
+  defp you?(row, %{user: user}), do: row.user_id == user.id
 
   # Anything but a known board falls back to points.
   @spec parse_board(String.t() | nil) :: Standings.board()
@@ -303,7 +303,7 @@ defmodule RiddlrWeb.StandingsLive do
   defp parse_window(_), do: :all_time
 
   # The viewer's username, so their own tile gets the "you" tone.
-  @spec viewer_name(Riddlr.Accounts.User.t() | nil) :: String.t() | nil
+  @spec viewer_name(Riddlr.Accounts.Scope.t() | nil) :: String.t() | nil
   defp viewer_name(nil), do: nil
-  defp viewer_name(user), do: user.username
+  defp viewer_name(%{user: user}), do: user.username
 end

@@ -269,8 +269,8 @@ defmodule RiddlrWeb.UserAuth do
   @doc """
   Mounts the user on a LiveView.
 
-    * `:mount_current_user` assigns the user, or nil, and never halts. For
-      public pages.
+    * `:mount_current_user` assigns the user's scope, or nil, and never
+      halts. For public pages.
     * `:ensure_authenticated` sends a visitor with no user to log in.
   """
   def on_mount(:mount_current_user, _params, session, socket) do
@@ -280,7 +280,7 @@ defmodule RiddlrWeb.UserAuth do
   def on_mount(:ensure_authenticated, _params, session, socket) do
     socket = mount_current_user(socket, session)
 
-    if socket.assigns.current_user do
+    if socket.assigns.current_scope do
       {:cont, socket}
     else
       socket =
@@ -297,12 +297,9 @@ defmodule RiddlrWeb.UserAuth do
   # connected mount has no conn and looks it up again, which also catches a
   # ban since the page loaded.
   defp mount_current_user(socket, session) do
-    socket =
-      Phoenix.Component.assign_new(socket, :current_scope, fn ->
-        session |> session_user() |> Scope.for_user()
-      end)
-
-    assign_current_user(socket, socket.assigns.current_scope && socket.assigns.current_scope.user)
+    Phoenix.Component.assign_new(socket, :current_scope, fn ->
+      session |> session_user() |> Scope.for_user()
+    end)
   end
 
   defp session_user(%{"user_token" => user_token}) do
@@ -313,12 +310,4 @@ defmodule RiddlrWeb.UserAuth do
   end
 
   defp session_user(_session), do: nil
-
-  # Layouts and shared components read :current_scope, so LiveViews carry it
-  # alongside :current_user just like the plug does for controllers.
-  defp assign_current_user(socket, user) do
-    socket
-    |> Phoenix.Component.assign(:current_user, user)
-    |> Phoenix.Component.assign(:current_scope, Scope.for_user(user))
-  end
 end

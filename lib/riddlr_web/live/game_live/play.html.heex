@@ -62,18 +62,23 @@
             id={dom_id}
             class={[
               "rg-msg",
-              @current_user && answer.user_id == @current_user.id && "is-me",
+              @current_scope && answer.user_id == @current_scope.user.id && "is-me",
               if(answer.correct, do: "is-solve", else: "is-wrong")
             ]}
           >
             <GameComponents.tile
               initial={GameComponents.initial(answer.username)}
-              tone={GameComponents.tone(answer.username, @current_user && @current_user.username)}
+              tone={
+                GameComponents.tone(
+                  answer.username,
+                  @current_scope && @current_scope.user.username
+                )
+              }
               size="sm"
             />
             <span class="rg-msg__body">
               <span class="rg-msg__name">
-                {if @current_user && answer.user_id == @current_user.id,
+                {if @current_scope && answer.user_id == @current_scope.user.id,
                   do: GameCopy.room_you(),
                   else: answer.username}
               </span>
@@ -92,7 +97,7 @@
       <div class="rg-play__input">
         <GameComponents.join_note current_scope={@current_scope} />
         <form
-          :if={@current_user && !@solve}
+          :if={@current_scope && !@solve}
           id="answer-form"
           class="rg-guess"
           phx-submit="submit_answer"

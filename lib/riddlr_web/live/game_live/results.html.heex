@@ -91,7 +91,10 @@
               <GameComponents.tile
                 initial={GameComponents.initial(solver.username)}
                 tone={
-                  GameComponents.tone(solver.username, @current_user && @current_user.username)
+                  GameComponents.tone(
+                    solver.username,
+                    @current_scope && @current_scope.user.username
+                  )
                 }
                 size="lg"
               />
@@ -123,7 +126,9 @@
           <span class="rg-row__place">{solver.placement}</span>
           <GameComponents.tile
             initial={GameComponents.initial(solver.username)}
-            tone={GameComponents.tone(solver.username, @current_user && @current_user.username)}
+            tone={
+              GameComponents.tone(solver.username, @current_scope && @current_scope.user.username)
+            }
             size="sm"
           />
           <span class="rg-row__name">{solver.shown_as}</span>
@@ -134,7 +139,12 @@
           <span class="rg-row__place">{@my_row.placement}</span>
           <GameComponents.tile
             initial={GameComponents.initial(@my_row.username)}
-            tone={GameComponents.tone(@my_row.username, @current_user && @current_user.username)}
+            tone={
+              GameComponents.tone(
+                @my_row.username,
+                @current_scope && @current_scope.user.username
+              )
+            }
             size="sm"
           />
           <span class="rg-row__name">{@my_row.shown_as}</span>
@@ -228,7 +238,7 @@
             id={dom_id}
             class={[
               "rg-msg",
-              @current_user && msg.user_id == @current_user.id && "is-me",
+              @current_scope && msg.user_id == @current_scope.user.id && "is-me",
               msg.chat && "is-chat",
               msg.correct && "is-solve",
               !msg.correct && !msg.chat && "is-wrong"
@@ -236,12 +246,14 @@
           >
             <GameComponents.tile
               initial={GameComponents.initial(msg.username)}
-              tone={GameComponents.tone(msg.username, @current_user && @current_user.username)}
+              tone={
+                GameComponents.tone(msg.username, @current_scope && @current_scope.user.username)
+              }
               size="sm"
             />
             <span class="rg-msg__body">
               <span class="rg-msg__name">
-                {if @current_user && msg.user_id == @current_user.id,
+                {if @current_scope && msg.user_id == @current_scope.user.id,
                   do: GameCopy.room_you(),
                   else: msg.username}
               </span>
@@ -276,7 +288,7 @@
       <%!-- At Archive the form stays put, disabled, and fades out while the
       emoji fades in on the same spot. The CSS runs the fades. --%>
       <div
-        :if={@current_user && (@chat_open? || @closed_emoji)}
+        :if={@current_scope && (@chat_open? || @closed_emoji)}
         id="chat-foot"
         class={["rg-chat__foot", @closed_emoji && "is-closed"]}
       >

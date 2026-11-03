@@ -9,8 +9,7 @@ defmodule RiddlrWeb.AdminController do
   end
 
   # A signed-in player who is not an admin gets a 404; the pipeline has sent
-  # any guest to log in already. The browser pipeline assigns only
-  # :current_scope, never :current_user.
+  # any guest to log in already.
   defp require_admin(conn, _opts) do
     unless Authorization.admin?(conn.assigns.current_scope.user) do
       raise RiddlrWeb.NotFoundError
