@@ -32,23 +32,29 @@ defmodule Riddlr.Games do
   #
   # Stored as strings because Oban's `worker` column holds the module name
   # without the `Elixir.` prefix — which is what `inspect/1` produces and
-  # `to_string/1` does not.
-  @riddle_workers Enum.map(
-                    [
-                      ReadyRiddleTransitionWorker,
-                      LiveRiddleTransitionWorker,
-                      ArchiveRiddleTransitionWorker,
-                      CompleteRiddleWorker
-                    ],
-                    &inspect/1
-                  )
+  # `to_string/1` does not. A function, not a module attribute: naming the
+  # workers in the module body makes them compile-time dependencies, which
+  # ties Games and every worker into one recompile cycle.
+  @spec riddle_workers() :: [String.t()]
+  defp riddle_workers do
+    Enum.map(
+      [
+        ReadyRiddleTransitionWorker,
+        LiveRiddleTransitionWorker,
+        ArchiveRiddleTransitionWorker,
+        CompleteRiddleWorker
+      ],
+      &inspect/1
+    )
+  end
 
   # Unschedule and delete also drop every pending Notification fan-out: the
   # riddle will not go live, so no one should hear that it will. Schedule and
   # Reschedule replace only the 30 min and 1 hour fan-outs (see
   # `Notifications.replace_timed_fan_outs/2`); a pending Lobby-open fan-out
   # stays, and the send job reads the new Live date.
-  @drop_workers @riddle_workers ++ [inspect(NotificationFanOutWorker)]
+  @spec drop_workers() :: [String.t()]
+  defp drop_workers, do: [inspect(NotificationFanOutWorker) | riddle_workers()]
 
   # A job in any other state has already run, been cancelled or been discarded,
   # so there is nothing left to cancel.
@@ -236,7 +242,7 @@ defmodule Riddlr.Games do
   defp write_jobs(multi, intent) when intent in [:schedule, :reschedule] do
     multi
     |> Multi.run(:cancel_jobs, fn repo, %{riddle: riddle} ->
-      cancel_jobs(repo, riddle.id, @riddle_workers)
+      cancel_jobs(repo, riddle.id, riddle_workers())
     end)
     |> Multi.insert(:ready_job, fn %{riddle: riddle} ->
       ReadyRiddleTransitionWorker.new(%{"riddle_id" => riddle.id},
@@ -256,7 +262,7 @@ defmodule Riddlr.Games do
   defp write_jobs(multi, :unschedule) do
     multi
     |> Multi.run(:cancel_jobs, fn repo, %{riddle: riddle} ->
-      cancel_jobs(repo, riddle.id, @drop_workers)
+      cancel_jobs(repo, riddle.id, drop_workers())
     end)
     |> Multi.run(:drop_notifications, fn repo, %{riddle: riddle} ->
       Notifications.drop_unsent(repo, riddle.id)
@@ -325,7 +331,7 @@ defmodule Riddlr.Games do
   def delete_riddle(%Riddle{} = riddle) do
     Multi.new()
     |> Multi.run(:cancel_jobs, fn repo, _changes ->
-      cancel_jobs(repo, riddle.id, @drop_workers)
+      cancel_jobs(repo, riddle.id, drop_workers())
     end)
     |> Multi.delete(:riddle, riddle)
     |> Repo.transaction()
@@ -446,16 +452,14 @@ defmodule Riddlr.Games do
   defp enqueue_next_job(multi, :live) do
     Multi.insert(multi, :complete_job, fn %{riddle: riddle} ->
       %{"riddle_id" => riddle.id}
-      |> Riddlr.Workers.CompleteRiddleWorker.new(schedule_in: riddle.solve_time)
+      |> CompleteRiddleWorker.new(schedule_in: riddle.solve_time)
     end)
   end
 
   defp enqueue_next_job(multi, :completed) do
     Multi.insert(multi, :archive_job, fn %{riddle: riddle} ->
       %{"riddle_id" => riddle.id}
-      |> Riddlr.Workers.ArchiveRiddleTransitionWorker.new(
-        schedule_in: riddle.archive_after_seconds
-      )
+      |> ArchiveRiddleTransitionWorker.new(schedule_in: riddle.archive_after_seconds)
     end)
   end
 
