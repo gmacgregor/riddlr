@@ -9,13 +9,20 @@ defmodule Riddlr.Workers.Transition do
   """
 
   alias Riddlr.Games
+  alias Riddlr.Games.Transitions
 
+  @typedoc "What a transition job returns to Oban."
+  @type oban_result :: :ok | {:cancel, String.t()} | {:error, Ecto.Changeset.t()}
+
+  @doc "Moves a riddle to the `to` play status and returns the result Oban expects."
+  @spec run(integer(), Transitions.status(), map()) :: oban_result()
   def run(riddle_id, to, stats \\ %{}) do
     riddle_id
     |> Games.transition(to, stats)
     |> to_oban_result(riddle_id)
   end
 
+  @spec to_oban_result(Transitions.result(), integer()) :: oban_result()
   defp to_oban_result({:ok, _riddle}, _riddle_id), do: :ok
 
   defp to_oban_result({:error, :not_found}, riddle_id),

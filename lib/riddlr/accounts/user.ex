@@ -46,6 +46,7 @@ defmodule Riddlr.Accounts.User do
   A general changeset for admin-controlled updates including role assignment.
   This should NOT be used for user-facing registration.
   """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(user, attrs) do
     user
     |> cast(attrs, [:role])
@@ -55,6 +56,7 @@ defmodule Riddlr.Accounts.User do
   @doc """
   A changeset for a moderator setting `account_status`.
   """
+  @spec status_changeset(t(), map()) :: Ecto.Changeset.t()
   def status_changeset(user, attrs) do
     cast(user, attrs, [:account_status])
   end
@@ -132,6 +134,7 @@ defmodule Riddlr.Accounts.User do
       uniqueness of the email, useful when displaying live validations.
       Defaults to `true`.
   """
+  @spec email_changeset(t(), map(), keyword()) :: Ecto.Changeset.t()
   def email_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:email])
@@ -155,6 +158,7 @@ defmodule Riddlr.Accounts.User do
     * `:text` - Set to false while texting is off, to ignore the Text
       opt-in and number. Defaults to `true`.
   """
+  @spec registration_changeset(t(), map(), keyword()) :: Ecto.Changeset.t()
   def registration_changeset(user, attrs, opts \\ []) do
     fields = [:email, :username, :notify_email]
 
@@ -192,6 +196,7 @@ defmodule Riddlr.Accounts.User do
 
   defp put_canadian_signup_phone(changeset), do: changeset
 
+  @spec validate_email(Ecto.Changeset.t(), keyword()) :: Ecto.Changeset.t()
   defp validate_email(changeset, opts) do
     changeset =
       changeset
@@ -211,6 +216,7 @@ defmodule Riddlr.Accounts.User do
     end
   end
 
+  @spec validate_email_changed(Ecto.Changeset.t()) :: Ecto.Changeset.t()
   defp validate_email_changed(changeset) do
     if get_field(changeset, :email) && get_change(changeset, :email) == nil do
       add_error(changeset, :email, "did not change")
@@ -219,6 +225,7 @@ defmodule Riddlr.Accounts.User do
     end
   end
 
+  @spec trim_username(term()) :: term()
   defp trim_username(username) when is_binary(username), do: String.trim(username)
   defp trim_username(username), do: username
 
@@ -226,6 +233,7 @@ defmodule Riddlr.Accounts.User do
   # words. A single space only, so "a b" and "a  b" cannot both be taken.
   @username_format ~r/^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$/
 
+  @spec validate_username(Ecto.Changeset.t(), keyword()) :: Ecto.Changeset.t()
   defp validate_username(changeset, opts) do
     changeset =
       changeset
@@ -260,6 +268,7 @@ defmodule Riddlr.Accounts.User do
       validations on a LiveView form), this option can be set to `false`.
       Defaults to `true`.
   """
+  @spec password_changeset(t(), map(), keyword()) :: Ecto.Changeset.t()
   def password_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])
@@ -267,6 +276,7 @@ defmodule Riddlr.Accounts.User do
     |> validate_password(opts)
   end
 
+  @spec validate_password(Ecto.Changeset.t(), keyword()) :: Ecto.Changeset.t()
   defp validate_password(changeset, opts) do
     changeset
     |> validate_required([:password])
@@ -278,6 +288,7 @@ defmodule Riddlr.Accounts.User do
     |> maybe_hash_password(opts)
   end
 
+  @spec maybe_hash_password(Ecto.Changeset.t(), keyword()) :: Ecto.Changeset.t()
   defp maybe_hash_password(changeset, opts) do
     hash_password? = Keyword.get(opts, :hash_password, true)
     password = get_change(changeset, :password)
@@ -298,6 +309,7 @@ defmodule Riddlr.Accounts.User do
   @doc """
   Confirms the account by setting `confirmed_at`.
   """
+  @spec confirm_changeset(t()) :: Ecto.Changeset.t()
   def confirm_changeset(user) do
     now = Riddlr.Clock.utc_now() |> DateTime.truncate(:second)
     change(user, confirmed_at: now)
@@ -309,6 +321,7 @@ defmodule Riddlr.Accounts.User do
   If there is no user or the user doesn't have a password, we call
   `Bcrypt.no_user_verify/0` to avoid timing attacks.
   """
+  @spec valid_password?(t() | nil, String.t()) :: boolean()
   def valid_password?(%Riddlr.Accounts.User{hashed_password: hashed_password}, password)
       when is_binary(hashed_password) and byte_size(password) > 0 do
     Bcrypt.verify_pass(password, hashed_password)

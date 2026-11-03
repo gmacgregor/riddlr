@@ -36,6 +36,7 @@ defmodule Riddlr.Clock do
   @doc """
   What time is it, right now, in UTC.
   """
+  @spec utc_now() :: DateTime.t()
   def utc_now, do: adapter().utc_now()
 
   @doc """
@@ -44,7 +45,9 @@ defmodule Riddlr.Clock do
   Good for ordering events and measuring how long something took. Useless as a
   date — the number means nothing except next to another reading from here.
   """
+  @spec monotonic_us() :: integer()
   def monotonic_us, do: adapter().monotonic_us()
 
+  @spec adapter() :: module()
   defp adapter, do: Application.get_env(:riddlr, :clock, Riddlr.Clock.System)
 end

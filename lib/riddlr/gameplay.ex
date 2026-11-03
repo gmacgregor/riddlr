@@ -57,6 +57,19 @@ defmodule Riddlr.Gameplay do
   # Results shows this many solvers, plus the viewer's own row if lower down.
   @board_limit 50
 
+  @typedoc "What a counted answer earned: its placement and points, or nothing."
+  @type outcome :: {:correct, pos_integer(), non_neg_integer()} | :incorrect
+
+  @typedoc "Why `submit_answer/3` refused an answer."
+  @type refusal ::
+          :banned
+          | {:not_live, String.t()}
+          | :time_up
+          | :already_solved
+          | :empty_answer
+          | :answer_too_long
+          | :cooldown
+
   @doc """
   Runs a player's answer through the Answer race.
 
@@ -65,6 +78,8 @@ defmodule Riddlr.Gameplay do
 
   Returns `{:correct, placement, points}`, `:incorrect`, or `{:error, reason}`.
   """
+  @spec submit_answer(Riddlr.Games.Riddle.t(), Riddlr.Accounts.User.t(), String.t()) ::
+          outcome() | {:error, refusal()}
   def submit_answer(riddle, user, text) do
     text = String.trim(text)
 
@@ -95,6 +110,7 @@ defmodule Riddlr.Gameplay do
     end
   end
 
+  @spec check_game_live(Riddlr.Games.Riddle.t()) :: :ok | {:error, {:not_live, String.t()}}
   defp check_game_live(%{play_status: "live"}), do: :ok
   defp check_game_live(%{play_status: status}), do: {:error, {:not_live, status}}
 
@@ -115,9 +131,11 @@ defmodule Riddlr.Gameplay do
       else: :ok
   end
 
+  @spec check_not_banned(Riddlr.Accounts.User.t()) :: :ok | {:error, :banned}
   defp check_not_banned(%{account_status: :banned}), do: {:error, :banned}
   defp check_not_banned(_user), do: :ok
 
+  @spec validate_input(String.t()) :: :ok | {:error, :empty_answer | :answer_too_long}
   defp validate_input(text) do
     cond do
       text == "" -> {:error, :empty_answer}
@@ -126,6 +144,8 @@ defmodule Riddlr.Gameplay do
     end
   end
 
+  @spec race(Riddlr.Games.Riddle.t(), Riddlr.Accounts.User.t(), String.t()) ::
+          outcome() | {:error, :already_solved}
   defp race(riddle, user, text) do
     correct? = validate_answer(riddle, text)
 
@@ -145,6 +165,7 @@ defmodule Riddlr.Gameplay do
     end
   end
 
+  @spec score(Riddlr.Games.Riddle.t(), Riddlr.Accounts.User.t(), Answer.t()) :: outcome()
   defp score(_riddle, _user, %Answer{correct: false}), do: :incorrect
 
   defp score(riddle, user, %Answer{placement: placement} = answer) do
@@ -155,12 +176,14 @@ defmodule Riddlr.Gameplay do
     {:correct, placement, points_for_placement(placement)}
   end
 
+  @spec compute_offset_ms(DateTime.t() | nil) :: non_neg_integer() | nil
   defp compute_offset_ms(nil), do: nil
 
   defp compute_offset_ms(live_date) do
     max(DateTime.diff(Clock.utc_now(), live_date, :millisecond), 0)
   end
 
+  @spec validate_answer(Riddlr.Games.Riddle.t(), String.t()) :: boolean()
   defp validate_answer(%{answers: answers}, text) do
     normalized = text |> String.trim() |> String.downcase()
     Enum.any?(answers, fn a -> a |> String.trim() |> String.downcase() == normalized end)
@@ -209,10 +232,12 @@ defmodule Riddlr.Gameplay do
     end
   end
 
+  @spec check_already_solved(integer(), integer()) :: :ok | {:error, :already_solved}
   defp check_already_solved(riddle_id, user_id) do
     if solved?(riddle_id, user_id), do: {:error, :already_solved}, else: :ok
   end
 
+  @spec points_for_placement(pos_integer()) :: non_neg_integer()
   defp points_for_placement(1), do: 10
   defp points_for_placement(2), do: 9
   defp points_for_placement(3), do: 8
@@ -293,6 +318,7 @@ defmodule Riddlr.Gameplay do
 
   Correct answers go out masked — see `Answer.for_live_feed/1`.
   """
+  @spec broadcast_answer(Answer.t()) :: :ok | {:error, term()}
   def broadcast_answer(%Answer{} = answer) do
     Phoenix.PubSub.broadcast(
       Riddlr.PubSub,
@@ -301,6 +327,7 @@ defmodule Riddlr.Gameplay do
     )
   end
 
+  @spec broadcast_answer_flagged(Answer.t()) :: :ok | {:error, term()}
   defp broadcast_answer_flagged(%Answer{} = answer) do
     Phoenix.PubSub.broadcast(
       Riddlr.PubSub,
@@ -341,6 +368,7 @@ defmodule Riddlr.Gameplay do
   Returns:
   - `completion_rate` — percentage of players who submitted a correct answer (0.0–100.0)
   """
+  @spec get_completion_stats(integer()) :: %{completion_rate: float()}
   def get_completion_stats(riddle_id) do
     players = Store.player_count(riddle_id)
 
@@ -528,6 +556,7 @@ defmodule Riddlr.Gameplay do
   @spec warm_board(integer()) :: :ok
   def warm_board(riddle_id), do: Cache.put(board_key(riddle_id), list_board(riddle_id))
 
+  @spec board_key(integer()) :: {:results, integer()}
   defp board_key(riddle_id), do: {:results, riddle_id}
 
   @doc """

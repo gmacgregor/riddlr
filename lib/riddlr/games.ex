@@ -216,6 +216,9 @@ defmodule Riddlr.Games do
     end
   end
 
+  @typep intent :: :schedule | :reschedule | :unschedule | :none
+  @typep schedule_event :: :riddle_scheduled | :riddle_rescheduled | :riddle_unscheduled
+
   # Decides whether a save also changes the schedule: given the riddle as it is
   # stored and the changes the admin just submitted, which of the four intents
   # applies?
@@ -237,6 +240,7 @@ defmodule Riddlr.Games do
   # Anything that falls through is `:none` — a riddle that cannot be scheduled is
   # not an error, it is simply not a schedule, and the row is written regardless.
   # That is what lets `save_riddle/3` return one error shape.
+  @spec intent(Riddle.t(), Ecto.Changeset.t()) :: intent()
   defp intent(%Riddle{} = riddle, changeset) do
     live_date = Ecto.Changeset.get_field(changeset, :live_date)
 
@@ -263,6 +267,7 @@ defmodule Riddlr.Games do
 
   # Rolling back to draft is the only way to un-schedule: the pending jobs would
   # otherwise take an unpublished riddle live.
+  @spec unscheduling?(Riddle.t(), Ecto.Changeset.t()) :: boolean()
   defp unscheduling?(%Riddle{play_status: play_status}, changeset)
        when play_status in ["scheduled", "ready"],
        do: Ecto.Changeset.get_field(changeset, :publish_status) != "published"
@@ -272,6 +277,7 @@ defmodule Riddlr.Games do
   # The two fields the pending jobs are derived from — `live_date` sets the live
   # job and, minus the lead time, the ready job. Either one moving means the jobs
   # on disk no longer match the row, so both are rewritten.
+  @spec schedule_moved?(Ecto.Changeset.t()) :: boolean()
   defp schedule_moved?(changeset) do
     Enum.any?([:live_date, :ready_before_seconds], fn field ->
       not is_nil(Ecto.Changeset.get_change(changeset, field))
@@ -281,6 +287,7 @@ defmodule Riddlr.Games do
   # The intent is also a Play status change. Re-running `Riddle.changeset/2` over
   # the changeset (rather than `put_change/3`) keeps the transition table in
   # `Riddle` the only judge of whether the move is legal.
+  @spec apply_intent(Ecto.Changeset.t(), intent()) :: Ecto.Changeset.t()
   defp apply_intent(changeset, :schedule),
     do: Riddle.changeset(changeset, %{play_status: "scheduled"})
 
@@ -289,6 +296,7 @@ defmodule Riddlr.Games do
 
   defp apply_intent(changeset, _intent), do: changeset
 
+  @spec write_jobs(Multi.t(), intent()) :: Multi.t()
   defp write_jobs(multi, intent) when intent in [:schedule, :reschedule] do
     multi
     |> Multi.run(:cancel_jobs, fn repo, %{riddle: riddle} ->
@@ -330,6 +338,7 @@ defmodule Riddlr.Games do
   # to re-render. `games:riddle:scheduled` reports what happened to the schedule
   # itself — a riddle is now upcoming, its start time moved, or it is no longer
   # upcoming — which is what a homepage listing or a player notification needs.
+  @spec announce(Riddle.t(), intent()) :: Riddle.t()
   defp announce(riddle, intent) do
     refresh_home()
 
@@ -343,10 +352,12 @@ defmodule Riddlr.Games do
     riddle
   end
 
+  @spec broadcast_schedule_event(schedule_event(), Riddle.t()) :: :ok | {:error, term()}
   defp broadcast_schedule_event(message, riddle) do
     Phoenix.PubSub.broadcast(Riddlr.PubSub, "games:riddle:scheduled", {message, riddle})
   end
 
+  @spec schedule_event(intent()) :: schedule_event() | nil
   defp schedule_event(:schedule), do: :riddle_scheduled
   defp schedule_event(:reschedule), do: :riddle_rescheduled
   defp schedule_event(:unschedule), do: :riddle_unscheduled
@@ -355,6 +366,7 @@ defmodule Riddlr.Games do
   # The one place that cancels a riddle's jobs. Callers pass the worker list they
   # want cancelled, and the repo, so this can run inside the same transaction as
   # the write that made the cancellation necessary.
+  @spec cancel_jobs(Ecto.Repo.t(), integer(), [String.t()]) :: {:ok, non_neg_integer()}
   defp cancel_jobs(repo, riddle_id, workers) do
     {count, _} =
       Oban.Job
@@ -451,6 +463,7 @@ defmodule Riddlr.Games do
       %Ecto.Changeset{data: %Riddle{}}
 
   """
+  @spec change_riddle(Riddle.t(), map()) :: Ecto.Changeset.t()
   def change_riddle(%Riddle{} = riddle, attrs \\ %{}) do
     Riddle.changeset(riddle, attrs)
   end
@@ -561,6 +574,8 @@ defmodule Riddlr.Games do
   Uses atomic update to avoid race conditions.
   Optionally stores `first_solve_time` (milliseconds from live_date) in the same operation.
   """
+  @spec record_first_solver(integer(), integer(), non_neg_integer() | nil) ::
+          {:ok, :recorded | :already_set}
   def record_first_solver(riddle_id, user_id, first_solve_time \\ nil) do
     updates =
       if first_solve_time,
@@ -583,6 +598,7 @@ defmodule Riddlr.Games do
   @spec preload_riddle(Riddle.t()) :: Riddle.t()
   def preload_riddle(%Riddle{} = riddle), do: Repo.preload(riddle, @riddle_preload)
 
+  @spec preload_assoc_force(Riddle.t()) :: Riddle.t()
   defp preload_assoc_force(%Riddle{} = riddle) do
     Repo.preload(riddle, @riddle_preload, force: true)
   end
@@ -596,6 +612,7 @@ defmodule Riddlr.Games do
       [%Category{}, ...]
 
   """
+  @spec list_categories() :: [Category.t()]
   def list_categories do
     Repo.all(from c in Category, order_by: c.name)
   end
@@ -614,6 +631,7 @@ defmodule Riddlr.Games do
       ** (Ecto.NoResultsError)
 
   """
+  @spec get_category!(integer() | String.t()) :: Category.t()
   def get_category!(id), do: Repo.get!(Category, id)
 
   @doc """
@@ -693,6 +711,7 @@ defmodule Riddlr.Games do
       %Ecto.Changeset{data: %Category{}}
 
   """
+  @spec change_category(Category.t(), map()) :: Ecto.Changeset.t()
   def change_category(%Category{} = category, attrs \\ %{}) do
     Category.changeset(category, attrs)
   end
