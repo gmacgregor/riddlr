@@ -16,7 +16,14 @@ defmodule Riddlr.Application do
       {DNSCluster, query: Application.get_env(:riddlr, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Riddlr.PubSub},
       Riddlr.Gameplay.Presence,
-      {Task.Supervisor, name: Riddlr.TaskSupervisor},
+      # Bounded, so a flood of guesses cannot spawn moderation tasks without
+      # limit. When full, moderation is skipped (see Riddlr.Gameplay).
+      {Task.Supervisor,
+       name: Riddlr.ModerationSupervisor,
+       max_children:
+         :riddlr
+         |> Application.get_env(Riddlr.ModerationSupervisor, [])
+         |> Keyword.get(:max_children, 200)},
       {Registry, keys: :unique, name: Riddlr.GameClockRegistry},
       {DynamicSupervisor, name: Riddlr.GameClockSupervisor, strategy: :one_for_one},
       # Start to serve requests, typically the last entry

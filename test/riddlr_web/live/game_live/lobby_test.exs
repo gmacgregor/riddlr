@@ -324,6 +324,26 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert_redirect(live, "/game/#{riddle.id}/play")
     end
 
+    test "waits a random moment before leaving, so players spread out", %{
+      conn: conn,
+      user: user
+    } do
+      put_stagger(60_000)
+
+      riddle =
+        GamesFixtures.riddle_fixture()
+        |> set_play_status("scheduled")
+        |> set_play_status("ready")
+
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+
+      send(live.pid, {:riddle_live, riddle})
+      assert has_element?(live, "#lobby-h")
+
+      send(live.pid, {:stagger_navigate, "/game/#{riddle.id}/play"})
+      assert_redirect(live, "/game/#{riddle.id}/play")
+    end
+
     test "ignores :riddle_live for a different riddle", %{conn: conn, user: user} do
       riddle =
         GamesFixtures.riddle_fixture()
@@ -425,7 +445,8 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert has_element?(other_live, "#room-count", GameCopy.room_count(2))
 
       # The first player hears of the second through a presence diff.
-      assert_receive %Phoenix.Socket.Broadcast{event: "presence_diff"}
+      await_diff(:joins, to_string(other.id))
+      flush_room(live)
       assert has_element?(live, "#room-p-#{other.id}", other.username)
 
       assert has_element?(
@@ -446,12 +467,14 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(riddle))
 
       pid = track_player(riddle, "p1", "zelda")
-      await_diff()
+      await_diff(:joins, "p1")
+      flush_room(live)
       assert has_element?(live, "#room-p-p1", "zelda")
       assert has_element?(live, "#room-count", GameCopy.room_count(2))
 
       Process.exit(pid, :kill)
-      await_diff()
+      await_diff(:leaves, "p1")
+      flush_room(live)
       refute has_element?(live, "#room-p-p1")
       assert has_element?(live, "#room-count", GameCopy.room_count(1))
     end
@@ -464,7 +487,8 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert count_cells(live, ".rg-room__empty[aria-hidden='true']") == 7
 
       track_player(riddle, "p1", "zelda")
-      await_diff()
+      await_diff(:joins, "p1")
+      flush_room(live)
       assert count_cells(live, ".rg-room__empty") == 6
     end
 
@@ -515,6 +539,46 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       end
     end
 
+    test "holds diffs until the flush, then applies them in one update", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+      before = render(live)
+
+      for n <- 1..100, do: push_diff(live, riddle, %{"p#{n}" => "player#{n}"})
+      for n <- 1..50, do: push_diff(live, riddle, %{}, %{"p#{n}" => "player#{n}"})
+
+      assert render(live) == before
+
+      flush_room(live)
+
+      assert has_element?(live, "#room-count", GameCopy.room_count(51))
+      refute has_element?(live, "#room-p-p1")
+      assert has_element?(live, "#room-ticker .rg-ticker__text", GameCopy.ticker_tail(49))
+    end
+
+    test "a diff the mount already read changes nothing", %{
+      conn: conn,
+      riddle: riddle,
+      user: user
+    } do
+      Phoenix.PubSub.subscribe(Riddlr.PubSub, lobby_topic(riddle))
+      pid = track_player(riddle, "p1", "zelda")
+      %Phoenix.Socket.Broadcast{payload: join} = await_diff(:joins, "p1")
+
+      {:ok, live, _html} = conn |> log_in_user(user) |> live(~p"/game/#{riddle.id}/lobby")
+      send(live.pid, %Phoenix.Socket.Broadcast{event: "presence_diff", payload: join})
+      flush_room(live)
+      assert has_element?(live, "#room-count", GameCopy.room_count(2))
+
+      Process.exit(pid, :kill)
+      await_diff(:leaves, "p1")
+      flush_room(live)
+      assert has_element?(live, "#room-count", GameCopy.room_count(1))
+    end
+
     test "the ticker names who just joined, never the viewer", %{
       conn: conn,
       riddle: riddle,
@@ -542,6 +606,12 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
     end
   end
 
+  defp put_stagger(max_ms) do
+    config = Application.get_env(:riddlr, RiddlrWeb.GameLive.Stagger)
+    Application.put_env(:riddlr, RiddlrWeb.GameLive.Stagger, max_ms: max_ms)
+    on_exit(fn -> Application.put_env(:riddlr, RiddlrWeb.GameLive.Stagger, config) end)
+  end
+
   defp lobby_topic(riddle), do: "game:lobby:#{riddle.id}"
 
   # Tracks a fake player in a riddle's lobby from its own process, the way a
@@ -564,17 +634,41 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
     pid
   end
 
-  # Waits for the presence diff a join or leave sends. The test must subscribe
-  # to the lobby topic first.
-  defp await_diff do
-    assert_receive %Phoenix.Socket.Broadcast{event: "presence_diff"}
+  # Waits for the presence diff in which player `id` joins or leaves. The
+  # test must subscribe to the lobby topic first. Other diffs, like the
+  # viewer's own join, can arrive in between, so it matches on the player.
+  #
+  # A tracker shard sends a diff to one subscriber after another, so the test
+  # can hear of it before the lobby does. Waiting on the shards makes sure the
+  # lobby has it too.
+  defp await_diff(kind, id) do
+    assert_receive %Phoenix.Socket.Broadcast{
+                     event: "presence_diff",
+                     payload: %{^kind => %{^id => _}}
+                   } = diff
+
+    for name <- Process.registered(),
+        String.starts_with?(Atom.to_string(name), "Elixir.Riddlr.Gameplay.Presence_shard"),
+        do: :sys.get_state(name)
+
+    diff
   end
 
   # Sends the lobby a presence diff by hand, for joins the test cannot make
-  # with real tracking (several players at once, or the viewer again).
+  # with real tracking (several players at once, or the viewer again), then
+  # applies it.
   defp send_diff(live, riddle, joins, leaves \\ %{}) do
+    push_diff(live, riddle, joins, leaves)
+    flush_room(live)
+  end
+
+  # Sends a presence diff by hand without applying it. One presence per
+  # player, with a phx_ref made from the player id.
+  defp push_diff(live, riddle, joins, leaves \\ %{}) do
     to_metas = fn players ->
-      Map.new(players, fn {id, name} -> {id, %{metas: [%{username: name}]}} end)
+      Map.new(players, fn {id, name} ->
+        {id, %{metas: [%{username: name, phx_ref: "ref-#{id}"}]}}
+      end)
     end
 
     send(live.pid, %Phoenix.Socket.Broadcast{
@@ -583,6 +677,9 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       payload: %{joins: to_metas.(joins), leaves: to_metas.(leaves)}
     })
   end
+
+  # Applies the diffs the lobby holds, as its flush timer would.
+  defp flush_room(live), do: send(live.pid, :flush_room)
 
   defp count_cells(live, selector) do
     live

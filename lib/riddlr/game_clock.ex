@@ -17,15 +17,45 @@ defmodule Riddlr.GameClock do
   the riddle is saved, so rescheduling moves every connected countdown, and it
   exits when the solve time runs out or the riddle completes, is archived, or
   is deleted.
+
+  It also batches the live guess feed (`push_answer/1`). Each guess sent to
+  every viewer on its own costs guesses × viewers messages; held for
+  `feed_flush_ms` and sent as one `{:answers_batch, answers, totals}`, it costs
+  viewers messages per flush. The batch is display only: guesses live in
+  `Riddlr.Gameplay.Store`, so a batch lost to a crash or to the riddle ending
+  loses nothing a reload does not bring back.
+
+  On each tick it also counts the Lobby and the solvers and, when either
+  changed, broadcasts `{:riddle_stats, riddle_id, %{waiting: n, solved: m}}`
+  on `stats_topic/1`. Home reads its counts from that instead of from every
+  guess and every Lobby join.
   """
 
-  use GenServer
+  # Transient: the clock stops with :normal when its riddle ends, and a
+  # permanent child would be restarted to tick for a riddle that is over.
+  use GenServer, restart: :transient
 
   alias Riddlr.Clock
+  alias Riddlr.Gameplay
+  alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Presence
+  alias Riddlr.Gameplay.Store
   alias Riddlr.Games.Riddle
 
   @registry Riddlr.GameClockRegistry
   @supervisor Riddlr.GameClockSupervisor
+  # The Play feed shows this many guesses; a batch never needs more.
+  @feed_cap 100
+
+  @typep state :: %{
+           riddle: Riddle.t(),
+           feed: [Answer.t()],
+           flush_ref: reference() | nil,
+           stats: stats() | nil
+         }
+
+  @typedoc "How many players wait in the Lobby and how many have solved."
+  @type stats :: %{waiting: non_neg_integer(), solved: non_neg_integer()}
 
   # ── Public API ──────────────────────────────────────────────────────────────
 
@@ -33,6 +63,12 @@ defmodule Riddlr.GameClock do
   The PubSub topic a riddle's ticks are broadcast on.
   """
   def topic(riddle_id), do: "game:clock:#{riddle_id}"
+
+  @doc """
+  The PubSub topic a riddle's Lobby and solver counts are broadcast on.
+  """
+  @spec stats_topic(integer()) :: String.t()
+  def stats_topic(riddle_id), do: "game:stats:#{riddle_id}"
 
   @doc """
   The seconds left on a riddle's countdown right now.
@@ -94,6 +130,22 @@ defmodule Riddlr.GameClock do
     end
   end
 
+  @doc """
+  Puts a stored guess on its riddle's live feed.
+
+  The riddle's clock holds it until the next flush. With no clock running, or
+  batching turned off in config, the guess goes out alone, at once.
+  """
+  @spec push_answer(Answer.t()) :: :ok
+  def push_answer(%Answer{riddle_id: riddle_id} = answer) do
+    case batch_feed?() && Registry.lookup(@registry, riddle_id) do
+      [{pid, _}] -> send(pid, {:feed, answer})
+      _no_clock -> Gameplay.broadcast_answers(riddle_id, [answer])
+    end
+
+    :ok
+  end
+
   # ── GenServer callbacks ──────────────────────────────────────────────────────
 
   @impl true
@@ -107,34 +159,75 @@ defmodule Riddlr.GameClock do
 
     schedule_tick()
     broadcast(riddle)
-    {:ok, riddle}
+    {:ok, %{riddle: riddle, feed: [], flush_ref: nil, stats: nil}}
   end
 
+  # A batch still held when the clock stops is dropped: viewers are leaving
+  # for Results, which reads the guesses from the Store.
   @impl true
-  def handle_info(:tick, riddle) do
-    case broadcast(riddle) do
+  @spec handle_info(term(), state()) :: {:noreply, state()} | {:stop, :normal, state()}
+  def handle_info(:tick, state) do
+    case broadcast(state.riddle) do
       {:play, 0} ->
-        {:stop, :normal, riddle}
+        {:stop, :normal, state}
 
       _still_counting ->
         schedule_tick()
-        {:noreply, riddle}
+        {:noreply, broadcast_stats(state)}
     end
   end
 
-  def handle_info({:riddle_saved, %Riddle{id: id} = saved}, %Riddle{id: id}) do
-    {:noreply, saved}
+  # The first guess after a flush starts the timer, so an idle riddle runs none.
+  def handle_info({:feed, answer}, %{flush_ref: nil} = state) do
+    ref = Process.send_after(self(), :flush_feed, flush_ms())
+    {:noreply, %{state | feed: [answer], flush_ref: ref}}
   end
 
-  def handle_info({event, %Riddle{id: id}}, %Riddle{id: id} = riddle)
+  def handle_info({:feed, answer}, state) do
+    {:noreply, %{state | feed: [answer | state.feed]}}
+  end
+
+  def handle_info(:flush_feed, %{feed: []} = state), do: {:noreply, %{state | flush_ref: nil}}
+
+  def handle_info(:flush_feed, state) do
+    answers = state.feed |> Enum.take(@feed_cap) |> Enum.reverse()
+    Gameplay.broadcast_answers(state.riddle.id, answers)
+    {:noreply, %{state | feed: [], flush_ref: nil}}
+  end
+
+  def handle_info({:riddle_saved, %Riddle{id: id} = saved}, %{riddle: %Riddle{id: id}} = state) do
+    {:noreply, %{state | riddle: saved}}
+  end
+
+  def handle_info({event, %Riddle{id: id}}, %{riddle: %Riddle{id: id}} = state)
       when event in [:riddle_completed, :riddle_archived, :riddle_deleted] do
-    {:stop, :normal, riddle}
+    {:stop, :normal, state}
   end
 
   # Broadcasts about other riddles, which both topics carry.
-  def handle_info(_message, riddle), do: {:noreply, riddle}
+  def handle_info(_message, state), do: {:noreply, state}
 
   # ── Helpers ──────────────────────────────────────────────────────────────────
+
+  defp broadcast_stats(%{riddle: %{id: id}} = state) do
+    stats = %{
+      waiting: id |> Presence.lobby_topic() |> Presence.list() |> map_size(),
+      solved: Store.solved_count(id)
+    }
+
+    if stats != state.stats do
+      Phoenix.PubSub.broadcast(Riddlr.PubSub, stats_topic(id), {:riddle_stats, id, stats})
+    end
+
+    %{state | stats: stats}
+  end
+
+  defp batch_feed?, do: config(:batch_feed, true)
+  defp flush_ms, do: config(:feed_flush_ms, 100)
+
+  defp config(key, default) do
+    :riddlr |> Application.get_env(__MODULE__, []) |> Keyword.get(key, default)
+  end
 
   defp broadcast(riddle) do
     {phase, seconds} = countdown(riddle)

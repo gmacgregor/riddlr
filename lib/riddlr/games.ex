@@ -6,6 +6,7 @@ defmodule Riddlr.Games do
   import Ecto.Query, warn: false
 
   alias Ecto.Multi
+  alias Riddlr.Cache
   alias Riddlr.Clock
   alias Riddlr.Repo
   alias Riddlr.Games.Riddle
@@ -20,6 +21,10 @@ defmodule Riddlr.Games do
     NotificationFanOutWorker,
     ReadyRiddleTransitionWorker
   }
+
+  # What every riddle read loads, and every broadcast riddle carries, so a
+  # broadcast riddle equals a fetched one. Nothing reads first_solver.
+  @riddle_preload [:category]
 
   # The four workers that take a riddle_id argument. Cancelling a riddle's
   # pending work means cancelling jobs from this list, which is why it exists as
@@ -50,7 +55,7 @@ defmodule Riddlr.Games do
   @cancellable_states ["available", "scheduled", "retryable"]
 
   @doc """
-  Returns the list of riddles.
+  Returns the newest riddles, newest first, at most `limit` (default 100).
 
   ## Examples
 
@@ -58,15 +63,18 @@ defmodule Riddlr.Games do
       [%Riddle{}, ...]
 
   """
-  def list_riddles do
+  @spec list_riddles(pos_integer()) :: [Riddle.t()]
+  def list_riddles(limit \\ 100) do
     Riddle
-    |> preload([:category, :first_solver])
-    |> order_by([c], desc: c.inserted_at, desc: c.play_status)
+    |> preload(^@riddle_preload)
+    |> order_by([r], desc: r.id)
+    |> limit(^limit)
     |> Repo.all()
   end
 
   @doc """
-  Gets a single riddle.
+  Gets a single riddle, with `:category` loaded. Pass `preload: [...]` to load
+  other associations instead.
 
   Raises `Ecto.NoResultsError` if the Riddle does not exist.
 
@@ -79,18 +87,21 @@ defmodule Riddlr.Games do
       ** (Ecto.NoResultsError)
 
   """
-  def get_riddle!(id) do
+  @spec get_riddle!(term(), keyword()) :: Riddle.t()
+  def get_riddle!(id, opts \\ []) do
     Riddle
-    |> preload([:category, :first_solver])
+    |> preload(^Keyword.get(opts, :preload, @riddle_preload))
     |> Repo.get!(id)
   end
 
   @doc """
   Fetches a riddle by ID, returning `{:ok, riddle}` or `{:error, :not_found}`. Rescues i.e Ecto.NoResultsError, Ecto.Query.CastError
+
+  Takes the options `get_riddle!/2` takes.
   """
-  @spec fetch_riddle(term()) :: {:ok, Riddle.t()} | {:error, :not_found}
-  def fetch_riddle(id) do
-    case get_riddle!(id) do
+  @spec fetch_riddle(term(), keyword()) :: {:ok, Riddle.t()} | {:error, :not_found}
+  def fetch_riddle(id, opts \\ []) do
+    case get_riddle!(id, opts) do
       %Riddle{} = riddle -> {:ok, riddle}
       _ -> {:error, :not_found}
     end
@@ -264,6 +275,8 @@ defmodule Riddlr.Games do
   # itself — a riddle is now upcoming, its start time moved, or it is no longer
   # upcoming — which is what a homepage listing or a player notification needs.
   defp announce(riddle, intent) do
+    refresh_home()
+
     Phoenix.PubSub.broadcast(Riddlr.PubSub, "games:riddle:changed", {:riddle_saved, riddle})
 
     case schedule_event(intent) do
@@ -291,7 +304,7 @@ defmodule Riddlr.Games do
       Oban.Job
       |> where([j], j.state in @cancellable_states)
       |> where([j], j.worker in ^workers)
-      |> where([j], fragment("?->>'riddle_id' = ?", j.args, ^to_string(riddle_id)))
+      |> where([j], fragment("? @> ?", j.args, type(^%{"riddle_id" => riddle_id}, :map)))
       |> repo.update_all(set: [state: "cancelled", cancelled_at: Clock.utc_now()])
 
     {:ok, count}
@@ -319,6 +332,9 @@ defmodule Riddlr.Games do
     |> case do
       {:ok, %{riddle: deleted}} ->
         Riddlr.Gameplay.cleanup_riddle(deleted.id)
+        # Its solves went with it.
+        Riddlr.Standings.invalidate()
+        refresh_home()
 
         Phoenix.PubSub.broadcast(
           Riddlr.PubSub,
@@ -458,6 +474,10 @@ defmodule Riddlr.Games do
   # that never went live.
   defp after_commit({:ok, riddle}, to) do
     cleanup(to, riddle)
+    # Every Play view moves to Results on the broadcast below, so the board
+    # must be cached first.
+    if to == :completed, do: Riddlr.Gameplay.warm_board(riddle.id)
+    refresh_home()
 
     broadcast_riddle = preload_assoc(riddle)
     {topic, message} = broadcast_for(to)
@@ -523,6 +543,49 @@ defmodule Riddlr.Games do
     |> Repo.one()
   end
 
+  @typedoc """
+  Everything Home shows that comes from the database: the next riddle, the
+  riddles coming up, the last finished riddle and its first solve (`:user`
+  loaded), and every practice riddle, oldest first.
+  """
+  @type home_snapshot :: %{
+          next: Riddle.t() | nil,
+          upcoming: [Riddle.t()],
+          last: Riddle.t() | nil,
+          last_solve: Riddlr.Gameplay.Solve.t() | nil,
+          practice: [PracticeRiddle.t()]
+        }
+
+  # How many riddles Home lists after the next one.
+  @home_upcoming 3
+
+  @doc """
+  What Home shows, from `Riddlr.Cache`.
+
+  Every write here that Home could show (a save, a schedule change, a
+  transition, a delete, a practice riddle change) rebuilds it before it
+  broadcasts, so every Home view that reloads on the broadcast reads it
+  warm. A miss reads the database and fills the cache.
+  """
+  @spec home_snapshot() :: home_snapshot()
+  def home_snapshot, do: Cache.fetch(:home, &build_home_snapshot/0)
+
+  @spec refresh_home() :: :ok
+  defp refresh_home, do: Cache.put(:home, build_home_snapshot())
+
+  @spec build_home_snapshot() :: home_snapshot()
+  defp build_home_snapshot do
+    last = last_finished_riddle()
+
+    %{
+      next: next_riddle(),
+      upcoming: list_upcoming_riddles(@home_upcoming),
+      last: last,
+      last_solve: last && Riddlr.Gameplay.first_solve(last.id),
+      practice: list_practice_riddles()
+    }
+  end
+
   # The query behind `next_riddle/0`: at most one row.
   @spec next_query() :: Ecto.Query.t()
   defp next_query do
@@ -554,11 +617,11 @@ defmodule Riddlr.Games do
   end
 
   defp preload_assoc(%Riddle{} = riddle) do
-    Repo.preload(riddle, [:category, :first_solver])
+    Repo.preload(riddle, @riddle_preload)
   end
 
   defp preload_assoc_force(%Riddle{} = riddle) do
-    Repo.preload(riddle, [:category, :first_solver], force: true)
+    Repo.preload(riddle, @riddle_preload, force: true)
   end
 
   @doc """
@@ -672,6 +735,7 @@ defmodule Riddlr.Games do
     %PracticeRiddle{}
     |> PracticeRiddle.changeset(attrs)
     |> Repo.insert()
+    |> tap(&refresh_home_on_ok/1)
   end
 
   @doc """
@@ -695,6 +759,7 @@ defmodule Riddlr.Games do
     practice_riddle
     |> PracticeRiddle.changeset(attrs)
     |> Repo.update()
+    |> tap(&refresh_home_on_ok/1)
   end
 
   @doc """
@@ -703,8 +768,13 @@ defmodule Riddlr.Games do
   @spec delete_practice_riddle(PracticeRiddle.t()) ::
           {:ok, PracticeRiddle.t()} | {:error, Ecto.Changeset.t()}
   def delete_practice_riddle(%PracticeRiddle{} = practice_riddle) do
-    Repo.delete(practice_riddle)
+    practice_riddle
+    |> Repo.delete()
+    |> tap(&refresh_home_on_ok/1)
   end
+
+  defp refresh_home_on_ok({:ok, _}), do: refresh_home()
+  defp refresh_home_on_ok(_error), do: :ok
 
   @doc """
   Returns a changeset for a practice riddle form.

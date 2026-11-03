@@ -89,18 +89,25 @@ defmodule RiddlrWeb.AdminAuth do
     {:cont, assign(socket, :current_path, URI.parse(url).path)}
   end
 
+  # As in RiddlrWeb.UserAuth: the first render reuses the conn's scope, and
+  # the connected mount looks the token up again.
   defp mount_current_user(socket, session) do
-    case session do
-      %{"user_token" => token} ->
-        case Accounts.get_user_by_session_token(token) do
-          {user, _} -> assign_current_user(socket, user)
-          nil -> assign_current_user(socket, nil)
-        end
+    socket =
+      assign_new(socket, :current_scope, fn ->
+        session |> session_user() |> Scope.for_user()
+      end)
 
-      %{} ->
-        assign_current_user(socket, nil)
+    assign_current_user(socket, socket.assigns.current_scope && socket.assigns.current_scope.user)
+  end
+
+  defp session_user(%{"user_token" => token}) do
+    case Accounts.get_user_by_session_token(token) do
+      {user, _} -> user
+      nil -> nil
     end
   end
+
+  defp session_user(_session), do: nil
 
   # The admin layout reads :current_scope for its account controls.
   defp assign_current_user(socket, user) do

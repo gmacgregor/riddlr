@@ -314,8 +314,50 @@ defmodule Riddlr.NotificationsTest do
       assert {:error, :provider_down} =
                Notifications.deliver(row.id, mailer_config: [adapter: __MODULE__.DownAdapter])
 
-      assert Repo.reload!(row).sent_at == nil
+      assert %{sent_at: nil, sending_at: nil} = Repo.reload!(row)
     end
+
+    test "a retry after a failed send sends once", %{row: row} do
+      assert {:error, _} =
+               Notifications.deliver(row.id, mailer_config: [adapter: __MODULE__.DownAdapter])
+
+      assert {:ok, _} = Notifications.deliver(row.id)
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _}}
+      refute_received {:email, %{subject: "Kriddle riddle No. " <> _}}
+    end
+
+    test "leaves alone a row another job claimed moments ago", %{row: row} do
+      claim(row, Riddlr.Clock.utc_now())
+
+      assert :claimed = Notifications.deliver(row.id)
+      refute_sent_notification(row)
+    end
+
+    test "takes over a claim left by a job that died", %{row: row} do
+      claim(row, DateTime.add(Riddlr.Clock.utc_now(), -6, :minute))
+
+      assert {:ok, %{sent_at: %DateTime{}}} = Notifications.deliver(row.id)
+      assert_received {:email, %{subject: "Kriddle riddle No. " <> _}}
+      assert %{sent_at: %DateTime{}, sending_at: nil} = Repo.reload!(row)
+    end
+
+    test "a row deleted while the message goes out still counts as sent", %{row: row} do
+      config = [adapter: __MODULE__.DeletingAdapter, row_id: row.id]
+
+      assert {:ok, %{sent_at: %DateTime{}}} = Notifications.deliver(row.id, mailer_config: config)
+      assert Repo.get(RiddleNotification, row.id) == nil
+    end
+
+    test "holds no transaction open while the provider sends", %{row: row} do
+      config = [adapter: __MODULE__.ProbeAdapter, test: self()]
+
+      assert {:ok, _} = Notifications.deliver(row.id, mailer_config: config)
+      assert_received {:in_transaction?, false}
+    end
+  end
+
+  defp claim(row, at) do
+    row |> Ecto.Changeset.change(sending_at: DateTime.truncate(at, :second)) |> Repo.update!()
   end
 
   describe "deliver/1 for Text" do
@@ -412,6 +454,26 @@ defmodule Riddlr.NotificationsTest do
 
     @impl true
     def deliver(_email, _config), do: {:error, :provider_down}
+  end
+
+  defmodule DeletingAdapter do
+    use Swoosh.Adapter
+
+    @impl true
+    def deliver(_email, config) do
+      Repo.delete_all(from(n in RiddleNotification, where: n.id == ^config[:row_id]))
+      {:ok, %{}}
+    end
+  end
+
+  defmodule ProbeAdapter do
+    use Swoosh.Adapter
+
+    @impl true
+    def deliver(_email, config) do
+      send(config[:test], {:in_transaction?, Repo.in_transaction?()})
+      {:ok, %{}}
+    end
   end
 
   defp refute_sent_notification(row) do

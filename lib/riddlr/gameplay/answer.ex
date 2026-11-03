@@ -3,10 +3,10 @@ defmodule Riddlr.Gameplay.Answer do
   An **Answer**: one player's attempt at a riddle, and the unit the race is run on.
 
   Answers never hit the database. They live in ETS for the length of a game and
-  vanish when the riddle is archived. But an answer still shows up in three
-  different shapes: the row in ETS, the message broadcast to every player's
-  screen, and the id used to yank it back off those screens if moderation
-  doesn't like it. All three are built here.
+  vanish when the riddle is archived; `Riddlr.Gameplay.Store` owns the row
+  shape. An answer also shows up as the message broadcast to every player's
+  screen, and as the id used to yank it back off those screens if moderation
+  doesn't like it. Both are built here.
 
   `new/4` also runs `text` through `Riddlr.Moderation.obfuscate/1` before it's
   stored anywhere, so a banned word never reaches ETS, a broadcast, or
@@ -104,40 +104,6 @@ defmodule Riddlr.Gameplay.Answer do
   The DOM/stream id an answer is known by, here and in moderation.
   """
   def id(riddle_id, user_id, timestamp), do: "#{riddle_id}-#{user_id}-#{timestamp}"
-
-  @doc """
-  The row an answer is stored as in `:riddle_answers` (a `:bag`).
-
-  Positional and undeclared everywhere else; declared here. `solve_time_ms` is
-  display data only — placement orders on `timestamp`, which is monotonic and
-  so immune to wall-clock adjustment.
-  """
-  def to_ets(%__MODULE__{} = answer) do
-    {{answer.riddle_id, answer.user_id}, answer.text, answer.timestamp, answer.correct,
-     answer.offset_ms}
-  end
-
-  @doc """
-  Rebuilds an answer from its stored row. `username` is not stored — callers
-  that need it join against `Accounts`.
-  """
-  def from_ets({{riddle_id, user_id}, text, timestamp, correct?, solve_time_ms}) do
-    %__MODULE__{
-      id: id(riddle_id, user_id, timestamp),
-      riddle_id: riddle_id,
-      user_id: user_id,
-      text: text,
-      timestamp: timestamp,
-      correct: correct?,
-      offset_ms: solve_time_ms
-    }
-  end
-
-  @doc """
-  Match pattern for every stored row of a riddle, optionally narrowed to rows
-  with a given `correct?` value.
-  """
-  def ets_pattern(riddle_id, correct? \\ :_), do: {{riddle_id, :_}, :_, :_, correct?, :_}
 
   @doc """
   Topic every answer and chat message for a riddle is broadcast on.

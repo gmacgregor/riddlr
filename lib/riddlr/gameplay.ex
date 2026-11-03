@@ -3,14 +3,9 @@ defmodule Riddlr.Gameplay do
   The Gameplay context — the Answer race.
 
   `submit_answer/3` is the only way in. Everything it composes (answer storage,
-  placement counting, the points table, feed broadcasts, moderation) is private,
-  because the pieces only produce a correct result in one particular order and
-  nothing in their signatures says so:
-
-  - placement counts the submitter's own row, so it is only correct *after* the
-    answer has been stored; called first it returns `placement - 1`
-  - the cooldown check is a check-and-set, so a second call inside the same
-    submission burns the player's next second
+  placement, the points table, feed broadcasts, moderation) is private. The
+  cooldown check is a check-and-set, so a second call inside the same
+  submission burns the player's next second.
 
   A round always runs its full `solve_time` — the first solve records the First
   solver and nothing else, and `CompleteRiddleWorker` ends the round on the timer.
@@ -22,15 +17,11 @@ defmodule Riddlr.Gameplay do
   nothing coordinates the two. A crash in between silently loses the points and
   cannot be retried — the stored answer already makes the player "already solved".
 
-  Ephemeral game state lives in ETS tables:
-  - `:riddle_answers` (:bag) — all answer submissions per riddle/user
-  - `:answer_cooldowns` (:set) — per-user cooldown timestamps, keyed
-    `{riddle_id, user_id}` for guesses and `{riddle_id, {:chat, user_id}}` for
-    chat, so a chat never costs a guess and `cleanup_riddle/1` drops both
-
-  Both tables are owned by `Riddlr.Gameplay.EtsOwner` (a supervised GenServer)
-  and are recreated automatically if that process restarts. A restart wipes every
-  in-flight answer.
+  Live game state lives in ETS, behind `Riddlr.Gameplay.Store`, which also
+  explains how placement is decided. Cooldowns are keyed `{riddle_id, user_id}`
+  for guesses and `{riddle_id, {:chat, user_id}}` for chat, so a chat never
+  costs a guess and `cleanup_riddle/1` drops both. A restart of
+  `Riddlr.Gameplay.EtsOwner` wipes every in-flight answer.
 
   When a riddle completes, `solve_rows/1` and `entry_rows/1` turn the ETS race
   into rows, and `persist_results/3` adds the steps that save them as
@@ -44,22 +35,24 @@ defmodule Riddlr.Gameplay do
   """
 
   alias Ecto.Multi
+  alias Riddlr.Cache
   alias Riddlr.Clock
   alias Riddlr.Gameplay.Answer
   alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
+  alias Riddlr.Gameplay.Store
   alias Riddlr.Repo
 
   import Ecto.Query, only: [from: 2]
 
-  @answers_table :riddle_answers
-  @cooldowns_table :answer_cooldowns
   # 1 second in microseconds
   @cooldown_us 1_000_000
   @answer_max_length 500
   # Postgres caps one statement at 65,535 bound parameters. A solve row binds
   # 7, so one insert of more than ~9,300 solvers fails.
   @result_row_chunk 5_000
+  # Results shows this many solvers, plus the viewer's own row if lower down.
+  @board_limit 50
 
   @doc """
   Runs a player's answer through the Answer race.
@@ -139,26 +132,24 @@ defmodule Riddlr.Gameplay do
         offset_ms: compute_offset_ms(riddle.live_date)
       )
 
-    store_answer(answer)
+    # The early already-solved check is not atomic; Store.record/1 is.
+    with {:ok, placement} <- Store.record(answer) do
+      answer = %{answer | placement: placement}
 
-    # Placement must follow store_answer/1 — the count includes this row.
-    placement = if correct?, do: calculate_placement(riddle.id, answer.timestamp)
-    answer = %{answer | placement: placement}
-
-    broadcast_answer(answer)
-    moderate_answer_async(answer)
-
-    if correct? do
-      points = points_for_placement(placement)
-
-      if placement == 1 do
-        Riddlr.Games.record_first_solver(riddle.id, user.id, answer.offset_ms)
-      end
-
-      {:correct, placement, points}
-    else
-      :incorrect
+      Riddlr.GameClock.push_answer(answer)
+      moderate_answer_async(answer)
+      score(riddle, user, answer)
     end
+  end
+
+  defp score(_riddle, _user, %Answer{correct: false}), do: :incorrect
+
+  defp score(riddle, user, %Answer{placement: placement} = answer) do
+    if placement == 1 do
+      Riddlr.Games.record_first_solver(riddle.id, user.id, answer.offset_ms)
+    end
+
+    {:correct, placement, points_for_placement(placement)}
   end
 
   defp compute_offset_ms(nil), do: nil
@@ -173,48 +164,31 @@ defmodule Riddlr.Gameplay do
   end
 
   @spec check_cooldown({integer(), term()}) :: :ok | {:error, :cooldown}
-  defp check_cooldown(key) do
-    now = Clock.monotonic_us()
-
-    case :ets.lookup(@cooldowns_table, key) do
-      [{^key, last_time}] when now - last_time < @cooldown_us ->
-        {:error, :cooldown}
-
-      _ ->
-        :ets.insert(@cooldowns_table, {key, now})
-        :ok
-    end
-  end
+  defp check_cooldown(key), do: Store.claim_cooldown(key, @cooldown_us)
 
   @doc """
   Returns true if the user has already submitted a correct answer for this riddle.
   """
-  def solved?(riddle_id, user_id) do
-    @answers_table
-    |> :ets.lookup({riddle_id, user_id})
-    |> Enum.any?(&Answer.from_ets(&1).correct)
-  end
+  @spec solved?(integer(), integer()) :: boolean()
+  defdelegate solved?(riddle_id, user_id), to: Store
 
   @doc """
   Returns true if the user has submitted any answer to this riddle. Reads ETS,
   so it turns false once archive drops the riddle's answers.
   """
   @spec guessed?(integer(), integer()) :: boolean()
-  def guessed?(riddle_id, user_id) do
-    :ets.member(@answers_table, {riddle_id, user_id})
-  end
+  defdelegate guessed?(riddle_id, user_id), to: Store
 
   @doc """
   How many players have solved a riddle so far. Returns 0 when nobody has
   solved it or it has no answers stored.
   """
   @spec solved_count(integer()) :: non_neg_integer()
-  def solved_count(riddle_id) do
-    @answers_table
-    |> :ets.match_object(Answer.ets_pattern(riddle_id, true))
-    |> Enum.uniq_by(&Answer.from_ets(&1).user_id)
-    |> length()
-  end
+  defdelegate solved_count(riddle_id), to: Store
+
+  @doc "How many guesses a riddle has stored. 0 once archive drops them."
+  @spec answer_count(integer()) :: non_neg_integer()
+  defdelegate answer_count(riddle_id), to: Store
 
   @typedoc "Where a solver finished and the points that place earned."
   @type solve :: %{placement: pos_integer(), points: non_neg_integer()}
@@ -226,29 +200,14 @@ defmodule Riddlr.Gameplay do
   """
   @spec live_solve_for(integer(), integer()) :: solve() | nil
   def live_solve_for(riddle_id, user_id) do
-    case Enum.find(get_answers(riddle_id), &(&1.correct and &1.user_id == user_id)) do
-      nil ->
-        nil
-
-      %Answer{placement: placement} ->
-        %{placement: placement, points: points_for_placement(placement)}
+    case Store.solve_for(riddle_id, user_id) do
+      nil -> nil
+      %{placement: placement} -> %{placement: placement, points: points_for_placement(placement)}
     end
   end
 
   defp check_already_solved(riddle_id, user_id) do
     if solved?(riddle_id, user_id), do: {:error, :already_solved}, else: :ok
-  end
-
-  # `offset_ms` is stored for leaderboard display only; placement ordering uses
-  # the monotonic timestamp, which wall-clock adjustments can't distort.
-  defp store_answer(%Answer{} = answer) do
-    :ets.insert(@answers_table, Answer.to_ets(answer))
-  end
-
-  defp calculate_placement(riddle_id, solve_timestamp) do
-    @answers_table
-    |> :ets.match_object(Answer.ets_pattern(riddle_id, true))
-    |> Enum.count(&(Answer.from_ets(&1).timestamp <= solve_timestamp))
   end
 
   defp points_for_placement(1), do: 10
@@ -271,38 +230,39 @@ defmodule Riddlr.Gameplay do
   def points_table, do: Enum.map(1..10, &points_for_placement/1)
 
   @doc """
-  Returns every stored `Answer` for a riddle, newest first, with each correct
-  answer carrying the `placement` it earned.
-
-  `username` is nil — ETS doesn't store it. Callers that display answers join
-  against `Accounts` themselves.
+  A riddle's stored answers, newest first, at most `limit` of them. Each
+  carries the username it was sent under, and each correct answer the
+  placement it earned.
   """
-  def get_answers(riddle_id) do
-    @answers_table
-    |> :ets.match_object(Answer.ets_pattern(riddle_id))
-    |> Enum.map(&Answer.from_ets/1)
-    |> Enum.sort_by(& &1.timestamp, :desc)
-    |> place_solves()
-  end
+  @spec get_answers(integer(), pos_integer() | :infinity) :: [Answer.t()]
+  defdelegate get_answers(riddle_id, limit \\ :infinity), to: Store, as: :recent_answers
 
-  # Placement is a position in the whole race, so it has to be read off every
-  # answer. Callers that show a windowed feed must not rank the window.
-  defp place_solves(answers) do
-    placements =
-      answers
-      |> Enum.filter(& &1.correct)
-      |> Enum.sort_by(& &1.timestamp)
-      |> Enum.with_index(1)
-      |> Map.new(fn {answer, placement} -> {answer.id, placement} end)
+  @doc """
+  Puts guesses on a riddle's live feed in one message, oldest first, with the
+  riddle's guess and solve totals as they stand now:
 
-    Enum.map(answers, &%{&1 | placement: Map.get(placements, &1.id)})
+      {:answers_batch, answers, %{guesses: n, solved: m}}
+
+  The totals cover every guess stored, not only the batch, so a viewer sets
+  its counts from them rather than adding. `Riddlr.GameClock.push_answer/1`
+  decides when to call this.
+
+  Correct answers go out masked — see `Answer.for_live_feed/1`.
+  """
+  @spec broadcast_answers(integer(), [Answer.t()]) :: :ok | {:error, term()}
+  def broadcast_answers(riddle_id, answers) do
+    totals = %{guesses: Store.answer_count(riddle_id), solved: Store.solved_count(riddle_id)}
+
+    Phoenix.PubSub.broadcast(
+      Riddlr.PubSub,
+      Answer.topic(riddle_id),
+      {:answers_batch, Enum.map(answers, &Answer.for_live_feed/1), totals}
+    )
   end
 
   @doc """
-  Puts an answer — or a post-game chat message — on the riddle's feed.
-
-  Chat rides the same topic and the same message tag so every subscriber picks
-  it up without knowing there are two kinds.
+  Puts a post-game chat message on the riddle's feed, alone and at once. Chat
+  is rate-limited per player and not stored, so it skips the guess batch.
 
   Correct answers go out masked — see `Answer.for_live_feed/1`.
   """
@@ -325,14 +285,26 @@ defmodule Riddlr.Gameplay do
   # The local blocklist already ran synchronously in Answer.new/4 — this is
   # only the external layer (stubbed today). Fails open, off the submission
   # path — moderation must never block or slow the race, so a flagged answer
-  # is retracted from feeds after the fact.
+  # is retracted from feeds after the fact. When the supervisor is full the
+  # check is skipped, and a [:riddlr, :moderation, :dropped] event counts it.
+  @spec moderate_answer_async(Answer.t()) :: :ok
   defp moderate_answer_async(%Answer{} = answer) do
-    Task.Supervisor.start_child(Riddlr.TaskSupervisor, fn ->
+    task = fn ->
       case Riddlr.Moderation.check_external(answer.text) do
         {:flagged, _reason} -> broadcast_answer_flagged(answer)
         :ok -> :noop
       end
-    end)
+    end
+
+    case Task.Supervisor.start_child(Riddlr.ModerationSupervisor, task) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, :max_children} ->
+        :telemetry.execute([:riddlr, :moderation, :dropped], %{count: 1}, %{
+          riddle_id: answer.riddle_id
+        })
+    end
   end
 
   @doc """
@@ -343,25 +315,18 @@ defmodule Riddlr.Gameplay do
   - `completion_rate` — percentage of players who submitted a correct answer (0.0–100.0)
   """
   def get_completion_stats(riddle_id) do
-    answers = get_answers(riddle_id)
-    unique_players = answers |> Enum.map(& &1.user_id) |> Enum.uniq() |> length()
-
-    unique_solvers =
-      answers |> Enum.filter(& &1.correct) |> Enum.map(& &1.user_id) |> Enum.uniq() |> length()
+    players = Store.player_count(riddle_id)
 
     completion_rate =
-      if unique_players > 0, do: unique_solvers / unique_players * 100.0, else: 0.0
+      if players > 0, do: Store.solved_count(riddle_id) / players * 100.0, else: 0.0
 
     %{completion_rate: completion_rate}
   end
 
   @doc """
   Every solver of a riddle from ETS, as rows ready for `Repo.insert_all/3` into
-  `Riddlr.Gameplay.Solve`. Fastest first, placed 1..N, with points 10 down to
-  1 and then 0.
-
-  A player counts once, at their earliest correct answer: the already-solved
-  guard is not atomic, so two fast correct submissions can both land.
+  `Riddlr.Gameplay.Solve`. In placement order, with points 10 down to 1 and
+  then 0.
 
   `Riddlr.Workers.CompleteRiddleWorker` passes these to `Games.transition/3`,
   which saves them with `persist_results/3` in the same transaction as the
@@ -371,19 +336,15 @@ defmodule Riddlr.Gameplay do
   def solve_rows(riddle_id) do
     now = Clock.utc_now() |> DateTime.truncate(:second)
 
-    @answers_table
-    |> :ets.match_object(Answer.ets_pattern(riddle_id, true))
-    |> Enum.map(&Answer.from_ets/1)
-    |> Enum.sort_by(& &1.timestamp)
-    |> Enum.uniq_by(& &1.user_id)
-    |> Enum.with_index(1)
-    |> Enum.map(fn {answer, placement} ->
+    riddle_id
+    |> Store.solves()
+    |> Enum.map(fn {user_id, placement, offset_ms} ->
       %{
         riddle_id: riddle_id,
-        user_id: answer.user_id,
+        user_id: user_id,
         placement: placement,
         points: points_for_placement(placement),
-        solve_time_ms: answer.offset_ms,
+        solve_time_ms: offset_ms,
         inserted_at: now,
         updated_at: now
       }
@@ -402,10 +363,8 @@ defmodule Riddlr.Gameplay do
   def entry_rows(riddle_id) do
     now = Clock.utc_now() |> DateTime.truncate(:second)
 
-    @answers_table
-    |> :ets.match_object(Answer.ets_pattern(riddle_id))
-    |> Enum.map(&Answer.from_ets(&1).user_id)
-    |> Enum.uniq()
+    riddle_id
+    |> Store.players()
     |> Enum.map(&%{riddle_id: riddle_id, user_id: &1, inserted_at: now, updated_at: now})
   end
 
@@ -450,14 +409,99 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
-  A riddle's saved placement-1 solve, with `:user` loaded, or `nil` if nobody
-  solved it or it has not completed.
+  A riddle's saved placement-1 solve, or `nil` if nobody solved it or it has
+  not completed. `:user` is loaded with only its `id` and `username`, or nil
+  for a deleted account.
   """
   @spec first_solve(integer()) :: Solve.t() | nil
   def first_solve(riddle_id) do
-    from(s in Solve, where: s.riddle_id == ^riddle_id and s.placement == 1, preload: :user)
+    users = from(u in Riddlr.Accounts.User, select: struct(u, [:id, :username]))
+
+    from(s in Solve,
+      where: s.riddle_id == ^riddle_id and s.placement == 1,
+      preload: [user: ^users]
+    )
     |> Repo.one()
   end
+
+  @typedoc """
+  One row of a Results board. `username` is nil when the account is gone.
+  """
+  @type board_row :: %{
+          user_id: integer() | nil,
+          username: String.t() | nil,
+          placement: pos_integer(),
+          points: non_neg_integer(),
+          solve_time_ms: non_neg_integer() | nil
+        }
+
+  @typedoc "The top of a riddle's saved solves, by placement, and how many there are."
+  @type board :: %{top: [board_row()], total: non_neg_integer()}
+
+  @doc """
+  The first #{@board_limit} saved solves of a riddle, by placement, with
+  usernames, and the count of all its solves. Always reads the database; see
+  `board/1` for the cached read.
+  """
+  @spec list_board(integer()) :: board()
+  def list_board(riddle_id) do
+    top =
+      from(s in Solve,
+        left_join: u in assoc(s, :user),
+        where: s.riddle_id == ^riddle_id,
+        order_by: s.placement,
+        limit: @board_limit,
+        select: %{
+          user_id: s.user_id,
+          username: u.username,
+          placement: s.placement,
+          points: s.points,
+          solve_time_ms: s.solve_time_ms
+        }
+      )
+      |> Repo.all()
+
+    total = if length(top) < @board_limit, do: length(top), else: count_solves(riddle_id)
+    %{top: top, total: total}
+  end
+
+  @doc """
+  A riddle's Results board (`list_board/1`).
+
+  A completed riddle's board is cached: `warm_board/1` fills it when the
+  riddle completes, before every Play view is told to move to Results, and
+  `cleanup_riddle/1` drops it at archive. A miss reads the database and fills
+  the cache. An archived riddle's board is read from the database every time,
+  so no entry outlives the archive.
+
+  A cached board keeps the usernames it was read with until archive.
+  """
+  @spec board(Riddlr.Games.Riddle.t()) :: board()
+  def board(%{play_status: "completed", id: id}) do
+    Cache.fetch(board_key(id), fn -> list_board(id) end)
+  end
+
+  def board(%{id: id}), do: list_board(id)
+
+  @doc """
+  A completed riddle's board if the cache holds it, else `nil`. Never reads
+  the database, for a first render that must not.
+  """
+  @spec cached_board(Riddlr.Games.Riddle.t()) :: board() | nil
+  def cached_board(%{play_status: "completed", id: id}) do
+    case Cache.get(board_key(id)) do
+      {:ok, board} -> board
+      :error -> nil
+    end
+  end
+
+  def cached_board(_riddle), do: nil
+
+  @doc "Reads a riddle's board and stores it in the cache. See `board/1`."
+  @spec warm_board(integer()) :: :ok
+  def warm_board(riddle_id), do: Cache.put(board_key(riddle_id), list_board(riddle_id))
+
+  defp board_key(riddle_id), do: {:results, riddle_id}
 
   @doc """
   A user's saved solve of a riddle, or `nil` if they did not solve it or the
@@ -475,11 +519,12 @@ defmodule Riddlr.Gameplay do
   end
 
   @doc """
-  Removes all ETS entries for a riddle (call on archive).
+  Removes all ETS entries for a riddle, its cached board included (call on
+  archive and delete).
   """
+  @spec cleanup_riddle(integer()) :: :ok
   def cleanup_riddle(riddle_id) do
-    :ets.match_delete(@answers_table, Answer.ets_pattern(riddle_id))
-    :ets.match_delete(@cooldowns_table, {{riddle_id, :_}, :_})
-    :ok
+    Cache.delete(board_key(riddle_id))
+    Store.cleanup_riddle(riddle_id)
   end
 end

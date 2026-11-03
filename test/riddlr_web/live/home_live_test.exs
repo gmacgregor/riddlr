@@ -5,8 +5,8 @@ defmodule RiddlrWeb.HomeLiveTest do
   import Riddlr.AccountsFixtures
 
   alias Riddlr.Clock.Frozen
-  alias Riddlr.{Gameplay, Games, GamesFixtures}
-  alias Riddlr.Gameplay.Presence
+  alias Riddlr.{GameClock, Gameplay, Games, GamesFixtures}
+  alias Riddlr.Gameplay.{Answer, Presence}
   alias RiddlrWeb.{GameCopy, Thinker}
 
   describe "heading" do
@@ -476,11 +476,21 @@ defmodule RiddlrWeb.HomeLiveTest do
       {:ok, live, _html} = live(conn, ~p"/")
       assert has_element?(live, "#hero-count", GameCopy.hero_waiting(0))
 
-      Phoenix.PubSub.subscribe(Riddlr.PubSub, Presence.lobby_topic(next.id))
       track_player(next, 7, "ada")
-      assert_receive %Phoenix.Socket.Broadcast{event: "presence_diff"}
+      tick(next)
 
       assert has_element?(live, "#hero-count", GameCopy.hero_waiting(1))
+    end
+
+    test "hears counts from the clock, not each guess or Lobby join", %{conn: conn} do
+      next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      topics = Registry.keys(Riddlr.PubSub, live.pid)
+
+      assert GameClock.stats_topic(next.id) in topics
+      refute Answer.topic(next.id) in topics
+      refute Presence.lobby_topic(next.id) in topics
     end
 
     test "syncs the clock to the next riddle on each tick", %{conn: conn} do
@@ -529,6 +539,7 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#hero-left", "0:30")
 
       {:correct, 1, _} = Gameplay.submit_answer(next, user_fixture(), "keyboard")
+      tick(next)
       assert has_element?(live, "#hero-card .rg-hero__teaser b", "1")
     end
 
@@ -794,6 +805,14 @@ defmodule RiddlrWeb.HomeLiveTest do
     )
     |> Riddlr.Repo.update!()
     |> then(&Games.get_riddle!(&1.id))
+  end
+
+  # Runs one tick of the riddle's clock. The clock sends its counts before
+  # :sys.get_state/1 returns, so they reach the view ahead of the next render.
+  defp tick(riddle) do
+    [{clock, _}] = Registry.lookup(Riddlr.GameClockRegistry, riddle.id)
+    send(clock, :tick)
+    _ = :sys.get_state(clock)
   end
 
   # Tracks a fake player in a riddle's lobby from its own process, the way the

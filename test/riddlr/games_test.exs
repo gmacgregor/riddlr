@@ -3,6 +3,8 @@ defmodule Riddlr.GamesTest do
   use Oban.Testing, repo: Riddlr.Repo
 
   alias Riddlr.Games
+  alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Store
 
   describe "riddles" do
     alias Riddlr.Games.Riddle
@@ -15,6 +17,13 @@ defmodule Riddlr.GamesTest do
       riddle = riddle_fixture()
       riddles = Games.list_riddles()
       assert Enum.any?(riddles, &(&1.id == riddle.id))
+    end
+
+    test "list_riddles/1 returns the newest `limit` riddles, newest first" do
+      [first, second, third] = for _ <- 1..3, do: riddle_fixture()
+
+      assert Games.list_riddles(2) |> Enum.map(& &1.id) == [third.id, second.id]
+      refute first.id in Enum.map(Games.list_riddles(2), & &1.id)
     end
 
     test "get_riddle!/1 returns the riddle with given id" do
@@ -133,6 +142,18 @@ defmodule Riddlr.GamesTest do
         Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
     end
 
+    test "get_riddle!/2 loads the category and nothing else by default" do
+      riddle = riddle_fixture()
+
+      fetched = Games.get_riddle!(riddle.id)
+      assert %Riddlr.Games.Category{} = fetched.category
+      refute Ecto.assoc_loaded?(fetched.first_solver)
+
+      assert Ecto.assoc_loaded?(
+               Games.get_riddle!(riddle.id, preload: [:first_solver]).first_solver
+             )
+    end
+
     test "delete_riddle/1 deletes the riddle" do
       riddle = riddle_fixture()
       assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
@@ -143,17 +164,15 @@ defmodule Riddlr.GamesTest do
       riddle = riddle_fixture()
       user_id = :erlang.unique_integer([:positive])
 
-      :ets.insert(
-        :riddle_answers,
-        {{riddle.id, user_id}, "answer", System.monotonic_time(:microsecond), true, nil}
-      )
-
-      :ets.insert(:answer_cooldowns, {{riddle.id, user_id}, System.monotonic_time(:microsecond)})
+      user = %{id: user_id, username: "user#{user_id}"}
+      {:ok, 1} = Store.record(Answer.new(riddle.id, user, "answer", correct: true))
+      :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
 
       assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
 
-      assert :ets.lookup(:riddle_answers, {riddle.id, user_id}) == []
-      assert :ets.lookup(:answer_cooldowns, {riddle.id, user_id}) == []
+      refute Store.guessed?(riddle.id, user_id)
+      assert Store.recent_answers(riddle.id) == []
+      assert :ok = Store.claim_cooldown({riddle.id, user_id}, 1_000_000)
     end
 
     test "delete_riddle/1 cancels the riddle's pending jobs" do
@@ -169,6 +188,22 @@ defmodule Riddlr.GamesTest do
         |> Riddlr.Repo.all()
 
       assert pending == []
+    end
+
+    test "delete_riddle/1 leaves other riddles' jobs alone" do
+      riddle = scheduled_riddle_fixture()
+      other = scheduled_riddle_fixture()
+
+      assert {:ok, %Riddle{}} = Games.delete_riddle(riddle)
+
+      assert [_ | _] = Riddlr.ObanMonitor.riddle_jobs(other.id)
+
+      assert Enum.all?(
+               Riddlr.ObanMonitor.riddle_jobs(other.id),
+               &(&1.state in ["available", "scheduled"])
+             )
+
+      assert Enum.all?(Riddlr.ObanMonitor.riddle_jobs(riddle.id), &(&1.state == "cancelled"))
     end
 
     test "delete_riddle/1 announces :riddle_deleted to the admin topic" do

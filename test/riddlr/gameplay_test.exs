@@ -2,16 +2,19 @@ defmodule Riddlr.GameplayTest do
   use ExUnit.Case, async: false
 
   alias Riddlr.Gameplay
+  alias Riddlr.Gameplay.Answer
+  alias Riddlr.Gameplay.Store
 
   # Clean up ETS tables between tests using a unique riddle_id per test
   defp unique_riddle_id, do: :erlang.unique_integer([:positive])
   defp unique_user_id, do: :erlang.unique_integer([:positive])
 
-  # Seeds the answers table directly — these are read-side functions, and the
-  # write side is only reachable through Gameplay.submit_answer/3.
+  # Seeds through the Store — these are read-side functions, and
+  # Gameplay.submit_answer/3 needs a live riddle and a cooldown.
   defp seed_answer(rid, uid, text, correct?, ts \\ nil) do
     ts = ts || System.monotonic_time(:microsecond)
-    :ets.insert(:riddle_answers, {{rid, uid}, text, ts, correct?, nil})
+    user = %{id: uid, username: "user#{uid}"}
+    Store.record(Answer.new(rid, user, text, correct: correct?, timestamp: ts))
     ts
   end
 
@@ -74,7 +77,6 @@ defmodule Riddlr.GameplayTest do
       seed_answer(rid, first, "wrong", false)
       seed_answer(rid, first, "correct", true)
       seed_answer(rid, second, "correct", true)
-      seed_answer(rid, second, "correct", true)
       seed_answer(rid, unique_user_id(), "wrong", false)
       seed_answer(unique_riddle_id(), unique_user_id(), "correct", true)
 
@@ -122,15 +124,25 @@ defmodule Riddlr.GameplayTest do
       assert List.last(answers).timestamp == past_ts
     end
 
-    test "includes user_id, text, timestamp, correct fields" do
+    test "includes user_id, username, text, timestamp, correct, placement fields" do
       rid = unique_riddle_id()
       uid = unique_user_id()
       ts = seed_answer(rid, uid, "keyboard", true)
       [answer] = Gameplay.get_answers(rid)
       assert answer.user_id == uid
+      assert answer.username == "user#{uid}"
       assert answer.text == "keyboard"
       assert answer.timestamp == ts
       assert answer.correct == true
+      assert answer.placement == 1
+    end
+
+    test "takes only the newest `limit` answers" do
+      rid = unique_riddle_id()
+      ts = System.monotonic_time(:microsecond)
+      for n <- 1..3, do: seed_answer(rid, unique_user_id(), "guess", false, ts + n)
+
+      assert rid |> Gameplay.get_answers(2) |> Enum.map(& &1.timestamp) == [ts + 3, ts + 2]
     end
   end
 
@@ -190,32 +202,18 @@ defmodule Riddlr.GameplayTest do
       assert Gameplay.solve_rows(rid) == []
     end
 
-    test "orders solvers fastest first, ignoring wrong guesses" do
+    test "orders solvers by the placement each claimed, ignoring wrong guesses" do
       rid = unique_riddle_id()
       uid1 = unique_user_id()
       uid2 = unique_user_id()
-      ts = System.monotonic_time(:microsecond)
-      seed_answer(rid, uid2, "correct", true, ts)
-      seed_answer(rid, uid1, "correct", true, ts - 1000)
-      seed_answer(rid, unique_user_id(), "wrong", false, ts - 2000)
+      seed_answer(rid, unique_user_id(), "wrong", false)
+      seed_answer(rid, uid1, "correct", true)
+      seed_answer(rid, uid2, "correct", true)
 
       assert [
                %{riddle_id: ^rid, user_id: ^uid1, placement: 1, points: 10},
                %{user_id: ^uid2, placement: 2, points: 9}
              ] = Gameplay.solve_rows(rid)
-    end
-
-    test "counts a player once, at their earliest correct answer" do
-      rid = unique_riddle_id()
-      uid1 = unique_user_id()
-      uid2 = unique_user_id()
-      ts = System.monotonic_time(:microsecond)
-      seed_answer(rid, uid1, "correct", true, ts - 1000)
-      seed_answer(rid, uid2, "correct", true, ts - 500)
-      seed_answer(rid, uid1, "correct", true, ts)
-
-      assert [%{user_id: ^uid1, placement: 1}, %{user_id: ^uid2, placement: 2}] =
-               Gameplay.solve_rows(rid)
     end
   end
 
@@ -246,12 +244,13 @@ defmodule Riddlr.GameplayTest do
       rid = unique_riddle_id()
       uid = unique_user_id()
       seed_answer(rid, uid, "answer", true)
-      :ets.insert(:answer_cooldowns, {{rid, uid}, System.monotonic_time(:microsecond)})
+      :ok = Store.claim_cooldown({rid, uid}, 1_000_000)
 
       Gameplay.cleanup_riddle(rid)
 
-      assert :ets.lookup(:riddle_answers, {rid, uid}) == []
-      assert :ets.lookup(:answer_cooldowns, {rid, uid}) == []
+      assert Gameplay.get_answers(rid) == []
+      refute Gameplay.guessed?(rid, uid)
+      assert :ok = Store.claim_cooldown({rid, uid}, 1_000_000)
     end
 
     test "does not affect other riddles" do
@@ -263,8 +262,8 @@ defmodule Riddlr.GameplayTest do
 
       Gameplay.cleanup_riddle(rid1)
 
-      assert :ets.lookup(:riddle_answers, {rid1, uid}) == []
-      assert length(:ets.lookup(:riddle_answers, {rid2, uid})) == 1
+      assert Gameplay.get_answers(rid1) == []
+      assert [_] = Gameplay.get_answers(rid2)
     end
   end
 end

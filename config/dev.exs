@@ -8,7 +8,7 @@ config :riddlr, Riddlr.Repo,
   database: "riddlr_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  pool_size: 20
 
 # Dev-only keys for phone encryption and its blind index. Prod reads
 # CLOAK_KEY and PHONE_HMAC_KEY in runtime.exs.

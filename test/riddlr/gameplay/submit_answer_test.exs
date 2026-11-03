@@ -24,7 +24,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
 
       assert Gameplay.submit_answer(riddle, user, "mouse") == :incorrect
 
-      assert_receive {:answer_submitted, %{text: "mouse", correct: false} = answer}
+      assert_receive {:answers_batch, [%{text: "mouse", correct: false} = answer], _totals}
       assert answer.username == user.username
       assert [%{text: "mouse", correct: false}] = Gameplay.get_answers(riddle.id)
     end
@@ -34,7 +34,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
 
       assert Gameplay.submit_answer(riddle, user, "mouse") == :incorrect
 
-      assert_receive {:answer_submitted, %Answer{} = broadcast}
+      assert_receive {:answers_batch, [%Answer{} = broadcast], _totals}
       assert [%Answer{} = stored] = Gameplay.get_answers(riddle.id)
       assert stored.id == broadcast.id
     end
@@ -47,7 +47,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
 
       Gameplay.submit_answer(riddle, user, "this is #{@bad_word}")
 
-      assert_receive {:answer_submitted, %Answer{text: "this is #{@mask}"}}
+      assert_receive {:answers_batch, [%Answer{text: "this is #{@mask}"}], _totals}
     end
 
     test "stores the masked text, not the raw one", %{riddle: riddle, user: user} do
@@ -63,7 +63,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
 
       assert {:correct, 1, 10} = Gameplay.submit_answer(riddle, user, "keyboard")
 
-      assert_receive {:answer_submitted, %Answer{} = broadcast}
+      assert_receive {:answers_batch, [%Answer{} = broadcast], _totals}
       assert broadcast.correct
       assert broadcast.text == nil
       assert broadcast.username == user.username
@@ -187,7 +187,7 @@ defmodule Riddlr.Gameplay.SubmitAnswerTest do
       assert Gameplay.submit_answer(riddle, user, "keyboard") == {:error, :time_up}
 
       assert Gameplay.get_answers(riddle.id) == []
-      refute_received {:answer_submitted, _}
+      refute_received {:answers_batch, _, _}
       assert Riddlr.Games.get_riddle!(riddle.id).first_solver_id == nil
     end
 

@@ -27,8 +27,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
+  # The list loads once the socket connects, so the first render runs no
+  # query for it. It shows the newest 100 riddles.
   defp apply_action(socket, :index, _params) do
-    socket |> stream(:riddles, Games.list_riddles(), reset: true) |> assign(:riddle, nil)
+    riddles = if connected?(socket), do: Games.list_riddles(), else: []
+    socket |> stream(:riddles, riddles, reset: true) |> assign(:riddle, nil)
   end
 
   defp apply_action(socket, :new, _params) do

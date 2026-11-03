@@ -3,7 +3,12 @@ defmodule RiddlrWeb.GameLive.Results do
   Shows a finished riddle: who solved it, the leaderboard, and a chat that
   follows the riddle's answers. Works for completed and archived riddles: the
   board comes from saved solves, but archive drops the answers, so an archived
-  riddle shows an empty feed. Opening it for a riddle in any other state sends
+  riddle shows an empty feed.
+
+  The board shows the first 50 solvers (`Gameplay.board/1`, cached while the
+  riddle is completed), and the viewer's own row below them if they placed
+  lower. The first render shows the board only if the cache holds it; the
+  connected render always does. Opening it for a riddle in any other state sends
   the player to the screen for that state.
 
   While the riddle is completed, a countdown above the chat shows how long
@@ -24,7 +29,6 @@ defmodule RiddlrWeb.GameLive.Results do
   alias Riddlr.Accounts.User
   alias Riddlr.Gameplay.Answer
   alias RiddlrWeb.{GameComponents, GameCopy}
-  alias RiddlrWeb.GameLive.Feed
 
   @message_max_length 500
   # Guesses loaded at mount, and rows kept in the feed once chat joins them.
@@ -71,7 +75,15 @@ defmodule RiddlrWeb.GameLive.Results do
         # Chat is open until Archive. An open page closes it when the
         # `:riddle_archived` broadcast arrives.
         chat_open? = status == "completed"
-        board = load_board(riddle.id, user && user.id)
+        user_id = user && user.id
+
+        board =
+          if connected?(socket),
+            do: Gameplay.board(riddle),
+            else: Gameplay.cached_board(riddle)
+
+        entries = board_entries(board, user_id)
+        mine = if connected?(socket), do: my_entry(entries, board, riddle.id, user)
 
         feed =
           if connected?(socket) do
@@ -96,10 +108,16 @@ defmodule RiddlrWeb.GameLive.Results do
          |> assign(:answer, List.first(riddle.answers, ""))
          |> assign(:answer_words, answer_words(List.first(riddle.answers, "")))
          |> assign(:answer_longest, longest_word(List.first(riddle.answers, "")))
-         |> assign(:board, board)
-         # Nil for a guest, who gets the join note instead.
-         |> assign(:you, user && you_card(board, riddle.id, user.id))
-         |> assign(:payout, payout(board))
+         # False until a board is read, so the page does not call an unread
+         # board unsolved.
+         |> assign(:board_ready?, board != nil)
+         |> assign(:board, entries)
+         |> assign(:board_total, if(board, do: board.total, else: 0))
+         # The viewer's row when they placed below the board.
+         |> assign(:my_row, if(mine && !Enum.any?(entries, & &1.me?), do: mine))
+         # Nil for a guest, who gets the join note instead, and before connect.
+         |> assign(:you, user && board && you_card(mine, riddle.id, user.id))
+         |> assign(:payout, payout(entries))
          |> assign(:next, Games.next_riddle())
          # "win", "lose" or nil. Set by handle_params/3.
          |> assign(:celebrate, nil)
@@ -280,18 +298,15 @@ defmodule RiddlrWeb.GameLive.Results do
   @spec load_feed(integer()) :: [Answer.t()]
   defp load_feed(riddle_id) do
     riddle_id
-    |> Gameplay.get_answers()
-    |> Enum.take(@log_limit)
+    |> Gameplay.get_answers(@log_limit)
     |> Enum.reverse()
-    |> Feed.put_usernames()
     |> Enum.map(&%{&1 | offset_ms: nil})
   end
 
   # The viewer's card. Joining means guessing while the riddle was live; ETS
   # knows that until archive, after which only solvers count as joined.
-  @spec you_card([board_entry()], integer(), integer()) :: GameCopy.you_card()
-  defp you_card(board, riddle_id, user_id) do
-    mine = Enum.find(board, & &1.me?)
+  @spec you_card(board_entry() | nil, integer(), integer()) :: GameCopy.you_card()
+  defp you_card(mine, riddle_id, user_id) do
     GameCopy.you_card(mine, mine != nil or Gameplay.guessed?(riddle_id, user_id))
   end
 
@@ -309,25 +324,51 @@ defmodule RiddlrWeb.GameLive.Results do
     end)
   end
 
-  # Every saved solve, by placement. A deleted account shows as "Player", as
-  # on the feed. `user_id` is nil for a guest, who owns no row.
-  @spec load_board(integer(), integer() | nil) :: [board_entry()]
-  defp load_board(riddle_id, user_id) do
-    riddle_id
-    |> Gameplay.list_solves()
-    |> Enum.map(fn solve ->
-      # A guest's nil id must not match a deleted player's nil solve.
-      me? = user_id != nil and solve.user_id == user_id
-      username = if(solve.user, do: solve.user.username, else: GameCopy.gone_player())
+  # The board's rows as the page shows them, for this viewer. `user_id` is nil
+  # for a guest, who owns no row.
+  @spec board_entries(Gameplay.board() | nil, integer() | nil) :: [board_entry()]
+  defp board_entries(nil, _user_id), do: []
+  defp board_entries(board, user_id), do: Enum.map(board.top, &board_entry(&1, user_id))
 
-      %{
-        placement: solve.placement,
-        points: solve.points,
-        username: username,
-        shown_as: if(me?, do: GameCopy.room_you(), else: username),
-        me?: me?,
-        secs: GameCopy.solve_secs(solve.solve_time_ms)
-      }
-    end)
+  # A deleted account shows as "Player", as on the feed.
+  @spec board_entry(Gameplay.board_row(), integer() | nil) :: board_entry()
+  defp board_entry(row, user_id) do
+    # A guest's nil id must not match a deleted player's nil solve.
+    me? = user_id != nil and row.user_id == user_id
+    username = row.username || GameCopy.gone_player()
+
+    %{
+      placement: row.placement,
+      points: row.points,
+      username: username,
+      shown_as: if(me?, do: GameCopy.room_you(), else: username),
+      me?: me?,
+      secs: GameCopy.solve_secs(row.solve_time_ms)
+    }
+  end
+
+  # The viewer's solve: from the board when they are on it, else one query,
+  # made only when the riddle has more solvers than the board shows.
+  @spec my_entry([board_entry()], Gameplay.board(), integer(), User.t() | nil) ::
+          board_entry() | nil
+  defp my_entry(_entries, _board, _riddle_id, nil), do: nil
+
+  defp my_entry(entries, board, riddle_id, user) do
+    cond do
+      mine = Enum.find(entries, & &1.me?) ->
+        mine
+
+      board.total <= length(entries) ->
+        nil
+
+      solve = Gameplay.solve_for(riddle_id, user.id) ->
+        solve
+        |> Map.take([:user_id, :placement, :points, :solve_time_ms])
+        |> Map.put(:username, user.username)
+        |> board_entry(user.id)
+
+      true ->
+        nil
+    end
   end
 end

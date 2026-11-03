@@ -38,8 +38,14 @@ defmodule RiddlrWeb.HomeLive do
   else "Next" with a countdown. It reuses the card's data and adds no
   subscription.
 
+  Everything it reads from the database comes from one cached snapshot
+  (`Games.home_snapshot/0`), which writers rebuild before they broadcast, so
+  a mount or a reload runs no query when the cache is warm. The practice
+  riddle is picked from the snapshot too.
+
   The page follows the riddle's state while open. It listens to the riddle
-  state topics, and to the next riddle's clock, Lobby presence and answers.
+  state topics, and to the next riddle's clock and its Lobby and solver
+  counts, which the clock sends at most once a second.
   When the next riddle changes, the per-riddle topics move with it. Any state
   message reloads the card and both notes.
   """
@@ -47,7 +53,7 @@ defmodule RiddlrWeb.HomeLive do
   use RiddlrWeb, :live_view
 
   alias Riddlr.{GameClock, Gameplay, Games}
-  alias Riddlr.Gameplay.{Answer, Presence}
+  alias Riddlr.Gameplay.Presence
   alias RiddlrWeb.{DropTime, GameComponents, GameCopy, Thinker}
 
   # Each of these can change which riddle is next, or its state, or the
@@ -73,9 +79,6 @@ defmodule RiddlrWeb.HomeLive do
           total: pos_integer()
         }
 
-  # How many riddles the schedule lists after the next one.
-  @upcoming_limit 3
-
   @impl true
   def mount(_params, _session, socket) do
     # Subscribe before reading the next riddle, so a change in between is
@@ -84,18 +87,19 @@ defmodule RiddlrWeb.HomeLive do
       Enum.each(@state_topics, &Phoenix.PubSub.subscribe(Riddlr.PubSub, &1))
     end
 
-    next = Games.next_riddle()
-    if connected?(socket), do: follow(nil, next)
+    snapshot = Games.home_snapshot()
+    if connected?(socket), do: follow(nil, snapshot.next)
 
     {:ok,
      socket
      |> assign(:page_title, "Home")
+     |> assign(:snapshot, snapshot)
      # The "While you wait" note's practice riddle, as
      # `%{riddle: riddle, n: n, total: total}`, or nil to hide the note.
      # `assign_next/2` picks one once nothing is next.
-     |> assign(:practice, kept_practice(socket))
+     |> assign(:practice, kept_practice(socket, snapshot.practice))
      |> assign(:thinker, kept_thinker(socket))
-     |> assign_next(next)
+     |> assign_next(snapshot.next)
      |> assign_panels()}
   end
 
@@ -106,26 +110,27 @@ defmodule RiddlrWeb.HomeLive do
   def handle_event("another_practice", _params, socket) do
     exclude_id = socket.assigns.practice && socket.assigns.practice.riddle.id
 
-    case Games.random_practice_riddle(exclude_id) do
+    case random_practice(socket.assigns.snapshot.practice, exclude_id) do
       nil ->
         {:noreply, socket}
 
-      riddle ->
+      practice ->
         {:noreply,
          socket
-         |> assign(:practice, practice(riddle))
+         |> assign(:practice, practice)
          |> push_event("view-transition", %{}, dispatch: :before)}
     end
   end
 
   @impl true
   def handle_info({message, _riddle}, socket) when message in @state_messages do
-    next = Games.next_riddle()
-    follow(socket.assigns.next, next)
+    snapshot = Games.home_snapshot()
+    follow(socket.assigns.next, snapshot.next)
 
     {:noreply,
      socket
-     |> assign_next(next)
+     |> assign(:snapshot, snapshot)
+     |> assign_next(snapshot.next)
      |> assign_panels()
      |> sync_flaps()}
   end
@@ -146,12 +151,10 @@ defmodule RiddlrWeb.HomeLive do
     end
   end
 
-  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff"}, socket) do
-    {:noreply, assign(socket, :waiting, waiting(socket.assigns.next))}
-  end
-
-  def handle_info({:answer_submitted, %{correct: true}}, socket) do
-    {:noreply, assign(socket, :solved, solved(socket.assigns.next))}
+  # Counts from the last next riddle's clock can land after a switch.
+  def handle_info({:riddle_stats, id, stats}, %{assigns: %{next: %{id: id} = next}} = socket) do
+    solved = if next.play_status == "live", do: stats.solved, else: 0
+    {:noreply, assign(socket, waiting: stats.waiting, solved: solved)}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
@@ -208,7 +211,7 @@ defmodule RiddlrWeb.HomeLive do
   @spec assign_practice(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp assign_practice(%{assigns: %{hero: hero, practice: nil}} = socket)
        when hero in [:none, :future] do
-    assign(socket, :practice, practice(Games.random_practice_riddle()))
+    assign(socket, :practice, random_practice(socket.assigns.snapshot.practice, nil))
   end
 
   defp assign_practice(socket), do: socket
@@ -216,12 +219,14 @@ defmodule RiddlrWeb.HomeLive do
   # Each mount picks at random, so the connected mount would swap the riddle
   # the static page showed. app.js sends that riddle's id as a connect param
   # (also on reconnect); keep it if it still exists.
-  @spec kept_practice(Phoenix.LiveView.Socket.t()) :: practice() | nil
-  defp kept_practice(socket) do
+  @spec kept_practice(Phoenix.LiveView.Socket.t(), [Games.PracticeRiddle.t()]) ::
+          practice() | nil
+  defp kept_practice(socket, all) do
     with true <- connected?(socket),
          %{"practice_id" => id} <- get_connect_params(socket),
-         {id, ""} <- Integer.parse(id) do
-      practice(Games.get_practice_riddle(id))
+         {id, ""} <- Integer.parse(id),
+         n when is_integer(n) <- Enum.find_index(all, &(&1.id == id)) do
+      practice(all, n)
     else
       _ -> nil
     end
@@ -241,28 +246,31 @@ defmodule RiddlrWeb.HomeLive do
     end
   end
 
-  @spec practice(Games.PracticeRiddle.t() | nil) :: practice() | nil
-  defp practice(nil), do: nil
-
-  defp practice(riddle) do
-    %{
-      riddle: riddle,
-      n: Games.practice_riddle_number(riddle),
-      total: Games.count_practice_riddles()
-    }
+  # A practice riddle picked at random from `all` (oldest first), other than
+  # `exclude_id`, or nil when there is none to pick.
+  @spec random_practice([Games.PracticeRiddle.t()], integer() | nil) :: practice() | nil
+  defp random_practice(all, exclude_id) do
+    case for({riddle, n} <- Enum.with_index(all), riddle.id != exclude_id, do: n) do
+      [] -> nil
+      places -> practice(all, Enum.random(places))
+    end
   end
+
+  # The practice riddle at index `n` of `all`, and its place among them.
+  @spec practice([Games.PracticeRiddle.t()], non_neg_integer()) :: practice()
+  defp practice(all, n), do: %{riddle: Enum.at(all, n), n: n + 1, total: length(all)}
 
   # The schedule under the hero and the last finished riddle.
   @spec assign_panels(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp assign_panels(socket) do
-    last = Games.last_finished_riddle()
+    %{upcoming: upcoming, last: last, last_solve: last_solve} = socket.assigns.snapshot
 
     socket
-    |> assign(:upcoming, Games.list_upcoming_riddles(@upcoming_limit))
+    |> assign(:upcoming, upcoming)
     |> assign(:last, last)
     |> assign(:last_answer, last && List.first(last.answers, ""))
     |> assign(:last_tone, last && answer_tone(last.id))
-    |> assign(:last_win, last && last_win(last.id))
+    |> assign(:last_win, last_win(last_solve))
   end
 
   # The highlighter colour behind the last answer. It looks picked at random,
@@ -275,18 +283,14 @@ defmodule RiddlrWeb.HomeLive do
     do: Enum.at(@answer_tones, :erlang.phash2(riddle_id, length(@answer_tones)))
 
   # The last riddle's first solver and time, from the saved solve.
-  @spec last_win(integer()) :: %{name: String.t(), secs: String.t()} | nil
-  defp last_win(riddle_id) do
-    case Gameplay.first_solve(riddle_id) do
-      nil ->
-        nil
+  @spec last_win(Riddlr.Gameplay.Solve.t() | nil) :: %{name: String.t(), secs: String.t()} | nil
+  defp last_win(nil), do: nil
 
-      solve ->
-        %{
-          name: if(solve.user, do: solve.user.username, else: GameCopy.gone_player()),
-          secs: GameCopy.solve_secs(solve.solve_time_ms)
-        }
-    end
+  defp last_win(solve) do
+    %{
+      name: if(solve.user, do: solve.user.username, else: GameCopy.gone_player()),
+      secs: GameCopy.solve_secs(solve.solve_time_ms)
+    }
   end
 
   # The flaps hook owns its digits, so a new drop time (a reschedule, or a
@@ -319,7 +323,7 @@ defmodule RiddlrWeb.HomeLive do
   end
 
   @spec riddle_topics(integer()) :: [String.t()]
-  defp riddle_topics(id), do: [GameClock.topic(id), Presence.lobby_topic(id), Answer.topic(id)]
+  defp riddle_topics(id), do: [GameClock.topic(id), GameClock.stats_topic(id)]
 
   # The seconds on the card's clock: until the drop, or left to solve. A riddle
   # past its drop time but not yet live holds at zero until the live broadcast.
