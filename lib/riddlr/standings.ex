@@ -6,6 +6,12 @@ defmodule Riddlr.Standings do
   when a riddle completes, not during play. `Riddlr.Games.transition/3`
   calls `broadcast_changed/0` once that commits; `subscribe/0` listens.
 
+  Standings is a read model across contexts: it joins Gameplay's `solves`,
+  Games' `riddles` and Accounts' `users` in one query, because a ranking
+  built from three context calls would need far more round trips. It
+  only reads these tables and never writes them. Writes stay with the
+  owning context.
+
   `list/2` returns the top 50 players on a board; `player_row/3` returns one
   player's row with the same rank, wherever they place. Each board sorts by its
   own stat first, then the other two:
