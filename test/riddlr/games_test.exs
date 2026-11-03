@@ -31,6 +31,12 @@ defmodule Riddlr.GamesTest do
       assert Games.get_riddle!(riddle.id) == riddle
     end
 
+    test "get_riddle/2 returns the riddle, or nil if it does not exist" do
+      riddle = riddle_fixture()
+      assert Games.get_riddle(riddle.id) == riddle
+      refute Games.get_riddle(-1)
+    end
+
     test "create_riddle/1 with valid data creates a riddle" do
       # Get or create logic category for test
       category =

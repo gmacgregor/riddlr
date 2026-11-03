@@ -65,6 +65,12 @@ defmodule Riddlr.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc """
+  Gets a single user, or `nil` if the User does not exist.
+  """
+  @spec get_user(term()) :: User.t() | nil
+  def get_user(id), do: Repo.get(User, id)
+
   ## User registration
 
   @doc """
@@ -250,6 +256,53 @@ defmodule Riddlr.Accounts do
       &Repo.update/1
     )
   end
+
+  @typedoc "A way to reach a player with a Notification."
+  @type notification_channel :: :email | :sms
+
+  @doc """
+  Returns a query for the players who want a Notification `lead_time` before
+  a riddle goes live on `channel`.
+
+  An eligible player has this lead time, an active account, and for email:
+  email on with a confirmed email, or for `:sms`: Text on with a confirmed
+  number. `notifiable?/2` applies the same rules to one loaded player.
+  """
+  @spec notification_recipients_query(atom(), notification_channel()) :: Ecto.Query.t()
+  def notification_recipients_query(lead_time, channel) do
+    from(u in User,
+      where: u.notification_lead_time == ^lead_time,
+      where: u.account_status == ^:active
+    )
+    |> wants_channel(channel)
+  end
+
+  @spec wants_channel(Ecto.Query.t(), notification_channel()) :: Ecto.Query.t()
+  defp wants_channel(query, :email),
+    do: where(query, [u], u.notify_email == true and not is_nil(u.confirmed_at))
+
+  defp wants_channel(query, :sms),
+    do: where(query, [u], u.notify_sms == true and not is_nil(u.phone_confirmed_at))
+
+  @doc """
+  Whether the player may get a Notification on `channel` now. The lead time
+  is not checked: a player who changed it after the fan-out still gets the
+  one already queued.
+  """
+  @spec notifiable?(User.t(), notification_channel()) :: boolean()
+  def notifiable?(
+        %User{notify_email: true, account_status: :active, confirmed_at: %DateTime{}},
+        :email
+      ),
+      do: true
+
+  def notifiable?(
+        %User{notify_sms: true, account_status: :active, phone_confirmed_at: %DateTime{}},
+        :sms
+      ),
+      do: true
+
+  def notifiable?(%User{}, _channel), do: false
 
   ## Phone
 

@@ -56,6 +56,48 @@ defmodule Riddlr.AccountsTest do
     end
   end
 
+  describe "get_user/1" do
+    test "returns nil if the user does not exist" do
+      refute Accounts.get_user(-1)
+    end
+
+    test "returns the user with the given id" do
+      %{id: id} = user_fixture()
+      assert %User{id: ^id} = Accounts.get_user(id)
+    end
+  end
+
+  describe "notifiable?/2" do
+    setup do
+      now = DateTime.utc_now(:second)
+
+      %{
+        email: %User{notify_email: true, account_status: :active, confirmed_at: now},
+        sms: %User{notify_sms: true, account_status: :active, phone_confirmed_at: now}
+      }
+    end
+
+    test "is true for an active player with the channel on and confirmed", players do
+      assert Accounts.notifiable?(players.email, :email)
+      assert Accounts.notifiable?(players.sms, :sms)
+    end
+
+    test "is false with the channel off", players do
+      refute Accounts.notifiable?(%{players.email | notify_email: false}, :email)
+      refute Accounts.notifiable?(%{players.sms | notify_sms: false}, :sms)
+    end
+
+    test "is false with the email or number not confirmed", players do
+      refute Accounts.notifiable?(%{players.email | confirmed_at: nil}, :email)
+      refute Accounts.notifiable?(%{players.sms | phone_confirmed_at: nil}, :sms)
+    end
+
+    test "is false for a banned or suspended player", players do
+      refute Accounts.notifiable?(%{players.email | account_status: :banned}, :email)
+      refute Accounts.notifiable?(%{players.sms | account_status: :suspended}, :sms)
+    end
+  end
+
   describe "register_user/1" do
     test "requires email to be set" do
       {:error, changeset} = Accounts.register_user(%{})

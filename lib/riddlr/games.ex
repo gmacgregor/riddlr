@@ -101,6 +101,18 @@ defmodule Riddlr.Games do
   end
 
   @doc """
+  Gets a single riddle, or `nil` if the Riddle does not exist.
+
+  Takes the options `get_riddle!/2` takes.
+  """
+  @spec get_riddle(term(), keyword()) :: Riddle.t() | nil
+  def get_riddle(id, opts \\ []) do
+    Riddle
+    |> preload(^Keyword.get(opts, :preload, @riddle_preload))
+    |> Repo.get(id)
+  end
+
+  @doc """
   Fetches a riddle by ID, returning `{:ok, riddle}` or `{:error, :not_found}`. Rescues i.e Ecto.NoResultsError, Ecto.Query.CastError
 
   Takes the options `get_riddle!/2` takes.
@@ -113,6 +125,22 @@ defmodule Riddlr.Games do
     end
   rescue
     _ -> {:error, :not_found}
+  end
+
+  @doc """
+  Gets a riddle and takes a share lock on its row until the caller's
+  transaction ends. Returns `nil` if the Riddle does not exist.
+
+  The lock makes a save to the riddle wait for the caller's transaction, and
+  makes the caller wait for a save already in flight. It must run inside a
+  transaction. The riddle comes without preloads.
+  """
+  @spec lock_riddle_for_share(integer()) :: Riddle.t() | nil
+  def lock_riddle_for_share(id) do
+    Riddle
+    |> where([r], r.id == ^id)
+    |> lock("FOR SHARE")
+    |> Repo.one()
   end
 
   @doc """
