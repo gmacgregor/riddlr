@@ -1,23 +1,24 @@
 defmodule Riddlr.ObanMonitor do
-  @doc """
-  IEx usage:
+  @moduledoc """
+  Reads the Oban jobs table, for use from IEx.
 
-  # Get overall stats
-  Riddlr.ObanMonitor.stats()
+      # Counts by state, queue and worker
+      Riddlr.ObanMonitor.stats()
 
-  # See jobs for a specific riddle
-  Riddlr.ObanMonitor.riddle_jobs(123)
+      # The jobs for one riddle
+      Riddlr.ObanMonitor.riddle_jobs(123)
 
-  # See what's coming up next
-  Riddlr.ObanMonitor.upcoming_jobs()
+      # What runs next
+      Riddlr.ObanMonitor.upcoming_jobs()
 
-  # Check for failures
-  Riddlr.ObanMonitor.failed_jobs()
-
+      # What failed
+      Riddlr.ObanMonitor.failed_jobs()
   """
+
   import Ecto.Query
   alias Riddlr.Repo
 
+  @doc "Counts every job, and counts them by state, by queue and by worker."
   @spec stats() :: %{
           total: non_neg_integer(),
           by_state: %{String.t() => pos_integer()},
@@ -43,6 +44,8 @@ defmodule Riddlr.ObanMonitor do
     |> Map.new()
   end
 
+  @doc "Lists the jobs whose args name `riddle_id`, soonest first."
+  @spec riddle_jobs(integer()) :: [map()]
   def riddle_jobs(riddle_id) do
     Repo.all(
       from j in Oban.Job,
@@ -59,6 +62,8 @@ defmodule Riddlr.ObanMonitor do
     )
   end
 
+  @doc "Lists up to `limit` scheduled jobs, soonest first."
+  @spec upcoming_jobs(pos_integer()) :: [map()]
   def upcoming_jobs(limit \\ 10) do
     Repo.all(
       from j in Oban.Job,
@@ -73,6 +78,8 @@ defmodule Riddlr.ObanMonitor do
     )
   end
 
+  @doc "Lists up to `limit` retryable or discarded jobs, latest attempt first."
+  @spec failed_jobs(pos_integer()) :: [map()]
   def failed_jobs(limit \\ 10) do
     Repo.all(
       from j in Oban.Job,

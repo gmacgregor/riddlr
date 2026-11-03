@@ -37,10 +37,13 @@ defmodule Riddlr.Gameplay do
   alias Ecto.Multi
   alias Riddlr.Cache
   alias Riddlr.Clock
+  alias Riddlr.GameClock
   alias Riddlr.Gameplay.Answer
   alias Riddlr.Gameplay.Entry
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Gameplay.Store
+  alias Riddlr.Games
+  alias Riddlr.Moderation
   alias Riddlr.Repo
 
   import Ecto.Query, only: [from: 2]
@@ -136,7 +139,7 @@ defmodule Riddlr.Gameplay do
     with {:ok, placement} <- Store.record(answer) do
       answer = %{answer | placement: placement}
 
-      Riddlr.GameClock.push_answer(answer)
+      GameClock.push_answer(answer)
       moderate_answer_async(answer)
       score(riddle, user, answer)
     end
@@ -146,7 +149,7 @@ defmodule Riddlr.Gameplay do
 
   defp score(riddle, user, %Answer{placement: placement} = answer) do
     if placement == 1 do
-      Riddlr.Games.record_first_solver(riddle.id, user.id, answer.offset_ms)
+      Games.record_first_solver(riddle.id, user.id, answer.offset_ms)
     end
 
     {:correct, placement, points_for_placement(placement)}
@@ -314,7 +317,7 @@ defmodule Riddlr.Gameplay do
   @spec moderate_answer_async(Answer.t()) :: :ok
   defp moderate_answer_async(%Answer{} = answer) do
     task = fn ->
-      case Riddlr.Moderation.check_external(answer.text) do
+      case Moderation.check_external(answer.text) do
         {:flagged, _reason} -> broadcast_answer_flagged(answer)
         :ok -> :noop
       end
