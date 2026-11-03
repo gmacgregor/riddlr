@@ -2,7 +2,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   use RiddlrWeb, :admin_live_view
   alias Riddlr.Games
   alias RiddlrWeb.AdminAuth
-  import Riddlr.Utils.Datetime
+  import RiddlrWeb.AdminTime
 
   # Moderators are admins but may not manage riddles or read their answers.
   on_mount {RiddlrWeb.AdminAuth, {:require_permission, :manage_riddles}}

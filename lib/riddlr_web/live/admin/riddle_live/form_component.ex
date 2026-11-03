@@ -2,7 +2,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   use RiddlrWeb, :admin_live_component
   alias Riddlr.Games
   alias RiddlrWeb.AdminAuth
-  import Riddlr.Utils.Datetime
+  import RiddlrWeb.AdminTime
 
   defp hint_delay() do
     Games.default_hint_delay()
