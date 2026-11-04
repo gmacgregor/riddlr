@@ -162,7 +162,7 @@ defmodule RiddlrWeb.GameCopy.Home do
   card can underline it.
   """
   @spec hero_teaser_lead() :: String.t()
-  def hero_teaser_lead, do: "The race is on."
+  def hero_teaser_lead, do: "The race is on!"
 
   @doc "The solved count on the Home card's live line, e.g. \"1,204\"."
   @spec hero_teaser_count(non_neg_integer()) :: String.t()

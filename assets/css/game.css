@@ -1117,8 +1117,11 @@ a.rg-pill {
   font-size: var(--step-0);
   color: var(--fg);
 }
+/* Wide enough to take one line on a wide card; when it wraps, balance keeps
+   the last word from sitting alone. */
 .rg-hero__teaser {
-  max-inline-size: 16ch;
+  max-inline-size: 32ch;
+  text-wrap: balance;
   font-family: var(--f-display);
   font-weight: 700;
   font-size: var(--display-teaser);
