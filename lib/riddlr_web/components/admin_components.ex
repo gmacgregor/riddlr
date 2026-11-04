@@ -26,6 +26,7 @@ defmodule RiddlrWeb.AdminComponents do
 
   alias Phoenix.LiveView.JS
   alias RiddlrWeb.GameComponents
+  alias RiddlrWeb.GameCopy
 
   @doc """
   Renders flash notices.
@@ -430,21 +431,58 @@ defmodule RiddlrWeb.AdminComponents do
     """
   end
 
-  # The logo, as in `RiddlrWeb.Layouts`: a `?` tile with pen ticks off its
-  # corner, then the word in hand lettering. `--i` staggers the letter hop
-  # on hover.
+  # The logo, as in `RiddlrWeb.Layouts`: a doodled K with pen ticks off its
+  # top corner, then the game's name in hand lettering. `--i` staggers the
+  # hop that runs across the K's pieces and on through the letters.
   @spec brand_mark(map()) :: Phoenix.LiveView.Rendered.t()
   defp brand_mark(assigns) do
-    assigns = assign(assigns, :letters, Enum.with_index(String.graphemes("Kriddle")))
+    assigns = assign(assigns, :letters, Enum.with_index(String.graphemes(GameCopy.brand()), 4))
 
     ~H"""
     <span class="rg-brand__mark" aria-hidden="true">
-      <span class="rg-brand__tile">
-        <svg class="rg-brand__ticks" viewBox="0 0 20 20" focusable="false">
-          <path d="M17.5 10.5 L12 12 M14.5 3.5 L10 8.5 M7 1.5 L6.2 7" />
-        </svg>
-        <span class="rg-brand__q">?</span>
-      </span>
+      <svg class="rg-brand__k" viewBox="-24 -32 312 300" focusable="false">
+        <defs>
+          <filter id="rg-brand-soften" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="1.6" />
+          </filter>
+          <path id="rg-brand-k-bar" d="M2,3 Q19,-1 37,2 Q40,92 38,181 Q19,169 1,155 Q-1,79 2,3 Z" />
+          <path id="rg-brand-k-arm" d="M70,2 Q133,-1 195,1 Q133,58 70,114 Q68,58 70,2 Z" />
+          <path
+            id="rg-brand-k-low"
+            d="M70,151 Q94,131 118,108 Q156,151 191,195 Q158,220 124,244 Q96,225 69,204 Q71,178 70,151 Z"
+          />
+          <path
+            id="rg-brand-k-leg"
+            d="M241,2 Q245,1 248,2 Q250,78 247,153 Q234,165 219,175 Q181,131 144,86 Q193,43 241,2 Z"
+          />
+        </defs>
+        <g transform="rotate(-3 124 122)">
+          <g class="rg-brand__tip">
+            <g class="rg-brand__shadow" filter="url(#rg-brand-soften)">
+              <use href="#rg-brand-k-bar" />
+              <use href="#rg-brand-k-arm" />
+              <use href="#rg-brand-k-low" />
+              <use href="#rg-brand-k-leg" />
+            </g>
+            <g class="rg-brand__piece" style="--i: 0">
+              <use href="#rg-brand-k-bar" />
+              <path class="rg-brand__gleam" d="M13,16 Q11,78 13,142" />
+            </g>
+            <g class="rg-brand__piece" style="--i: 1">
+              <use href="#rg-brand-k-arm" />
+              <path class="rg-brand__gleam" d="M83,18 Q81,48 83,78" />
+            </g>
+            <g class="rg-brand__piece" style="--i: 2">
+              <use href="#rg-brand-k-low" />
+            </g>
+            <g class="rg-brand__piece" style="--i: 3">
+              <use href="#rg-brand-k-leg" />
+              <path class="rg-brand__gleam" d="M231,24 Q236,22 236,28" />
+            </g>
+            <path class="rg-brand__ticks" d="M258,16 L276,9 M252,-6 L264,-20 M238,-12 L240,-27" />
+          </g>
+        </g>
+      </svg>
       <span class="rg-brand__word">
         <span :for={{letter, i} <- @letters} class="rg-brand__l" style={"--i: #{i}"}>{letter}</span>
       </span>

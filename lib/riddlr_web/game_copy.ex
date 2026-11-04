@@ -9,6 +9,10 @@ defmodule RiddlrWeb.GameCopy do
   shows, and the number formats.
   """
 
+  @doc "The game's name, as the topbar logo spells it."
+  @spec brand() :: String.t()
+  def brand, do: "Kriddle"
+
   @doc """
   A riddle's number, name and category, e.g. "No. 12: Echo · What am I". A
   riddle with no number yet leaves it out. Takes any map with `number`,
