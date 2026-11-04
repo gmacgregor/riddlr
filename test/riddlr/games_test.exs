@@ -13,17 +13,42 @@ defmodule Riddlr.GamesTest do
 
     @invalid_attrs %{name: nil, description: nil, answers: [], solve_time: nil, category_id: nil}
 
-    test "list_riddles/0 returns all riddles" do
-      riddle = riddle_fixture()
-      riddles = Games.list_riddles()
-      assert Enum.any?(riddles, &(&1.id == riddle.id))
+    test "list_riddles/2 lists published riddles, latest live date first, undated last" do
+      undated = riddle_fixture(%{publish_status: "published"})
+      sooner = riddle_fixture(%{publish_status: "published", live_date: hours_from_now(1)})
+      later = riddle_fixture(%{publish_status: "published", live_date: hours_from_now(2)})
+      draft = riddle_fixture(%{live_date: hours_from_now(3)})
+      ours = [undated.id, sooner.id, later.id, draft.id]
+
+      listed = Games.list_riddles("published") |> Enum.map(& &1.id) |> Enum.filter(&(&1 in ours))
+      assert listed == [later.id, sooner.id, undated.id]
     end
 
-    test "list_riddles/1 returns the newest `limit` riddles, newest first" do
-      [first, second, third] = for _ <- 1..3, do: riddle_fixture()
+    test "list_riddles/2 lists drafts by live date, then newest created first" do
+      old_undated = riddle_fixture()
+      new_undated = riddle_fixture()
+      dated = riddle_fixture(%{live_date: hours_from_now(1)})
+      published = riddle_fixture(%{publish_status: "published", live_date: hours_from_now(2)})
+      ours = [old_undated.id, new_undated.id, dated.id, published.id]
 
-      assert Games.list_riddles(2) |> Enum.map(& &1.id) == [third.id, second.id]
-      refute first.id in Enum.map(Games.list_riddles(2), & &1.id)
+      listed = Games.list_riddles("draft") |> Enum.map(& &1.id) |> Enum.filter(&(&1 in ours))
+      assert listed == [dated.id, new_undated.id, old_undated.id]
+    end
+
+    test "count_riddles_by_status/0 counts riddles per publish status" do
+      before = Games.count_riddles_by_status()
+      riddle_fixture()
+      riddle_fixture(%{publish_status: "published"})
+      riddle_fixture(%{publish_status: "published"})
+
+      counts = Games.count_riddles_by_status()
+      assert counts["draft"] == Map.get(before, "draft", 0) + 1
+      assert counts["published"] == Map.get(before, "published", 0) + 2
+    end
+
+    test "list_riddles/2 returns at most `limit` riddles" do
+      for _ <- 1..3, do: riddle_fixture()
+      assert length(Games.list_riddles("draft", 2)) == 2
     end
 
     test "get_riddle!/1 returns the riddle with given id" do
@@ -756,5 +781,9 @@ defmodule Riddlr.GamesTest do
 
       practice
     end
+  end
+
+  defp hours_from_now(hours) do
+    DateTime.utc_now() |> DateTime.add(hours, :hour) |> DateTime.truncate(:second)
   end
 end

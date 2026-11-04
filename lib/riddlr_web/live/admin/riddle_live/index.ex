@@ -18,7 +18,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
       Phoenix.PubSub.subscribe(Riddlr.PubSub, "games:riddle:archived")
     end
 
-    {:ok, socket |> assign(:page_title, "Manage Riddles") |> stream(:riddles, [])}
+    {:ok,
+     socket
+     |> assign(:page_title, "Manage Riddles")
+     |> assign(:status, "published")
+     |> assign(:counts, nil)
+     |> stream(:riddles, [])}
   end
 
   @impl true
@@ -27,10 +32,12 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   end
 
   # The list loads once the socket connects, so the first render runs no
-  # query for it. It shows the newest 100 riddles.
-  defp apply_action(socket, :index, _params) do
-    riddles = if connected?(socket), do: Games.list_riddles(), else: []
-    socket |> stream(:riddles, riddles, reset: true) |> assign(:riddle, nil)
+  # query for it. Each tab shows at most 100 riddles of one publish status.
+  defp apply_action(socket, :index, params) do
+    socket
+    |> assign(:status, tab_status(params["status"]))
+    |> assign(:riddle, nil)
+    |> load_riddles()
   end
 
   defp apply_action(socket, :new, _params) do
@@ -61,31 +68,39 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
     end
   end
 
+  # Any change can move a riddle to the other tab, change its place in the
+  # sort, or bring a riddle past the limit into view, so reload the tab
+  # rather than touch the one riddle.
   @impl true
-  def handle_info({:riddle_saved, riddle}, socket) do
-    {:noreply, stream_insert(socket, :riddles, riddle, at: 0)}
+  def handle_info({event, _riddle}, socket)
+      when event in [
+             :riddle_saved,
+             :riddle_deleted,
+             :riddle_ready,
+             :riddle_live,
+             :riddle_completed,
+             :riddle_archived
+           ] do
+    {:noreply, load_riddles(socket)}
   end
 
-  def handle_info({:riddle_deleted, riddle}, socket) do
-    {:noreply, stream_delete(socket, :riddles, riddle)}
+  @spec load_riddles(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  defp load_riddles(socket) do
+    if connected?(socket) do
+      socket
+      |> stream(:riddles, Games.list_riddles(socket.assigns.status), reset: true)
+      |> assign(:counts, Games.count_riddles_by_status())
+    else
+      stream(socket, :riddles, [], reset: true)
+    end
   end
 
-  # Handle Oban worker state transitions
-  def handle_info({:riddle_ready, riddle}, socket) do
-    {:noreply, stream_insert(socket, :riddles, riddle)}
-  end
+  @spec tab_status(String.t() | nil) :: String.t()
+  defp tab_status("draft"), do: "draft"
+  defp tab_status(_), do: "published"
 
-  def handle_info({:riddle_live, riddle}, socket) do
-    {:noreply, stream_insert(socket, :riddles, riddle)}
-  end
-
-  def handle_info({:riddle_completed, riddle}, socket) do
-    {:noreply, stream_insert(socket, :riddles, riddle)}
-  end
-
-  def handle_info({:riddle_archived, riddle}, socket) do
-    {:noreply, stream_insert(socket, :riddles, riddle)}
-  end
+  @spec index_path(String.t()) :: String.t()
+  defp index_path(status), do: ~p"/admin/riddles?#{[status: status]}"
 
   defp format_live_date(live_date) when is_struct(live_date, DateTime) do
     live_time_display(live_date)

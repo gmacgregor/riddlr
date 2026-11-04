@@ -26,21 +26,44 @@ defmodule Riddlr.Games do
   @riddle_preload [:category]
 
   @doc """
-  Returns the newest riddles, newest first, at most `limit` (default 100).
+  Returns riddles with the given publish status, at most `limit` (default 100).
+
+  The latest live date comes first and riddles with no live date come last.
+  Riddles with the same live date come newest first.
 
   ## Examples
 
-      iex> list_riddles()
+      iex> list_riddles("published")
       [%Riddle{}, ...]
 
   """
-  @spec list_riddles(pos_integer()) :: [Riddle.t()]
-  def list_riddles(limit \\ 100) do
+  @spec list_riddles(String.t(), pos_integer()) :: [Riddle.t()]
+  def list_riddles(publish_status, limit \\ 100) do
     Riddle
+    |> where([r], r.publish_status == ^publish_status)
     |> preload(^@riddle_preload)
-    |> order_by([r], desc: r.id)
+    |> order_by([r], desc_nulls_last: r.live_date, desc: r.inserted_at, desc: r.id)
     |> limit(^limit)
     |> Repo.all()
+  end
+
+  @doc """
+  Counts riddles per publish status, with no limit. A status with no riddles
+  is absent from the map.
+
+  ## Examples
+
+      iex> count_riddles_by_status()
+      %{"draft" => 3, "published" => 12}
+
+  """
+  @spec count_riddles_by_status() :: %{String.t() => non_neg_integer()}
+  def count_riddles_by_status do
+    Riddle
+    |> group_by([r], r.publish_status)
+    |> select([r], {r.publish_status, count(r.id)})
+    |> Repo.all()
+    |> Map.new()
   end
 
   @doc """
