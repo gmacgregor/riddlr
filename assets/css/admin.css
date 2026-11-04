@@ -130,6 +130,17 @@
   list-style: disc;
 }
 
+/* ─── Tabs ───────────────────────────────────────────────────────────────────── */
+.adm-tabs {
+  display: flex;
+  gap: var(--space-m);
+  margin-bottom: var(--space-s);
+}
+
+.adm-tabs .adm-nav__link {
+  gap: 0.35em;
+}
+
 /* ─── Table (core table/1) ───────────────────────────────────────────────────── */
 .rg-table {
   width: 100%;

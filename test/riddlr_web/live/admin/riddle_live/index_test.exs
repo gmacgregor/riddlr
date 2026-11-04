@@ -10,12 +10,98 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
   end
 
   describe "Index" do
-    test "lists riddles", %{conn: conn, admin: admin} do
+    test "lists drafts on the draft tab", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles?status=draft")
       assert has_element?(live, "header.rg-pagehead h1")
       assert has_element?(live, "#riddles-#{riddle.id}", riddle.name)
+    end
+
+    test "lists published riddles by default, not drafts", %{conn: conn, admin: admin} do
+      published = GamesFixtures.riddle_fixture(%{publish_status: "published"})
+      draft = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles")
+
+      assert has_element?(live, "#riddles-#{published.id}")
+      refute has_element?(live, "#riddles-#{draft.id}")
+      assert has_element?(live, ~s(#riddles-tab-published[aria-current="page"]))
+    end
+
+    test "switches to the draft tab", %{conn: conn, admin: admin} do
+      draft = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles")
+
+      live |> element("#riddles-tab-draft") |> render_click()
+
+      assert_patch(live, ~p"/admin/riddles?status=draft")
+      assert has_element?(live, "#riddles-#{draft.id}")
+      assert has_element?(live, ~s(#riddles-tab-draft[aria-current="page"]))
+    end
+
+    test "moves a riddle off the draft tab once it is published", %{conn: conn, admin: admin} do
+      draft = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles?status=draft")
+      assert has_element?(live, "#riddles-#{draft.id}")
+
+      {:ok, _} =
+        Riddlr.Games.save_riddle(GamesFixtures.system_scope(), draft, %{
+          "publish_status" => "published"
+        })
+
+      refute has_element?(live, "#riddles-#{draft.id}")
+    end
+
+    test "shows a riddle count on each tab", %{conn: conn, admin: admin} do
+      GamesFixtures.riddle_fixture()
+      GamesFixtures.riddle_fixture(%{publish_status: "published"})
+      counts = Riddlr.Games.count_riddles_by_status()
+      conn = log_in_user(conn, admin)
+
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles")
+
+      assert has_element?(live, "#riddles-tab-published-count", "(#{counts["published"]})")
+      assert has_element?(live, "#riddles-tab-draft-count", "(#{counts["draft"]})")
+    end
+
+    test "updates tab counts when a riddle is published", %{conn: conn, admin: admin} do
+      draft = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles?status=draft")
+
+      {:ok, _} =
+        Riddlr.Games.save_riddle(GamesFixtures.system_scope(), draft, %{
+          "publish_status" => "published"
+        })
+
+      counts = Riddlr.Games.count_riddles_by_status()
+      assert has_element?(live, "#riddles-tab-published-count", "(#{counts["published"]})")
+      assert has_element?(live, "#riddles-tab-draft-count", "(#{Map.get(counts, "draft", 0)})")
+    end
+
+    test "updates tab counts when a riddle is deleted", %{conn: conn, admin: admin} do
+      draft = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles?status=draft")
+
+      live |> element("#riddles-#{draft.id} a[data-confirm]") |> render_click()
+
+      draft_count = Map.get(Riddlr.Games.count_riddles_by_status(), "draft", 0)
+      assert has_element?(live, "#riddles-tab-draft-count", "(#{draft_count})")
+    end
+
+    test "keeps the tab when the form closes", %{conn: conn, admin: admin} do
+      conn = log_in_user(conn, admin)
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles?status=draft")
+
+      live |> element("a[href='/admin/riddles/new']") |> render_click()
+
+      assert has_element?(live, ~s(#riddle-form))
+      assert has_element?(live, ~s(a[href="/admin/riddles?status=draft"]))
     end
 
     test "shows account controls in the admin header", %{conn: conn, admin: admin} do
@@ -97,7 +183,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     test "deletes riddle", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       assert index_live |> element("#riddles-#{riddle.id} a[data-confirm]") |> render_click()
       refute has_element?(index_live, "#riddles-#{riddle.id}")
@@ -106,7 +192,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     test "refuses a delete once the editor's role is taken away", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       admin |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
 
@@ -138,7 +224,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       riddle = GamesFixtures.riddle_fixture()
 
       conn = log_in_user(conn, admin)
-      {:ok, view, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       assert has_element?(view, "#riddles-#{riddle.id} td:first-child", to_string(riddle.number))
     end
@@ -150,7 +236,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       riddle2 = GamesFixtures.riddle_fixture(%{name: "Test 2", play_status: "live"})
 
       conn = log_in_user(conn, admin)
-      {:ok, view, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       assert has_element?(view, "#riddles-#{riddle1.id} .adm-badge.adm-badge--closed")
       assert has_element?(view, "#riddles-#{riddle2.id} .adm-badge.adm-badge--live")
@@ -160,7 +246,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       riddle = GamesFixtures.riddle_fixture(%{play_status: "live"})
 
       conn = log_in_user(conn, admin)
-      {:ok, view, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       assert has_element?(view, "#riddles-#{riddle.id} .adm-badge.adm-badge--live")
     end

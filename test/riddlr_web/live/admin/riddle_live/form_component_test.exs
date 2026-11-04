@@ -242,7 +242,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     test "updates riddle with valid data", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       index_live |> element("#riddles-#{riddle.id} a[href$='/edit']") |> render_click()
 
@@ -258,7 +258,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
              |> form("#riddle-form", riddle: updated_attrs)
              |> render_submit()
 
-      assert_patch(index_live, ~p"/admin/riddles")
+      assert_patch(index_live, ~p"/admin/riddles?status=draft")
 
       assert has_element?(index_live, "#flash-info")
       assert has_element?(index_live, "#riddles-#{riddle.id}", "Updated Riddle Name")
@@ -267,7 +267,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     test "displays error on invalid data", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       index_live |> element("#riddles-#{riddle.id} a[href$='/edit']") |> render_click()
 
