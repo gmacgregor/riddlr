@@ -500,52 +500,59 @@ select.rg-input option {
   align-items: center;
   text-decoration: none;
 }
-/* The logo. At rest: a tilted `?` tile with a pen shadow and three "aha"
-   ticks off its corner, then hand lettering. On hover the tile tips, the
-   `?` wiggles, the ticks burst and the letters hop in a wave. */
+/* The logo: a doodled K with a soft shadow and three "aha" ticks off its
+   top corner, then the name in hand lettering. On hover the K tips and
+   lifts off its shadow, the ticks burst, and a hop runs across the K's
+   pieces and on through the letters. Lengths inside the SVG are in viewBox
+   units: about 7 units to a screen pixel at this height. */
 .rg-brand__mark {
   display: flex;
   align-items: center;
-  gap: var(--space-s);
   color: var(--fg);
 }
-.rg-brand__tile {
-  position: relative;
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 1.34em;
-  height: 1.34em;
-  border: var(--stroke) solid var(--fg);
-  border-radius: var(--wob-sm);
-  background: var(--accent);
-  box-shadow: var(--shadow-pen);
-  font-size: var(--display-s);
-  transform: rotate(-6deg);
-  transition:
-    transform var(--t-med) var(--ease-out),
-    box-shadow var(--t-med) var(--ease-out);
-}
-.rg-brand__q {
+/* The viewBox leaves room for the ticks above and right of the K, so the
+   K sits high and left in its box; `translate` pulls it back toward the
+   word without changing the link's size. */
+.rg-brand__k {
+  --k-fill: #9ac2c4;
   display: block;
-  color: var(--on-accent);
-  font-family: var(--f-display);
-  font-weight: 700;
-  line-height: 1;
-  /* Caveat stops at 700, so a stroke in the ink colour thickens the pen. */
-  -webkit-text-stroke: 0.07em currentColor;
-  paint-order: stroke fill;
-  transform-origin: 50% 80%;
+  height: 2.75rem;
+  width: auto;
+  overflow: visible;
+  color: var(--fg);
+  translate: 0.25rem 0.1875rem;
+}
+.rg-brand__k * {
+  transform-box: fill-box;
+}
+.rg-brand__tip {
+  transform-origin: center;
+  transition: transform var(--t-med) var(--ease-out);
+}
+.rg-brand__shadow {
+  fill: var(--shadow);
+  fill-opacity: 0.22;
+  transform: translate(4px, 6px);
+  transition: transform var(--t-med) var(--ease-out);
+}
+.rg-brand__piece use {
+  fill: var(--k-fill);
+  stroke: currentColor;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.rg-brand__gleam {
+  fill: none;
+  stroke: #fff;
+  stroke-opacity: 0.6;
+  stroke-width: 5;
+  stroke-linecap: round;
 }
 .rg-brand__ticks {
-  position: absolute;
-  inset: -0.32em -0.72em auto auto;
-  width: 0.66em;
-  height: 0.66em;
-  overflow: visible;
   fill: none;
-  stroke: var(--fg);
-  stroke-width: 2.8;
+  stroke: currentColor;
+  stroke-width: 7;
   stroke-linecap: round;
   transform-origin: 0 100%;
 }
@@ -569,31 +576,22 @@ select.rg-input option {
   rotate: -1deg;
 }
 @media (hover: hover) {
-  .rg-brand:hover .rg-brand__tile {
-    transform: rotate(6deg) translate(-1px, -2px);
-    box-shadow: 5px 6px 0 var(--shadow);
+  .rg-brand:hover .rg-brand__tip {
+    transform: rotate(5deg) translate(-6px, -12px);
+  }
+  .rg-brand:hover .rg-brand__shadow {
+    transform: translate(14px, 22px);
   }
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .rg-brand:hover .rg-brand__q {
-    animation: rg-brand-wiggle 560ms var(--ease-out);
+  .rg-brand:hover .rg-brand__piece {
+    animation: rg-brand-hop 420ms var(--ease-out) calc(var(--i) * 45ms);
   }
   .rg-brand:hover .rg-brand__ticks {
     animation: rg-brand-burst 420ms var(--ease-out);
   }
   .rg-brand:hover .rg-brand__l {
-    animation: rg-brand-hop 420ms var(--ease-out) calc(var(--i) * 45ms);
-  }
-}
-@keyframes rg-brand-wiggle {
-  20% {
-    transform: translateY(-0.12em) rotate(-16deg);
-  }
-  45% {
-    transform: translateY(-0.06em) rotate(14deg);
-  }
-  70% {
-    transform: rotate(-6deg);
+    animation: rg-brand-letter-hop 420ms var(--ease-out) calc(var(--i) * 45ms);
   }
 }
 @keyframes rg-brand-burst {
@@ -607,6 +605,14 @@ select.rg-input option {
   }
 }
 @keyframes rg-brand-hop {
+  40% {
+    transform: translateY(-26px);
+  }
+  70% {
+    transform: translateY(3px);
+  }
+}
+@keyframes rg-brand-letter-hop {
   40% {
     transform: translateY(-0.18em);
   }
