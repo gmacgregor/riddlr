@@ -52,6 +52,16 @@ Optional help text an admin attaches to a riddle, meant to show after a set dela
 A riddle and answer shown on Home while nothing is scheduled, or while the Next riddle's Lobby is not open yet. It takes no guesses and awards no points.
 _Avoid_: sample, demo riddle
 
+## Seasons
+
+**Season**:
+A named span of calendar days, start to end, both counted in UTC. Every published riddle belongs to one season. Seasons never overlap; days between two seasons belong to none.
+_Avoid_: series, league
+
+**Past season**:
+A season whose end date has gone by. Its Standings no longer change. Also called an **Archived season**.
+_Avoid_: closed season, ended season
+
 ## Lifecycle
 
 **Play status**:
@@ -88,6 +98,7 @@ _Avoid_: cancel, draft rollback
 
 **Archive**:
 The last Play status. The riddle takes no more guesses and its live feed is gone; its solves stay.
+Not the same as an **Archived season**: "archived" means this Play status when said of a riddle, and a Past season when said of a season.
 
 **Next riddle**:
 The published riddle players can join next: the live one, or else the scheduled or ready one with the soonest Live date.
@@ -171,8 +182,8 @@ by its own stat first; Fastest sorts by each player's best solve time.
 _Avoid_: tab, table, leaderboard (that is one riddle's board)
 
 **Window**:
-The span of riddles a Standings board counts: all time, or this month by
-Live date (UTC).
+The span of riddles a Standings board counts: all time, one **Season**
+(this season by default, or a Past season), or this month by Live date (UTC).
 _Avoid_: period, range; not the **Ready window**
 
 ## Account
