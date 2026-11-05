@@ -116,6 +116,18 @@ defmodule Riddlr.Games.SeasonTest do
       assert counts[busy.id] == 2
       assert counts[empty.id] == 0
     end
+
+    # The clock is frozen at 2030-06-15.
+    test "lists the current season, then upcoming soonest first, then past latest first" do
+      older = season_fixture(days(~D[2030-04-01], ~D[2030-04-30]))
+      later = season_fixture(days(~D[2030-08-01], ~D[2030-08-31]))
+      recent = season_fixture(days(~D[2030-05-01], ~D[2030-05-31]))
+      current = season_fixture(days(~D[2030-06-01], ~D[2030-06-30]))
+      sooner = season_fixture(days(~D[2030-07-01], ~D[2030-07-31]))
+
+      assert [current.id, sooner.id, later.id, recent.id, older.id] ==
+               Enum.map(Games.list_seasons(), & &1.id)
+    end
   end
 
   describe "list_current_and_upcoming_seasons/0" do

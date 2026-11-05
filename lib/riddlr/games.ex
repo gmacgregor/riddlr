@@ -484,13 +484,24 @@ defmodule Riddlr.Games do
     Category.changeset(category, attrs)
   end
 
-  @doc "Returns every season with its `riddle_count`, latest start first."
+  @doc """
+  Returns every season with its `riddle_count`: the current season, then
+  upcoming seasons soonest first, then past seasons latest first.
+  """
   @spec list_seasons() :: [Season.t()]
   def list_seasons do
+    now = Riddlr.Clock.utc_now()
+
     from(s in Season,
       left_join: r in assoc(s, :riddles),
       group_by: s.id,
-      order_by: [desc: s.starts_at],
+      # Past seasons last. Seasons never overlap, so ordering the rest by
+      # start puts the current one first.
+      order_by: [
+        asc: s.ends_at <= ^now,
+        asc: fragment("CASE WHEN ? > ? THEN ? END", s.ends_at, ^now, s.starts_at),
+        desc: s.starts_at
+      ],
       select_merge: %{riddle_count: count(r.id)}
     )
     |> Repo.all()
