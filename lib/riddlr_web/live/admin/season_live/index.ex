@@ -62,10 +62,10 @@ defmodule RiddlrWeb.Admin.SeasonLive.Index do
     end
   end
 
-  # Badge colours borrow the play status ones: upcoming reads like scheduled,
-  # current like live, past like archived.
+  # Badge colours borrow the play status ones: upcoming reads like live,
+  # current like scheduled, past like archived.
   @spec status_class(Riddlr.Games.Season.status()) :: String.t()
-  defp status_class(:upcoming), do: "adm-badge--scheduled"
-  defp status_class(:current), do: "adm-badge--live"
+  defp status_class(:upcoming), do: "adm-badge--live"
+  defp status_class(:current), do: "adm-badge--scheduled"
   defp status_class(:past), do: "adm-badge--archived"
 end
