@@ -22,7 +22,7 @@ defmodule RiddlrWeb.Admin.SeasonLive.FormComponent do
         <.input field={f[:name]} type="text" label="Name" required />
         <.input field={f[:description]} type="textarea" label="Description" />
         <p id="season-dates-note" class="adm-note">
-          A season starts at 12:00am Eastern time on its start date and runs until 11:59pm on its end date.
+          Seasons use Eastern time. A season starts at 12:00am on its start date and runs until 11:59pm on its end date.
         </p>
         <div class="adm-form-row">
           <.input
