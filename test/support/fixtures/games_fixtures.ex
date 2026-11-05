@@ -69,6 +69,28 @@ defmodule Riddlr.GamesFixtures do
   end
 
   @doc """
+  A saved season with a unique name. Its dates default to a one-month span
+  far in the future, so it never clashes with today. Pass `:starts_on` and
+  `:ends_on` to place it, and keep seasons in one test from overlapping.
+  """
+  def season_fixture(attrs \\ %{}) do
+    n = System.unique_integer([:positive])
+    # 31-day spans 32 days apart: distinct fixtures never overlap.
+    starts_on = Date.add(~D[2100-01-01], rem(n, 10_000) * 32)
+
+    {:ok, season} =
+      attrs
+      |> Enum.into(%{
+        name: "Season #{n}",
+        starts_on: starts_on,
+        ends_on: Date.add(starts_on, 30)
+      })
+      |> then(&Riddlr.Games.create_season(system_scope(), &1))
+
+    season
+  end
+
+  @doc """
   The shared "logic" category every riddle fixture hangs off.
   """
   def category_fixture do

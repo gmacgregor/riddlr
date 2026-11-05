@@ -64,7 +64,7 @@ defmodule RiddlrWeb.DropTime do
   The display time zone, e.g. `America/Toronto`.
   """
   @spec zone() :: String.t()
-  def zone, do: Application.fetch_env!(:riddlr, :display_time_zone)
+  defdelegate zone, to: Riddlr.DisplayTime
 
   @spec relative(String.t(), opts()) :: String.t()
   defp relative(word, opts) do

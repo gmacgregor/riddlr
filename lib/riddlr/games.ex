@@ -3,7 +3,7 @@ defmodule Riddlr.Games do
   The Games context.
 
   The admin write functions (create, save, update and delete of riddles,
-  categories and practice riddles) take a `Riddlr.Accounts.Scope` first. They
+  categories, seasons and practice riddles) take a `Riddlr.Accounts.Scope` first. They
   return `{:error, :unauthorized}` unless the scope holds `:manage_riddles`.
   """
 
@@ -15,6 +15,7 @@ defmodule Riddlr.Games do
   alias Riddlr.Repo
   alias Riddlr.Games.Riddle
   alias Riddlr.Games.Category
+  alias Riddlr.Games.Season
   alias Riddlr.Games.Practice
   alias Riddlr.Games.PracticeRiddle
   alias Riddlr.Games.Transitions
@@ -476,6 +477,137 @@ defmodule Riddlr.Games do
   @spec change_category(Category.t(), map()) :: Ecto.Changeset.t()
   def change_category(%Category{} = category, attrs \\ %{}) do
     Category.changeset(category, attrs)
+  end
+
+  @doc "Returns every season, latest start first."
+  @spec list_seasons() :: [Season.t()]
+  def list_seasons do
+    from(s in Season, order_by: [desc: s.starts_at])
+    |> Repo.all()
+    |> Enum.map(&Season.with_days/1)
+  end
+
+  @doc """
+  Gets a single season. Raises `Ecto.NoResultsError` if it does not exist.
+  """
+  @spec get_season!(integer() | String.t()) :: Season.t()
+  def get_season!(id), do: Season |> Repo.get!(id) |> Season.with_days()
+
+  @doc """
+  Creates a season. Returns `{:ok, season}`, `{:error, changeset}` or
+  `{:error, :unauthorized}`.
+  """
+  @spec create_season(Scope.t(), map()) ::
+          {:ok, Season.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def create_season(%Scope{} = scope, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      %Season{}
+      |> Season.changeset(attrs, Riddlr.Clock.utc_now())
+      |> Repo.insert()
+      |> name_overlapping_season()
+    end
+  end
+
+  @doc """
+  Updates a season. Returns `{:ok, season}`, `{:error, changeset}` or
+  `{:error, :unauthorized}`.
+  """
+  @spec update_season(Scope.t(), Season.t(), map()) ::
+          {:ok, Season.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def update_season(%Scope{} = scope, %Season{} = season, attrs) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      season
+      |> Season.changeset(attrs, Riddlr.Clock.utc_now())
+      |> Repo.update()
+      |> name_overlapping_season()
+    end
+  end
+
+  @doc """
+  Deletes a season. Returns `{:ok, season}`, `{:error, changeset}` or
+  `{:error, :unauthorized}`.
+  """
+  @spec delete_season(Scope.t(), Season.t()) ::
+          {:ok, Season.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
+  def delete_season(%Scope{} = scope, %Season{} = season) do
+    with :ok <- Authorization.authorize(scope, :manage_riddles) do
+      Repo.delete(season)
+    end
+  end
+
+  # The exclusion constraint refuses an overlap but cannot say with which
+  # season. Look the clash up after the fact, so the error can name it.
+  @spec name_overlapping_season({:ok, Season.t()} | {:error, Ecto.Changeset.t()}) ::
+          {:ok, Season.t()} | {:error, Ecto.Changeset.t()}
+  defp name_overlapping_season({:error, %Ecto.Changeset{errors: errors} = changeset} = error) do
+    with index when is_integer(index) <- Enum.find_index(errors, &overlap_error?/1),
+         %Season{} = clash <- find_clash(changeset) do
+      clash = Season.with_days(clash)
+
+      message =
+        {"overlaps %{season} (%{starts_on} to %{ends_on})",
+         constraint: :exclusion,
+         season: clash.name,
+         starts_on: Date.to_iso8601(clash.starts_on),
+         ends_on: Date.to_iso8601(clash.ends_on)}
+
+      {:error, %{changeset | errors: List.replace_at(errors, index, {:ends_on, message})}}
+    else
+      _ -> error
+    end
+  end
+
+  defp name_overlapping_season(result), do: result
+
+  @spec overlap_error?({atom(), {String.t(), keyword()}}) :: boolean()
+  defp overlap_error?({:ends_on, {_message, opts}}), do: opts[:constraint] == :exclusion
+  defp overlap_error?(_error), do: false
+
+  @spec find_clash(Ecto.Changeset.t()) :: Season.t() | nil
+  defp find_clash(changeset) do
+    id = changeset.data.id
+    starts_at = Ecto.Changeset.get_field(changeset, :starts_at)
+    ends_at = Ecto.Changeset.get_field(changeset, :ends_at)
+
+    Season
+    |> where(
+      [s],
+      fragment(
+        "tsrange(?, ?, '[)') && tsrange(?, ?, '[)')",
+        s.starts_at,
+        s.ends_at,
+        type(^starts_at, :utc_datetime),
+        type(^ends_at, :utc_datetime)
+      )
+    )
+    |> then(fn query -> if id, do: where(query, [s], s.id != ^id), else: query end)
+    |> order_by(:starts_at)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc """
+  The season's status now: `:upcoming`, `:current` or `:past`.
+  """
+  @spec season_status(Season.t()) :: Season.status()
+  def season_status(%Season{} = season), do: Season.status(season, Riddlr.Clock.utc_now())
+
+  @doc """
+  The day fields an edit may not change now. See
+  `Riddlr.Games.Season.locked_dates/2`.
+  """
+  @spec season_locked_dates(Season.t()) :: [:starts_on | :ends_on]
+  def season_locked_dates(%Season{} = season),
+    do: Season.locked_dates(season, Riddlr.Clock.utc_now())
+
+  @doc "Returns a blank season for a new-season form."
+  @spec new_season() :: Season.t()
+  def new_season, do: %Season{}
+
+  @doc "Returns an `%Ecto.Changeset{}` for tracking season changes."
+  @spec change_season(Season.t(), map()) :: Ecto.Changeset.t()
+  def change_season(%Season{} = season, attrs \\ %{}) do
+    Season.changeset(season, attrs, Riddlr.Clock.utc_now())
   end
 
   @doc """

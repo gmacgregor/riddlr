@@ -19,7 +19,7 @@ live for its full Solve time so every player can still solve it and earn
 
 Every account is a **Player**. Some players also hold a role:
 
-| Role | Manage riddles, categories and practice riddles | Manage users | Moderate guesses | Ban players | See stats | Admin pages |
+| Role | Manage riddles, categories, seasons and practice riddles | Manage users | Moderate guesses | Ban players | See stats | Admin pages |
 |---|---|---|---|---|---|---|
 | **Super admin** | yes | yes | yes | yes | yes | yes |
 | **Moderator** | no | no | yes | yes | yes | yes |
@@ -106,6 +106,44 @@ succeeds; it just schedules nothing. The riddle and its steps are saved
 together or not at all.
 
 Deleting a riddle drops its pending steps, its guesses and its solves.
+
+## Seasons
+
+A **Season** has a name, an optional description, and a start and end date.
+Dates are calendar days in the display time zone (Toronto by default), as
+Live dates are, and both ends count, so a season can be one day long. A
+season starts at midnight on its start date and ends at midnight after its
+end date, both in that zone. The system stores those two moments in UTC.
+Editors and super admins manage seasons on the admin seasons page;
+moderators cannot.
+
+A season's status comes from the clock and is never stored:
+
+| Status | When |
+|---|---|
+| Upcoming | Before its start |
+| Current | From its start until its end |
+| Past | From its end on (a **Past season**) |
+
+The system refuses a season when:
+
+- another season has the same name, ignoring case;
+- its end date is before its start date;
+- it shares a day with another season. The error names that season.
+
+Seasons may sit back to back or leave gaps between them. Days in a gap
+belong to no season.
+
+What an edit may change depends on status:
+
+| Status | Name and description | Start date | End date |
+|---|---|---|---|
+| Upcoming | yes | yes | yes |
+| Current | yes | no | yes |
+| Past | yes | no | no |
+
+The current season's end date may move before today; the season is then
+past at once. A season can be deleted.
 
 ## Play flow
 
