@@ -58,6 +58,14 @@ _Avoid_: sample, demo riddle
 A named span of calendar days, start to end, both counted in the display time zone (Toronto by default). Every published riddle belongs to one season. Seasons never overlap; days between two seasons belong to none.
 _Avoid_: series, league
 
+**Current season**:
+The season whose days include today, in the display time zone. Its start date can no longer change; its end date can. At most one season is current.
+_Avoid_: active season, live season
+
+**Upcoming season**:
+A season whose start date has not come yet. All its fields can change.
+_Avoid_: future season, next season, pending season
+
 **Past season**:
 A season whose end date has gone by. Its Standings no longer change. Also called an **Archived season**.
 _Avoid_: closed season, ended season
