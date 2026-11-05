@@ -109,6 +109,9 @@
   font-size: var(--step--1);
   color: var(--fg-subtle);
 }
+#season-dates-note {
+  margin-bottom: var(--space-s);
+}
 
 .adm-link {
   color: var(--fg);
