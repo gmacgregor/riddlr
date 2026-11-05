@@ -55,7 +55,7 @@ _Avoid_: sample, demo riddle
 ## Seasons
 
 **Season**:
-A named span of calendar days, start to end, both counted in the display time zone (Toronto by default). Every published riddle belongs to one season. Seasons never overlap; days between two seasons belong to none.
+A named span of calendar days, start to end, both counted in the display time zone (Toronto by default). Every riddle, draft or published, belongs to one season; practice riddles belong to none. Seasons never overlap; days between two seasons belong to none.
 _Avoid_: series, league
 
 **Current season**:

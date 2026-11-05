@@ -143,7 +143,20 @@ What an edit may change depends on status:
 | Past | yes | no | no |
 
 The current season's end date may move before today; the season is then
-past at once. A season can be deleted.
+past at once. A season can be deleted only while no riddle belongs to it.
+
+### Riddles and seasons
+
+Every riddle belongs to one season from the moment it is created, drafts
+included. Practice riddles belong to none. The admin riddles list shows each
+riddle's season.
+
+The riddle form offers only the current and upcoming seasons, with no blank
+choice, so an editor can file a draft under a season that has not started.
+A new riddle starts in the season holding its Live date, or else the current
+season, or else the soonest upcoming one. A riddle in a past season shows its
+season as text and cannot pick another. With no current or upcoming season,
+the form asks the editor to create a season first.
 
 ## Play flow
 

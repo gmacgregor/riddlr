@@ -45,8 +45,20 @@ defmodule RiddlrWeb.Admin.SeasonLive.Index do
         {:noreply,
          socket |> stream_delete(:seasons, season) |> put_flash(:info, "Season deleted")}
 
+      {:error, %Ecto.Changeset{errors: errors}} ->
+        {:noreply, put_flash(socket, :error, delete_error(season, errors))}
+
       {:error, :unauthorized} ->
         {:noreply, AdminAuth.unauthorized(socket)}
+    end
+  end
+
+  # The riddles foreign key is the one refusal a delete expects.
+  @spec delete_error(Riddlr.Games.Season.t(), keyword()) :: String.t()
+  defp delete_error(season, errors) do
+    case Keyword.get(errors, :riddles) do
+      {message, _opts} -> "Can't delete #{season.name}: it #{message}."
+      nil -> "Can't delete #{season.name}."
     end
   end
 

@@ -15,7 +15,8 @@ defmodule Riddlr.Games.SaveRiddleTest do
         description: "What has keys but no locks?",
         answers: ["keyboard"],
         solve_time: 60,
-        category_id: category_fixture().id
+        category_id: category_fixture().id,
+        season_id: default_season_fixture().id
       }
 
       assert {:ok, %Riddle{} = riddle} = Games.save_riddle(system_scope(), %Riddle{}, attrs)

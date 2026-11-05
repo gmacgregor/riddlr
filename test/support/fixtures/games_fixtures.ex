@@ -12,6 +12,7 @@ defmodule Riddlr.GamesFixtures do
   def riddle_fixture(attrs \\ %{}) do
     # Ensure a default category exists for tests
     category_id = Map.get(attrs, :category_id) || get_or_create_default_category()
+    season_id = Map.get(attrs, :season_id) || get_or_create_default_season()
 
     {:ok, riddle} =
       attrs
@@ -21,6 +22,7 @@ defmodule Riddlr.GamesFixtures do
         answers: ["keyboard", "a keyboard"],
         solve_time: 60,
         category_id: category_id,
+        season_id: season_id,
         difficulty: "easy"
       })
       |> then(&Riddlr.Games.create_riddle(system_scope(), &1))
@@ -95,6 +97,33 @@ defmodule Riddlr.GamesFixtures do
   """
   def category_fixture do
     Riddlr.Repo.get!(Riddlr.Games.Category, get_or_create_default_category())
+  end
+
+  @doc """
+  The shared season every riddle fixture belongs to unless given
+  `:season_id`. It runs from 2000 to 2099, so any Live date a test picks
+  falls inside it. A test that creates its own seasons in that span must give
+  its riddles one of them, or the default season will clash with it.
+  """
+  def default_season_fixture do
+    Riddlr.Games.get_season!(get_or_create_default_season())
+  end
+
+  defp get_or_create_default_season do
+    case Riddlr.Repo.get_by(Riddlr.Games.Season, name: "Default season") do
+      nil ->
+        {:ok, season} =
+          Riddlr.Games.create_season(system_scope(), %{
+            name: "Default season",
+            starts_on: ~D[2000-01-01],
+            ends_on: ~D[2099-12-31]
+          })
+
+        season.id
+
+      season ->
+        season.id
+    end
   end
 
   defp get_or_create_default_category do

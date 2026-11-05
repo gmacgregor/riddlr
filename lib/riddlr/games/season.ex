@@ -34,8 +34,10 @@ defmodule Riddlr.Games.Season do
     field :starts_on, :date, virtual: true
     field :ends_on, :date, virtual: true
 
-    # Stays 0 until riddles carry a season (#121).
+    # Filled by `Riddlr.Games.list_seasons/0`.
     field :riddle_count, :integer, virtual: true, default: 0
+
+    has_many :riddles, Riddlr.Games.Riddle
 
     timestamps(type: :utc_datetime)
   end
@@ -69,6 +71,11 @@ defmodule Riddlr.Games.Season do
       true -> :past
     end
   end
+
+  @doc "Whether `instant` falls inside the season."
+  @spec holds?(t(), DateTime.t()) :: boolean()
+  def holds?(%__MODULE__{} = season, %DateTime{} = instant),
+    do: status(season, instant) == :current
 
   @doc """
   The day fields an edit may not change at `now`. A past season's days are
@@ -112,6 +119,18 @@ defmodule Riddlr.Games.Season do
       name: :seasons_no_overlap,
       message: "overlaps another season"
     )
+  end
+
+  @doc """
+  A changeset for deleting a season. The riddles foreign key refuses the
+  delete while any riddle belongs to the season; this turns that refusal
+  into an error on `:riddles`.
+  """
+  @spec delete_changeset(t()) :: Ecto.Changeset.t()
+  def delete_changeset(%__MODULE__{} = season) do
+    season
+    |> change()
+    |> no_assoc_constraint(:riddles, message: "still has riddles; move or delete them first")
   end
 
   @spec validate_unlocked(Ecto.Changeset.t(), [day_field()]) :: Ecto.Changeset.t()

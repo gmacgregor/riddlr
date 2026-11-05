@@ -31,8 +31,9 @@
     <.link patch={~p"/admin/seasons/#{season}/edit"}>Edit</.link>
   </:action>
   <:action :let={{_id, season}}>
+    <%!-- No client-side hide: a refused delete must leave the row in place. --%>
     <.link
-      phx-click={JS.push("delete", value: %{id: season.id}) |> hide("#seasons-#{season.id}")}
+      phx-click={JS.push("delete", value: %{id: season.id})}
       data-confirm="Delete this season?"
     >
       Delete

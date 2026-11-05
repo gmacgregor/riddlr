@@ -1,7 +1,7 @@
 defmodule RiddlrWeb.Admin.SeasonLive.IndexTest do
   use RiddlrWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
-  import Riddlr.GamesFixtures, only: [season_fixture: 1]
+  import Riddlr.GamesFixtures, only: [riddle_fixture: 1, season_fixture: 1]
 
   setup %{conn: conn} do
     admin = Riddlr.AccountsFixtures.user_fixture(%{role: :editor})
@@ -43,13 +43,15 @@ defmodule RiddlrWeb.Admin.SeasonLive.IndexTest do
     past = season_fixture(%{starts_on: ~D[2030-05-01], ends_on: ~D[2030-05-31]})
     current = season_fixture(%{starts_on: ~D[2030-06-01], ends_on: ~D[2030-06-30]})
     upcoming = season_fixture(%{starts_on: ~D[2030-07-01], ends_on: ~D[2030-07-31]})
+    riddle_fixture(%{season_id: current.id})
 
     {:ok, live, _html} = live(conn, ~p"/admin/seasons")
 
     assert has_element?(live, "#seasons-#{past.id} [data-status=past]")
     assert has_element?(live, "#seasons-#{current.id} [data-status=current]")
     assert has_element?(live, "#seasons-#{upcoming.id} [data-status=upcoming]")
-    assert has_element?(live, "#seasons-#{current.id} [data-role=riddle-count]", "0")
+    assert has_element?(live, "#seasons-#{current.id} [data-role=riddle-count]", "1")
+    assert has_element?(live, "#seasons-#{past.id} [data-role=riddle-count]", "0")
   end
 
   test "updates a season", %{conn: conn} do
@@ -75,6 +77,19 @@ defmodule RiddlrWeb.Admin.SeasonLive.IndexTest do
 
     refute has_element?(live, "#seasons-#{season.id}")
     assert has_element?(live, "#flash-info")
+  end
+
+  test "refuses to delete a season that has riddles, and keeps it listed", %{conn: conn} do
+    season = season_fixture(%{})
+    riddle_fixture(%{season_id: season.id})
+    {:ok, live, _html} = live(conn, ~p"/admin/seasons")
+
+    live |> element("#seasons-#{season.id} a[data-confirm]") |> render_click()
+
+    assert has_element?(live, "#flash-error")
+    assert has_element?(live, "#seasons-#{season.id}")
+    refute live |> element("#seasons-#{season.id} a[data-confirm]") |> render() =~ "hide"
+    assert Riddlr.Games.get_season!(season.id)
   end
 
   test "explains how the dates map to UTC times, above the date fields", %{conn: conn} do

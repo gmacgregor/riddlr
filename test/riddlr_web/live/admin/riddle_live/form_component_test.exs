@@ -7,6 +7,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
   # Fixed instants in summer, away from a DST change: a date the form reads in
   # Eastern time could otherwise land in an hour that happens twice.
   @future ~U[2099-06-15 16:00:00Z]
+  @season_select ~s(#riddle-form select[name="riddle[season_id]"])
   alias Riddlr.AccountsFixtures
   alias Riddlr.GamesFixtures
 
@@ -145,11 +146,126 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     end
   end
 
+  describe "Season" do
+    setup do
+      Riddlr.Clock.Frozen.freeze(~U[2030-06-15 12:00:00Z])
+
+      %{
+        past: GamesFixtures.season_fixture(%{starts_on: ~D[2030-05-01], ends_on: ~D[2030-05-31]}),
+        current:
+          GamesFixtures.season_fixture(%{starts_on: ~D[2030-06-01], ends_on: ~D[2030-06-30]}),
+        upcoming:
+          GamesFixtures.season_fixture(%{starts_on: ~D[2030-07-01], ends_on: ~D[2030-07-31]})
+      }
+    end
+
+    test "lists only current and upcoming seasons, with no blank option", %{
+      conn: conn,
+      admin: admin,
+      past: past,
+      current: current,
+      upcoming: upcoming
+    } do
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/new")
+
+      assert has_element?(live, ~s(#{@season_select} option[value="#{current.id}"]))
+      assert has_element?(live, ~s(#{@season_select} option[value="#{upcoming.id}"]))
+      refute has_element?(live, ~s(#{@season_select} option[value="#{past.id}"]))
+      refute has_element?(live, ~s(#{@season_select} option[value=""]))
+    end
+
+    test "a new riddle starts in the current season", %{
+      conn: conn,
+      admin: admin,
+      current: current
+    } do
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/new")
+
+      assert has_element?(live, ~s(#{@season_select} option[value="#{current.id}"][selected]))
+    end
+
+    test "a new riddle's season follows the Live date the editor types", %{
+      conn: conn,
+      admin: admin,
+      upcoming: upcoming
+    } do
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/new")
+
+      live
+      |> form("#riddle-form", riddle: %{live_date: "2030-07-10T09:30"})
+      |> render_change(%{"_target" => ["riddle", "live_date"]})
+
+      assert has_element?(live, ~s(#{@season_select} option[value="#{upcoming.id}"][selected]))
+    end
+
+    test "saves a draft into an upcoming season", %{
+      conn: conn,
+      admin: admin,
+      upcoming: upcoming
+    } do
+      category = GamesFixtures.category_fixture()
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/new")
+
+      live
+      |> form("#riddle-form",
+        riddle: %{
+          name: "Ahead of time",
+          description: "Ready early",
+          answers: "early",
+          category_id: category.id,
+          season_id: upcoming.id
+        }
+      )
+      |> render_submit()
+
+      assert Riddlr.Repo.get_by!(Riddlr.Games.Riddle, name: "Ahead of time").season_id ==
+               upcoming.id
+    end
+
+    test "shows a past season as text, not a dropdown", %{
+      conn: conn,
+      admin: admin,
+      past: past
+    } do
+      riddle = GamesFixtures.riddle_fixture(%{season_id: past.id})
+
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/#{riddle}/edit")
+
+      assert has_element?(live, "#riddle-season-past", past.name)
+      refute has_element?(live, @season_select)
+    end
+  end
+
+  describe "Season, with none current" do
+    test "a new riddle starts in the soonest upcoming season", %{conn: conn, admin: admin} do
+      Riddlr.Clock.Frozen.freeze(~U[2030-06-15 12:00:00Z])
+      later = GamesFixtures.season_fixture(%{starts_on: ~D[2030-08-01], ends_on: ~D[2030-08-31]})
+      sooner = GamesFixtures.season_fixture(%{starts_on: ~D[2030-07-01], ends_on: ~D[2030-07-31]})
+
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/new")
+
+      assert has_element?(live, ~s(#{@season_select} option[value="#{sooner.id}"][selected]))
+      refute has_element?(live, ~s(#{@season_select} option[value="#{later.id}"][selected]))
+    end
+  end
+
+  describe "Season, with no current or upcoming season" do
+    test "sends the editor to create a season first", %{conn: conn, admin: admin} do
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/new")
+
+      assert has_element?(live, ~s(#riddle-season-missing a[href="/admin/seasons"]))
+      refute has_element?(live, @season_select)
+    end
+  end
+
   describe "Create riddle with auto-scheduling" do
     setup do
       category =
         Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") ||
           Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
+
+      # The form needs a current or upcoming season to put the riddle in.
+      GamesFixtures.default_season_fixture()
 
       %{category: category}
     end

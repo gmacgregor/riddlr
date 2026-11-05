@@ -4,7 +4,7 @@ defmodule Riddlr.Games.SeasonTest do
   alias Riddlr.Clock.Frozen
   alias Riddlr.Games
 
-  import Riddlr.GamesFixtures, only: [season_fixture: 1, system_scope: 0]
+  import Riddlr.GamesFixtures, only: [riddle_fixture: 1, season_fixture: 1, system_scope: 0]
 
   setup do
     Frozen.freeze(~U[2030-06-15 12:00:00Z])
@@ -102,6 +102,64 @@ defmodule Riddlr.Games.SeasonTest do
 
       assert %{starts_on: ~D[2030-11-02], ends_on: ~D[2030-11-03]} =
                Enum.find(Games.list_seasons(), &(&1.id == season.id))
+    end
+  end
+
+  describe "list_seasons/0" do
+    test "counts each season's riddles" do
+      busy = season_fixture(%{})
+      empty = season_fixture(%{})
+      riddle_fixture(%{season_id: busy.id})
+      riddle_fixture(%{season_id: busy.id})
+
+      counts = Map.new(Games.list_seasons(), &{&1.id, &1.riddle_count})
+      assert counts[busy.id] == 2
+      assert counts[empty.id] == 0
+    end
+  end
+
+  describe "list_current_and_upcoming_seasons/0" do
+    # The clock is frozen at 2030-06-15.
+    test "lists the current season, then upcoming seasons soonest first" do
+      season_fixture(days(~D[2030-05-01], ~D[2030-05-31]))
+      later = season_fixture(days(~D[2030-08-01], ~D[2030-08-31]))
+      current = season_fixture(days(~D[2030-06-01], ~D[2030-06-30]))
+      sooner = season_fixture(days(~D[2030-07-01], ~D[2030-07-31]))
+
+      assert [current.id, sooner.id, later.id] ==
+               Enum.map(Games.list_current_and_upcoming_seasons(), & &1.id)
+    end
+  end
+
+  describe "default_season/2" do
+    setup do
+      %{
+        current: season_fixture(days(~D[2030-06-01], ~D[2030-06-30])),
+        sooner: season_fixture(days(~D[2030-07-01], ~D[2030-07-31])),
+        later: season_fixture(days(~D[2030-08-01], ~D[2030-08-31]))
+      }
+    end
+
+    test "picks the season holding the Live date", %{later: later} do
+      seasons = Games.list_current_and_upcoming_seasons()
+      assert Games.default_season(seasons, ~U[2030-08-10 12:00:00Z]).id == later.id
+    end
+
+    test "falls back to the current season with no Live date, or one in no listed season",
+         %{current: current} do
+      seasons = Games.list_current_and_upcoming_seasons()
+      assert Games.default_season(seasons, nil).id == current.id
+      assert Games.default_season(seasons, ~U[2031-01-10 12:00:00Z]).id == current.id
+    end
+
+    test "falls back to the soonest upcoming season with no current one",
+         %{current: current, sooner: sooner} do
+      seasons = Games.list_current_and_upcoming_seasons() |> Enum.reject(&(&1.id == current.id))
+      assert Games.default_season(seasons, nil).id == sooner.id
+    end
+
+    test "is nil with no seasons" do
+      assert Games.default_season([], nil) == nil
     end
   end
 
@@ -229,6 +287,15 @@ defmodule Riddlr.Games.SeasonTest do
 
       assert {:ok, _} = Games.delete_season(system_scope(), season)
       assert_raise Ecto.NoResultsError, fn -> Games.get_season!(season.id) end
+    end
+
+    test "refuses to delete a season that has riddles" do
+      season = season_fixture(%{})
+      riddle_fixture(%{season_id: season.id})
+
+      assert {:error, changeset} = Games.delete_season(system_scope(), season)
+      assert %{riddles: [_]} = errors_on(changeset)
+      assert Games.get_season!(season.id)
     end
   end
 

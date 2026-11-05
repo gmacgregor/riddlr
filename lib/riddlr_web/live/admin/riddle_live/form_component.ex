@@ -1,6 +1,8 @@
 defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   use RiddlrWeb, :admin_live_component
   alias Riddlr.Games
+  alias Riddlr.Games.Riddle
+  alias Riddlr.Games.Season
   alias RiddlrWeb.AdminAuth
   import RiddlrWeb.AdminTime
 
@@ -139,6 +141,9 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
               label="Live date (EST/EDT)"
             />
           </div>
+          <div id="riddle-season-field">
+            <.season_field field={f[:season_id]} season={@season} />
+          </div>
         </div>
         <div class="adm-form-controls">
           <.button phx-disable-with="Saving..." variant="primary">Save</.button>
@@ -146,6 +151,44 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
         </div>
       </.form>
     </div>
+    """
+  end
+
+  # A riddle in a past season keeps it, so the season shows as text. With no
+  # current or upcoming season there is nothing to pick, so the editor is sent
+  # to make one. Otherwise the editor picks from the current and upcoming
+  # seasons, with no blank option.
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :season, :any, required: true, doc: "a `season_choice()`, from `season_choice/2`"
+
+  defp season_field(%{season: {:past, season}} = assigns) do
+    assigns = assign(assigns, :season, season)
+
+    ~H"""
+    <div class="rg-field">
+      <span class="rg-field__label">Season</span>
+      <p id="riddle-season-past">{@season.name} (past)</p>
+    </div>
+    """
+  end
+
+  defp season_field(%{season: :none} = assigns) do
+    ~H"""
+    <div class="rg-field">
+      <span class="rg-field__label">Season</span>
+      <p id="riddle-season-missing" class="adm-note">
+        No current or upcoming season.
+        <.link navigate={~p"/admin/seasons"} class="adm-link">Create a season first</.link>
+      </p>
+    </div>
+    """
+  end
+
+  defp season_field(%{season: {:pick, options}} = assigns) do
+    assigns = assign(assigns, :options, options)
+
+    ~H"""
+    <.input field={@field} type="select" label="Season" options={@options} required />
     """
   end
 
@@ -170,6 +213,16 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
         riddle
       end
 
+    seasons = Games.list_current_and_upcoming_seasons()
+
+    riddle =
+      if assigns.action == :new && is_nil(riddle.season_id) do
+        default = Games.default_season(seasons, riddle.live_date)
+        %{riddle | season_id: default && default.id}
+      else
+        riddle
+      end
+
     changeset = Games.change_riddle(riddle)
     form_title = title(assigns.action)
 
@@ -179,14 +232,17 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
      |> assign(:riddle, riddle)
      |> assign(:title, form_title)
      |> assign(:categories, categories)
+     |> assign(:seasons, seasons)
+     |> assign(:season, season_choice(riddle, seasons))
      |> assign_form(changeset)}
   end
 
   @impl true
-  def handle_event("validate", %{"riddle" => params}, socket) do
+  def handle_event("validate", %{"riddle" => params} = event, socket) do
     params = prepare_params_for_changeset(params)
     # Convert live_date to UTC before validation to prevent Ecto from treating it as UTC
     params = convert_live_date_param(params)
+    params = follow_live_date(params, event["_target"], socket.assigns)
     changeset = Games.change_riddle(socket.assigns.riddle, params) |> Map.put(:action, :validate)
     {:noreply, assign_form(socket, changeset)}
   end
@@ -269,6 +325,39 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
         changeset
     end
   end
+
+  # A new riddle starts in the season holding its Live date, so typing a Live
+  # date picks that season again. An edited riddle keeps its season here;
+  # moving it with the Live date is the save's job.
+  @spec follow_live_date(map(), [String.t()] | nil, map()) :: map()
+  defp follow_live_date(
+         %{"live_date" => %DateTime{} = live_date} = params,
+         ["riddle", "live_date"],
+         %{action: :new, seasons: seasons}
+       ) do
+    case Games.default_season(seasons, live_date) do
+      nil -> params
+      season -> Map.put(params, "season_id", season.id)
+    end
+  end
+
+  defp follow_live_date(params, _target, _assigns), do: params
+
+  @typep season_choice ::
+           {:past, Season.t()} | :none | {:pick, [{String.t(), integer()}]}
+
+  @spec season_choice(Riddle.t(), [Season.t()]) :: season_choice()
+  defp season_choice(%Riddle{season: %Season{} = season}, seasons) do
+    if Games.season_status(season) == :past,
+      do: {:past, season},
+      else: pick(seasons)
+  end
+
+  defp season_choice(%Riddle{}, seasons), do: pick(seasons)
+
+  @spec pick([Season.t()]) :: season_choice()
+  defp pick([]), do: :none
+  defp pick(seasons), do: {:pick, Enum.map(seasons, &{&1.name, &1.id})}
 
   defp title(:new), do: "New Riddle"
   defp title(:edit), do: "Edit Riddle"

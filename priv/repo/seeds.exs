@@ -53,6 +53,32 @@ case Accounts.register_user(%{email: "player@example.com", username: "player"}) 
     IO.inspect(changeset.errors)
 end
 
+IO.puts("\nSeeding a season...")
+
+# Every riddle belongs to a season. Reuse a current or upcoming one, or make
+# one that runs from today for three months. Starting today keeps it clear of
+# any past season.
+season =
+  case Games.default_season(Games.list_current_and_upcoming_seasons(), nil) do
+    nil ->
+      starts_on = Riddlr.DisplayTime.to_date(Riddlr.Clock.utc_now())
+      ends_on = starts_on |> Date.shift(month: 3) |> Date.add(-1)
+
+      {:ok, season} =
+        Games.create_season(Scope.for_system(), %{
+          name: "Season of #{starts_on}",
+          starts_on: starts_on,
+          ends_on: ends_on
+        })
+
+      IO.puts("Created season: #{season.name} (#{season.starts_on} to #{season.ends_on})")
+      season
+
+    season ->
+      IO.puts("Using season: #{season.name}")
+      season
+  end
+
 IO.puts("\nSeeding riddles...")
 
 {riddles, _binding} = Code.eval_file("riddles.exs", __DIR__)
@@ -72,7 +98,10 @@ category_ids =
 
 riddles =
   Enum.map(riddles, fn %{category: name} = riddle ->
-    riddle |> Map.delete(:category) |> Map.put(:category_id, category_ids[name])
+    riddle
+    |> Map.delete(:category)
+    |> Map.put(:category_id, category_ids[name])
+    |> Map.put(:season_id, season.id)
   end)
 
 Enum.each(riddles, fn riddle_attrs ->

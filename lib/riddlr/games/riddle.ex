@@ -102,6 +102,7 @@ defmodule Riddlr.Games.Riddle do
     field :number, :integer, read_after_writes: true
 
     belongs_to :category, Riddlr.Games.Category
+    belongs_to :season, Riddlr.Games.Season
     belongs_to :first_solver, Riddlr.Accounts.User
 
     timestamps(type: :utc_datetime)
@@ -117,6 +118,7 @@ defmodule Riddlr.Games.Riddle do
       :play_status,
       :solve_time,
       :category_id,
+      :season_id,
       :difficulty,
       :hint,
       :hint_delay,
@@ -130,9 +132,10 @@ defmodule Riddlr.Games.Riddle do
       :ready_before_seconds
     ])
     |> cast_answers(attrs)
-    |> validate_required([:name, :description, :answers, :solve_time, :category_id])
+    |> validate_required([:name, :description, :answers, :solve_time, :category_id, :season_id])
     |> validate_answers()
     |> foreign_key_constraint(:category_id)
+    |> foreign_key_constraint(:season_id)
     |> validate_inclusion(:play_status, @play_statuses)
     |> validate_play_status_transition()
     |> validate_inclusion(:publish_status, @publish_statuses)

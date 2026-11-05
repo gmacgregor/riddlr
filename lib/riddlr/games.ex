@@ -24,7 +24,7 @@ defmodule Riddlr.Games do
 
   # What every riddle read loads, and every broadcast riddle carries, so a
   # broadcast riddle equals a fetched one. Nothing reads first_solver.
-  @riddle_preload [:category]
+  @riddle_preload [:category, :season]
 
   @doc """
   Returns riddles with the given publish status, at most `limit` (default 100).
@@ -68,8 +68,8 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Gets a single riddle, with `:category` loaded. Pass `preload: [...]` to load
-  other associations instead.
+  Gets a single riddle, with `:category` and `:season` loaded. Pass
+  `preload: [...]` to load other associations instead.
 
   Raises `Ecto.NoResultsError` if the Riddle does not exist.
 
@@ -479,12 +479,40 @@ defmodule Riddlr.Games do
     Category.changeset(category, attrs)
   end
 
-  @doc "Returns every season, latest start first."
+  @doc "Returns every season with its `riddle_count`, latest start first."
   @spec list_seasons() :: [Season.t()]
   def list_seasons do
-    from(s in Season, order_by: [desc: s.starts_at])
+    from(s in Season,
+      left_join: r in assoc(s, :riddles),
+      group_by: s.id,
+      order_by: [desc: s.starts_at],
+      select_merge: %{riddle_count: count(r.id)}
+    )
     |> Repo.all()
     |> Enum.map(&Season.with_days/1)
+  end
+
+  @doc """
+  The seasons a riddle may join: the current season, if any, then the
+  upcoming seasons, soonest first.
+  """
+  @spec list_current_and_upcoming_seasons() :: [Season.t()]
+  def list_current_and_upcoming_seasons do
+    now = Riddlr.Clock.utc_now()
+
+    from(s in Season, where: s.ends_at > ^now, order_by: [asc: s.starts_at])
+    |> Repo.all()
+    |> Enum.map(&Season.with_days/1)
+  end
+
+  @doc """
+  The season a new riddle starts in, picked from `seasons` (as
+  `list_current_and_upcoming_seasons/0` returns them): the one holding
+  `live_date`, or else the first. Returns nil when `seasons` is empty.
+  """
+  @spec default_season([Season.t()], DateTime.t() | nil) :: Season.t() | nil
+  def default_season(seasons, live_date) do
+    Enum.find(seasons, List.first(seasons), &(live_date && Season.holds?(&1, live_date)))
   end
 
   @doc """
@@ -524,14 +552,17 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  Deletes a season. Returns `{:ok, season}`, `{:error, changeset}` or
+  Deletes a season. A season that still has riddles is refused with an error
+  on `:riddles`. Returns `{:ok, season}`, `{:error, changeset}` or
   `{:error, :unauthorized}`.
   """
   @spec delete_season(Scope.t(), Season.t()) ::
           {:ok, Season.t()} | {:error, Ecto.Changeset.t() | :unauthorized}
   def delete_season(%Scope{} = scope, %Season{} = season) do
     with :ok <- Authorization.authorize(scope, :manage_riddles) do
-      Repo.delete(season)
+      season
+      |> Season.delete_changeset()
+      |> Repo.delete()
     end
   end
 
