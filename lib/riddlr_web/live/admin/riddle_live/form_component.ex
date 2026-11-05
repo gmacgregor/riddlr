@@ -272,11 +272,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       {:ok, riddle} ->
         {:noreply,
          socket
-         |> put_flash(:info, saved_message(riddle, action))
+         |> put_flash(:info, saved_message(riddle, action) <> moved_message(riddle, params))
          |> push_patch(to: socket.assigns.patch)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign_form(socket, changeset)}
+        {:noreply, assign_form(socket, keep_sent_season(changeset, params))}
 
       {:error, :unauthorized} ->
         {:noreply, AdminAuth.unauthorized(socket)}
@@ -294,6 +294,28 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
 
   defp saved_message(_riddle, :new), do: "Riddle created"
   defp saved_message(_riddle, :edit), do: "Riddle updated"
+
+  # The save keeps a Season the editor sent unless the Live date moved into
+  # another one, so a saved Season that differs from the one sent followed
+  # the Live date. A riddle in a past Season sends none.
+  @spec moved_message(Riddle.t(), map()) :: String.t()
+  defp moved_message(%Riddle{season: %Season{} = season}, %{"season_id" => sent})
+       when is_binary(sent) and sent != "" do
+    if sent == to_string(season.id),
+      do: "",
+      else: ". Moved to #{season.name} to match Live date"
+  end
+
+  defp moved_message(_riddle, _params), do: ""
+
+  # A failed save may have moved the Season to follow the Live date. Show the
+  # Season the editor sent instead, so the next save is not read as the
+  # editor picking the moved one.
+  @spec keep_sent_season(Ecto.Changeset.t(), map()) :: Ecto.Changeset.t()
+  defp keep_sent_season(changeset, %{"season_id" => sent}),
+    do: Ecto.Changeset.cast(changeset, %{season_id: sent}, [:season_id])
+
+  defp keep_sent_season(changeset, _params), do: changeset
 
   defp assign_form(socket, changeset) do
     changeset =

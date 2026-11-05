@@ -165,6 +165,11 @@ defmodule Riddlr.Games do
   A riddle that cannot be scheduled (draft, past Live date, already live) is not
   an error: it is simply not a schedule, and the row is written anyway.
 
+  Before it decides the intent, the save keeps the riddle's Season in step
+  with its Live date and checks the Season rules; see
+  `Riddlr.Games.RiddleSeason`. A published riddle whose Live date falls
+  outside its Season is refused with an error on `:live_date`.
+
   The scope must hold `:manage_riddles`.
 
   Returns `{:ok, riddle}`, `{:error, changeset}` or `{:error, :unauthorized}`.

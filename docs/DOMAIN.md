@@ -158,6 +158,28 @@ season, or else the soonest upcoming one. A riddle in a past season shows its
 season as text and cannot pick another. With no current or upcoming season,
 the form asks the editor to create a season first.
 
+A save keeps a riddle's season in step with its Live date. It picks the
+season in this order:
+
+1. If the editor changed the season in this save, keep it.
+2. Otherwise, if the editor changed the Live date and the new date falls in
+   a current or upcoming season, move the riddle to that season. The form
+   says "Moved to <season> to match Live date".
+3. Otherwise, keep the season. A draft with an old or placeholder Live date
+   outside every current and upcoming season stays where it is.
+
+Then the system refuses the save when:
+
+- the season it sets is past. A riddle already in a past season keeps it,
+  and cannot move to another season, by picking one or by Live date;
+- the riddle will be published after the save, the save publishes it or
+  changes its Live date or season, and the Live date falls outside its
+  season. This covers Schedule, Reschedule and plain edits of a published
+  riddle. The error names the season and its dates, so a Live date in a gap
+  or a past season cannot be scheduled.
+
+Unschedule keeps the riddle's season.
+
 ## Play flow
 
 ### Home

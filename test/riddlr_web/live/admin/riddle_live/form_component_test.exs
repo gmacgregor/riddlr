@@ -227,12 +227,82 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       admin: admin,
       past: past
     } do
+      # Filed in May while May was current; today it is past.
+      Riddlr.Clock.Frozen.freeze(~U[2030-05-15 12:00:00Z])
       riddle = GamesFixtures.riddle_fixture(%{season_id: past.id})
+      Riddlr.Clock.Frozen.freeze(~U[2030-06-15 12:00:00Z])
 
       {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/#{riddle}/edit")
 
       assert has_element?(live, "#riddle-season-past", past.name)
       refute has_element?(live, @season_select)
+    end
+
+    test "says so when the Season follows the Live date", %{
+      conn: conn,
+      admin: admin,
+      current: current,
+      upcoming: upcoming
+    } do
+      riddle =
+        GamesFixtures.riddle_fixture(%{
+          season_id: current.id,
+          live_date: ~U[2030-06-20 16:00:00Z]
+        })
+
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/#{riddle}/edit")
+
+      live
+      |> form("#riddle-form", riddle: %{live_date: "2030-07-10T09:30"})
+      |> render_submit()
+
+      assert has_element?(live, "#flash-info", "Moved to #{upcoming.name} to match Live date")
+      assert Riddlr.Repo.reload(riddle).season_id == upcoming.id
+    end
+
+    test "still says so after a failed save", %{
+      conn: conn,
+      admin: admin,
+      current: current,
+      upcoming: upcoming
+    } do
+      riddle =
+        GamesFixtures.riddle_fixture(%{
+          season_id: current.id,
+          live_date: ~U[2030-06-20 16:00:00Z]
+        })
+
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/#{riddle}/edit")
+
+      live
+      |> form("#riddle-form", riddle: %{name: "", live_date: "2030-07-10T09:30"})
+      |> render_submit()
+
+      live
+      |> form("#riddle-form", riddle: %{name: "Fixed"})
+      |> render_submit()
+
+      assert has_element?(live, "#flash-info", "Moved to #{upcoming.name} to match Live date")
+    end
+
+    test "shows the Season and its dates when a published riddle's Live date is outside it", %{
+      conn: conn,
+      admin: admin,
+      current: current
+    } do
+      riddle = GamesFixtures.riddle_fixture(%{season_id: current.id, publish_status: "published"})
+
+      {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/riddles/#{riddle}/edit")
+
+      # August 10 is after every season.
+      html =
+        live
+        |> form("#riddle-form", riddle: %{live_date: "2030-08-10T09:30"})
+        |> render_submit()
+
+      assert has_element?(live, "#riddle-form [name='riddle[live_date]'][aria-invalid]")
+      assert html =~ current.name
+      assert Riddlr.Repo.reload(riddle).play_status == "closed"
     end
   end
 
