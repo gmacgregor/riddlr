@@ -74,6 +74,30 @@ defmodule Riddlr.StandingsCacheTest do
     assert Standings.list(:points, :month) == []
   end
 
+  test "after a change, this season's top lists read with only the season lookup", %{ann: ann} do
+    Standings.broadcast_changed()
+
+    for board <- [:points, :wins, :podiums, :fastest] do
+      assert {1, [%{user_id: id}]} = count_queries(fn -> Standings.list(board, :season) end)
+      assert id == ann.id
+    end
+  end
+
+  test "this season is cached under the season, so a new season reads afresh", %{ann: ann} do
+    season = default_season_fixture()
+    assert [_ann] = Standings.list(:points, :season)
+    assert {0, [_ann]} = count_queries(fn -> Standings.list(:points, {:season, season.id}) end)
+
+    {:ok, _} =
+      Riddlr.Games.update_season(system_scope(), season, %{ends_on: ~D[2026-11-30]})
+
+    season_fixture(%{starts_on: ~D[2026-12-01], ends_on: ~D[2026-12-31]})
+    Frozen.freeze(~U[2026-12-15 12:00:00Z])
+
+    assert Standings.list(:points, :season) == []
+    assert Standings.player_row(ann.id, :points, :season) == nil
+  end
+
   defp went_live(riddle, at) do
     riddle |> Ecto.Changeset.change(live_date: at) |> Riddlr.Repo.update!()
   end

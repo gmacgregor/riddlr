@@ -93,6 +93,17 @@ defmodule Riddlr.GamesFixtures do
   end
 
   @doc """
+  A riddle in `season` that went live at `live_date`. It is created in
+  `open_season` (current or upcoming), then moved past the Season rules, so
+  it can sit in a Past season.
+  """
+  def riddle_in_season_fixture(season, live_date, open_season) do
+    riddle_fixture(%{season_id: open_season.id})
+    |> Ecto.Changeset.change(live_date: live_date, season_id: season.id)
+    |> Riddlr.Repo.update!()
+  end
+
+  @doc """
   The shared "logic" category every riddle fixture hangs off.
   """
   def category_fixture do

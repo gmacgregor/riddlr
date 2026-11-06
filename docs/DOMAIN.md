@@ -360,9 +360,11 @@ outside the top 50, their row is pinned below the list with its true rank. The
 page updates by itself when a riddle completes, once its Solves are saved.
 The Wins and Podiums boards leave out players with none. Each shows the
 top 50. Banned and suspended players and deleted accounts are left out. A switch
-picks the window: all time (the default) or this month, which counts only
-riddles whose Live date falls in the current UTC calendar month. With no
-Solves in the window, the page says so.
+picks the window: this season (the default), this month or all time. This
+season counts only riddles in the current Season, by the riddle's Season
+link, so each new Season starts everyone from zero. This month counts only
+riddles whose Live date falls in the current UTC calendar month. Every board
+works under every window. With no Solves in the window, the page says so.
 
 ## Scoring
 

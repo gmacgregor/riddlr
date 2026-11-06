@@ -32,11 +32,16 @@ defmodule Riddlr.Standings do
 
   A window picks which riddles count. `:all_time` counts every riddle.
   `:month` counts riddles whose `live_date` falls in the current UTC
-  calendar month, by `Riddlr.Clock`.
+  calendar month, by `Riddlr.Clock`. `{:season, id}` counts the riddles in
+  that Season, by the riddle's Season link, not by date. `:season` means
+  the current Season (`Riddlr.Games.current_season/0`); with no current
+  Season it counts nothing.
 
   Both reads are cached (`Riddlr.Cache`), keyed by board and window, with the
   month window keyed by year and month so a new month misses on its own.
-  `broadcast_changed/0` drops every entry and refills the eight top lists
+  `:season` turns into `{:season, id}` before the cache lookup, so a new
+  Season misses on its own too. `broadcast_changed/0` drops every entry and
+  refills the top lists for all time, this month and the current Season
   before it tells subscribers, so they reload from a warm cache. A ban,
   suspension or unban drops every entry (`invalidate/0`), as does deleting a
   riddle. Other admin edits to a finished riddle (its name, its Live date)
@@ -48,6 +53,7 @@ defmodule Riddlr.Standings do
   alias Riddlr.Accounts.User
   alias Riddlr.Cache
   alias Riddlr.Clock
+  alias Riddlr.Games
   alias Riddlr.Gameplay.Solve
   alias Riddlr.Games.Riddle
   alias Riddlr.Repo
@@ -55,13 +61,25 @@ defmodule Riddlr.Standings do
   @limit 50
   @topic "standings"
   @boards [:points, :wins, :podiums, :fastest]
-  @windows [:all_time, :month]
+  @windows [:all_time, :month, :season]
+
+  # A window `list/2` and `player_row/3` take: a named one or a Season id.
+  defguardp is_window(window)
+            when window in @windows or
+                   (is_tuple(window) and tuple_size(window) == 2 and
+                      elem(window, 0) == :season and is_integer(elem(window, 1)))
 
   @typedoc "A board to rank by."
   @type board :: :points | :wins | :podiums | :fastest
 
-  @typedoc "The span of riddles a board counts."
-  @type window :: :all_time | :month
+  @typedoc """
+  The span of riddles a board counts. `:season` is the current Season;
+  `{:season, id}` is a given one.
+  """
+  @type window :: :all_time | :month | :season | {:season, integer()}
+
+  # A window with `:season` turned into a Season id.
+  @typep resolved :: :all_time | :month | {:season, integer()}
 
   @typedoc """
   One player's line on a board. The Points, Wins and Podiums boards carry
@@ -86,8 +104,11 @@ defmodule Riddlr.Standings do
   The top #{@limit} players on `board` over `window`, best first.
   """
   @spec list(board(), window()) :: [row()]
-  def list(board, window) when board in @boards and window in @windows do
-    Cache.fetch(key(board, window, :top), fn -> list_query(board, window) end)
+  def list(board, window) when board in @boards and is_window(window) do
+    case resolve(window) do
+      nil -> []
+      window -> Cache.fetch(key(board, window, :top), fn -> list_query(board, window) end)
+    end
   end
 
   @spec list_query(board(), window()) :: [row()]
@@ -104,12 +125,30 @@ defmodule Riddlr.Standings do
   give them with no limit, or nil when they are not on the board.
   """
   @spec player_row(integer(), board(), window()) :: row() | nil
-  def player_row(user_id, board, window) when board in @boards and window in @windows do
-    Cache.fetch(key(board, window, {:user, user_id}), fn ->
-      from(row in subquery(ranked(board, window)), where: row.user_id == ^user_id)
-      |> Repo.one()
-    end)
+  def player_row(user_id, board, window) when board in @boards and is_window(window) do
+    case resolve(window) do
+      nil ->
+        nil
+
+      window ->
+        Cache.fetch(key(board, window, {:user, user_id}), fn ->
+          from(row in subquery(ranked(board, window)), where: row.user_id == ^user_id)
+          |> Repo.one()
+        end)
+    end
   end
+
+  # Turns `:season` into the current Season's `{:season, id}`, or nil when no
+  # Season is current. Other windows pass through.
+  @spec resolve(window()) :: resolved() | nil
+  defp resolve(:season) do
+    case Games.current_season() do
+      nil -> nil
+      season -> {:season, season.id}
+    end
+  end
+
+  defp resolve(window), do: window
 
   @doc """
   Drops every cached board and player row. Call it when something outside a
@@ -121,8 +160,10 @@ defmodule Riddlr.Standings do
   @spec key(board(), window(), :top | {:user, integer()}) :: tuple()
   defp key(board, window, part), do: {:standings, board, window_key(window), part}
 
-  @spec window_key(window()) :: :all_time | {:month, {integer(), pos_integer()}}
+  @spec window_key(resolved()) ::
+          :all_time | {:month, {integer(), pos_integer()}} | {:season, integer()}
   defp window_key(:all_time), do: :all_time
+  defp window_key({:season, _id} = window), do: window
 
   defp window_key(:month) do
     %{year: year, month: month} = Clock.utc_now()
@@ -145,7 +186,9 @@ defmodule Riddlr.Standings do
   def broadcast_changed do
     invalidate()
 
-    for board <- @boards, window <- @windows do
+    windows = Enum.reject([:all_time, :month, resolve(:season)], &is_nil/1)
+
+    for board <- @boards, window <- windows do
       Cache.put(key(board, window, :top), list_query(board, window))
     end
 
@@ -238,6 +281,8 @@ defmodule Riddlr.Standings do
 
   @spec in_window(Ecto.Query.t(), window()) :: Ecto.Query.t()
   defp in_window(query, :all_time), do: query
+
+  defp in_window(query, {:season, id}), do: where(query, [riddle: r], r.season_id == ^id)
 
   defp in_window(query, :month) do
     {from, to} = month_bounds(Clock.utc_now())

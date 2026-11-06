@@ -10,7 +10,8 @@ defmodule RiddlrWeb.StandingsLive do
 
   - `?board=points` (default), `wins`, `podiums` or `fastest`: the stat it
     ranks by
-  - `?window=all_time` (default) or `month`: which riddles count
+  - `?window=season` (default), `month` or `all_time`: which riddles
+    count. `season` is the current Season.
 
   Any other value falls back to the default.
 
@@ -22,7 +23,7 @@ defmodule RiddlrWeb.StandingsLive do
   below the list with its true rank.
 
   A "How are these counted?" link below opens a note on how each board is
-  counted, how ties break, and what This month covers.
+  counted, how ties break, and what This season and This month cover.
 
   Anyone can open it, signed in or not. With no solves in the window it
   shows an empty note instead of the board.
@@ -34,7 +35,7 @@ defmodule RiddlrWeb.StandingsLive do
   alias RiddlrWeb.{GameComponents, GameCopy}
 
   @boards [:points, :wins, :podiums, :fastest]
-  @windows [:all_time, :month]
+  @windows [:season, :month, :all_time]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -169,6 +170,7 @@ defmodule RiddlrWeb.StandingsLive do
                 </div>
               </dl>
               <p>{GameCopy.Standings.standings_how_ties()}</p>
+              <p>{GameCopy.Standings.standings_how_season()}</p>
               <p>{GameCopy.Standings.standings_how_month()}</p>
             </details>
           </section>
@@ -303,10 +305,11 @@ defmodule RiddlrWeb.StandingsLive do
   defp aria_sort(board, board), do: "descending"
   defp aria_sort(_board, _col), do: nil
 
-  # Anything but a known window falls back to all-time.
+  # Anything but a known window falls back to this season.
   @spec parse_window(String.t() | nil) :: Standings.window()
   defp parse_window("month"), do: :month
-  defp parse_window(_), do: :all_time
+  defp parse_window("all_time"), do: :all_time
+  defp parse_window(_), do: :season
 
   # The viewer's username, so their own tile gets the "you" tone.
   @spec viewer_name(Riddlr.Accounts.Scope.t() | nil) :: String.t() | nil

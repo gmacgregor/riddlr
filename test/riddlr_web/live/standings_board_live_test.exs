@@ -44,7 +44,7 @@ defmodule RiddlrWeb.StandingsBoardLiveTest do
     {:ok, live, _html} = live(conn, ~p"/standings")
 
     live |> element("#standings-board-podiums") |> render_click()
-    assert_patch(live, ~p"/standings?board=podiums&window=all_time")
+    assert_patch(live, ~p"/standings?board=podiums&window=season")
 
     live |> element("#standings-window-month") |> render_click()
     assert_patch(live, ~p"/standings?board=podiums&window=month")

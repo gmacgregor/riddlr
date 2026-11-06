@@ -522,6 +522,18 @@ defmodule Riddlr.Games do
   end
 
   @doc """
+  The season running now, or nil between seasons and before the first.
+  """
+  @spec current_season() :: Season.t() | nil
+  def current_season do
+    now = Riddlr.Clock.utc_now()
+
+    from(s in Season, where: s.starts_at <= ^now and s.ends_at > ^now)
+    |> Repo.one()
+    |> then(&(&1 && Season.with_days(&1)))
+  end
+
+  @doc """
   The season a new riddle starts in, picked from `seasons` (as
   `list_current_and_upcoming_seasons/0` returns them): the one holding
   `live_date`, or else the first. Returns nil when `seasons` is empty.
