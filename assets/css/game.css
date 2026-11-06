@@ -3089,6 +3089,18 @@ a.rg-pill {
   gap: var(--space-2xs);
   margin-inline-start: -0.7em;
 }
+/* The season picker under This season: a small label over a select. */
+.rg-stand__season {
+  display: grid;
+  gap: var(--space-3xs);
+  max-inline-size: 20rem;
+  margin-block-start: var(--space-xs);
+}
+.rg-stand__past {
+  margin-block-start: var(--space-xs);
+  font-size: var(--step--1);
+  color: var(--fg-muted);
+}
 .rg-stand {
   inline-size: 100%;
   margin-block-start: var(--space-s);

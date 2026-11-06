@@ -362,7 +362,13 @@ The Wins and Podiums boards leave out players with none. Each shows the
 top 50. Banned and suspended players and deleted accounts are left out. A switch
 picks the window: this season (the default), this month or all time. This
 season counts only riddles in the current Season, by the riddle's Season
-link, so each new Season starts everyone from zero. This month counts only
+link, so each new Season starts everyone from zero. Between Seasons, this
+season shows the Season that ended most recently, marked as past. Before any
+Season has started, it shows "No season yet". Once two or more Seasons have
+started, a season picker under this season lists the current and Past
+seasons, newest first; upcoming Seasons are left out. A picked Season has its
+own link (`?window=season&season=<id>`) that players can share. A Past
+season's riddles never change, so its boards are final. This month counts only
 riddles whose Live date falls in the current UTC calendar month. Every board
 works under every window. With no Solves in the window, the page says so.
 

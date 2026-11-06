@@ -57,8 +57,15 @@ defmodule Riddlr.StandingsSeasonTest do
       assert Standings.list(:points, :season) == []
     end
 
-    test "counts nothing when no season is current", %{ann: ann} do
+    test "between seasons counts the season that ended most recently", %{ann: ann} do
       Frozen.freeze(~U[2027-03-01 12:00:00Z])
+
+      assert [%{username: "ann", points: 10}] = Standings.list(:points, :season)
+      assert %{rank: 1} = Standings.player_row(ann.id, :points, :season)
+    end
+
+    test "counts nothing before any season has started", %{ann: ann} do
+      Frozen.freeze(~U[2026-09-01 12:00:00Z])
 
       assert Standings.list(:points, :season) == []
       assert Standings.player_row(ann.id, :points, :season) == nil
@@ -71,6 +78,20 @@ defmodule Riddlr.StandingsSeasonTest do
                Standings.list(:points, {:season, last.id})
 
       assert %{rank: 2} = Standings.player_row(ann.id, :points, {:season, last.id})
+    end
+
+    test "a Past season's boards stay put as play goes on", %{last: last, current: current} do
+      before = Map.new(@boards, &{&1, Standings.list(&1, {:season, last.id})})
+
+      later = riddle_in_season_fixture(current, ~U[2026-11-20 12:00:00Z], current)
+      carl = user_fixture(%{username: "carl"})
+      solve_fixture(later, carl, %{placement: 1, points: 10, solve_time_ms: 500})
+      Frozen.freeze(~U[2027-03-01 12:00:00Z])
+      Standings.broadcast_changed()
+
+      for board <- @boards do
+        assert Standings.list(board, {:season, last.id}) == before[board], "board #{board}"
+      end
     end
 
     test "works on every board", %{last: last} do

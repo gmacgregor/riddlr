@@ -522,13 +522,34 @@ defmodule Riddlr.Games do
   end
 
   @doc """
-  The season running now, or nil between seasons and before the first.
+  The seasons that have started, newest first: the current season, if any,
+  then past seasons. Seasons never overlap, so the first is the current
+  season or, between seasons, the one that ended most recently. Upcoming
+  seasons are left out.
   """
-  @spec current_season() :: Season.t() | nil
-  def current_season do
-    now = Riddlr.Clock.utc_now()
+  @spec list_started_seasons() :: [Season.t()]
+  def list_started_seasons do
+    started_seasons_query()
+    |> Repo.all()
+    |> Enum.map(&Season.with_days/1)
+  end
 
-    from(s in Season, where: s.starts_at <= ^now and s.ends_at > ^now)
+  # Seasons that have started by now, newest first.
+  @spec started_seasons_query() :: Ecto.Query.t()
+  defp started_seasons_query do
+    now = Riddlr.Clock.utc_now()
+    from(s in Season, where: s.starts_at <= ^now, order_by: [desc: s.starts_at])
+  end
+
+  @doc """
+  The season running now or, between seasons, the one that ended most
+  recently. Nil before any season has started. It is the first of
+  `list_started_seasons/0`.
+  """
+  @spec latest_started_season() :: Season.t() | nil
+  def latest_started_season do
+    started_seasons_query()
+    |> limit(1)
     |> Repo.one()
     |> then(&(&1 && Season.with_days(&1)))
   end

@@ -5,15 +5,26 @@ defmodule RiddlrWeb.StandingsLive do
   on the Fastest board rank, player, best time and its riddle, linked to
   that riddle's Results.
 
-  Two URL params pick what it shows, each with a switch on the page that
-  patches between values and keeps the other param:
+  URL params pick what it shows, each with a switch on the page that
+  patches between values:
 
   - `?board=points` (default), `wins`, `podiums` or `fastest`: the stat it
     ranks by
   - `?window=season` (default), `month` or `all_time`: which riddles
-    count. `season` is the current Season.
+    count
+  - `&season=<id>`, under `window=season` only: which started Season to
+    show. Without it, This season is the current Season or, between
+    Seasons, the one that ended most recently.
 
-  Any other value falls back to the default.
+  Any other value falls back to the default; an unknown or upcoming season
+  id falls back to This season. The board switch keeps the window and any
+  season id; the window switch keeps the board.
+
+  Under This season a season picker lists the started Seasons
+  (`Riddlr.Games.list_started_seasons/0`), newest first. It shows only when
+  more than one Season has started. A Past season carries a note saying it
+  has ended. Before any Season has started, This season shows a "No season
+  yet" note instead of a board.
 
   It reloads the board and pinned row when a riddle completes
   (`Riddlr.Standings.subscribe/0`).
@@ -31,7 +42,8 @@ defmodule RiddlrWeb.StandingsLive do
 
   use RiddlrWeb, :live_view
 
-  alias Riddlr.Standings
+  alias Riddlr.{Games, Standings}
+  alias Riddlr.Games.Season
   alias RiddlrWeb.{GameComponents, GameCopy}
 
   @boards [:points, :wins, :podiums, :fastest]
@@ -50,10 +62,23 @@ defmodule RiddlrWeb.StandingsLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
+    window = parse_window(params["window"])
+    seasons = Games.list_started_seasons()
+
     {:noreply,
      socket
-     |> assign(board: parse_board(params["board"]), window: parse_window(params["window"]))
+     |> assign(board: parse_board(params["board"]), window: window, seasons: seasons)
+     |> assign(:season, pick_season(window, seasons, params["season"]))
+     |> assign_season_query(params["season"])
      |> load_board()}
+  end
+
+  @impl true
+  def handle_event("pick_season", %{"season" => id}, socket) do
+    {:noreply,
+     push_patch(socket,
+       to: ~p"/standings?#{[board: socket.assigns.board, window: :season, season: id]}"
+     )}
   end
 
   @impl true
@@ -62,15 +87,45 @@ defmodule RiddlrWeb.StandingsLive do
   # Reads the current board and window, and the viewer's pinned row.
   @spec load_board(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   defp load_board(socket) do
-    %{board: board, window: window, current_scope: scope} = socket.assigns
-    rows = Standings.list(board, window)
+    %{board: board, current_scope: scope} = socket.assigns
+    window = standings_window(socket.assigns)
+    rows = if window, do: Standings.list(board, window), else: []
 
     socket
-    |> assign(:pinned, pinned_row(rows, scope, board, window))
+    |> assign(:pinned, window && pinned_row(rows, scope, board, window))
     # A stream can't say whether it is empty, so the empty note reads this.
     |> assign(:empty?, rows == [])
     |> stream(:rows, rows, reset: true)
   end
+
+  # The window to ask Standings for: This season becomes the picked
+  # Season's id. Nil when This season is picked and no Season has started.
+  @spec standings_window(map()) :: Standings.window() | nil
+  defp standings_window(%{window: :season, season: nil}), do: nil
+  defp standings_window(%{window: :season, season: season}), do: {:season, season.id}
+  defp standings_window(%{window: window}), do: window
+
+  # The Season shown under This season: the one `id` names among the
+  # started Seasons, or else the latest. Nil under other windows, or when
+  # no Season has started.
+  @spec pick_season(Standings.window(), [Season.t()], String.t() | nil) :: Season.t() | nil
+  defp pick_season(:season, seasons, id),
+    do: Enum.find(seasons, List.first(seasons), &(to_string(&1.id) == id))
+
+  defp pick_season(_window, _seasons, _id), do: nil
+
+  # The `season` param the board switch keeps: the picked Season's id when
+  # the URL named it, so a shared link stays on that Season. Empty when the
+  # URL named none, so This season keeps following the latest.
+  @spec assign_season_query(Phoenix.LiveView.Socket.t(), String.t() | nil) ::
+          Phoenix.LiveView.Socket.t()
+  defp assign_season_query(%{assigns: %{season: %Season{id: id}}} = socket, param)
+       when is_binary(param) do
+    query = if to_string(id) == param, do: [season: id], else: []
+    assign(socket, :season_query, query)
+  end
+
+  defp assign_season_query(socket, _param), do: assign(socket, :season_query, [])
 
   @impl true
   def render(assigns) do
@@ -91,7 +146,7 @@ defmodule RiddlrWeb.StandingsLive do
               <.link
                 :for={board <- @boards}
                 id={"standings-board-#{board}"}
-                patch={~p"/standings?#{[board: board, window: @window]}"}
+                patch={~p"/standings?#{[board: board, window: @window] ++ @season_query}"}
                 class="rg-tab rg-tab--sm"
                 aria-current={if board == @board, do: "page"}
               >
@@ -109,7 +164,36 @@ defmodule RiddlrWeb.StandingsLive do
                 {GameCopy.Standings.standings_window(window)}
               </.link>
             </nav>
-            <p :if={@empty?} id="standings-empty" class="rg-board__empty">
+            <form
+              :if={@window == :season and length(@seasons) > 1}
+              id="standings-season-picker"
+              class="rg-stand__season"
+              phx-change="pick_season"
+            >
+              <label for="standings-season" class="rg-field__label">
+                {GameCopy.Standings.standings_season_label()}
+              </label>
+              <select id="standings-season" name="season" class="rg-input">
+                <option
+                  :for={season <- @seasons}
+                  value={season.id}
+                  selected={season.id == @season.id}
+                >
+                  {season.name}
+                </option>
+              </select>
+            </form>
+            <p :if={past?(@season)} id="standings-season-past" class="rg-stand__past">
+              {GameCopy.Standings.standings_season_past(@season.name)}
+            </p>
+            <p :if={no_season?(@window, @season)} id="standings-no-season" class="rg-board__empty">
+              {GameCopy.Standings.standings_no_season()}
+            </p>
+            <p
+              :if={@empty? && !no_season?(@window, @season)}
+              id="standings-empty"
+              class="rg-board__empty"
+            >
               {GameCopy.Standings.standings_empty(@window)}
             </p>
             <table :if={!@empty?} id="standings-board" class="rg-stand">
@@ -288,6 +372,15 @@ defmodule RiddlrWeb.StandingsLive do
       do: nil,
       else: Standings.player_row(user.id, board, window)
   end
+
+  # Whether This season is picked but no Season has started.
+  @spec no_season?(Standings.window(), Season.t() | nil) :: boolean()
+  defp no_season?(window, season), do: window == :season and is_nil(season)
+
+  # Whether the shown Season has ended.
+  @spec past?(Season.t() | nil) :: boolean()
+  defp past?(nil), do: false
+  defp past?(season), do: Games.season_status(season) == :past
 
   @spec you?(Standings.row(), Riddlr.Accounts.Scope.t() | nil) :: boolean()
   defp you?(_row, nil), do: false

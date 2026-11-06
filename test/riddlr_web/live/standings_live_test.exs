@@ -6,7 +6,7 @@ defmodule RiddlrWeb.StandingsLiveTest do
   import Riddlr.GamesFixtures
 
   test "a signed-out visitor sees the empty state when nobody has solved", %{conn: conn} do
-    {:ok, live, _html} = live(conn, ~p"/standings")
+    {:ok, live, _html} = live(conn, ~p"/standings?window=all_time")
 
     assert has_element?(live, "#standings-empty")
     refute has_element?(live, "#standings-board")

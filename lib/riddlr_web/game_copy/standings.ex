@@ -38,12 +38,26 @@ defmodule RiddlrWeb.GameCopy.Standings do
   @doc "How the Standings note explains This season."
   @spec standings_how_season() :: String.t()
   def standings_how_season,
-    do: "This season counts only riddles in the current season, so each season starts from zero."
+    do:
+      "This season counts only riddles in the current season, so each season starts from zero. " <>
+        "Between seasons it shows the one that just ended."
 
   @doc "How the Standings note explains This month."
   @spec standings_how_month() :: String.t()
   def standings_how_month,
     do: "This month counts only riddles that went live this calendar month (UTC)."
+
+  @doc "The label on the Standings season picker."
+  @spec standings_season_label() :: String.t()
+  def standings_season_label, do: "Season"
+
+  @doc "The Standings line under This season before any Season has started."
+  @spec standings_no_season() :: String.t()
+  def standings_no_season, do: "No season yet. Standings start with the first season."
+
+  @doc "The Standings note under This season when it shows a Season that has ended."
+  @spec standings_season_past(String.t()) :: String.t()
+  def standings_season_past(name), do: "#{name} has ended. These standings are final."
 
   @doc "The Standings line when nobody has solved a riddle in the window."
   @spec standings_empty(:all_time | :month | :season) :: String.t()

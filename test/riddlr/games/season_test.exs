@@ -143,6 +143,32 @@ defmodule Riddlr.Games.SeasonTest do
     end
   end
 
+  describe "list_started_seasons/0" do
+    # The clock is frozen at 2030-06-15.
+    test "lists the current season, then past seasons latest first, with no upcoming ones" do
+      older = season_fixture(days(~D[2030-04-01], ~D[2030-04-30]))
+      season_fixture(days(~D[2030-07-01], ~D[2030-07-31]))
+      current = season_fixture(days(~D[2030-06-01], ~D[2030-06-30]))
+      recent = season_fixture(days(~D[2030-05-01], ~D[2030-05-31]))
+
+      assert [current.id, recent.id, older.id] ==
+               Enum.map(Games.list_started_seasons(), & &1.id)
+    end
+
+    test "lists past seasons latest first between seasons" do
+      %{id: older_id} = season_fixture(days(~D[2030-04-01], ~D[2030-04-30]))
+      %{id: recent_id} = season_fixture(days(~D[2030-05-01], ~D[2030-05-31]))
+
+      assert [%{id: ^recent_id, starts_on: ~D[2030-05-01]}, %{id: ^older_id}] =
+               Games.list_started_seasons()
+    end
+
+    test "is empty before any season has started" do
+      season_fixture(days(~D[2030-07-01], ~D[2030-07-31]))
+      assert Games.list_started_seasons() == []
+    end
+  end
+
   describe "default_season/2" do
     setup do
       %{

@@ -12,7 +12,7 @@ defmodule Riddlr.Standings do
   only reads these tables and never writes them. Writes stay with the
   owning context.
 
-  `list/2` returns the top 50 players on a board; `player_row/3` returns one
+  `list/2` returns the top @limit players on a board; `player_row/3` returns one
   player's row with the same rank, wherever they place. Each board sorts by its
   own stat first, then the other two:
 
@@ -34,14 +34,16 @@ defmodule Riddlr.Standings do
   `:month` counts riddles whose `live_date` falls in the current UTC
   calendar month, by `Riddlr.Clock`. `{:season, id}` counts the riddles in
   that Season, by the riddle's Season link, not by date. `:season` means
-  the current Season (`Riddlr.Games.current_season/0`); with no current
-  Season it counts nothing.
+  the current Season or, between Seasons, the one that ended most recently
+  (`Riddlr.Games.latest_started_season/0`); before any Season has started
+  it counts nothing. A Past season's riddle list is frozen, so its boards
+  never change.
 
   Both reads are cached (`Riddlr.Cache`), keyed by board and window, with the
   month window keyed by year and month so a new month misses on its own.
   `:season` turns into `{:season, id}` before the cache lookup, so a new
   Season misses on its own too. `broadcast_changed/0` drops every entry and
-  refills the top lists for all time, this month and the current Season
+  refills the top lists for all time, this month and This season
   before it tells subscribers, so they reload from a warm cache. A ban,
   suspension or unban drops every entry (`invalidate/0`), as does deleting a
   riddle. Other admin edits to a finished riddle (its name, its Live date)
@@ -73,8 +75,9 @@ defmodule Riddlr.Standings do
   @type board :: :points | :wins | :podiums | :fastest
 
   @typedoc """
-  The span of riddles a board counts. `:season` is the current Season;
-  `{:season, id}` is a given one.
+  The span of riddles a board counts. `:season` is This season: the
+  current Season or the one that ended most recently. `{:season, id}` is a
+  given one.
   """
   @type window :: :all_time | :month | :season | {:season, integer()}
 
@@ -138,11 +141,11 @@ defmodule Riddlr.Standings do
     end
   end
 
-  # Turns `:season` into the current Season's `{:season, id}`, or nil when no
-  # Season is current. Other windows pass through.
+  # Turns `:season` into `{:season, id}` for the latest started Season, or
+  # nil before any Season has started. Other windows pass through.
   @spec resolve(window()) :: resolved() | nil
   defp resolve(:season) do
-    case Games.current_season() do
+    case Games.latest_started_season() do
       nil -> nil
       season -> {:season, season.id}
     end
