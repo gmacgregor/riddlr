@@ -285,17 +285,9 @@ defmodule RiddlrWeb.GameComponents do
       data-seconds={@seconds}
       phx-hook=".PillClock"
       phx-update="ignore"
-    >{Clock.clock_str(@seconds)}</span>
+    >{Clock.clock_short(@seconds)}</span>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".PillClock">
-      // Mirrors clock_str/1 in game_components/clock.ex. Change both together.
-      const clockStr = (secs) => {
-        secs = Math.max(0, secs)
-        const pad = (n) => String(n).padStart(2, "0")
-        const h = Math.floor(secs / 3600)
-        const m = Math.floor((secs % 3600) / 60)
-        const s = secs % 60
-        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
-      }
+      import {clockShort} from "@/js/clock"
 
       // Counts down to a fixed deadline, not by interval callbacks, so a
       // throttled background tab does not fall behind.
@@ -314,7 +306,7 @@ defmodule RiddlrWeb.GameComponents do
         },
         render() {
           const secs = Math.ceil((this.deadline - Date.now()) / 1000)
-          this.el.textContent = clockStr(secs)
+          this.el.textContent = clockShort(secs)
         }
       }
     </script>

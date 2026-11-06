@@ -803,6 +803,30 @@ a.rg-pill {
 .rg-flaps--long {
   --flap-size: var(--display-flap-long);
 }
+/* Days: tile pairs with their unit word under them. The words hang below
+   the tiles, so the colons centre on the tiles; the padding makes room. */
+.rg-flaps--days {
+  --flap-size: var(--display-flap-long);
+  padding-bottom: max(1.1rem, calc(var(--flap-size) * 0.42));
+}
+.rg-flaps__group {
+  position: relative;
+  display: flex;
+  gap: inherit;
+}
+.rg-flaps__unit {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: calc(var(--flap-size) * 0.08);
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: max(0.7rem, calc(var(--flap-size) * 0.22));
+  line-height: 1;
+  text-align: center;
+  color: var(--fg);
+}
 .rg-flap {
   position: relative;
   display: block;
@@ -845,6 +869,30 @@ a.rg-pill {
   from {
     transform: perspective(300px) rotateX(-70deg);
     opacity: 0.4;
+  }
+}
+/* From one day up the last minute tile pulses every second, so the clock moves
+   between flips. `scale` stacks with the tile's tilt; a flip runs both. */
+@media (prefers-reduced-motion: no-preference) {
+  .rg-flap--pulse {
+    animation: rg-flap-pulse 1s var(--ease-out) infinite;
+  }
+  .rg-flap--pulse.is-tick {
+    animation:
+      rg-flap var(--t-med) var(--ease-out),
+      rg-flap-pulse 1s var(--ease-out) infinite;
+  }
+}
+@keyframes rg-flap-pulse {
+  0%,
+  60%,
+  100% {
+    scale: 1;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  20% {
+    scale: 1.05;
+    box-shadow: 0 0 0 0.035em color-mix(in srgb, var(--shadow-soft) 45%, transparent);
   }
 }
 .rg-flaps__sep {
@@ -1484,7 +1532,8 @@ a.rg-pill {
   --flap-size: min(100cqi / 4, 9rem);
   gap: calc(var(--flap-size) * 0.06);
 }
-.rg-hero .rg-flaps--long {
+.rg-hero .rg-flaps--long,
+.rg-hero .rg-flaps--days {
   --flap-size: min(100cqi / 5.5, 9rem);
   gap: calc(var(--flap-size) * 0.07);
 }
@@ -1951,9 +2000,16 @@ a.rg-pill {
   display: grid;
   gap: var(--space-s);
   justify-items: start;
+  container-type: inline-size;
 }
 .rg-lobby__clock .rg-flaps {
   justify-self: center;
+}
+/* Six tiles fill the column, as on the Home hero, so they stay readable on
+   a phone. MM:SS keeps the base size. */
+.rg-lobby__clock .rg-flaps--long,
+.rg-lobby__clock .rg-flaps--days {
+  --flap-size: min(100cqi / 6.5, var(--display-flap));
 }
 .rg-lobby__h {
   font-family: var(--f-display);

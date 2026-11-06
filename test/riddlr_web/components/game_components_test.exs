@@ -71,11 +71,61 @@ defmodule RiddlrWeb.GameComponentsTest do
 
     test "shows HH:MM:SS from one hour up" do
       assert GameComponents.Clock.clock_str(3600) == "01:00:00"
-      assert GameComponents.Clock.clock_str(90_061) == "25:01:01"
+      assert GameComponents.Clock.clock_str(86_399) == "23:59:59"
+    end
+
+    test "shows DD:HH:MM from one day up" do
+      assert GameComponents.Clock.clock_str(86_400) == "01:00:00"
+      assert GameComponents.Clock.clock_str(90_061) == "01:01:01"
+      assert GameComponents.Clock.clock_str(593_308) == "06:20:48"
+      assert GameComponents.Clock.clock_str(12 * 86_400 + 59) == "12:00:00"
+      assert GameComponents.Clock.clock_str(100 * 86_400) == "100:00:00"
     end
 
     test "treats negative seconds as zero" do
       assert GameComponents.Clock.clock_str(-3) == "00:00"
+    end
+  end
+
+  describe "clock_groups/1" do
+    test "labels the groups from one day up" do
+      assert GameComponents.Clock.clock_groups(593_308) ==
+               [{"06", "days"}, {"20", "hours"}, {"48", "mins"}]
+    end
+
+    test "uses the singular unit for a count of one" do
+      assert GameComponents.Clock.clock_groups(90_061) ==
+               [{"01", "day"}, {"01", "hour"}, {"01", "min"}]
+    end
+
+    test "leaves the groups unlabelled under a day" do
+      assert GameComponents.Clock.clock_groups(86_399) ==
+               [{"23", nil}, {"59", nil}, {"59", nil}]
+
+      assert GameComponents.Clock.clock_groups(125) == [{"02", nil}, {"05", nil}]
+    end
+  end
+
+  describe "clock_short/1" do
+    test "reads as days, hours and minutes from one day up" do
+      assert GameComponents.Clock.clock_short(593_308) == "6d 20h 48m"
+      assert GameComponents.Clock.clock_short(86_400) == "1d 0h 0m"
+    end
+
+    test "reads as the clock under a day" do
+      assert GameComponents.Clock.clock_short(86_399) == "23:59:59"
+      assert GameComponents.Clock.clock_short(125) == "02:05"
+    end
+  end
+
+  describe "clock_spoken/1" do
+    test "spells out the units from one day up" do
+      assert GameComponents.Clock.clock_spoken(593_308) == "6 days, 20 hours, 48 minutes"
+      assert GameComponents.Clock.clock_spoken(90_061) == "1 day, 1 hour, 1 minute"
+    end
+
+    test "reads as the clock under a day" do
+      assert GameComponents.Clock.clock_spoken(125) == "02:05"
     end
   end
 
@@ -128,6 +178,47 @@ defmodule RiddlrWeb.GameComponentsTest do
 
       assert html =~ "rg-flaps--long"
       assert length(Regex.scan(~r/class="rg-flap"/, html)) == 6
+    end
+
+    test "labels days, hours and minutes from one day up" do
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 593_308)
+
+      assert html =~ "rg-flaps--days"
+      refute html =~ "rg-flaps--long"
+      assert length(Regex.scan(~r/class="rg-flap( rg-flap--pulse)?"/, html)) == 6
+      assert length(Regex.scan(~r/class="rg-flaps__sep"/, html)) == 2
+      assert length(Regex.scan(~r/class="rg-flaps__group"/, html)) == 3
+
+      assert Regex.scan(~r/class="rg-flaps__unit"[^>]*>([^<]*)</, html, capture: :all_but_first) ==
+               [["days"], ["hours"], ["mins"]]
+
+      assert html =~
+               ~s(aria-label="6 days, 20 hours, 48 minutes #{GameCopy.clock_label_tail()}")
+    end
+
+    test "pulses the last minute tile from one day up" do
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 593_308)
+
+      assert [_] = Regex.scan(~r/<span class="rg-flap rg-flap--pulse"[^>]*>8</, html)
+    end
+
+    test "pulses the minute tile under the singular min label" do
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 90_061)
+
+      assert [_] = Regex.scan(~r/<span class="rg-flap rg-flap--pulse"[^>]*>1</, html)
+    end
+
+    test "pulses no tile under a day" do
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 86_399)
+
+      refute html =~ "rg-flap--pulse"
+    end
+
+    test "has no unit labels under a day" do
+      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 86_399)
+
+      refute html =~ "rg-flaps__unit"
+      refute html =~ "rg-flaps--days"
     end
   end
 

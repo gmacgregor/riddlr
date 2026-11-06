@@ -784,6 +784,18 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, ".rg-topbar__mid a")
     end
 
+    test "counts down in days, hours and minutes when the drop is a day or more away", %{
+      conn: conn
+    } do
+      Frozen.freeze(~U[2030-01-01 14:05:00.000000Z])
+      upcoming_fixture("scheduled", ~U[2030-01-08 10:53:28Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, ".rg-topbar__mid [role=timer]", "6d 20h 48m")
+      assert has_element?(live, "#hero-flaps.rg-flaps--days .rg-flaps__unit", "days")
+    end
+
     test "switches from the countdown pill to the live pill when the riddle goes live", %{
       conn: conn
     } do
