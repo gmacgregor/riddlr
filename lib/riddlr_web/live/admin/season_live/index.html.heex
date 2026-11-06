@@ -1,0 +1,42 @@
+<.header>
+  {@page_title}
+  <:actions>
+    <.button patch={~p"/admin/seasons/new"} variant="primary">New Season</.button>
+  </:actions>
+</.header>
+
+<div :if={@live_action in [:new, :edit]} class="adm-form-section">
+  <.live_component
+    module={RiddlrWeb.Admin.SeasonLive.FormComponent}
+    id={@season.id || :new}
+    action={@live_action}
+    season={@season}
+    current_scope={@current_scope}
+    patch={~p"/admin/seasons"}
+  />
+</div>
+
+<.table id="seasons" rows={@streams.seasons}>
+  <:col :let={{_id, season}} label="Name">{season.name}</:col>
+  <:col :let={{_id, season}} label="Starts">{season.starts_on}</:col>
+  <:col :let={{_id, season}} label="Ends">{season.ends_on}</:col>
+  <:col :let={{_id, season}} label="Status">
+    <% status = Games.season_status(season) %>
+    <span class={["adm-badge", status_class(status)]} data-status={status}>{status}</span>
+  </:col>
+  <:col :let={{_id, season}} label="Riddles">
+    <span data-role="riddle-count">{season.riddle_count}</span>
+  </:col>
+  <:action :let={{_id, season}}>
+    <.link patch={~p"/admin/seasons/#{season}/edit"}>Edit</.link>
+  </:action>
+  <:action :let={{_id, season}}>
+    <%!-- No client-side hide: a refused delete must leave the row in place. --%>
+    <.link
+      phx-click={JS.push("delete", value: %{id: season.id})}
+      data-confirm="Delete this season?"
+    >
+      Delete
+    </.link>
+  </:action>
+</.table>

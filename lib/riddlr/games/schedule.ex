@@ -14,6 +14,7 @@ defmodule Riddlr.Games.Schedule do
   alias Riddlr.Clock
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
+  alias Riddlr.Games.RiddleSeason
   alias Riddlr.Notifications
   alias Riddlr.Repo
 
@@ -65,7 +66,7 @@ defmodule Riddlr.Games.Schedule do
   """
   @spec save(Riddle.t(), map()) :: {:ok, Riddle.t()} | {:error, Ecto.Changeset.t()}
   def save(%Riddle{} = riddle, attrs) do
-    changeset = Riddle.changeset(riddle, attrs)
+    changeset = riddle |> Riddle.changeset(attrs) |> RiddleSeason.resolve(Clock.utc_now())
 
     # An invalid changeset gets `:none`: the transaction will roll back anyway,
     # and skipping the intent avoids running the validations twice and doubling

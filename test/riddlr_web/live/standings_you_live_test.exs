@@ -37,6 +37,7 @@ defmodule RiddlrWeb.StandingsYouLiveTest do
     me = List.last(players)
     {:ok, live, _html} = conn |> log_in_user(me) |> live(~p"/standings")
 
+    assert has_element?(live, "#standings-window-season[aria-current]")
     refute has_element?(live, "#standings-#{me.id}")
     assert has_element?(live, "#standings-you[aria-current=true] .rg-stand__rank", "51")
     assert has_element?(live, "#standings-you .rg-stand__name", me.username)

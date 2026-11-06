@@ -74,6 +74,7 @@ defmodule Riddlr.GamesTest do
         answers: ["answer1", "answer2"],
         solve_time: 60,
         category_id: category.id,
+        season_id: default_season_fixture().id,
         difficulty: "medium"
       }
 
@@ -84,6 +85,7 @@ defmodule Riddlr.GamesTest do
       assert riddle.solve_time == 60
       assert riddle.play_status == "closed"
       assert riddle.publish_status == "draft"
+      assert riddle.season_id == valid_attrs.season_id
     end
 
     test "create_riddle/1 with invalid data returns error changeset" do
@@ -168,16 +170,44 @@ defmodule Riddlr.GamesTest do
       assert %{answers: ["all answers must be non-empty strings"]} = errors_on(changeset)
     end
 
+    test "create_riddle/1 refuses a riddle with no season" do
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: get_test_category().id
+      }
+
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
+      assert %{season_id: ["can't be blank"]} = errors_on(changeset)
+    end
+
+    test "create_riddle/1 refuses a season that does not exist" do
+      attrs = %{
+        name: "Test",
+        description: "Test",
+        answers: ["answer"],
+        solve_time: 60,
+        category_id: get_test_category().id,
+        season_id: -1
+      }
+
+      assert {:error, changeset} = Games.create_riddle(system_scope(), attrs)
+      assert %{season_id: ["does not exist"]} = errors_on(changeset)
+    end
+
     defp get_test_category do
       Riddlr.Repo.get_by(Riddlr.Games.Category, name: "logic") ||
         Riddlr.Repo.insert!(%Riddlr.Games.Category{name: "logic"})
     end
 
-    test "get_riddle!/2 loads the category and nothing else by default" do
+    test "get_riddle!/2 loads the category and season and nothing else by default" do
       riddle = riddle_fixture()
 
       fetched = Games.get_riddle!(riddle.id)
       assert %Riddlr.Games.Category{} = fetched.category
+      assert %Riddlr.Games.Season{} = fetched.season
       refute Ecto.assoc_loaded?(fetched.first_solver)
 
       assert Ecto.assoc_loaded?(
@@ -574,6 +604,7 @@ defmodule Riddlr.GamesTest do
         answers: ["answer"],
         solve_time: 60,
         category_id: category.id,
+        season_id: default_season_fixture().id,
         archive_after_seconds: 300
       }
 
@@ -608,6 +639,7 @@ defmodule Riddlr.GamesTest do
         answers: ["answer"],
         solve_time: 60,
         category_id: category.id,
+        season_id: default_season_fixture().id,
         archive_after_seconds: 0
       }
 
@@ -631,6 +663,7 @@ defmodule Riddlr.GamesTest do
         answers: ["answer"],
         solve_time: 60,
         category_id: category.id,
+        season_id: default_season_fixture().id,
         ready_before_seconds: 15
       }
 

@@ -230,6 +230,28 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     end
   end
 
+  describe "index page season" do
+    test "shows each riddle's season", %{conn: conn, admin: admin} do
+      season = GamesFixtures.season_fixture(%{name: "Spring Fling"})
+      riddle = GamesFixtures.riddle_fixture(%{season_id: season.id})
+
+      conn = log_in_user(conn, admin)
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles?status=draft")
+
+      assert has_element?(view, "#riddles-#{riddle.id} [data-role=season]", "Spring Fling")
+    end
+
+    test "shows the riddle's season on its details", %{conn: conn, admin: admin} do
+      season = GamesFixtures.season_fixture(%{name: "Spring Fling"})
+      riddle = GamesFixtures.riddle_fixture(%{season_id: season.id})
+
+      conn = log_in_user(conn, admin)
+      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle.id}")
+
+      assert has_element?(view, "#riddle-season", "Spring Fling")
+    end
+  end
+
   describe "index page play_status display" do
     test "displays play status for each riddle", %{conn: conn, admin: admin} do
       riddle1 = GamesFixtures.riddle_fixture(%{name: "Test 1", play_status: "closed"})

@@ -19,7 +19,7 @@ live for its full Solve time so every player can still solve it and earn
 
 Every account is a **Player**. Some players also hold a role:
 
-| Role | Manage riddles, categories and practice riddles | Manage users | Moderate guesses | Ban players | See stats | Admin pages |
+| Role | Manage riddles, categories, seasons and practice riddles | Manage users | Moderate guesses | Ban players | See stats | Admin pages |
 |---|---|---|---|---|---|---|
 | **Super admin** | yes | yes | yes | yes | yes | yes |
 | **Moderator** | no | no | yes | yes | yes | yes |
@@ -106,6 +106,79 @@ succeeds; it just schedules nothing. The riddle and its steps are saved
 together or not at all.
 
 Deleting a riddle drops its pending steps, its guesses and its solves.
+
+## Seasons
+
+A **Season** has a name, an optional description, and a start and end date.
+Dates are calendar days in the display time zone (Toronto by default), as
+Live dates are, and both ends count, so a season can be one day long. A
+season starts at midnight on its start date and ends at midnight after its
+end date, both in that zone. The system stores those two moments in UTC.
+Editors and super admins manage seasons on the admin seasons page;
+moderators cannot.
+
+A season's status comes from the clock and is never stored:
+
+| Status | When |
+|---|---|
+| Upcoming | Before its start |
+| Current | From its start until its end |
+| Past | From its end on (a **Past season**) |
+
+The system refuses a season when:
+
+- another season has the same name, ignoring case;
+- its end date is before its start date;
+- it shares a day with another season. The error names that season.
+
+Seasons may sit back to back or leave gaps between them. Days in a gap
+belong to no season.
+
+What an edit may change depends on status:
+
+| Status | Name and description | Start date | End date |
+|---|---|---|---|
+| Upcoming | yes | yes | yes |
+| Current | yes | no | yes |
+| Past | yes | no | no |
+
+The current season's end date may move before today; the season is then
+past at once. A season can be deleted only while no riddle belongs to it.
+
+### Riddles and seasons
+
+Every riddle belongs to one season from the moment it is created, drafts
+included. Practice riddles belong to none. The admin riddles list shows each
+riddle's season.
+
+The riddle form offers only the current and upcoming seasons, with no blank
+choice, so an editor can file a draft under a season that has not started.
+A new riddle starts in the season holding its Live date, or else the current
+season, or else the soonest upcoming one. A riddle in a past season shows its
+season as text and cannot pick another. With no current or upcoming season,
+the form asks the editor to create a season first.
+
+A save keeps a riddle's season in step with its Live date. It picks the
+season in this order:
+
+1. If the editor changed the season in this save, keep it.
+2. Otherwise, if the editor changed the Live date and the new date falls in
+   a current or upcoming season, move the riddle to that season. The form
+   says "Moved to <season> to match Live date".
+3. Otherwise, keep the season. A draft with an old or placeholder Live date
+   outside every current and upcoming season stays where it is.
+
+Then the system refuses the save when:
+
+- the season it sets is past. A riddle already in a past season keeps it,
+  and cannot move to another season, by picking one or by Live date;
+- the riddle will be published after the save, the save publishes it or
+  changes its Live date or season, and the Live date falls outside its
+  season. This covers Schedule, Reschedule and plain edits of a published
+  riddle. The error names the season and its dates, so a Live date in a gap
+  or a past season cannot be scheduled.
+
+Unschedule keeps the riddle's season.
 
 ## Play flow
 
@@ -287,9 +360,17 @@ outside the top 50, their row is pinned below the list with its true rank. The
 page updates by itself when a riddle completes, once its Solves are saved.
 The Wins and Podiums boards leave out players with none. Each shows the
 top 50. Banned and suspended players and deleted accounts are left out. A switch
-picks the window: all time (the default) or this month, which counts only
-riddles whose Live date falls in the current UTC calendar month. With no
-Solves in the window, the page says so.
+picks the window: this season (the default), this month or all time. This
+season counts only riddles in the current Season, by the riddle's Season
+link, so each new Season starts everyone from zero. Between Seasons, this
+season shows the Season that ended most recently, marked as past. Before any
+Season has started, it shows "No season yet". Once two or more Seasons have
+started, a season picker under this season lists the current and Past
+seasons, newest first; upcoming Seasons are left out. A picked Season has its
+own link (`?window=season&season=<id>`) that players can share. A Past
+season's riddles never change, so its boards are final. This month counts only
+riddles whose Live date falls in the current UTC calendar month. Every board
+works under every window. With no Solves in the window, the page says so.
 
 ## Scoring
 

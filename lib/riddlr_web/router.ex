@@ -135,6 +135,10 @@ defmodule RiddlrWeb.Router do
       live "/categories/new", CategoryLive.Index, :new
       live "/categories/:id/edit", CategoryLive.Index, :edit
 
+      live "/seasons", SeasonLive.Index, :index
+      live "/seasons/new", SeasonLive.Index, :new
+      live "/seasons/:id/edit", SeasonLive.Index, :edit
+
       live "/practice-riddles", PracticeRiddleLive.Index, :index
       live "/practice-riddles/new", PracticeRiddleLive.Index, :new
       live "/practice-riddles/:id/edit", PracticeRiddleLive.Index, :edit

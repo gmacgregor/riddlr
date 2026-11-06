@@ -21,7 +21,9 @@
      --on-fg               text on --fg fills
      --fg-muted, -subtle   secondary, tertiary text
      --grid                background grid line
-     --accent, -press      live + main action fill, pressed
+     --accent, -press      live fill, pressed
+     --action, -border,    main action button (New, Save) fill, its
+       -press, --on-action border a shade deeper, pressed fill, its text
      --accent-text         accent as text, outline or thin graphic
      --on-accent           text on bright fills
      --urgent, -text       urgency + wrong: fill, and as text / outline
@@ -127,6 +129,10 @@
   --accent-press: #d2ee1f;
   --accent-text: #e4ff3a;
   --on-accent: #0d0f12;
+  --action: #9ac2c4; /* sea glass */
+  --action-border: #83b4b7;
+  --action-press: #8dbabc;
+  --on-action: #0d0f12;
   --urgent: #ff5b3d;
   --urgent-text: #ff5b3d;
   --success: #43e3a8;
@@ -171,6 +177,10 @@
   --accent-press: #e4a424;
   --accent-text: #8a5600; /* deep amber */
   --on-accent: #14172b;
+  --action: #9ac2c4; /* sea glass */
+  --action-border: #83b4b7;
+  --action-press: #8dbabc;
+  --on-action: #14172b;
   --urgent: #ff7d6e; /* coral */
   --urgent-text: #b02f1d;
   --success: #86d9ac; /* sage */
