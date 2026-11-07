@@ -8,6 +8,22 @@ defmodule RiddlrWeb.Router do
     plug :protect_from_forgery
   end
 
+  # Scripts load only from app.js: colocated hooks go into it at build time,
+  # so no page has an inline script. Styles need 'unsafe-inline' because
+  # templates set style attributes and LiveView patches them. Fonts come from
+  # Google Fonts; the CSS draws data: SVGs and the dev LiveDashboard loads a
+  # data: font. 'self' in connect-src covers the /live websocket.
+  @content_security_policy "default-src 'self'; " <>
+                             "script-src 'self'; " <>
+                             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " <>
+                             "font-src 'self' https://fonts.gstatic.com data:; " <>
+                             "img-src 'self' data:; " <>
+                             "connect-src 'self'; " <>
+                             "object-src 'none'; " <>
+                             "base-uri 'self'; " <>
+                             "frame-ancestors 'self'; " <>
+                             "form-action 'self'"
+
   # Everything in :browser but the CSRF check. Only the one-click unsubscribe
   # POST uses it on its own: mail clients send that with no CSRF token.
   pipeline :browser_without_csrf do
@@ -16,7 +32,7 @@ defmodule RiddlrWeb.Router do
     plug :fetch_live_flash
     plug RiddlrWeb.Theme
     plug :put_root_layout, html: {RiddlrWeb.Layouts, :root}
-    plug :put_secure_browser_headers
+    plug :put_secure_browser_headers, %{"content-security-policy" => @content_security_policy}
     plug :fetch_current_scope_for_user
   end
 
@@ -63,11 +79,21 @@ defmodule RiddlrWeb.Router do
     # as long as you are also using SSL (which you should anyway).
     import Phoenix.LiveDashboard.Router
 
-    scope "/dev" do
-      pipe_through :browser
+    # LiveDashboard and the mailbox preview have inline scripts, which the
+    # policy blocks unless they carry the nonce RiddlrWeb.ScriptNonce allows.
+    pipeline :dev_script_nonce do
+      plug RiddlrWeb.ScriptNonce
+    end
 
-      live_dashboard "/dashboard", metrics: RiddlrWeb.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
+    scope "/dev" do
+      pipe_through [:browser, :dev_script_nonce]
+
+      live_dashboard "/dashboard",
+        metrics: RiddlrWeb.Telemetry,
+        csp_nonce_assign_key: :csp_nonce
+
+      forward "/mailbox", Plug.Swoosh.MailboxPreview,
+        csp_nonce_assign_key: %{script: :csp_nonce, style: :csp_nonce}
     end
   end
 
