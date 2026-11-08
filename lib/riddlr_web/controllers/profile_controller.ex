@@ -179,10 +179,20 @@ defmodule RiddlrWeb.ProfileController do
   defp after_phone_send(conn, {:error, reason}) do
     message =
       case reason do
-        :locked -> @locked_message
-        :rate_limited -> "Too many codes. Try again later."
-        :no_code -> "Enter your number to get a code."
-        _ -> "We could not send the text. Try again later."
+        :locked ->
+          @locked_message
+
+        :rate_limited ->
+          "Too many codes. Try again later."
+
+        :no_code ->
+          "Enter your number to get a code."
+
+        :opted_out ->
+          "You texted STOP to us before. Reply START to our last text, then try again."
+
+        _ ->
+          "We could not send the text. Try again later."
       end
 
     conn

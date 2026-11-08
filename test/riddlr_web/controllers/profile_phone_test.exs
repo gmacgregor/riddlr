@@ -207,6 +207,27 @@ defmodule RiddlrWeb.ProfilePhoneTest do
     end
   end
 
+  describe "when the number has opted out" do
+    defmodule OptedOutSMS do
+      @behaviour Riddlr.SMS
+      @impl Riddlr.SMS
+      def deliver(_message), do: {:error, :opted_out}
+    end
+
+    setup do
+      original = Application.get_env(:riddlr, Riddlr.SMS)
+      Application.put_env(:riddlr, Riddlr.SMS, adapter: OptedOutSMS)
+      on_exit(fn -> Application.put_env(:riddlr, Riddlr.SMS, original) end)
+    end
+
+    test "tells the player to reply START", %{conn: conn} do
+      conn = send_code(conn, @ca)
+
+      assert redirected_to(conn) == ~p"/profile"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "START"
+    end
+  end
+
   describe "PUT /profile (remove_phone)" do
     test "removes the number and offers to add one again", %{conn: conn} do
       code = conn |> send_code(@ca) |> code_from_text()

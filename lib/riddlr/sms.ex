@@ -5,7 +5,7 @@ defmodule Riddlr.SMS do
   and the phone UI stays hidden.
 
   Adapters: `Riddlr.SMS.Local` logs in dev; `Riddlr.SMS.Test` sends to the
-  test process. A real provider comes later.
+  test process; `Riddlr.SMS.AWS` sends real texts in prod.
   """
 
   defmodule Message do

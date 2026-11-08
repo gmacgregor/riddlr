@@ -276,6 +276,9 @@ hold the same number. Five wrong tries on a code block new codes for a day. Scre
 its last four digits. A player gets at most 3 codes an hour, and a number at
 most 5 a day. "Remove number" deletes it and turns texts off.
 
+The text provider (AWS) blocks a number that replied STOP. A code sent to such
+a number fails, and the player is told to reply START to our last text first.
+
 ### Game clock
 
 Each riddle has one **Game clock**, shared by every viewer. It ticks once a

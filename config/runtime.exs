@@ -148,14 +148,31 @@ if config_env() == :prod do
 
   # ## SMS
   #
-  # No SMS provider is chosen yet. SMS_ADAPTER names a module under
-  # Riddlr.SMS. With none set, the phone UI stays hidden.
+  # SMS_ADAPTER names a module under Riddlr.SMS. With none set, the phone UI
+  # stays hidden.
+  #
+  # "AWS" sends through AWS End User Messaging SMS with the AWS_* keys, which
+  # email shares. It needs SMS_ORIGINATION_ID: the number (E.164) or its ID
+  # that texts come from.
   if sms_adapter = System.get_env("SMS_ADAPTER") do
     adapter = Module.concat(Riddlr.SMS, sms_adapter)
 
     # Local logs each text, codes included; Test sends to a test process.
     if adapter in [Riddlr.SMS.Local, Riddlr.SMS.Test] do
       raise "SMS_ADAPTER=#{sms_adapter} is for dev and test only"
+    end
+
+    if adapter == Riddlr.SMS.AWS do
+      fetch_env! = fn name ->
+        System.get_env(name) ||
+          raise "environment variable #{name} is missing. SMS_ADAPTER=AWS needs it."
+      end
+
+      config :riddlr, Riddlr.SMS.AWS,
+        region: fetch_env!.("AWS_REGION"),
+        access_key_id: fetch_env!.("AWS_ACCESS_KEY_ID"),
+        secret_access_key: fetch_env!.("AWS_SECRET_ACCESS_KEY"),
+        origination_identity: fetch_env!.("SMS_ORIGINATION_ID")
     end
 
     config :riddlr, Riddlr.SMS, adapter: adapter

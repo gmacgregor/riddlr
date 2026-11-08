@@ -56,6 +56,14 @@ config :riddlr, Riddlr.Hashed.HMAC, secret: "kVDJlKooIlBSKLJURFsZs6KIjGt+vt71C+1
 # Texts go to the test process. See Riddlr.SMS.Test.
 config :riddlr, Riddlr.SMS, adapter: Riddlr.SMS.Test
 
+# The AWS SMS adapter is tested on its own against a Req.Test stub.
+config :riddlr, Riddlr.SMS.AWS,
+  region: "ca-central-1",
+  access_key_id: "test",
+  secret_access_key: "test",
+  origination_identity: "+15555550100",
+  req_options: [plug: {Req.Test, Riddlr.SMS.AWS}]
+
 # In test we don't send emails
 config :riddlr, Riddlr.Mailer, adapter: Swoosh.Adapters.Test
 
