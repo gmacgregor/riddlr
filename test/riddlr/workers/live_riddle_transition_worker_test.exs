@@ -14,6 +14,16 @@ defmodule Riddlr.Workers.LiveRiddleTransitionWorkerTest do
     assert Riddlr.Repo.reload(riddle).play_status == "live"
   end
 
+  # Both jobs fall due at once after downtime and run side by side. The Live
+  # job used to cancel on a riddle the Ready job had not moved yet, and the
+  # Ready job then left it in `ready` for good.
+  test "takes a late scheduled riddle straight to live" do
+    riddle = riddle_fixture(%{play_status: "scheduled", publish_status: "published"})
+
+    assert :ok = perform_job(LiveRiddleTransitionWorker, %{riddle_id: riddle.id})
+    assert Riddlr.Repo.reload(riddle).play_status == "live"
+  end
+
   test "cancels if riddle is not published" do
     riddle = riddle_fixture(%{play_status: "ready", publish_status: "draft"})
 

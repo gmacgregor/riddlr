@@ -7,6 +7,8 @@ defmodule Riddlr.Games.Transitions do
   queues the job for the next move, and broadcasts after the commit.
   """
 
+  import Ecto.Query, only: [from: 2]
+
   alias Ecto.Multi
   alias Riddlr.Games
   alias Riddlr.Games.Riddle
@@ -49,20 +51,22 @@ defmodule Riddlr.Games.Transitions do
   """
   @spec transition(integer(), status(), map()) :: result()
   def transition(riddle_id, to, stats \\ %{}) do
-    with {:ok, riddle} <- fetch_transitionable(riddle_id, to) do
-      riddle
-      |> run_transition(to, stats)
-      |> after_commit(to)
-    end
+    riddle_id
+    |> run_transition(to, stats)
+    |> after_commit(to)
   end
 
+  # Reads the row `FOR UPDATE`, so the guard and the write see the same
+  # status. Without the lock, two jobs that fall due together (Ready and
+  # Live after downtime) both read `scheduled`, and the later commit wins:
+  # a riddle could go live and then be written back to `ready`.
   @spec fetch_transitionable(integer(), status()) ::
           {:ok, Riddle.t()}
           | {:error, :not_found}
           | {:unpublished, String.t()}
           | {:invalid, String.t(), status()}
   defp fetch_transitionable(riddle_id, to) do
-    case Repo.get(Riddle, riddle_id) do
+    case Repo.one(from r in Riddle, where: r.id == ^riddle_id, lock: "FOR UPDATE") do
       nil ->
         {:error, :not_found}
 
@@ -78,16 +82,24 @@ defmodule Riddlr.Games.Transitions do
     end
   end
 
-  @spec run_transition(Riddle.t(), status(), map()) ::
-          {:ok, Riddle.t()} | {:error, Ecto.Changeset.t()}
-  defp run_transition(riddle, to, stats) do
+  @spec run_transition(integer(), status(), map()) :: result()
+  defp run_transition(riddle_id, to, stats) do
     Multi.new()
-    |> Multi.update(:riddle, Riddle.changeset(riddle, transition_attrs(to, stats)))
+    |> Multi.run(:locked, fn _repo, _changes ->
+      case fetch_transitionable(riddle_id, to) do
+        {:ok, riddle} -> {:ok, riddle}
+        refusal -> {:error, refusal}
+      end
+    end)
+    |> Multi.update(:riddle, fn %{locked: riddle} ->
+      Riddle.changeset(riddle, transition_attrs(to, stats))
+    end)
     |> save_results(to, stats)
     |> enqueue_next_job(to)
     |> Repo.transaction()
     |> case do
       {:ok, %{riddle: riddle}} -> {:ok, riddle}
+      {:error, :locked, refusal, _changes} -> refusal
       {:error, _failed_operation, changeset, _changes} -> {:error, changeset}
     end
   end

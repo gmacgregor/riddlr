@@ -70,9 +70,11 @@ defmodule Riddlr.Games.Riddle do
 
   @ready_before_seconds 600
 
+  # `scheduled` may skip to `live`: when both jobs fall due at once (the app
+  # was down at drop time), the Live job can run before the Ready job.
   @valid_transitions %{
     "closed" => ["scheduled"],
-    "scheduled" => ["ready", "closed"],
+    "scheduled" => ["ready", "live", "closed"],
     "ready" => ["live", "closed"],
     "live" => ["completed"],
     "completed" => ["archived"],

@@ -19,6 +19,10 @@ defmodule Riddlr.Games.RiddleTest do
       assert Riddle.can_transition?("scheduled", "ready")
     end
 
+    test "a scheduled riddle may skip to live" do
+      assert Riddle.can_transition?("scheduled", "live")
+    end
+
     test "false for a forbidden transition" do
       refute Riddle.can_transition?("closed", "live")
     end
