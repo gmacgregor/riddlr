@@ -43,6 +43,7 @@ defmodule RiddlrWeb do
       use Gettext, backend: RiddlrWeb.Gettext
 
       import Plug.Conn
+      import RiddlrWeb.ControllerHelpers
 
       unquote(verified_routes())
     end

@@ -4,6 +4,9 @@ defmodule RiddlrWeb.UserSessionController do
   alias Riddlr.Accounts
   alias RiddlrWeb.UserAuth
 
+  plug :put_page_title, "Log in" when action in [:new, :create]
+  plug :put_page_title, "Confirm log in" when action == :confirm
+
   def new(conn, _params) do
     email = get_in(conn.assigns, [:current_scope, Access.key(:user), Access.key(:email)])
     form = Phoenix.Component.to_form(%{"email" => email}, as: "user")

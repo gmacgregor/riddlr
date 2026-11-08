@@ -92,7 +92,7 @@ defmodule RiddlrWeb.HomeLive do
 
     {:ok,
      socket
-     |> assign(:page_title, "Home")
+     |> assign(:page_title, "Kriddle")
      |> assign(:snapshot, snapshot)
      # The "While you wait" note's practice riddle, as
      # `%{riddle: riddle, n: n, total: total}`, or nil to hide the note.

@@ -3,6 +3,8 @@ defmodule RiddlrWeb.UserRegistrationController do
 
   alias Riddlr.Accounts
 
+  plug :put_page_title, "Create account"
+
   def new(conn, _params) do
     changeset = Accounts.change_user_registration(Accounts.new_user())
     render(conn, :new, changeset: changeset, sms_enabled?: Riddlr.SMS.enabled?())

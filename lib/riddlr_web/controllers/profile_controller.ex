@@ -19,6 +19,7 @@ defmodule RiddlrWeb.ProfileController do
   plug :require_sms when action == :update
   plug :assign_changesets
   plug :assign_phone
+  plug :put_page_title, "Profile"
 
   @doc "Renders the current user's profile and account forms."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
