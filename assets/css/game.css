@@ -2258,7 +2258,6 @@ a.rg-pill {
   font-size: var(--display-riddle);
   line-height: 1.22;
   letter-spacing: -0.01em;
-  max-width: 22ch;
 }
 .rg-riddle__w {
   display: inline-block;
@@ -2520,7 +2519,6 @@ a.rg-pill {
   }
   .rg-riddle {
     line-height: 1.18;
-    max-width: none;
   }
   .rg-play__feed {
     margin-inline: var(--pad);
