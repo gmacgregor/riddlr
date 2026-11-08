@@ -138,7 +138,12 @@ defmodule RiddlrWeb.ProfilePhoneTest do
       assert has_selector?(html, "input[form=confirm_phone][name='phone[code]']")
       refute has_selector?(html, "#send_phone_code")
       assert html =~ "•••• 0123"
-      refute html =~ "555"
+
+      # Long enough that random tokens in the page (CSRF, LiveView) cannot
+      # match by chance, as a bare "555" once did.
+      for leak <- ["4165550123", "416) 555", "555-0123", "5550123"] do
+        refute html =~ leak
+      end
     end
   end
 
