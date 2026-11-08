@@ -28,20 +28,15 @@ defmodule Riddlr.Accounts.UserNotifier do
   @spec deliver_update_email_instructions(User.t(), String.t()) :: delivery()
   def deliver_update_email_instructions(user, url) do
     deliver(user.email, "Update email instructions", """
-
-    ==============================
-
     Hi #{user.email},
 
-    You can change your email by visiting the URL below:
+    You can change your email by visiting the link below:
 
     #{url}
 
     If you didn't request this change, please ignore this.
 
     ✌️Team Kriddle
-
-    ==============================
     """)
   end
 
@@ -58,41 +53,31 @@ defmodule Riddlr.Accounts.UserNotifier do
 
   @spec deliver_magic_link_instructions(User.t(), String.t()) :: delivery()
   defp deliver_magic_link_instructions(user, url) do
-    deliver(user.email, "Log in instructions", """
-
-    ==============================
-
+    deliver(user.email, "Log in link", """
     Hi #{user.email},
 
     You can log into your account by visiting the link below:
 
     #{url}
 
-    If you didn't recently try to log into your account, you may safely ignore this request.
+    If you didn't recently try to log into your account, you may safely ignore this.
 
     ✌️Team Kriddle
-
-    ==============================
     """)
   end
 
   @spec deliver_confirmation_instructions(User.t(), String.t()) :: delivery()
   defp deliver_confirmation_instructions(user, url) do
-    deliver(user.email, "Confirmation instructions", """
-
-    ==============================
-
+    deliver(user.email, "Account confirmation", """
     Hi #{user.email},
 
-    You can confirm your account by visiting the URL below:
+    Confirm your account by visiting the link below:
 
     #{url}
 
     If you didn't create an account with us, please ignore this.
 
     ✌️Team Kriddle
-
-    ==============================
     """)
   end
 end
