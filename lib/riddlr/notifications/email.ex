@@ -43,12 +43,11 @@ defmodule Riddlr.Notifications.Email do
 
     Have fun!
 
-    ✌️ Team Kriddle
+    ✌️Team Kriddle
 
 
     ---
     You received this update because you turned on email notifications for new Kriddle games. You may disable email notifications here: #{unsubscribe_url}\n
-
     Questions? Contact us: #{Application.fetch_env!(:riddlr, :info_url)}
     """)
   end
@@ -58,7 +57,7 @@ defmodule Riddlr.Notifications.Email do
   @spec intro_and_link(Riddle.t()) :: {String.t(), String.t()}
   defp intro_and_link(%Riddle{play_status: "ready"} = riddle) do
     intro = """
-    Get ready! The lobby is now open for Kriddle No. #{riddle.number} (#{riddle.category.name}). It goes live on #{display_time(riddle.live_date)}. Join the lobby here:\
+    Get ready! The lobby is now open for Kriddle No. #{riddle.number} “#{riddle.name}” (#{riddle.category.name}). It goes live on #{display_time(riddle.live_date)}. Join the lobby here:\
     """
 
     {intro, url(~p"/game/#{riddle.id}/lobby")}
