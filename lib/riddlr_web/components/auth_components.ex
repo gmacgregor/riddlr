@@ -92,8 +92,8 @@ defmodule RiddlrWeb.AuthComponents do
 
     ~H"""
     <p class="rg-phone__note rg-notify__consent">
-      Kriddle will text you before riddles go live. Message and data rates may apply.
-      Reply STOP to end, HELP for help. <a href={@info_url} class="rg-auth__link">Privacy policy</a>
+      Kriddle will text you before new riddles go live. We text you a verification code when you first log in.
+      <a href={@info_url} class="rg-auth__link">Privacy policy</a>
     </p>
     """
   end
@@ -115,7 +115,7 @@ defmodule RiddlrWeb.AuthComponents do
       label="Mobile number"
       inputmode="tel"
       autocomplete="tel-national"
-      placeholder="(416) 555-1234"
+      placeholder="(647) 555-1234"
       required={@required}
     />
     <p class="rg-phone__note rg-phone__canada-note">Texts go to Canadian mobile numbers only.</p>

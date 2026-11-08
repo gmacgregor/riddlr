@@ -195,7 +195,7 @@ defmodule Riddlr.Accounts.Phone do
   defp deliver_phone_code(%PhoneCode{id: id, user_id: user_id, phone: phone} = phone_code, code) do
     message = %Riddlr.SMS.Message{
       to: phone,
-      body: "Your Riddlr code is #{code}. It expires in #{PhoneCode.ttl_minutes()} min."
+      body: "Your Kriddle code is #{code}. It expires in #{PhoneCode.ttl_minutes()} minutes."
     }
 
     case Riddlr.SMS.deliver(message) do

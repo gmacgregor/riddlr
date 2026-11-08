@@ -94,7 +94,7 @@
   gap: var(--space-2xs) var(--space-l);
   border: 0;
   padding: 0;
-  margin: 0;
+  margin: var(--space-s) 0;
 }
 
 .rg-notify > :not(.rg-field) {
@@ -120,7 +120,6 @@
 .rg-notify__phone {
   display: grid;
   gap: var(--space-xs);
-  padding-left: var(--space-m);
 }
 
 .rg-notify__phone .rg-field {
