@@ -9,7 +9,6 @@ defmodule RiddlrWeb.InfoController do
   @doc "Shows the info page."
   @spec show(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def show(conn, _params) do
-    {_name, contact} = Application.fetch_env!(:riddlr, :mail_from)
-    render(conn, :show, page_title: "Info", contact: contact)
+    render(conn, :show, page_title: "Info")
   end
 end

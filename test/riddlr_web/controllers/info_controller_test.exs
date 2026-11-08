@@ -8,11 +8,10 @@ defmodule RiddlrWeb.InfoControllerTest do
     assert html =~ "HELP"
   end
 
-  test "GET /info links the contact address from config", %{conn: conn} do
-    {_name, address} = Application.fetch_env!(:riddlr, :mail_from)
+  test "GET /info links the info contact address, not the mail sender", %{conn: conn} do
     html = conn |> get(~p"/info") |> html_response(200)
 
-    assert has_selector?(html, "#info-contact a[href='mailto:#{address}']")
+    assert has_selector?(html, "#info-contact a[href='mailto:info@kriddle.ca']")
   end
 
   test "GET /info says STOP keeps the number until the player removes it", %{conn: conn} do
