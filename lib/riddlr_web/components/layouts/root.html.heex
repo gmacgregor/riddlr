@@ -7,9 +7,12 @@
     <meta name="csrf-token" content={get_csrf_token()} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <.live_title default="Riddlr" suffix="">
+    <.live_title default="Kriddle" suffix="">
       {assigns[:page_title]}
     </.live_title>
+    <link rel="apple-touch-icon" sizes="180x180" href={~p"/images/apple-touch-icon.png"} />
+    <link rel="icon" type="image/png" sizes="32x32" href={~p"/images/favicon-32x32.png"} />
+    <link rel="icon" type="image/png" sizes="16x16" href={~p"/images/favicon-16x16.png"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/themes.css"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/auth.css"} />
