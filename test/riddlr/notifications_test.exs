@@ -265,6 +265,7 @@ defmodule Riddlr.NotificationsTest do
 
       assert_received {:email, %{subject: "Kriddle riddle No. " <> _} = email}
       assert email.to == [{"", user.email}]
+      assert email.from == Application.fetch_env!(:riddlr, :mail_from)
       assert email.subject == "Kriddle riddle No. #{riddle.number} goes live in 10 minutes"
       assert email.text_body =~ "/game/#{riddle.id}/lobby"
       assert email.text_body =~ riddle.category.name

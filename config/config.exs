@@ -65,6 +65,10 @@ config :riddlr, RiddlrWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :riddlr, Riddlr.Mailer, adapter: Swoosh.Adapters.Local
 
+# Sender name and address on every email. Prod sets the address from
+# MAIL_FROM in config/runtime.exs.
+config :riddlr, :mail_from, {"Kriddle", "contact@example.com"}
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.28.2",

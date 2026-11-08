@@ -28,7 +28,7 @@ defmodule Riddlr.Notifications.Email do
 
     new()
     |> to(user.email)
-    |> from({"Team Kriddle", "contact@example.com"})
+    |> from(Application.fetch_env!(:riddlr, :mail_from))
     |> subject(
       "Kriddle riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} minutes"
     )

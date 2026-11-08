@@ -163,24 +163,51 @@ if config_env() == :prod do
 
   # ## Mailer
   #
-  # No mail provider is chosen yet, so the adapter comes from the env.
-  # MAILER_ADAPTER names an API adapter under Swoosh.Adapters, e.g.
-  # "Postmark", "Mailgun" or "Brevo". SMTP is not supported: it needs the
-  # gen_smtp dep. MAILER_API_KEY and MAILER_DOMAIN are passed only when set;
-  # check the adapter's docs for which it needs. With no MAILER_ADAPTER, the
-  # mailer keeps the default from config.exs.
+  # MAILER_ADAPTER names an adapter under Swoosh.Adapters. With none set,
+  # the mailer keeps the default from config.exs.
+  #
+  # "AmazonSES" sends through SES with the AWS_* keys, which texts share.
+  # It needs MAIL_FROM, an address SES has verified.
+  #
+  # Any other value names an API adapter, e.g. "Postmark" or "Brevo".
+  # MAILER_API_KEY and MAILER_DOMAIN are passed only when set; check the
+  # adapter's docs for which it needs.
   #
   # The API client (Req) is set in config/prod.exs.
-  if adapter = System.get_env("MAILER_ADAPTER") do
-    mailer_opts =
-      [
-        api_key: System.get_env("MAILER_API_KEY"),
-        domain: System.get_env("MAILER_DOMAIN")
-      ]
-      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+  mail_from = System.get_env("MAIL_FROM")
 
-    config :riddlr,
-           Riddlr.Mailer,
-           [adapter: Module.concat(Swoosh.Adapters, adapter)] ++ mailer_opts
+  if mail_from do
+    config :riddlr, :mail_from, {"Kriddle", mail_from}
+  end
+
+  case System.get_env("MAILER_ADAPTER") do
+    nil ->
+      :ok
+
+    "AmazonSES" ->
+      fetch_env! = fn name ->
+        System.get_env(name) ||
+          raise "environment variable #{name} is missing. MAILER_ADAPTER=AmazonSES needs it."
+      end
+
+      mail_from || fetch_env!.("MAIL_FROM")
+
+      config :riddlr, Riddlr.Mailer,
+        adapter: Swoosh.Adapters.AmazonSES,
+        region: fetch_env!.("AWS_REGION"),
+        access_key: fetch_env!.("AWS_ACCESS_KEY_ID"),
+        secret: fetch_env!.("AWS_SECRET_ACCESS_KEY")
+
+    adapter ->
+      mailer_opts =
+        [
+          api_key: System.get_env("MAILER_API_KEY"),
+          domain: System.get_env("MAILER_DOMAIN")
+        ]
+        |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+      config :riddlr,
+             Riddlr.Mailer,
+             [adapter: Module.concat(Swoosh.Adapters, adapter)] ++ mailer_opts
   end
 end

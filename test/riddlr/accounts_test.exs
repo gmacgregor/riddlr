@@ -640,6 +640,12 @@ defmodule Riddlr.AccountsTest do
       assert user_token.sent_to == user.email
       assert user_token.context == "login"
     end
+
+    test "sends from the configured address", %{user: user} do
+      {:ok, email} = Accounts.deliver_login_instructions(user, &"[TOKEN]#{&1}[TOKEN]")
+
+      assert email.from == Application.fetch_env!(:riddlr, :mail_from)
+    end
   end
 
   describe "inspect/2 for the User module" do

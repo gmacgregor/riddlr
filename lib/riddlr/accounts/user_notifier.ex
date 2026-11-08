@@ -13,7 +13,7 @@ defmodule Riddlr.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"Riddlr", "contact@example.com"})
+      |> from(Application.fetch_env!(:riddlr, :mail_from))
       |> subject(subject)
       |> text_body(body)
 
