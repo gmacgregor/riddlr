@@ -278,3 +278,26 @@
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
+
+/* ─── Info page ──────────────────────────────────────────────────────────────── */
+.rg-info {
+  display: grid;
+  gap: var(--space-m);
+  line-height: 1.5;
+}
+
+.rg-info section {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.rg-info h2 {
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: var(--step-1);
+}
+
+.rg-info ul {
+  list-style: disc;
+  padding-inline-start: var(--space-m);
+}

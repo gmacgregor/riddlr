@@ -57,6 +57,10 @@ if config_env() == :prod do
     System.get_env("PHX_HOST") ||
       raise "environment variable PHX_HOST is missing. Set it to the site's domain."
 
+  # The info page (contact, texts, privacy), linked from emails, texts and
+  # the text consent copy.
+  config :riddlr, info_url: "https://www.#{host}/info"
+
   config :riddlr, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :riddlr, RiddlrWeb.Endpoint,

@@ -278,6 +278,11 @@ most 5 a day. "Remove number" deletes it and turns texts off.
 
 The text provider (AWS) blocks a number that replied STOP. A code sent to such
 a number fails, and the player is told to reply START to our last text first.
+The system keeps the number after STOP until the player removes it; the info
+page says so.
+
+The **info page** (`/info`, no login) tells anyone who runs Kriddle, how to
+reach us, what texts we send and how to stop them, and what we keep.
 
 ### Game clock
 

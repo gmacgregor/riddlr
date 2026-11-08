@@ -26,10 +26,5 @@ config :swoosh, local: false
 # Do not print debug messages in production
 config :logger, level: :info
 
-# One page with contact and privacy details, linked from emails, texts and
-# the text consent copy.
-# TODO(#69): swap in the real URL before texts go live.
-config :riddlr, info_url: "https://example.com/info"
-
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

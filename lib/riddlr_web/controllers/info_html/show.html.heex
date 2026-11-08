@@ -1,0 +1,51 @@
+<Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
+  <.auth_shell title="About Kriddle">
+    <:subtitle>A riddle game. New riddles go live on a schedule; solve them fast.</:subtitle>
+
+    <div class="rg-info">
+      <section id="info-contact">
+        <h2>Contact</h2>
+        <p>
+          Email us at <a href={"mailto:#{@contact}"} class="rg-auth__link">{@contact}</a>.
+        </p>
+      </section>
+
+      <section id="info-texts">
+        <h2>Texts</h2>
+        <p>If you turn Text on, Kriddle sends you:</p>
+        <ul>
+          <li>a 6-digit code to confirm your number,</li>
+          <li>one text to say Text is on,</li>
+          <li>at most one text before each riddle goes live.</li>
+        </ul>
+        <p>
+          How often depends on the riddle schedule. Message and data rates may apply.
+          Texts go to Canadian numbers only.
+        </p>
+        <p>
+          Reply STOP to any text to end them. Reply HELP for help. You can also turn
+          Text off or remove your number on your <.link href={~p"/profile"} class="rg-auth__link">profile</.link>.
+        </p>
+      </section>
+
+      <section id="info-privacy">
+        <h2>Privacy</h2>
+        <p>
+          We keep your email address to log you in and, if you ask, to email you before
+          riddles go live. We keep your phone number only if you turn Text on. We store it
+          encrypted and show only its last four digits.
+        </p>
+        <p id="info-after-stop">
+          Reply STOP and we stop texting you, but we keep your encrypted number until you
+          delete it. "Remove number" on your
+          <.link href={~p"/profile"} class="rg-auth__link">profile</.link>
+          deletes it.
+        </p>
+        <p>
+          We send emails and texts through Amazon Web Services. We do not sell or share
+          your details with anyone else.
+        </p>
+      </section>
+    </div>
+  </.auth_shell>
+</Layouts.game>

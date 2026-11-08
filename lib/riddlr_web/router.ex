@@ -123,6 +123,8 @@ defmodule RiddlrWeb.Router do
     delete "/users/log-out", UserSessionController, :delete
 
     get "/notifications/unsubscribe/:token", UnsubscribeController, :show
+
+    get "/info", InfoController, :show
   end
 
   # Mail clients POST here for one-click unsubscribe (RFC 8058) with no CSRF
