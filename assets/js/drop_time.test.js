@@ -3,6 +3,9 @@ import assert from "node:assert/strict"
 import {localDropText} from "./drop_time.js"
 
 const TORONTO = "America/Toronto"
+// Fixed UTC-8 with no DST. Real zones like Vancouver can change their rules
+// in new tz data, which breaks tests dated in the future.
+const FIXED_MINUS_8 = "Etc/GMT+8"
 // Eastern noon on 2030-01-01, so drops on later days read as dates.
 const NOW = new Date("2030-01-01T17:00:00Z")
 
@@ -13,8 +16,8 @@ test("gives nothing when the browser zone has the same offset", () => {
 
 test("gives the local time when the offset differs", () => {
   assert.equal(
-    localDropText("2030-01-08T18:17:00Z", "America/Vancouver", TORONTO, NOW),
-    "Tue, Jan 8, 10:17am PST",
+    localDropText("2030-01-08T18:17:00Z", FIXED_MINUS_8, TORONTO, NOW),
+    "Tue, Jan 8, 10:17am GMT-8",
   )
 })
 
@@ -35,12 +38,12 @@ test("judges the offset at the drop instant, not today", () => {
 
 test("says Today or Tomorrow by the browser's date", () => {
   assert.equal(
-    localDropText("2030-01-01T18:17:00Z", "America/Vancouver", TORONTO, NOW),
-    "Today at 10:17am PST",
+    localDropText("2030-01-01T18:17:00Z", FIXED_MINUS_8, TORONTO, NOW),
+    "Today at 10:17am GMT-8",
   )
   assert.equal(
-    localDropText("2030-01-02T18:17:00Z", "America/Vancouver", TORONTO, NOW),
-    "Tomorrow at 10:17am PST",
+    localDropText("2030-01-02T18:17:00Z", FIXED_MINUS_8, TORONTO, NOW),
+    "Tomorrow at 10:17am GMT-8",
   )
 })
 
