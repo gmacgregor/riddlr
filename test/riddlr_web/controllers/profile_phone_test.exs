@@ -67,7 +67,7 @@ defmodule RiddlrWeb.ProfilePhoneTest do
 
       assert has_selector?(
                html,
-               "#{group} .rg-notify__consent a[href='http://localhost:4000/info']"
+               "#{group} .rg-notify__consent a[href='#{Application.fetch_env!(:riddlr, :info_url)}']"
              )
     end
 

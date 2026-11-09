@@ -20,6 +20,8 @@ config :riddlr, Riddlr.Repo,
 # you can enable the server option below.
 config :riddlr, RiddlrWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
+  # Prod host, so link lengths in tests (e.g. SMS segment fit) match prod.
+  url: [host: "www.kriddle.ca", port: 443, scheme: "https"],
   secret_key_base: "mIiEcrgpaS7aAjsZ4nLam7f48oRNAr5KKFQ/U4krB1cbaoCrXOG4AP2S3g85Wc+b",
   server: false
 
@@ -89,4 +91,4 @@ config :phoenix,
 
 # One page with contact and privacy details, linked from emails, texts and
 # the text consent copy.
-config :riddlr, info_url: "http://localhost:4000/info"
+config :riddlr, info_url: "https://www.kriddle.ca/info"

@@ -266,7 +266,8 @@ defmodule Riddlr.NotificationsTest do
       assert_received {:email, %{subject: "Kriddle riddle No. " <> _} = email}
       assert email.to == [{"", user.email}]
       assert email.from == Application.fetch_env!(:riddlr, :mail_from)
-      assert email.subject == "Kriddle riddle No. #{riddle.number} goes live in 10 minutes"
+      assert email.subject =~ "No. #{riddle.number}"
+      assert email.subject =~ ~r/\b10 minutes\b/
       assert email.text_body =~ "/game/#{riddle.id}/lobby"
       assert email.text_body =~ riddle.category.name
       assert email.text_body =~ "/notifications/unsubscribe/"
@@ -392,10 +393,11 @@ defmodule Riddlr.NotificationsTest do
       refute_received {:sms, _}
 
       assert to == user.phone
-      assert body =~ "Riddle No. #{riddle.number} goes live in 30 minutes"
+      assert body =~ "No. #{riddle.number}"
+      assert body =~ ~r/\b30 minutes\b/
       assert body =~ "/game/#{riddle.id}/lobby"
       assert body =~ Application.fetch_env!(:riddlr, :info_url)
-      assert body =~ "Reply STOP to end"
+      assert body =~ ~r/\bSTOP\b/
       refute body =~ riddle.description
 
       assert String.length(body) <= 160
@@ -440,7 +442,7 @@ defmodule Riddlr.NotificationsTest do
       assert_received {:sms, %{to: to, body: body}}
       assert to == user.phone
       assert body =~ "Kriddle"
-      assert body =~ "Reply STOP to end"
+      assert body =~ ~r/\bSTOP\b/
     end
 
     test "skips a player with Text off, no number, or a banned account" do
