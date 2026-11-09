@@ -13,12 +13,38 @@ defmodule RiddlrWeb.GameCopy.Home do
   @type hero_state :: :none | :future | :lobby | :live
 
   @doc """
-  The Home heading, given the hero state. It names no time of day, since a
-  riddle can drop at any hour. With nothing next it promises no riddle.
+  The Home heading when a riddle is next. It names no time of day, since a
+  riddle can drop at any hour.
   """
-  @spec hero_heading(hero_state()) :: String.t()
-  def hero_heading(:none), do: "Nothing listed"
-  def hero_heading(_state), do: "Up next"
+  @spec hero_heading() :: String.t()
+  def hero_heading, do: "Up next"
+
+  @doc "The small line over the Home headline when nothing is next."
+  @spec tbd_eyebrow() :: String.t()
+  def tbd_eyebrow, do: "Next riddle: TBD"
+
+  @typedoc "A Home headline with nothing next, and its tail."
+  @type tbd_headline :: %{text: String.t(), tail: String.t()}
+
+  @tbd_headlines [
+    %{text: "What has no clues, no answers, and hasn’t arrived yet?", tail: "The next riddle."},
+    %{text: "Your mind may be ready…", tail: "But the puzzle isn’t."},
+    %{text: "Silence is the only answer,", tail: "(for the time being)."},
+    %{text: "Riddle #0: How do you solve a puzzle", tail: "that isn’t here yet?"},
+    %{text: "Error ???: Riddle not found", tail: "(we’re working on it)."},
+    %{text: "Spoiler alert: There’s no next riddle,", tail: "…yet."}
+  ]
+
+  @doc """
+  The Home headlines when nothing is next. Home shows one at random. Each
+  has a tail, which Home sets apart in colour.
+  """
+  @spec tbd_headlines() :: [tbd_headline()]
+  def tbd_headlines, do: @tbd_headlines
+
+  @doc "The line under the Home headline when nothing is next."
+  @spec tbd_lede() :: String.t()
+  def tbd_lede, do: "The next riddle hasn’t been announced."
 
   @doc "The margin note that points at the Home hero card."
   @spec hero_aside() :: String.t()
@@ -30,49 +56,6 @@ defmodule RiddlrWeb.GameCopy.Home do
   """
   @spec drop_local_lead() :: String.t()
   def drop_local_lead, do: "Your time:"
-
-  @doc "The stamp on the Home card when nothing is next."
-  @spec hero_none_stamp() :: String.t()
-  def hero_none_stamp, do: "No game scheduled"
-
-  @doc """
-  The Home card's heading when nothing is next. It reads "Nothing's
-  dropping. Yet.", with the tail on its own so the card can set it apart.
-  """
-  @spec hero_none_heading() :: String.t()
-  def hero_none_heading, do: "Nothing's dropping."
-
-  @doc "The tail of the Home card's heading when nothing is next."
-  @spec hero_none_heading_tail() :: String.t()
-  def hero_none_heading_tail, do: "Yet."
-
-  @doc "The Home card's line when nothing is next."
-  @spec hero_none_text() :: String.t()
-  def hero_none_text,
-    do: "No riddle is scheduled right now, and the next one hasn't been announced."
-
-  @doc """
-  The words before the next drop's time on the Home card when nothing is
-  next. The line reads "Next drop: to be announced".
-  """
-  @spec hero_none_tbc_lead() :: String.t()
-  def hero_none_tbc_lead, do: "Next drop:"
-
-  @doc "The next drop's time on the Home card when nothing is next."
-  @spec hero_none_tbc() :: String.t()
-  def hero_none_tbc, do: "to be announced"
-
-  @doc """
-  The words before the link to Coming up in the Home card's note when
-  nothing is next. The note reads "New riddles appear in Coming up once
-  they're scheduled."
-  """
-  @spec hero_none_note_lead() :: String.t()
-  def hero_none_note_lead, do: "New riddles appear in"
-
-  @doc "The words after the link to Coming up in the Home card's note when nothing is next."
-  @spec hero_none_note_tail() :: String.t()
-  def hero_none_note_tail, do: "once they're scheduled."
 
   @doc "The heading of the Home timeline."
   @spec timeline_heading() :: String.t()

@@ -84,11 +84,4 @@ defmodule RiddlrWeb.DropTimeTest do
                "Jan 8, 1:17pm EST"
     end
   end
-
-  describe "day/1" do
-    test "gives the Eastern date, never a relative word" do
-      assert DropTime.day(~U[2030-01-01 17:00:00Z]) == "Tue, Jan 1"
-      assert DropTime.day(~U[2030-01-02 02:00:00Z]) == "Tue, Jan 1"
-    end
-  end
 end

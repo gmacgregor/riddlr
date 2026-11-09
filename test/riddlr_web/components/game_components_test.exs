@@ -160,19 +160,6 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert classes.(0) =~ "is-crit"
     end
 
-    test "renders a blank clock with empty tiles and no countdown" do
-      html = render_component(&GameComponents.Clock.flaps/1, id: "clock", blank: true)
-
-      # It never counts, so it is a picture with a label, not a timer.
-      assert html =~ ~s(role="img")
-      refute html =~ ~s(role="timer")
-      assert html =~ ~s(aria-label="#{GameCopy.clock_blank_label()}")
-      assert length(Regex.scan(~r/class="rg-flap rg-flap--empty"/, html)) == 4
-      assert length(Regex.scan(~r/class="rg-flaps__sep"/, html)) == 1
-      refute html =~ "data-seconds"
-      refute html =~ "phx-hook"
-    end
-
     test "uses the long style from one hour up" do
       html = render_component(&GameComponents.Clock.flaps/1, id: "clock", seconds: 3600)
 

@@ -18,7 +18,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "h1#home-h", GameCopy.Home.hero_heading(:future))
+      assert has_element?(live, "h1#home-h", GameCopy.Home.hero_heading())
 
       assert has_element?(
                live,
@@ -32,12 +32,39 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, ".rg-hero__aside")
     end
 
-    test "shows no date or margin note when nothing is next", %{conn: conn} do
+    test "shows one of the TBD headlines, and no date or margin note, when nothing is next", %{
+      conn: conn
+    } do
       {:ok, live, _html} = conn |> log_in_user(user_fixture()) |> live(~p"/")
 
-      assert has_element?(live, "h1#home-h", GameCopy.Home.hero_heading(:none))
+      headline = Enum.at(GameCopy.Home.tbd_headlines(), headline_n(live) - 1)
+
+      assert has_element?(live, "h1#home-h", headline.text)
+      assert has_element?(live, "h1#home-h span", headline.tail)
       refute has_element?(live, "#hero-date")
       refute has_element?(live, ".rg-hero__aside")
+    end
+  end
+
+  describe "TBD headline" do
+    test "keeps the headline the page first showed once it connects", %{conn: conn} do
+      for n <- 1..length(GameCopy.Home.tbd_headlines()) do
+        {:ok, live, _html} =
+          conn |> put_connect_params(%{"headline" => to_string(n)}) |> live(~p"/")
+
+        assert has_element?(live, "h1#home-h[data-headline='#{n}']")
+      end
+    end
+
+    test "picks a headline when the page sent an unknown one", %{conn: conn} do
+      count = length(GameCopy.Home.tbd_headlines())
+
+      for bad <- ["0", "#{count + 1}", "nope"] do
+        {:ok, live, _html} =
+          conn |> put_connect_params(%{"headline" => bad}) |> live(~p"/")
+
+        assert headline_n(live) in 1..count
+      end
     end
   end
 
@@ -126,7 +153,7 @@ defmodule RiddlrWeb.HomeLiveTest do
     test "is none with no next riddle", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-sheet[data-state='none']")
+      assert has_element?(live, "#hero-tbd")
     end
 
     test "is future, lobby or live from the next riddle's state", %{conn: conn} do
@@ -141,42 +168,18 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#hero-sheet[data-state='live']")
 
       {:ok, _} = Games.transition(next.id, :completed)
-      assert has_element?(live, "#hero-sheet[data-state='none']")
+      assert has_element?(live, "#hero-tbd")
     end
   end
 
   describe "hero card" do
-    test "shows a heading and no clock or button when there is no next riddle", %{conn: conn} do
+    test "shows the TBD intro instead of a card when nothing is next", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-card h2")
-      assert has_element?(live, "#hero-card .rg-hero__meta")
+      assert has_element?(live, "#hero-tbd .rg-tbd__eyebrow", GameCopy.Home.tbd_eyebrow())
+      assert has_element?(live, "#hero-tbd .rg-tbd__lede", GameCopy.Home.tbd_lede())
+      refute has_element?(live, "#hero-sheet")
       refute has_element?(live, "#hero-flaps")
-      refute has_element?(live, "#hero-card .rg-btn")
-    end
-
-    test "stamps the card and strikes out today's date when nothing is next", %{conn: conn} do
-      # Still Dec 31 in Eastern time.
-      Frozen.freeze(~U[2030-01-01 03:00:00Z])
-      {:ok, live, _html} = live(conn, ~p"/")
-
-      assert has_element?(live, "#hero-card .rg-void-stamp", GameCopy.Home.hero_none_stamp())
-      assert has_element?(live, "#hero-card s.rg-none__date", "Mon, Dec 31")
-    end
-
-    test "shows a blank clock and an unknown next drop when nothing is next", %{conn: conn} do
-      {:ok, live, _html} = live(conn, ~p"/")
-
-      assert has_element?(live, "#hero-card #hero-blank-flaps .rg-flap--empty")
-      refute has_element?(live, "#hero-card #hero-blank-flaps[phx-hook]")
-      assert has_element?(live, "#hero-card .rg-none__tbc b", GameCopy.Home.hero_none_tbc())
-    end
-
-    test "points to Coming up when nothing is next", %{conn: conn} do
-      {:ok, live, _html} = live(conn, ~p"/")
-
-      assert has_element?(live, "#hero-card .rg-hero__note a[href='#sched-h']")
-      assert has_element?(live, "#sched-h")
     end
 
     test "hides the practice note when there are no practice riddles", %{conn: conn} do
@@ -190,7 +193,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#practice .rg-peek__q", practice.description)
+      assert has_element?(live, "#hero-tbd #practice .rg-peek__q", practice.description)
       assert has_element?(live, "#practice .rg-peek__tag", GameCopy.Home.practice_tag(1, 1))
     end
 
@@ -311,7 +314,6 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#hero-card #hero-flaps")
       refute has_element?(live, "#hero-card time")
       refute has_element?(live, "#hero-card .rg-hero__meta")
-      refute has_element?(live, "#hero-card .rg-hero__note")
 
       refute has_element?(live, "#hero-count")
       refute has_element?(live, "#hero-card .rg-btn")
@@ -569,7 +571,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, _} = Games.transition(next.id, :completed)
 
-      assert has_element?(live, "#hero-sheet[data-state='none']")
+      assert has_element?(live, "#hero-tbd")
     end
 
     test "shows a practice riddle once the card has nothing next", %{conn: conn} do
@@ -585,7 +587,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
     test "shows a riddle once it is scheduled", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, "#hero-sheet[data-state='none']")
+      assert has_element?(live, "#hero-tbd")
 
       next = GamesFixtures.scheduled_riddle_fixture()
 
@@ -645,7 +647,8 @@ defmodule RiddlrWeb.HomeLiveTest do
 
         {:ok, live, _html} = live(conn, ~p"/")
 
-        assert has_element?(live, "#hero-sheet + #hero-standings a[href='/standings']")
+        above = if unquote(status), do: "#hero-sheet", else: "#hero-tbd"
+        assert has_element?(live, "#{above} + #hero-standings a[href='/standings']")
         assert has_element?(live, "#hero-standings svg.rg-trophy")
       end
     end
@@ -655,9 +658,16 @@ defmodule RiddlrWeb.HomeLiveTest do
     test "invites a guest to log in or sign up when nothing is next", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, "#hero-card #join-note a.rg-link-btn[href='/users/log-in']")
-      assert has_element?(live, "#hero-card #join-note a.rg-link-btn[href='/users/register']")
+      assert has_element?(live, "#hero-tbd #join-note a.rg-link-btn[href='/users/log-in']")
+      assert has_element?(live, "#hero-tbd #join-note a.rg-link-btn[href='/users/register']")
       assert has_element?(live, "#join-note svg.rg-doodle--bolt")
+    end
+
+    test "hides the note from a signed-in player when nothing is next", %{conn: conn} do
+      {:ok, live, _html} = conn |> log_in_user(user_fixture()) |> live(~p"/")
+
+      assert has_element?(live, "#hero-tbd")
+      refute has_element?(live, "#join-note")
     end
 
     test "invites a guest while a scheduled riddle counts down", %{conn: conn} do
@@ -855,6 +865,13 @@ defmodule RiddlrWeb.HomeLiveTest do
 
     assert_receive {:tracked, ^pid}
     pid
+  end
+
+  # The place (from 1) of the TBD headline the page shows.
+  defp headline_n(live) do
+    html = live |> element("#hero-tbd h1#home-h") |> render()
+    [n] = Regex.run(~r/data-headline="(\d+)"/, html, capture: :all_but_first)
+    String.to_integer(n)
   end
 
   defp practice_fixture(answer) do

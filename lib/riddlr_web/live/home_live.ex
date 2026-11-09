@@ -3,11 +3,15 @@ defmodule RiddlrWeb.HomeLive do
   The public Home page: an "Up next" hero card for the next riddle
   (`Games.next_riddle/0`), a timeline of a round, and two notes.
 
-  The hero card has one state for each Next riddle case, set as `data-state`
-  on the hero sheet:
+  With no next riddle there is no card. `#hero-tbd` shows instead: a
+  "Next riddle: TBD" line, one of a few headlines picked at random
+  (`GameCopy.Home.tbd_headlines/0`), the guest's join note and the "While
+  you wait" practice note. Like the thinker, the headline is kept as the
+  page connects.
 
-    * `none`: no next riddle. The heading reads "Nothing listed", with no
-      date.
+  Otherwise the hero card has one state for each Next riddle case, set as
+  `data-state` on the hero sheet:
+
     * `future`: scheduled, Lobby not open. A countdown and a "While you
       wait" practice note, with no button. The drop time sits under the
       heading.
@@ -15,16 +19,13 @@ defmodule RiddlrWeb.HomeLive do
       button to it.
     * `live`: the time left, how many have solved it, and a button to Play.
 
-  In the other states, the date under the heading is the next riddle's drop
-  date.
+  The date under the heading is the next riddle's drop date.
 
   A hand-drawn thinker (`RiddlrWeb.Thinker`) sits on the card's corner in
-  every state but `none`. It is random on each load, and kept as the page
-  connects.
+  every state. It is random on each load, and kept as the page connects.
 
-  With nothing next, the card also shows a blank clock and a link to Coming
-  up. With nothing next, or a riddle whose Lobby is not open yet, it shows a
-  "While you wait" practice note (`GameComponents.Practice.practice_note/1`)
+  With nothing next, or a riddle whose Lobby is not open yet, the page shows
+  a "While you wait" practice note (`GameComponents.Practice.practice_note/1`)
   with a random practice riddle. "Another riddle" swaps in a different one.
   The note is hidden when there are no practice riddles.
 
@@ -54,7 +55,7 @@ defmodule RiddlrWeb.HomeLive do
 
   alias Riddlr.{GameClock, Gameplay, Games}
   alias Riddlr.Gameplay.Presence
-  alias RiddlrWeb.{DropTime, GameComponents, GameCopy, Thinker}
+  alias RiddlrWeb.{GameComponents, GameCopy, Thinker}
 
   # Each of these can change which riddle is next, or its state, or the
   # schedule and last riddle panels. Completed is here so a live riddle drops
@@ -99,6 +100,7 @@ defmodule RiddlrWeb.HomeLive do
      # `assign_next/2` picks one once nothing is next.
      |> assign(:practice, kept_practice(socket, snapshot.practice))
      |> assign(:thinker, kept_thinker(socket))
+     |> assign_headline(kept_headline(socket))
      |> assign_next(snapshot.next)
      |> assign_panels()}
   end
@@ -244,6 +246,30 @@ defmodule RiddlrWeb.HomeLive do
     else
       _ -> Thinker.random()
     end
+  end
+
+  # The headline with nothing next, random on each load. Like the thinker,
+  # app.js sends the static page's pick on connect, so it holds still.
+  @spec kept_headline(Phoenix.LiveView.Socket.t()) :: pos_integer()
+  defp kept_headline(socket) do
+    count = length(GameCopy.Home.tbd_headlines())
+
+    with true <- connected?(socket),
+         %{"headline" => param} <- get_connect_params(socket),
+         {n, ""} when n in 1..count//1 <- Integer.parse(param) do
+      n
+    else
+      _ -> Enum.random(1..count)
+    end
+  end
+
+  # The headline's place in the set (from 1), and its words.
+  @spec assign_headline(Phoenix.LiveView.Socket.t(), pos_integer()) ::
+          Phoenix.LiveView.Socket.t()
+  defp assign_headline(socket, n) do
+    socket
+    |> assign(:headline, n)
+    |> assign(:tbd_headline, Enum.at(GameCopy.Home.tbd_headlines(), n - 1))
   end
 
   # A practice riddle picked at random from `all` (oldest first), other than

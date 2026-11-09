@@ -55,12 +55,6 @@ defmodule RiddlrWeb.DropTime do
   end
 
   @doc """
-  The Eastern date alone, never relative: `Mon, Nov 3`.
-  """
-  @spec day(DateTime.t()) :: String.t()
-  def day(at), do: at |> to_display() |> Calendar.strftime("%a, %b %-d")
-
-  @doc """
   The display time zone, e.g. `America/Toronto`.
   """
   @spec zone() :: String.t()

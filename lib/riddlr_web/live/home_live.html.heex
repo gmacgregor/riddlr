@@ -16,89 +16,79 @@
   <section class="rg-view" aria-labelledby="home-h">
     <div class="rg-wrap rg-home">
       <section class="rg-hero" aria-labelledby="home-h">
-        <div class="rg-hero__head">
-          <h1 id="home-h" class="rg-hero__eyebrow" tabindex="-1">
-            <span class="rg-hl">{GameCopy.Home.hero_heading(@hero)}</span>
-          </h1>
-          <p :if={@hero != :none} id="hero-date" class="rg-hero__date">
-            <GameComponents.Clock.drop_time
-              id={"hero-date-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
-              at={@next.live_date}
-              now={@today}
-              format="long"
-            />
-          </p>
-          <p :if={@hero != :none} class="rg-hero__aside" aria-hidden="true">
-            {GameCopy.Home.hero_aside()}
-            <svg class="rg-doodle" viewBox="0 0 72 56">
-              <path d="M5 6 C26 0 56 10 62 40" /><path d="M50 33 L62 44 L68 27" />
-            </svg>
-          </p>
-        </div>
-        <%!-- While a riddle is open, the card is busy: the note sits above it. --%>
-        <GameComponents.join_note
-          :if={@hero in [:lobby, :live]}
-          current_scope={@current_scope}
-        />
-        <div id="hero-sheet" class="rg-hero__sheet" data-state={@hero}>
-          <Thinker.thinker id="hero-thinker" n={@thinker} />
-          <div id="hero-card" class="rg-hero__card">
-            <%= case @hero do %>
-              <% :none -> %>
-                <div class="rg-none__top">
-                  <p class="rg-void-stamp">{GameCopy.Home.hero_none_stamp()}</p>
-                  <s class="rg-none__date" aria-hidden="true">{DropTime.day(@today)}</s>
-                </div>
-                <h2 class="rg-none__h">
-                  {GameCopy.Home.hero_none_heading()}
-                  <span>{GameCopy.Home.hero_none_heading_tail()}</span>
-                </h2>
-                <p class="rg-hero__meta">{GameCopy.Home.hero_none_text()}</p>
-                <div class="rg-none__clock">
-                  <GameComponents.Clock.flaps id="hero-blank-flaps" blank />
-                  <p class="rg-none__tbc">
-                    {GameCopy.Home.hero_none_tbc_lead()} <b>{GameCopy.Home.hero_none_tbc()}</b>
-                  </p>
-                </div>
-                <GameComponents.join_note current_scope={@current_scope} />
-                <.practice_note practice={@practice} />
-                <p class="rg-hero__note">
-                  <span>
-                    {GameCopy.Home.hero_none_note_lead()}
-                    <a href="#sched-h" class="rg-link-btn">{GameCopy.Home.schedule_heading()}</a>
-                    {GameCopy.Home.hero_none_note_tail()}
-                  </span>
-                </p>
-              <% :live -> %>
-                <div class="rg-hero__row">
-                  <span class="rg-hero__label">{GameCopy.Home.hero_live(@next.category.name)}</span>
-                  <span class="rg-pill rg-pill--live">
-                    <span class="rg-live-dot" aria-hidden="true"></span>
-                    <span id="hero-left">{GameCopy.m_ss(@seconds)}</span>&nbsp;{GameCopy.Home.hero_left()}
-                  </span>
-                </div>
-                <p class="rg-hero__teaser">
-                  {GameCopy.Home.hero_teaser_lead()}
-                  <b>{GameCopy.Home.hero_teaser_count(@solved)}</b> {GameCopy.Home.hero_teaser_tail()}
-                </p>
-                <.link navigate={~p"/game/#{@next.id}/play"} class="rg-btn rg-btn--accent">
-                  {GameCopy.Results.next_jump_in()} <GameComponents.icon name="arrow" />
-                </.link>
-              <% :lobby -> %>
-                <.drop riddle={@next} seconds={@seconds} />
-                <p id="hero-count" class="rg-hero__meta">
-                  {GameCopy.Home.hero_waiting(@waiting)}
-                </p>
-                <.link navigate={~p"/game/#{@next.id}/lobby"} class="rg-btn rg-btn--accent">
-                  {GameCopy.Results.next_enter_lobby()} <GameComponents.icon name="arrow" />
-                </.link>
-              <% :future -> %>
-                <.drop riddle={@next} seconds={@seconds} />
-                <GameComponents.join_note current_scope={@current_scope} />
-                <.practice_note practice={@practice} />
-            <% end %>
+        <%!-- Nothing next: no card, just the news and a practice riddle. --%>
+        <%= if @hero == :none do %>
+          <div id="hero-tbd" class="rg-tbd">
+            <div class="rg-tbd__intro">
+              <p class="rg-tbd__eyebrow">{GameCopy.Home.tbd_eyebrow()}</p>
+              <h1 id="home-h" class="rg-tbd__h" tabindex="-1" data-headline={@headline}>
+                {@tbd_headline.text} <span>{@tbd_headline.tail}</span>
+              </h1>
+              <p class="rg-tbd__lede">{GameCopy.Home.tbd_lede()}</p>
+            </div>
+            <GameComponents.join_note current_scope={@current_scope} />
+            <.practice_note practice={@practice} />
           </div>
-        </div>
+        <% else %>
+          <div class="rg-hero__head">
+            <h1 id="home-h" class="rg-hero__eyebrow" tabindex="-1">
+              <span class="rg-hl">{GameCopy.Home.hero_heading()}</span>
+            </h1>
+            <p id="hero-date" class="rg-hero__date">
+              <GameComponents.Clock.drop_time
+                id={"hero-date-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
+                at={@next.live_date}
+                now={@today}
+                format="long"
+              />
+            </p>
+            <p class="rg-hero__aside" aria-hidden="true">
+              {GameCopy.Home.hero_aside()}
+              <svg class="rg-doodle" viewBox="0 0 72 56">
+                <path d="M5 6 C26 0 56 10 62 40" /><path d="M50 33 L62 44 L68 27" />
+              </svg>
+            </p>
+          </div>
+          <%!-- While a riddle is open, the card is busy: the note sits above it. --%>
+          <GameComponents.join_note
+            :if={@hero in [:lobby, :live]}
+            current_scope={@current_scope}
+          />
+          <div id="hero-sheet" class="rg-hero__sheet" data-state={@hero}>
+            <Thinker.thinker id="hero-thinker" n={@thinker} />
+            <div id="hero-card" class="rg-hero__card">
+              <%= case @hero do %>
+                <% :live -> %>
+                  <div class="rg-hero__row">
+                    <span class="rg-hero__label">{GameCopy.Home.hero_live(@next.category.name)}</span>
+                    <span class="rg-pill rg-pill--live">
+                      <span class="rg-live-dot" aria-hidden="true"></span>
+                      <span id="hero-left">{GameCopy.m_ss(@seconds)}</span>&nbsp;{GameCopy.Home.hero_left()}
+                    </span>
+                  </div>
+                  <p class="rg-hero__teaser">
+                    {GameCopy.Home.hero_teaser_lead()}
+                    <b>{GameCopy.Home.hero_teaser_count(@solved)}</b> {GameCopy.Home.hero_teaser_tail()}
+                  </p>
+                  <.link navigate={~p"/game/#{@next.id}/play"} class="rg-btn rg-btn--accent">
+                    {GameCopy.Results.next_jump_in()} <GameComponents.icon name="arrow" />
+                  </.link>
+                <% :lobby -> %>
+                  <.drop riddle={@next} seconds={@seconds} />
+                  <p id="hero-count" class="rg-hero__meta">
+                    {GameCopy.Home.hero_waiting(@waiting)}
+                  </p>
+                  <.link navigate={~p"/game/#{@next.id}/lobby"} class="rg-btn rg-btn--accent">
+                    {GameCopy.Results.next_enter_lobby()} <GameComponents.icon name="arrow" />
+                  </.link>
+                <% :future -> %>
+                  <.drop riddle={@next} seconds={@seconds} />
+                  <GameComponents.join_note current_scope={@current_scope} />
+                  <.practice_note practice={@practice} />
+              <% end %>
+            </div>
+          </div>
+        <% end %>
         <p id="hero-standings" class="rg-hero__standings">
           <GameComponents.trophy class="rg-hero__trophy" />
           <.link navigate={~p"/standings"} class="rg-link-btn">{GameCopy.standings_link()}</.link>

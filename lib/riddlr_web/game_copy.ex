@@ -53,10 +53,6 @@ defmodule RiddlrWeb.GameCopy do
   @spec clock_label_tail() :: String.t()
   def clock_label_tail, do: "until the riddle starts"
 
-  @doc "The screen-reader label of a blank split-flap clock: nothing is scheduled."
-  @spec clock_blank_label() :: String.t()
-  def clock_blank_label, do: "No riddle scheduled, so no countdown"
-
   @doc """
   A place as an ordinal, e.g. 1 as "1st", 12 as "12th" and 22 as "22nd".
   """

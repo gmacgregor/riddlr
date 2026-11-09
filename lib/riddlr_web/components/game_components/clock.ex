@@ -108,29 +108,11 @@ defmodule RiddlrWeb.GameComponents.Clock do
   `HH:MM:SS` (`rg-flaps--long`) or `MM:SS`, with no labels. See
   `clock_groups/1`. In the days layout the last minute tile pulses once a
   second (`rg-flap--pulse`), so the clock moves between flips.
-  With `blank` set the clock shows `––:––` on empty tiles, labelled as no
-  countdown, with no hook and no `seconds`. Home shows it when nothing is
-  scheduled.
   """
   attr :id, :string, required: true
-  attr :seconds, :integer, default: nil, doc: "seconds to count down; required unless `blank`"
-  attr :blank, :boolean, default: false, doc: "a clock with no countdown"
+  attr :seconds, :integer, required: true, doc: "seconds to count down"
 
   @spec flaps(map()) :: Phoenix.LiveView.Rendered.t()
-  def flaps(%{blank: true} = assigns) do
-    ~H"""
-    <div id={@id} class="rg-flaps" role="img" aria-label={GameCopy.clock_blank_label()}>
-      <%= for char <- String.graphemes("––:––") do %>
-        <span
-          :if={char == ":"}
-          class="rg-flaps__sep"
-          aria-hidden="true"
-        >:</span><span :if={char != ":"} class="rg-flap rg-flap--empty" aria-hidden="true">{char}</span>
-      <% end %>
-    </div>
-    """
-  end
-
   def flaps(assigns) do
     groups = clock_groups(assigns.seconds)
     days? = match?([{_, unit} | _] when is_binary(unit), groups)
