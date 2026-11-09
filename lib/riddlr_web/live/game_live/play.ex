@@ -63,7 +63,7 @@ defmodule RiddlrWeb.GameLive.Play do
             {:ok,
              socket
              |> assign(:banned, Accounts.banned?(user))
-             |> assign(:page_title, "Play — #{riddle.name}")
+             |> assign(:page_title, "Play · #{riddle.name}")
              |> assign(:riddle, riddle)
              |> assign(:words, String.split(riddle.description))
              |> assign(:solve, user && Gameplay.live_solve_for(riddle.id, user.id))

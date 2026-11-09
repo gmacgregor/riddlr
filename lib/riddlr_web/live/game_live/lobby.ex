@@ -37,7 +37,7 @@ defmodule RiddlrWeb.GameLive.Lobby do
 
             {:ok,
              socket
-             |> assign(:page_title, "Lobby — #{riddle.name}")
+             |> assign(:page_title, "Lobby · #{riddle.name}")
              |> assign(:riddle, riddle)
              # The narrowest grid, until the .RoomGrid hook measures it.
              |> assign(:room_cols, GameComponents.clamp_cols(0))

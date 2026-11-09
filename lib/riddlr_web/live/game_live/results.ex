@@ -104,7 +104,7 @@ defmodule RiddlrWeb.GameLive.Results do
          |> assign(:archive_at, if(chat_open?, do: GameClock.archive_at(riddle)))
          # Set when Archive closes chat on an open page.
          |> assign(:closed_emoji, nil)
-         |> assign(:page_title, "Results — #{riddle.name}")
+         |> assign(:page_title, "Results · #{riddle.name}")
          |> assign(:riddle, riddle)
          |> assign(:answer, List.first(riddle.answers, ""))
          |> assign(:answer_words, answer_words(List.first(riddle.answers, "")))

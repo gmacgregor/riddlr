@@ -11,9 +11,8 @@ defmodule Riddlr.Notifications.Text do
   alias Riddlr.SMS.Message
 
   @doc """
-  The Notification text for one player and one riddle, e.g.
-  `Kriddle: Riddle No. 42 goes live in 30 min. <link> Info: <info url> Reply
-  STOP to end`. A `ready` riddle links to its Lobby; a `scheduled` one to
+  The Notification text for one player and one riddle.
+  A `ready` riddle links to its Lobby; a `scheduled` one to
   Home. `now` sets the minutes left.
   """
   @spec notification(Riddle.t(), User.t(), DateTime.t()) :: Message.t()
@@ -24,8 +23,8 @@ defmodule Riddlr.Notifications.Text do
     %Message{
       to: phone,
       body:
-        "Kriddle: Riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} minutes. " <>
-          "#{link(riddle)} Info: #{info} Reply STOP to end"
+        "Kriddle: Riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} minutes.\n" <>
+          "#{link(riddle)}\nReply STOP to end. Info: #{info}"
     }
   end
 
@@ -39,8 +38,7 @@ defmodule Riddlr.Notifications.Text do
     %Message{
       to: phone,
       body:
-        "Kriddle: You will get texts before riddles go live. Msg & data rates may apply. " <>
-          "Reply STOP to end, HELP for help."
+        "Set up complete: you'll receive text messages from Kriddle before riddles go live. Reply STOP to end or disable in your account settings."
     }
   end
 end

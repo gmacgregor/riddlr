@@ -30,7 +30,7 @@ defmodule Riddlr.Notifications.Email do
     |> to(user.email)
     |> from(Application.fetch_env!(:riddlr, :mail_from))
     |> subject(
-      "Kriddle riddle No. #{riddle.number} goes live in #{Riddlr.Notifications.minutes_left(riddle, now)} minutes"
+      "Kriddle riddle No. #{riddle.number}: #{Riddlr.Notifications.minutes_left(riddle, now)} minutes until live!"
     )
     |> header("List-Unsubscribe", "<#{unsubscribe_url}>")
     |> header("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
@@ -67,7 +67,7 @@ defmodule Riddlr.Notifications.Email do
     lobby_opens = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
 
     intro = """
-    Kriddle No. #{riddle.number} (#{riddle.category.name}) goes live on #{display_time(riddle.live_date)}. The lobby opens on #{display_time(lobby_opens)}. Find it here:\
+    Kriddle No. #{riddle.number} “#{riddle.name}” (#{riddle.category.name}) goes live on #{display_time(riddle.live_date)}. The lobby opens on #{display_time(lobby_opens)}. Find it here:\
     """
 
     {intro, url(~p"/")}

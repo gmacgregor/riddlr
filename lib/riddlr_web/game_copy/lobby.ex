@@ -8,7 +8,7 @@ defmodule RiddlrWeb.GameCopy.Lobby do
 
   @doc "The flash shown when a player opens a lobby that is not open."
   @spec lobby_unavailable() :: String.t()
-  def lobby_unavailable, do: "Game lobby is not yet available."
+  def lobby_unavailable, do: "Game lobby is not available."
 
   @doc "The Lobby's heading, above the clock."
   @spec lobby_heading() :: String.t()
