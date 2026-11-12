@@ -156,9 +156,10 @@ if config_env() == :prod do
   # SMS_ADAPTER names a module under Riddlr.SMS. With none set, the phone UI
   # stays hidden.
   #
-  # "AWS" sends through AWS End User Messaging SMS with the AWS_* keys, which
-  # email shares. It needs SMS_ORIGINATION_ID: the number (E.164) or its ID
-  # that texts come from.
+  # "AWS" sends through AWS End User Messaging SMS. It needs AWS_REGION (picks
+  # the endpoint), SMS_ORIGINATION_ID (the number, in E.164, or its ID that
+  # texts come from) and both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY,
+  # which sign each request. Email does not use any of these.
   if sms_adapter = System.get_env("SMS_ADAPTER") do
     adapter = Module.concat(Riddlr.SMS, sms_adapter)
 
@@ -169,8 +170,13 @@ if config_env() == :prod do
 
     if adapter == Riddlr.SMS.AWS do
       fetch_env! = fn name ->
-        System.get_env(name) ||
-          raise "environment variable #{name} is missing. SMS_ADAPTER=AWS needs it."
+        case String.trim(System.get_env(name, "")) do
+          "" ->
+            raise "environment variable #{name} is missing or blank. SMS_ADAPTER=AWS needs it."
+
+          value ->
+            value
+        end
       end
 
       config :riddlr, Riddlr.SMS.AWS,
@@ -188,8 +194,9 @@ if config_env() == :prod do
   # MAILER_ADAPTER names an adapter under Swoosh.Adapters. With none set,
   # the mailer keeps the default from config.exs.
   #
-  # "AmazonSES" sends through SES with the AWS_* keys, which texts share.
-  # It needs MAIL_FROM, an address SES has verified.
+  # "Resend" sends through Resend. It needs MAILER_API_KEY (a Resend API
+  # key) and MAIL_FROM (an address on a domain Resend has verified), and no
+  # AWS_* keys.
   #
   # Any other value names an API adapter, e.g. "Postmark" or "Brevo".
   # MAILER_API_KEY and MAILER_DOMAIN are passed only when set; check the
@@ -207,19 +214,22 @@ if config_env() == :prod do
     nil ->
       :ok
 
-    "AmazonSES" ->
-      fetch_env! = fn name ->
-        System.get_env(name) ||
-          raise "environment variable #{name} is missing. MAILER_ADAPTER=AmazonSES needs it."
+    "Resend" ->
+      resend_env =
+        Map.new(~w(MAILER_API_KEY MAIL_FROM), &{&1, String.trim(System.get_env(&1, ""))})
+
+      missing = for {name, ""} <- resend_env, do: name
+
+      if missing != [] do
+        raise "environment variables #{Enum.join(missing, ", ")} missing or blank. " <>
+                "MAILER_ADAPTER=Resend needs them."
       end
 
-      mail_from || fetch_env!.("MAIL_FROM")
+      config :riddlr, :mail_from, {"Kriddle", resend_env["MAIL_FROM"]}
 
       config :riddlr, Riddlr.Mailer,
-        adapter: Swoosh.Adapters.AmazonSES,
-        region: fetch_env!.("AWS_REGION"),
-        access_key: fetch_env!.("AWS_ACCESS_KEY_ID"),
-        secret: fetch_env!.("AWS_SECRET_ACCESS_KEY")
+        adapter: Swoosh.Adapters.Resend,
+        api_key: resend_env["MAILER_API_KEY"]
 
     adapter ->
       mailer_opts =
