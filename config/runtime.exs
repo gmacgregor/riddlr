@@ -57,15 +57,18 @@ if config_env() == :prod do
     System.get_env("PHX_HOST") ||
       raise "environment variable PHX_HOST is missing. Set it to the site's domain."
 
+  # PHX_HOST is the canonical (www) host; the bare domain is also served.
+  apex = String.replace_prefix(host, "www.", "")
+
   # The info page (contact, texts, privacy), linked from emails, texts and
   # the text consent copy.
-  config :riddlr, info_url: "https://www.#{host}/info"
+  config :riddlr, info_url: "https://#{host}/info"
 
   config :riddlr, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :riddlr, RiddlrWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
-    check_origin: ["https://#{host}", "https://www.#{host}"],
+    check_origin: ["https://#{apex}", "https://#{host}"],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.

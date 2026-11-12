@@ -9,7 +9,7 @@ kill_signal = 'SIGTERM'
   release_command = '/app/bin/migrate'
 
 [env]
-  PHX_HOST = 'kriddle.ca'
+  PHX_HOST = 'www.kriddle.ca'
   PORT = '8080'
 
 [http_service]
