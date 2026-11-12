@@ -11,8 +11,8 @@ defmodule RiddlrWeb.GameComponents.Clock do
   alias RiddlrWeb.GameCopy
 
   # The clock formats below are mirrored in `assets/js/clock.js`, which the
-  # `.Flaps` and `.PillClock` hooks use. Change both together; the two test
-  # files share one table of cases.
+  # `.Flaps` hook uses. Change both together; the two test files share one
+  # table of cases.
 
   @day 86_400
 
@@ -48,18 +48,6 @@ defmodule RiddlrWeb.GameComponents.Clock do
   @spec clock_str(integer()) :: String.t()
   def clock_str(seconds) when is_integer(seconds) do
     seconds |> clock_groups() |> Enum.map_join(":", &elem(&1, 0))
-  end
-
-  @doc """
-  The clock in a short text form, e.g. `6d 20h 48m` from one day up, or
-  `clock_str/1` below. The Home pill shows it.
-  """
-  @spec clock_short(integer()) :: String.t()
-  def clock_short(seconds) when is_integer(seconds) do
-    case split(seconds) do
-      {d, h, m, _s} when d > 0 -> "#{d}d #{h}h #{m}m"
-      _ -> clock_str(seconds)
-    end
   end
 
   @doc """

@@ -1,6 +1,6 @@
 import {test} from "node:test"
 import assert from "node:assert/strict"
-import {clockGroups, clockShort, clockSpoken, clockStr} from "./clock.js"
+import {clockGroups, clockSpoken, clockStr} from "./clock.js"
 
 // The same cases as the clock tests in game_components_test.exs, so the
 // Elixir and JS formats agree.
@@ -38,16 +38,6 @@ test("clockGroups uses the singular unit for a count of one", () => {
 test("clockGroups leaves the groups unlabelled under a day", () => {
   assert.deepEqual(clockGroups(86399), [["23", null], ["59", null], ["59", null]])
   assert.deepEqual(clockGroups(125), [["02", null], ["05", null]])
-})
-
-test("clockShort reads as days, hours and minutes from one day up", () => {
-  assert.equal(clockShort(593308), "6d 20h 48m")
-  assert.equal(clockShort(86400), "1d 0h 0m")
-})
-
-test("clockShort reads as the clock under a day", () => {
-  assert.equal(clockShort(86399), "23:59:59")
-  assert.equal(clockShort(125), "02:05")
 })
 
 test("clockSpoken spells out the units from one day up", () => {

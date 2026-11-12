@@ -106,18 +106,6 @@ defmodule RiddlrWeb.GameComponentsTest do
     end
   end
 
-  describe "clock_short/1" do
-    test "reads as days, hours and minutes from one day up" do
-      assert GameComponents.Clock.clock_short(593_308) == "6d 20h 48m"
-      assert GameComponents.Clock.clock_short(86_400) == "1d 0h 0m"
-    end
-
-    test "reads as the clock under a day" do
-      assert GameComponents.Clock.clock_short(86_399) == "23:59:59"
-      assert GameComponents.Clock.clock_short(125) == "02:05"
-    end
-  end
-
   describe "clock_spoken/1" do
     test "spells out the units from one day up" do
       assert GameComponents.Clock.clock_spoken(593_308) == "6 days, 20 hours, 48 minutes"
@@ -420,30 +408,6 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert_pill(pill, "a.rg-pill.rg-pill--live[href='/game/7/play']")
       assert_pill(pill, ".rg-pill .rg-live-dot[aria-hidden=true]")
     end
-
-    test "on Home, counts down to the next riddle and links to its Lobby" do
-      pill = render_pill(kind: :home_next, id: "pill-clock", seconds: 90, href: "/game/7/lobby")
-
-      assert_pill(pill, "a.rg-pill.rg-pill--soon[href='/game/7/lobby']")
-      refute_pill(pill, ".rg-live-dot")
-      assert text(pill, ".rg-pill") =~ "01:30"
-      assert_pill(pill, ".rg-pill .rg-pill__long")
-
-      assert_pill(
-        pill,
-        "#pill-clock[phx-hook][phx-update=ignore][data-seconds='90'][role=timer]"
-      )
-
-      assert text(pill, "#pill-clock") == "01:30"
-    end
-
-    test "on Home, shows the countdown with no link when the Lobby is not open" do
-      pill = render_pill(kind: :home_next, id: "pill-clock", seconds: 3700)
-
-      assert_pill(pill, "span.rg-pill.rg-pill--soon")
-      refute_pill(pill, "a")
-      assert text(pill, "#pill-clock") == "01:01:40"
-    end
   end
 
   describe "status_pill/1 countdown dot" do
@@ -455,17 +419,6 @@ defmodule RiddlrWeb.GameComponentsTest do
       assert count.(11) == "warn"
       assert count.(10) == "urgent"
       assert count.(0) == "urgent"
-    end
-
-    test "on Home, follows the same edges, with or without a Lobby link" do
-      count = fn seconds, href ->
-        pill_count(kind: :home_next, id: "pill-clock", seconds: seconds, href: href)
-      end
-
-      assert count.(31, nil) == "future"
-      assert count.(30, "/game/7/lobby") == "warn"
-      assert count.(11, "/game/7/lobby") == "warn"
-      assert count.(10, "/game/7/lobby") == "urgent"
     end
 
     test "is left off without seconds, and on the live and final pills" do

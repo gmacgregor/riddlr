@@ -225,6 +225,10 @@ defmodule RiddlrWeb.Layouts do
         </.link>
       <% else %>
         <.link id="topbar-log-in" navigate={~p"/users/log-in"} class="rg-link-btn">Log in</.link>
+        <span class="rg-topbar__or">or</span>
+        <.link id="topbar-sign-up" navigate={~p"/users/register"} class="rg-link-btn">
+          Sign up
+        </.link>
       <% end %>
     </nav>
     """

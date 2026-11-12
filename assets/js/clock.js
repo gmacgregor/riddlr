@@ -1,7 +1,7 @@
 // The countdown clock formats. Mirrors the clock functions in
 // lib/riddlr_web/components/game_components/clock.ex (clock_groups/1,
-// clock_str/1, clock_short/1, clock_spoken/1). Change both together; the two
-// test files share one table of cases.
+// clock_str/1, clock_spoken/1). Change both together; the two test files
+// share one table of cases.
 
 const DAY = 86400
 
@@ -32,12 +32,6 @@ export const clockGroups = (secs) => {
 
 // MM:SS, HH:MM:SS from one hour up, or DD:HH:MM from one day up.
 export const clockStr = (secs) => clockGroups(secs).map(([digits]) => digits).join(":")
-
-// e.g. "6d 20h 48m" from one day up, or clockStr below.
-export const clockShort = (secs) => {
-  const [d, h, m] = split(secs)
-  return d > 0 ? `${d}d ${h}h ${m}m` : clockStr(secs)
-}
 
 // e.g. "6 days, 20 hours, 48 minutes" from one day up, or clockStr below.
 export const clockSpoken = (secs) => {

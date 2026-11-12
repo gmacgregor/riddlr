@@ -629,7 +629,13 @@ select.rg-input option {
 .rg-topbar__account {
   display: flex;
   align-items: center;
-  gap: var(--space-2xs) var(--space-s);
+  gap: var(--space-2xs);
+}
+.rg-topbar__account .rg-link-btn {
+  white-space: nowrap;
+}
+.rg-topbar__or {
+  color: var(--fg-muted);
 }
 
 /* Colour mode switch: a doodled eye. Open is light, shut is dark. Both
@@ -788,7 +794,18 @@ a.rg-pill {
   .rg-topbar__mid .rg-pill__long {
     display: none;
   }
+  .rg-topbar__mid .rg-pill {
+    padding-inline: 0.5em;
+    letter-spacing: 0.02em;
+  }
   .rg-me-chip__text {
+    display: none;
+  }
+  .rg-topbar__in {
+    gap: var(--space-2xs);
+  }
+  /* The K mark alone, so the pill and the account links fit. */
+  .rg-brand__word {
     display: none;
   }
 }

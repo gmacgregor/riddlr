@@ -35,9 +35,9 @@ defmodule RiddlrWeb.HomeLive do
   shows the most recent finished riddle with its answer and first solver
   (`Games.last_finished_riddle/0`).
 
-  The topbar pill follows the same next riddle: "Live now" while it is live,
-  else "Next" with a countdown. It reuses the card's data and adds no
-  subscription.
+  The topbar shows a "Live now" pill, linking to Play, while the next
+  riddle is live, and no pill before then. It reuses the card's data and
+  adds no subscription.
 
   Everything it reads from the database comes from one cached snapshot
   (`Games.home_snapshot/0`), which writers rebuild before they broadcast, so

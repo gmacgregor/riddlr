@@ -305,6 +305,15 @@ defmodule RiddlrWeb.HomeLiveTest do
       refute has_element?(live, "#hero-sheet[data-state='live']")
     end
 
+    test "counts the hero clock in days, hours and minutes a day or more out", %{conn: conn} do
+      Frozen.freeze(~U[2030-01-01 14:05:00.000000Z])
+      upcoming_fixture("scheduled", ~U[2030-01-08 10:53:28Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#hero-flaps.rg-flaps--days .rg-flaps__unit")
+    end
+
     test "shows a scheduled riddle's clock with no lobby button", %{conn: conn} do
       next = upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
 
@@ -728,6 +737,13 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert LazyHTML.query(doc, "#topbar-log-out") |> Enum.empty?()
     end
 
+    test "offers a sign up link when logged out", %{conn: conn} do
+      doc = conn |> get(~p"/") |> html_response(200) |> LazyHTML.from_document()
+
+      signup = LazyHTML.query(doc, ~s(a#topbar-sign-up[href="/users/register"]))
+      refute Enum.empty?(signup)
+    end
+
     test "shows a name chip and a log out link when logged in", %{conn: conn} do
       user = user_fixture()
 
@@ -750,6 +766,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       refute Enum.empty?(logout)
       assert LazyHTML.query(doc, "#topbar-log-in") |> Enum.empty?()
+      assert LazyHTML.query(doc, "#topbar-sign-up") |> Enum.empty?()
     end
   end
 
@@ -772,51 +789,32 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, ".rg-topbar__mid .rg-pill--live .rg-live-dot")
     end
 
-    test "counts down to a ready riddle and links to its Lobby", %{conn: conn} do
-      Frozen.freeze(~U[2030-01-01 14:03:30.000000Z])
-      next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
-
-      {:ok, live, _html} = live(conn, ~p"/")
-
-      assert has_element?(live, ".rg-topbar__mid a.rg-pill--soon[href='/game/#{next.id}/lobby']")
-
-      assert has_element?(live, ".rg-topbar__mid [role=timer][data-seconds='90']", "01:30")
-    end
-
-    test "counts down to a scheduled riddle with no link", %{conn: conn} do
-      Frozen.freeze(~U[2030-01-01 14:03:30.000000Z])
+    test "shows no pill while the next riddle is scheduled", %{conn: conn} do
       upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, ".rg-topbar__mid span.rg-pill--soon")
-      assert has_element?(live, ".rg-topbar__mid [role=timer]", "01:30")
-      refute has_element?(live, ".rg-topbar__mid a")
+      refute has_element?(live, ".rg-topbar__mid .rg-pill")
+      refute has_element?(live, ".rg-topbar__mid [role=timer]")
     end
 
-    test "counts down in days, hours and minutes when the drop is a day or more away", %{
-      conn: conn
-    } do
-      Frozen.freeze(~U[2030-01-01 14:05:00.000000Z])
-      upcoming_fixture("scheduled", ~U[2030-01-08 10:53:28Z])
+    test "shows no pill while the next riddle's Lobby is open", %{conn: conn} do
+      upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(live, ".rg-topbar__mid [role=timer]", "6d 20h 48m")
-      assert has_element?(live, "#hero-flaps.rg-flaps--days .rg-flaps__unit", "days")
+      refute has_element?(live, ".rg-topbar__mid .rg-pill")
+      refute has_element?(live, ".rg-topbar__mid [role=timer]")
     end
 
-    test "switches from the countdown pill to the live pill when the riddle goes live", %{
-      conn: conn
-    } do
+    test "shows the live pill once the riddle goes live", %{conn: conn} do
       next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
       {:ok, live, _html} = live(conn, ~p"/")
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon")
+      refute has_element?(live, ".rg-topbar__mid .rg-pill")
 
       {:ok, _} = Games.transition(next.id, :live)
 
       assert has_element?(live, ".rg-topbar__mid .rg-pill--live")
-      refute has_element?(live, ".rg-topbar__mid .rg-pill--soon")
     end
   end
 

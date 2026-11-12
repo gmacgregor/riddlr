@@ -9,7 +9,6 @@ defmodule RiddlrWeb.GameComponents do
   use Phoenix.Component
   use RiddlrWeb, :verified_routes
 
-  alias RiddlrWeb.GameComponents.Clock
   alias RiddlrWeb.GameCopy
 
   @tones ~w(variant-1 variant-2 variant-3 variant-4 variant-5 variant-6)
@@ -186,24 +185,21 @@ defmodule RiddlrWeb.GameComponents do
     * `:lobby` - "Lobby · No. N"
     * `:results` - "Final · No. N"
     * `:home_live` - "Live now" with a dot, linking to `href` (Play)
-    * `:home_next` - "Next MM:SS", counting down to the drop, linking to
-      `href` (the Lobby) when given
 
   The part after the dot is long: CSS hides it on narrow screens. With no
   riddle number, the number part is left out.
 
-  `:home_next` and `:lobby` take the `seconds` until the drop and render it as
-  `data-count` for the countdown dot: `future` above 30s, `warn` from 30s and
-  `urgent` from 10s. With no `seconds` there is no dot.
+  `:lobby` takes the `seconds` until the drop and renders it as `data-count`
+  for the countdown dot: `future` above 30s, `warn` from 30s and `urgent`
+  from 10s. With no `seconds` there is no dot.
   """
-  attr :kind, :atom, required: true, values: [:play, :lobby, :results, :home_live, :home_next]
+  attr :kind, :atom, required: true, values: [:play, :lobby, :results, :home_live]
   attr :number, :integer, default: nil
-  attr :href, :string, default: nil, doc: "where a Home pill links to"
-  attr :id, :string, default: nil, doc: "the `:home_next` clock's id"
+  attr :href, :string, default: nil, doc: "where the `:home_live` pill links to"
 
   attr :seconds, :integer,
     default: nil,
-    doc: "seconds until the drop, for `:home_next` and `:lobby`; sets the countdown dot"
+    doc: "seconds until the drop, for `:lobby`; sets the countdown dot"
 
   @spec status_pill(map()) :: Phoenix.LiveView.Rendered.t()
   def status_pill(%{kind: :play} = assigns) do
@@ -223,22 +219,6 @@ defmodule RiddlrWeb.GameComponents do
     ~H"""
     <.link navigate={@href} class="rg-pill rg-pill--live">
       <span class="rg-live-dot" aria-hidden="true"></span>Live now
-    </.link>
-    """
-  end
-
-  def status_pill(%{kind: :home_next, href: nil} = assigns) do
-    ~H"""
-    <span class="rg-pill rg-pill--soon" data-count={count_level(@seconds)}>
-      <.next_clock id={@id} seconds={@seconds || 0} />
-    </span>
-    """
-  end
-
-  def status_pill(%{kind: :home_next} = assigns) do
-    ~H"""
-    <.link navigate={@href} class="rg-pill rg-pill--soon" data-count={count_level(@seconds)}>
-      <.next_clock id={@id} seconds={@seconds || 0} />
     </.link>
     """
   end
@@ -264,54 +244,6 @@ defmodule RiddlrWeb.GameComponents do
   defp count_level(seconds) when seconds > 30, do: "future"
   defp count_level(seconds) when seconds > 10, do: "warn"
   defp count_level(_seconds), do: "urgent"
-
-  # The Home pill's countdown. The server renders the first value. After that
-  # the `.PillClock` hook counts down once a second and re-syncs on each
-  # `countdown-tick` push, as the `.Flaps` hook does. A scheduled riddle has
-  # no server clock, so the hook is what keeps it moving.
-  #
-  # The topbar slot is a polite live region. `role="timer"` with
-  # `aria-live="off"` keeps screen readers from reading every second.
-  attr :id, :string, required: true
-  attr :seconds, :integer, required: true
-
-  @spec next_clock(map()) :: Phoenix.LiveView.Rendered.t()
-  defp next_clock(assigns) do
-    ~H"""
-    <span class="rg-pill__long">Next&nbsp;</span><span
-      id={@id}
-      role="timer"
-      aria-live="off"
-      data-seconds={@seconds}
-      phx-hook=".PillClock"
-      phx-update="ignore"
-    >{Clock.clock_short(@seconds)}</span>
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".PillClock">
-      import {clockShort} from "@/js/clock"
-
-      // Counts down to a fixed deadline, not by interval callbacks, so a
-      // throttled background tab does not fall behind.
-      export default {
-        mounted() {
-          this.sync(parseInt(this.el.dataset.seconds, 10) || 0)
-          this.handleEvent("countdown-tick", ({ seconds }) => this.sync(seconds))
-          this.timer = setInterval(() => this.render(), 1000)
-        },
-        destroyed() {
-          clearInterval(this.timer)
-        },
-        sync(seconds) {
-          this.deadline = Date.now() + seconds * 1000
-          this.render()
-        },
-        render() {
-          const secs = Math.ceil((this.deadline - Date.now()) / 1000)
-          this.el.textContent = clockShort(secs)
-        }
-      }
-    </script>
-    """
-  end
 
   @doc """
   A pen-drawn trophy: a gold cup with sparkles. `class` places and sizes it,
