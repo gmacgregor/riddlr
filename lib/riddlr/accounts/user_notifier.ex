@@ -71,7 +71,7 @@ defmodule Riddlr.Accounts.UserNotifier do
     deliver(user.email, "Account confirmation", """
     Hi #{user.email},
 
-    Please confirm your Kriddle account by visiting the link below:
+    Thank you for joining Kriddle! To confirm your account, click the link below:
 
     #{url}
 
