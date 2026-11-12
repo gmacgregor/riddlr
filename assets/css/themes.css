@@ -37,7 +37,6 @@
      --success, -text      correct + solved: fill, and as text / outline
      --info-text           neutral status text (margin notes, times)
      --live                "live now" dot
-     --count-calm, -warn   topbar countdown dot; it goes --urgent at 10s
      --tone-N, --on-tone-N tile / marker variant N fill and its text. Tones
                            1-6 are tiles (variant-1 is the accent, variant-5
                            the paper tile); 7-9 are page fills only.
@@ -172,8 +171,6 @@
   --success-text: #14703f;
   --info-text: var(--action);
   --live: #1fa05a;
-  --count-calm: #7fb4f0;
-  --count-warn: #f2a516;
 
   --tone-1: var(--accent);
   --tone-2: var(--success);
@@ -248,8 +245,6 @@
   --success-text: #6fdc9d;
   --info-text: var(--action);
   --live: #3ddc84;
-  --count-calm: #7fb4f0;
-  --count-warn: #f2a516;
 
   --tone-1: var(--accent);
   --tone-2: var(--success);

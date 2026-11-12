@@ -768,53 +768,15 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert LazyHTML.query(doc, "#topbar-log-in") |> Enum.empty?()
       assert LazyHTML.query(doc, "#topbar-sign-up") |> Enum.empty?()
     end
-  end
 
-  describe "status pill" do
-    test "shows no pill when nothing is scheduled", %{conn: conn} do
-      {:ok, live, _html} = live(conn, ~p"/")
-
-      refute has_element?(live, ".rg-topbar__mid .rg-pill")
-    end
-
-    test "shows the live pill and links to Play while a riddle is live", %{conn: conn} do
+    test "shows no status pill while a riddle is live", %{conn: conn} do
       live_date = ~U[2030-01-01 14:05:00Z]
       Frozen.freeze(DateTime.add(live_date, 10, :second))
-      next = upcoming_fixture("live", live_date)
-
-      {:ok, live, _html} = live(conn, ~p"/")
-
-      assert has_element?(live, ".rg-topbar__mid a.rg-pill--live[href='/game/#{next.id}/play']")
-
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--live .rg-live-dot")
-    end
-
-    test "shows no pill while the next riddle is scheduled", %{conn: conn} do
-      upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
+      upcoming_fixture("live", live_date)
 
       {:ok, live, _html} = live(conn, ~p"/")
 
       refute has_element?(live, ".rg-topbar__mid .rg-pill")
-      refute has_element?(live, ".rg-topbar__mid [role=timer]")
-    end
-
-    test "shows no pill while the next riddle's Lobby is open", %{conn: conn} do
-      upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
-
-      {:ok, live, _html} = live(conn, ~p"/")
-
-      refute has_element?(live, ".rg-topbar__mid .rg-pill")
-      refute has_element?(live, ".rg-topbar__mid [role=timer]")
-    end
-
-    test "shows the live pill once the riddle goes live", %{conn: conn} do
-      next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
-      {:ok, live, _html} = live(conn, ~p"/")
-      refute has_element?(live, ".rg-topbar__mid .rg-pill")
-
-      {:ok, _} = Games.transition(next.id, :live)
-
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--live")
     end
   end
 

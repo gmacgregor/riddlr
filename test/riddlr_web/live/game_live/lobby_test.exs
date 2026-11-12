@@ -152,12 +152,11 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.Lobby.lobby_heading())
     end
 
-    test "shows the Lobby status pill in the topbar", %{conn: conn, riddle: riddle, user: user} do
+    test "shows no status pill in the topbar", %{conn: conn, riddle: riddle, user: user} do
       conn = log_in_user(conn, user)
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
 
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon")
-      assert has_element?(live, ".rg-topbar__mid .rg-pill__long", "#{riddle.number}")
+      refute has_element?(live, ".rg-topbar__mid .rg-pill")
     end
 
     test "shows the solve time as its only fact", %{conn: conn, user: user} do
@@ -269,28 +268,6 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
       send(live.pid, {:countdown_tick, :lobby, 5})
 
       refute has_element?(live, "#lobby-ready")
-    end
-
-    test "sets the topbar countdown dot from the seconds left", %{
-      conn: conn,
-      user: user,
-      now: now
-    } do
-      riddle =
-        GamesFixtures.riddle_fixture(%{live_date: DateTime.add(now, 120, :second)})
-        |> set_play_status("scheduled")
-        |> set_play_status("ready")
-
-      conn = log_in_user(conn, user)
-      {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/lobby")
-
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='future']")
-
-      send(live.pid, {:countdown_tick, :lobby, 30})
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='warn']")
-
-      send(live.pid, {:countdown_tick, :lobby, 10})
-      assert has_element?(live, ".rg-topbar__mid .rg-pill--soon[data-count='urgent']")
     end
   end
 

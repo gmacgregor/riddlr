@@ -740,17 +740,6 @@ select.rg-input option {
   text-transform: uppercase;
   white-space: nowrap;
 }
-.rg-pill--soon {
-  color: var(--fg);
-}
-a.rg-pill {
-  text-decoration: none;
-}
-@media (hover: hover) {
-  a.rg-pill:hover {
-    border-color: var(--action);
-  }
-}
 .rg-live-dot {
   width: 10px;
   height: 10px;
@@ -760,51 +749,19 @@ a.rg-pill {
   flex: none;
   animation: rg-blink 1.2s steps(2, jump-none) infinite;
 }
-/* Countdown dot (status_pill/1 sets data-count): calm, amber from 30s, then
-   red and blinking from 10s. On Play the live dot takes over. */
-.rg-pill[data-count]::before {
-  content: "";
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--count-dot, var(--count-calm));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--count-dot, var(--count-calm)) 30%, transparent);
-  transition:
-    background-color 300ms var(--ease-out),
-    box-shadow 300ms var(--ease-out);
-}
-.rg-pill[data-count="warn"] {
-  --count-dot: var(--count-warn);
-}
-.rg-pill[data-count="urgent"] {
-  --count-dot: var(--urgent);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .rg-pill[data-count="urgent"]::before {
-    animation: rg-blink 600ms steps(2, jump-none) infinite;
-  }
-}
 @keyframes rg-blink {
   50% {
     opacity: 0.25;
   }
 }
 @media (max-width: 420px) {
-  .rg-topbar__mid .rg-pill__long {
-    display: none;
-  }
-  .rg-topbar__mid .rg-pill {
-    padding-inline: 0.5em;
-    letter-spacing: 0.02em;
-  }
   .rg-me-chip__text {
     display: none;
   }
   .rg-topbar__in {
     gap: var(--space-2xs);
   }
-  /* The K mark alone, so the pill and the account links fit. */
+  /* The K mark alone, so the account links fit. */
   .rg-brand__word {
     display: none;
   }

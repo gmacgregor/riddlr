@@ -1,5 +1,4 @@
 <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
-  <:status><GameComponents.status_pill kind={:results} number={@riddle.number} /></:status>
   <%!-- Plays one celebration on mount when the riddle just ended. It draws on
        its own canvas under <body>, and @celebrate never changes after mount,
        so patches leave it alone. --%>

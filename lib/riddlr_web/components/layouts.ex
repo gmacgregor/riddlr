@@ -25,7 +25,6 @@ defmodule RiddlrWeb.Layouts do
   ## Examples
 
       <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
-        <:status><GameComponents.status_pill kind={:lobby} number={@riddle.number} /></:status>
         <h1>Content</h1>
       </Layouts.game>
 
@@ -44,18 +43,13 @@ defmodule RiddlrWeb.Layouts do
     default: false,
     doc: "stops `main` scrolling, for screens that scroll their own parts (Play)"
 
-  slot :status,
-    doc: "the riddle status shown in the middle of the topbar, a `GameComponents.status_pill/1`"
-
   slot :inner_block, required: true
 
   @spec game(map()) :: Phoenix.LiveView.Rendered.t()
   def game(assigns) do
     ~H"""
     <div class="rg-app">
-      <.topbar current_scope={@current_scope} theme={@theme} live>
-        {render_slot(@status)}
-      </.topbar>
+      <.topbar current_scope={@current_scope} theme={@theme} />
 
       <main class={["rg-main", @locked && "is-locked"]}>
         {render_slot(@inner_block)}
@@ -66,12 +60,11 @@ defmodule RiddlrWeb.Layouts do
     """
   end
 
-  # The topbar: brand mark, a middle slot and the account controls. The admin
-  # has its own frozen copy in `RiddlrWeb.AdminComponents`.
+  # The topbar: brand mark, an empty middle that pushes the controls right,
+  # and the account controls. The admin has its own frozen copy in
+  # `RiddlrWeb.AdminComponents`.
   attr :current_scope, :map, default: nil
   attr :theme, :string, required: true
-  attr :live, :boolean, default: false, doc: "announces changes to the middle slot"
-  slot :inner_block, doc: "content for the middle of the bar"
 
   @spec topbar(map()) :: Phoenix.LiveView.Rendered.t()
   defp topbar(assigns) do
@@ -81,7 +74,7 @@ defmodule RiddlrWeb.Layouts do
         <.link id="topbar-brand" navigate={~p"/"} class="rg-brand" aria-label="Riddlr home">
           <.brand_mark />
         </.link>
-        <div class="rg-topbar__mid" aria-live={@live && "polite"}>{render_slot(@inner_block)}</div>
+        <div class="rg-topbar__mid"></div>
         <.theme_switch theme={@theme} />
         <.topbar_account current_scope={@current_scope} />
       </div>
