@@ -28,10 +28,9 @@ defmodule RiddlrWeb.GameCopy.Home do
 
   @tbd_headlines [
     %{text: "What has no clues, no answers, and hasn’t arrived yet?", tail: "The next riddle."},
-    %{text: "Your mind may be ready…", tail: "But the puzzle isn’t."},
-    %{text: "Silence is the only answer,", tail: "(for the time being)."},
-    %{text: "Riddle #0: How do you solve a puzzle", tail: "that isn’t here yet?"},
-    %{text: "Error ???: Riddle not found", tail: "(we’re working on it)."},
+    %{text: "Your mind may be ready…", tail: "But the next riddle isn’t."},
+    %{text: "Silence is the only answer", tail: "(for the time being)."},
+    %{text: "Riddle #0: How do you solve a unwritten riddle?", tail: "You don’t."},
     %{text: "Spoiler alert: There’s no next riddle,", tail: "…yet."}
   ]
 
