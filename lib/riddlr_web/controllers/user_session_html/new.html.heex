@@ -36,11 +36,6 @@
       No account yet? <.link navigate={~p"/users/register"} class="rg-auth__link">Sign up</.link>
     </p>
 
-    <div :if={local_mail_adapter?()} class="rg-auth__note">
-      <.icon name="hero-information-circle" class="rg-auth__note-icon" />
-      <span>
-        Local mail adapter is on. Sent email lands in <.link href="/dev/mailbox">the mailbox page</.link>.
-      </span>
-    </div>
+    <.auth_mailbox_note />
   </.auth_shell>
 </Layouts.game>

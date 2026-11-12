@@ -17,6 +17,12 @@ defmodule Riddlr.Accounts do
   @typedoc "Builds the link sent in an email from an encoded token."
   @type url_fun :: (String.t() -> String.t())
 
+  @typedoc "The result of asking for a login link again."
+  @type resend_result :: UserNotifier.delivery() | {:error, :too_soon}
+
+  # How long a player waits before they can ask for another login link.
+  @resend_cooldown_seconds 60
+
   ## Database getters
 
   @doc """
@@ -408,6 +414,33 @@ defmodule Riddlr.Accounts do
     {encoded_token, user_token} = UserToken.build_email_token(user, "login")
     Repo.insert!(user_token)
     UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
+  end
+
+  @doc """
+  Sends the magic link again, e.g. when a new player did not get the first one.
+
+  Returns `{:error, :too_soon}` and sends nothing if the user got a login link
+  less than #{@resend_cooldown_seconds} seconds ago. This limits how fast
+  anyone can send email to one inbox.
+  """
+  @spec resend_login_instructions(User.t(), url_fun()) :: resend_result()
+  def resend_login_instructions(%User{} = user, magic_link_url_fun)
+      when is_function(magic_link_url_fun, 1) do
+    if login_link_sent_recently?(user) do
+      {:error, :too_soon}
+    else
+      deliver_login_instructions(user, magic_link_url_fun)
+    end
+  end
+
+  @spec login_link_sent_recently?(User.t()) :: boolean()
+  defp login_link_sent_recently?(%User{id: user_id}) do
+    cutoff = DateTime.add(Riddlr.Clock.utc_now(), -@resend_cooldown_seconds, :second)
+
+    Repo.exists?(
+      from t in UserToken,
+        where: t.user_id == ^user_id and t.context == "login" and t.inserted_at > ^cutoff
+    )
   end
 
   @doc """

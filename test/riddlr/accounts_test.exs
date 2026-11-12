@@ -648,6 +648,34 @@ defmodule Riddlr.AccountsTest do
     end
   end
 
+  describe "resend_login_instructions/2" do
+    setup do
+      %{user: unconfirmed_user_fixture()}
+    end
+
+    test "sends a login link when none went out recently", %{user: user} do
+      assert {:ok, email} = Accounts.resend_login_instructions(user, &"[TOKEN]#{&1}[TOKEN]")
+      assert email.to == [{"", user.email}]
+      assert Repo.get_by(UserToken, user_id: user.id, context: "login")
+    end
+
+    test "refuses while the last link is less than a minute old", %{user: user} do
+      {:ok, _} = Accounts.deliver_login_instructions(user, &"[TOKEN]#{&1}[TOKEN]")
+
+      assert {:error, :too_soon} =
+               Accounts.resend_login_instructions(user, &"[TOKEN]#{&1}[TOKEN]")
+
+      assert Repo.aggregate(from(t in UserToken, where: t.user_id == ^user.id), :count) == 1
+    end
+
+    test "sends again once the last link is over a minute old", %{user: user} do
+      {_encoded, hashed} = generate_user_magic_link_token(user)
+      offset_user_token(hashed, -61, :second)
+
+      assert {:ok, _email} = Accounts.resend_login_instructions(user, &"[TOKEN]#{&1}[TOKEN]")
+    end
+  end
+
   describe "inspect/2 for the User module" do
     test "does not include password" do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""

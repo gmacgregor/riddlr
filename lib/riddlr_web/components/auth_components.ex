@@ -9,7 +9,7 @@ defmodule RiddlrWeb.AuthComponents do
   """
   use Phoenix.Component
 
-  import RiddlrWeb.CoreComponents, only: [input: 1]
+  import RiddlrWeb.CoreComponents, only: [icon: 1, input: 1]
 
   @doc """
   Card shell for an account screen.
@@ -121,4 +121,35 @@ defmodule RiddlrWeb.AuthComponents do
     <p class="rg-phone__note rg-phone__canada-note">Texts go to Canadian mobile numbers only.</p>
     """
   end
+
+  @doc """
+  Dev-only note that points to the local mailbox page. It renders only when
+  the mailer uses the local adapter, so sent links are easy to find.
+
+  Every account screen that sends email uses this component. Do not copy the
+  note into a template.
+  """
+  attr :local?, :boolean,
+    default: nil,
+    doc: "overrides the mailer config check, for tests"
+
+  @spec auth_mailbox_note(map()) :: Phoenix.LiveView.Rendered.t()
+  def auth_mailbox_note(assigns) do
+    assigns = assign(assigns, :local?, local_mail_adapter?(Map.get(assigns, :local?)))
+
+    ~H"""
+    <div :if={@local?} class="rg-auth__note">
+      <.icon name="hero-information-circle" class="rg-auth__note-icon" />
+      <span>
+        Local mail adapter is on. Sent email lands in <.link href="/dev/mailbox">the mailbox page</.link>.
+      </span>
+    </div>
+    """
+  end
+
+  @spec local_mail_adapter?(boolean() | nil) :: boolean()
+  defp local_mail_adapter?(nil),
+    do: Application.get_env(:riddlr, Riddlr.Mailer)[:adapter] == Swoosh.Adapters.Local
+
+  defp local_mail_adapter?(local?), do: local?
 end

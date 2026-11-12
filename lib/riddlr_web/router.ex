@@ -104,6 +104,8 @@ defmodule RiddlrWeb.Router do
 
     get "/users/register", UserRegistrationController, :new
     post "/users/register", UserRegistrationController, :create
+    get "/users/register/check-email", UserRegistrationController, :check_email
+    post "/users/register/check-email", UserRegistrationController, :resend
   end
 
   scope "/", RiddlrWeb do

@@ -3,6 +3,8 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
 
   import Riddlr.AccountsFixtures
 
+  require Ecto.Query
+
   describe "GET /users/register" do
     test "renders registration page", %{conn: conn} do
       conn = get(conn, ~p"/users/register")
@@ -67,6 +69,97 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
     end
   end
 
+  describe "GET /users/register/check-email" do
+    @tag :capture_log
+    test "shows the registered email and a way to resend it", %{conn: conn} do
+      email = unique_user_email()
+
+      conn = post(conn, ~p"/users/register", %{"user" => valid_user_attributes(email: email)})
+      response = conn |> recycle() |> get(~p"/users/register/check-email") |> html_response(200)
+
+      assert has_selector?(response, ".rg-auth [data-registered-email]")
+      assert response =~ email
+      assert has_selector?(response, "form[action='/users/register/check-email'] button")
+      refute has_selector?(response, ".rg-auth a[href='/users/log-in']")
+      refute has_selector?(response, "form[action='/users/log-in']")
+    end
+
+    test "sends a visitor who has not registered to the sign-up page", %{conn: conn} do
+      conn = get(conn, ~p"/users/register/check-email")
+
+      assert redirected_to(conn) == ~p"/users/register"
+    end
+
+    test "redirects if already logged in", %{conn: conn} do
+      conn = conn |> log_in_user(user_fixture()) |> get(~p"/users/register/check-email")
+
+      assert redirected_to(conn) == ~p"/"
+    end
+  end
+
+  describe "POST /users/register/check-email" do
+    setup %{conn: conn} do
+      email = unique_user_email()
+      conn = post(conn, ~p"/users/register", %{"user" => valid_user_attributes(email: email)})
+      assert_received {:email, %{to: [{_, ^email}]}}
+
+      %{conn: recycle(conn), email: email}
+    end
+
+    @tag :capture_log
+    test "refuses a resend within a minute of the last link", %{conn: conn} do
+      conn = post(conn, ~p"/users/register/check-email")
+
+      assert redirected_to(conn) == ~p"/users/register/check-email"
+      assert conn.assigns.flash["error"]
+      refute_received {:email, _}
+    end
+
+    @tag :capture_log
+    test "resends the link once the last one is over a minute old", %{conn: conn, email: email} do
+      age_login_links(email, -61)
+
+      conn = post(conn, ~p"/users/register/check-email")
+
+      assert redirected_to(conn) == ~p"/users/register/check-email"
+      assert conn.assigns.flash["info"]
+      assert_received {:email, %{to: [{_, ^email}]}}
+    end
+
+    @tag :capture_log
+    test "sends a banned user nothing, with the same reply", %{conn: conn, email: email} do
+      email
+      |> Riddlr.Accounts.get_user_by_email()
+      |> Ecto.Changeset.change(account_status: :banned)
+      |> Riddlr.Repo.update!()
+
+      age_login_links(email, -61)
+      conn = post(conn, ~p"/users/register/check-email")
+
+      assert redirected_to(conn) == ~p"/users/register/check-email"
+      assert conn.assigns.flash["info"]
+      refute_received {:email, _}
+    end
+
+    test "sends a visitor who has not registered to the sign-up page" do
+      conn = post(build_conn(), ~p"/users/register/check-email")
+
+      assert redirected_to(conn) == ~p"/users/register"
+      refute_received {:email, _}
+    end
+  end
+
+  # Moves every login link sent to `email` back `seconds` in time.
+  defp age_login_links(email, seconds) do
+    user = Riddlr.Accounts.get_user_by_email(email)
+    at = DateTime.add(DateTime.utc_now(:second), seconds, :second)
+
+    Riddlr.Repo.update_all(
+      Ecto.Query.where(Riddlr.Accounts.UserToken, user_id: ^user.id, context: "login"),
+      set: [inserted_at: at]
+    )
+  end
+
   describe "POST /users/register" do
     @tag :capture_log
     test "creates account but does not log in", %{conn: conn} do
@@ -78,9 +171,8 @@ defmodule RiddlrWeb.UserRegistrationControllerTest do
         })
 
       refute get_session(conn, :user_token)
-      assert redirected_to(conn) == ~p"/users/log-in"
-
-      assert conn.assigns.flash["info"] =~ email
+      assert redirected_to(conn) == ~p"/users/register/check-email"
+      refute conn.assigns.flash["info"]
     end
 
     @tag :capture_log

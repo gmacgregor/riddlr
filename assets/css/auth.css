@@ -73,7 +73,12 @@
   font-size: var(--step-0);
   line-height: 1.4;
   color: var(--fg-muted);
-  text-wrap: balance;
+}
+
+/* game.css loads after this file. Its `.rg-app :where(p)` reset sets the
+   margin to 0, so this rule needs a second class to win. */
+.rg-auth__header .rg-auth__subtitle {
+  margin-top: var(--space-2xs);
 }
 
 /* ─── Form ───────────────────────────────────────────────────────────────────── */

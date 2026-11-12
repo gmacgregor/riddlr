@@ -40,6 +40,8 @@
       <.auth_submit phx-disable-with="Changing...">Change email</.auth_submit>
     </.form>
 
+    <.auth_mailbox_note />
+
     <.form
       :let={f}
       for={@notifications_changeset}
