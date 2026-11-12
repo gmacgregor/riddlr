@@ -195,7 +195,8 @@ if config_env() == :prod do
   # MAILER_API_KEY and MAILER_DOMAIN are passed only when set; check the
   # adapter's docs for which it needs.
   #
-  # The API client (Req) is set in config/prod.exs.
+  # The API client (Req, via Riddlr.Mailer.ResendApiClient) is set in
+  # config/prod.exs.
   mail_from = System.get_env("MAIL_FROM")
 
   if mail_from do

@@ -19,8 +19,9 @@ config :riddlr, RiddlrWeb.Endpoint,
     ]
   ]
 
-# Configure Swoosh API Client
-config :swoosh, api_client: Swoosh.ApiClient.Req
+# Configure Swoosh API Client. Req, with a fix for Resend's header shape;
+# see Riddlr.Mailer.ResendApiClient.
+config :swoosh, api_client: Riddlr.Mailer.ResendApiClient
 
 # Disable Swoosh Local Memory Storage
 config :swoosh, local: false
