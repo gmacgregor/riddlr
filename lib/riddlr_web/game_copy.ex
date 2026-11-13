@@ -40,7 +40,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The link in the Home join note that goes to sign up."
   @spec join_sign_up() :: String.t()
-  def join_sign_up, do: "sign up"
+  def join_sign_up, do: "Sign up"
 
   @doc "The end of the Home join note, after its links."
   @spec join_tail() :: String.t()

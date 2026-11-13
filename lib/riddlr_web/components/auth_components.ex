@@ -92,7 +92,7 @@ defmodule RiddlrWeb.AuthComponents do
 
     ~H"""
     <p class="rg-phone__note rg-notify__consent">
-      Kriddle will text you before new riddles go live. We text you a verification code when you first log in.
+      Kriddle will text you before new riddles go live. We will send you a verification code when you first log in to confirm the mobile number you have provided. You can opt out at any time.<br /><br />
       <a href={@info_url} class="rg-auth__link">Privacy policy</a>
     </p>
     """

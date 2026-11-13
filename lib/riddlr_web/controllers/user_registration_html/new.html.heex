@@ -3,7 +3,13 @@
     <:subtitle>Pick a name, add your email, and start solving.</:subtitle>
 
     <.form :let={f} for={@changeset} action={~p"/users/register"} class="rg-auth__form">
-      <.input field={f[:username]} label="Username" placeholder="riddlemaster" required />
+      <.input
+        field={f[:username]}
+        label="Username"
+        placeholder="riddlemaster"
+        phx-mounted={JS.focus()}
+        required
+      />
       <.input
         field={f[:email]}
         type="email"
@@ -12,7 +18,6 @@
         spellcheck="false"
         placeholder="you@example.com"
         required
-        phx-mounted={JS.focus()}
       />
       <.notify_me_group form={f} text={@sms_enabled?} text_field={:text_requested}>
         <:text_steps :if={@sms_enabled?}>
