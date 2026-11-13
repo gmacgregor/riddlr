@@ -54,7 +54,7 @@ defmodule RiddlrWeb.CoreComponents do
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
-      phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
+      phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> drop_flash("##{@id}")}
       role="alert"
       class={[
         "rg-flash",
@@ -429,6 +429,12 @@ defmodule RiddlrWeb.CoreComponents do
         {"transition-all ease-in duration-200", "opacity-100 translate-y-0 sm:scale-100",
          "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"}
     )
+  end
+
+  # A dismissed flash drops off its nail and fades (`.rg-flash--drop` in
+  # game.css). `time` matches the CSS animation's length (--t-med).
+  defp drop_flash(js, selector) do
+    JS.hide(js, to: selector, time: 240, transition: "rg-flash--drop")
   end
 
   @doc """

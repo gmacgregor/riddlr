@@ -18,6 +18,7 @@
 
      --surface, -2, -3     page ground, raised note, higher panel / field
      --surface-feature     hero note, the "do something here" fill
+     --surface-flash       flash message note, set off from the page ground
      --surface-practice    practice-riddle note (a gradient, so background only)
      --sparkle-ink         the sparkles behind the practice note
      --surface-schedule    Coming up note (a gradient, so background only)
@@ -142,6 +143,7 @@
   --surface-2: #f5f7fb;
   --surface-3: #e8ebf3;
   --surface-feature: var(--tone-7);
+  --surface-flash: #f7f7e9;
   --surface-practice: linear-gradient(160deg, #f4f9ff 0%, #e6f0fc 55%, #dce8fa 100%);
   --sparkle-ink: #172440;
   --surface-standings: linear-gradient(160deg, #fffdf5 0%, #fdf8e4 55%, #faf1d2 100%);
@@ -214,6 +216,7 @@
   --surface-2: #172440;
   --surface-3: #223156;
   --surface-feature: var(--tone-7);
+  --surface-flash: var(--surface-3);
   --surface-practice: linear-gradient(160deg, #1d2c4c 0%, #1a2846 55%, #172440 100%);
   --sparkle-ink: #c9d6f2;
   --surface-standings: linear-gradient(160deg, #2e2c22 0%, #2a281f 55%, #26241c 100%);

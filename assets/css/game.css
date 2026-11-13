@@ -3426,8 +3426,13 @@ select.rg-input option {
   }
 }
 
-/* ───────────────── Flash ───────────────── */
+/* ───────────────── Flash ─────────────────
+   Each flash hangs like a picture on a wall: a nail, a string from the nail
+   to the top of the flash, and a slight tilt round the nail. It swings in,
+   then settles. --flash-hang is the string's height; the group leaves that
+   much room above each flash so no string or nail overlaps. */
 .rg-flash-group {
+  --flash-hang: 1.5rem;
   position: fixed;
   top: 0;
   left: 0;
@@ -3436,8 +3441,8 @@ select.rg-input option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2xs);
-  padding: var(--space-xs) var(--pad);
+  gap: calc(var(--space-2xs) + var(--flash-hang));
+  padding: calc(var(--space-xs) + var(--flash-hang)) var(--pad) var(--space-xs);
   /* Let clicks through the empty space around the messages. */
   pointer-events: none;
 }
@@ -3449,7 +3454,7 @@ select.rg-input option {
   align-items: flex-start;
   gap: var(--space-2xs);
   padding: var(--space-xs) var(--space-s);
-  background: var(--surface-2);
+  background: var(--surface-flash);
   border: var(--stroke) solid var(--fg);
   border-left: 6px solid var(--action);
   border-radius: var(--wob-sm);
@@ -3459,7 +3464,72 @@ select.rg-input option {
   line-height: 1.45;
   color: var(--fg);
   cursor: pointer;
+  position: relative;
+  rotate: -1.5deg;
+  transform-origin: 50% calc(-1 * var(--flash-hang));
   animation: rg-flash-in var(--t-med) var(--ease-out) both;
+}
+/* The string: two pen lines from the flash's top edge up to the nail. */
+.rg-flash::before {
+  --flash-string: color-mix(in srgb, var(--fg) 55%, var(--surface));
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 100%;
+  height: var(--flash-hang);
+  pointer-events: none;
+  background:
+    linear-gradient(
+        to top left,
+        transparent calc(50% - 1.25px),
+        var(--flash-string) calc(50% - 0.75px) calc(50% + 0.75px),
+        transparent calc(50% + 1.25px)
+      )
+      left / 50% 100% no-repeat,
+    linear-gradient(
+        to top right,
+        transparent calc(50% - 1.25px),
+        var(--flash-string) calc(50% - 0.75px) calc(50% + 0.75px),
+        transparent calc(50% + 1.25px)
+      )
+      right / 50% 100% no-repeat;
+}
+/* The nail: a pen-ink head with a glint, where the string meets. */
+.rg-flash::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + var(--flash-hang));
+  width: 0.5rem;
+  height: 0.5rem;
+  translate: -50% 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 35% 30%,
+      color-mix(in srgb, var(--on-fg) 70%, transparent) 0 18%,
+      transparent 26%
+    ),
+    var(--fg);
+  box-shadow: 1px 1.5px 0 var(--shadow-soft);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rg-flash {
+    animation:
+      rg-flash-in var(--t-med) var(--ease-out) both,
+      rg-flash-swing 1.6s ease-in-out both;
+  }
+}
+/* Dismissed: the nail goes at once, then the flash falls and fades.
+   It lets clicks through while it falls, so it never blocks the page. */
+.rg-flash.rg-flash--drop {
+  pointer-events: none;
+  animation: rg-flash-drop var(--t-med) var(--ease-in) forwards;
+}
+.rg-flash.rg-flash--drop::after {
+  display: none;
 }
 .rg-flash--error {
   border-left-color: var(--urgent-text);
@@ -3533,6 +3603,30 @@ select.rg-input option {
 @keyframes rg-flash-in {
   from {
     transform: translateY(-10px);
+    opacity: 0;
+  }
+}
+/* Each swing is smaller than the last; it ends on the flash's own tilt. */
+@keyframes rg-flash-swing {
+  0% {
+    rotate: 4deg;
+  }
+  22% {
+    rotate: -5deg;
+  }
+  44% {
+    rotate: 1.5deg;
+  }
+  64% {
+    rotate: -3deg;
+  }
+  82% {
+    rotate: -0.75deg;
+  }
+}
+@keyframes rg-flash-drop {
+  to {
+    translate: 0 2.5rem;
     opacity: 0;
   }
 }

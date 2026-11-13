@@ -50,6 +50,21 @@ defmodule RiddlrWeb.ThemeTest do
         assert Theme.theme_color(theme) == surface
       end
     end
+
+    test "each mode gives flashes a ground that stands off the page" do
+      css = File.read!("assets/css/themes.css")
+
+      for theme <- Theme.themes() do
+        [_, block] = Regex.run(~r/\[data-theme="#{theme}"\] \{(.*?)\n\}/s, css)
+        [_, surface] = Regex.run(~r/--surface: ([^;]+);/, block)
+        [_, flash] = Regex.run(~r/--surface-flash: ([^;]+);/, block)
+
+        refute flash in [surface, "var(--surface)"]
+      end
+
+      assert File.read!("assets/css/game.css") =~
+               ~r/\.rg-flash \{[^}]*background: var\(--surface-flash\);/s
+    end
   end
 
   describe "the plug" do
