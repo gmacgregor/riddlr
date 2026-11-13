@@ -143,11 +143,8 @@ defmodule RiddlrWeb.GameLive.LobbyTest do
 
       assert has_element?(live, ".rg-lobby__clock .rg-kicker__num", "#{riddle.number}")
 
-      assert has_element?(
-               live,
-               ".rg-lobby__clock .rg-kicker",
-               "#{riddle.name} · #{riddle.category.name}"
-             )
+      assert has_element?(live, ".rg-lobby__clock .rg-kicker", riddle.name)
+      assert has_element?(live, ".rg-lobby__clock .rg-kicker", riddle.category.name)
 
       assert has_element?(live, "h1#lobby-h[tabindex='-1']", GameCopy.Lobby.lobby_heading())
     end

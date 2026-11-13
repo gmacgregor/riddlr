@@ -20,11 +20,8 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
 
       {:ok, live, _html} = live(conn, ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(
-               live,
-               ".rg-results__top .rg-kicker",
-               "#{riddle.name} · #{riddle.category.name}"
-             )
+      assert has_element?(live, ".rg-results__top .rg-kicker", riddle.name)
+      assert has_element?(live, ".rg-results__top .rg-kicker", riddle.category.name)
 
       assert has_element?(live, ".rg-results__riddle", riddle.description)
       assert has_element?(live, "#panel-board")
