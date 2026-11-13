@@ -18,7 +18,7 @@ defmodule RiddlrWeb.UserSessionController do
   def create(conn, %{"user" => %{"token" => token} = user_params} = params) do
     info =
       case params do
-        %{"_action" => "confirmed"} -> "User confirmed successfully."
+        %{"_action" => "confirmed"} -> "Thanks for signing up!"
         _ -> "Welcome back!"
       end
 
