@@ -173,7 +173,7 @@ defmodule RiddlrWeb.GameComponents do
     ~H"""
     <p class="rg-kicker">
       <span :if={@number} class="rg-kicker__num">No. {@number}</span>
-      <span>{if @name, do: "#{@name} · #{@category}", else: @category}</span>
+      <span>{if @name, do: "“#{@name}” · #{@category}", else: @category}</span>
     </p>
     """
   end
