@@ -103,7 +103,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The link to the Standings page from Home and Results."
   @spec standings_link() :: String.t()
-  def standings_link, do: "Kriddle leaderboard & games stats"
+  def standings_link, do: "Leaderboard & stats"
 
   @doc """
   Formats a count with commas between thousands, e.g. 1234 as "1,234".
