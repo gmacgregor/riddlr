@@ -243,7 +243,7 @@ defmodule RiddlrWeb.Layouts do
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />
 
-      <.flash
+      <%!-- <.flash
         id="client-error"
         kind={:error}
         title={gettext("We can't find the internet")}
@@ -265,7 +265,7 @@ defmodule RiddlrWeb.Layouts do
       >
         {gettext("Attempting to reconnect")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
-      </.flash>
+      </.flash> --%>
     </div>
     """
   end
