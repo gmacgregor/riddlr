@@ -15,7 +15,9 @@ defmodule RiddlrWeb.GameCopy.Results do
   closes chat, so the list is empty.
   """
   @spec chat_archived() :: String.t()
-  def chat_archived, do: "Chat closed. This riddle's guesses and messages are gone."
+  def chat_archived,
+    do:
+      "This riddle’s guess history and messages are gone… dust in the wind now, like the fate that awaits us all. ☯"
 
   @doc "The placeholder in the Results chat field."
   @spec chat_placeholder() :: String.t()

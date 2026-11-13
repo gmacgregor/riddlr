@@ -28,7 +28,7 @@ defmodule RiddlrWeb.GameCopy do
   """
   @spec riddle_name(map()) :: String.t()
   def riddle_name(%{number: nil, name: name}), do: name
-  def riddle_name(%{number: number, name: name}), do: "No. #{number}: #{name}"
+  def riddle_name(%{number: number, name: name}), do: "No. #{number}: “#{name}”"
 
   @doc "The link in the Home join note that goes to log in."
   @spec join_log_in() :: String.t()
@@ -103,7 +103,7 @@ defmodule RiddlrWeb.GameCopy do
 
   @doc "The link to the Standings page from Home and Results."
   @spec standings_link() :: String.t()
-  def standings_link, do: "Leaderboard & game stats"
+  def standings_link, do: "Kriddle leaderboard & games stats"
 
   @doc """
   Formats a count with commas between thousands, e.g. 1234 as "1,234".

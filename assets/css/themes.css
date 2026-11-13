@@ -43,6 +43,7 @@
                            the paper tile); 7-9 are page fills only.
      --tape-N              strips of tape on notes
      --medal-N, --on-medal 1st, 2nd and 3rd place, and text on them
+     --rosette-red, -white, -blue  the prize rosettes on the Standings note
      --shadow, -soft       hard pen shadow colour, softened
 
    Fluid scales follow Utopia (https://utopia.fyi): every size grows in a
@@ -203,6 +204,10 @@
   --medal-2: #c9ced8;
   --medal-3: #cf8a4f;
   --on-medal: var(--fg);
+
+  --rosette-red: #d8402c;
+  --rosette-white: #fffdf7;
+  --rosette-blue: #2f63c9;
 }
 
 /* ───────────────── Dark: night ink on deep prussian paper ─────────────────
@@ -278,4 +283,8 @@
   --medal-2: #c9ced8;
   --medal-3: #cf8a4f;
   --on-medal: #172440;
+
+  --rosette-red: #e5543d;
+  --rosette-white: #f1ede0;
+  --rosette-blue: #5f8ae6;
 }

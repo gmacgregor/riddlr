@@ -179,29 +179,101 @@ defmodule RiddlrWeb.GameComponents do
   end
 
   @doc """
-  A pen-drawn trophy: a gold cup with sparkles. `class` places and sizes it,
-  e.g. perched on the Standings note or beside a Standings link.
+  A taped note that links to the Standings. A red, white and blue prize
+  rosette hangs off each top corner, and a tall gold trophy with confetti
+  sits left of the link. Home shows it under the hero and again at the end.
+  `id` must be unique on the page.
+  """
+  attr :id, :string, required: true
+  attr :class, :any, default: nil
+
+  @spec standings_note(map()) :: Phoenix.LiveView.Rendered.t()
+  def standings_note(assigns) do
+    ~H"""
+    <div id={@id} class={["rg-standings-note", @class]}>
+      <.rosette class="rg-rosette--start" />
+      <.rosette class="rg-rosette--end" />
+      <.trophy class="rg-standings-note__trophy" />
+      <.link navigate={~p"/standings"} class="rg-link-btn">
+        {GameCopy.standings_link()}
+      </.link>
+    </div>
+    """
+  end
+
+  @doc """
+  A puffy prize rosette: a scalloped red ring around a white ring and a
+  blue centre with a star, and two notched tails hanging below. It hangs
+  off a top corner of the nearest positioned note.
+  """
+  attr :class, :string,
+    required: true,
+    doc: ~s(the corner it hangs from: "rg-rosette--start" or "rg-rosette--end")
+
+  @spec rosette(map()) :: Phoenix.LiveView.Rendered.t()
+  def rosette(assigns) do
+    ~H"""
+    <svg class={["rg-rosette", @class]} viewBox="0 0 64 86" aria-hidden="true">
+      <path class="rg-rosette__red" d="M25 42 L14 80 L19.5 76 L22.5 83 L33 45 Z" />
+      <path class="rg-rosette__blue" d="M39 42 L50 80 L44.5 76.5 L41.5 84 L31 45 Z" />
+      <path
+        class="rg-rosette__red"
+        d="M32.0 9.0 Q40.3 1.8 43.7 11.8 Q54.7 10.4 50.6 21.5 Q60.6 25.9 53.2 33.0 Q59.1 42.4 47.6 43.6 Q47.7 54.5 38.1 50.8 Q32.0 60.1 26.3 49.6 Q16.4 54.2 16.0 43.9 Q5.1 42.3 10.7 33.1 Q2.4 25.7 13.3 21.4 Q10.1 11.0 20.5 12.1 Q23.6 1.5 32.0 9.0 Z"
+      />
+      <path
+        class="rg-rosette__pleat"
+        d="M32 9.5 L32 15.5 M45 15 L41.5 19 M51 30 L46 30 M45 45 L41.5 41 M32 51 L32 45 M19 45 L22.5 41 M13 30 L18 30 M19 15 L22.5 19"
+      />
+      <path
+        class="rg-rosette__white"
+        d="M32 16 C40 15.5 46.5 22 46 30 C45.5 38.5 40 44.5 32 44 C24 44 17.5 38 18 30 C18.5 22 24 16.5 32 16 Z"
+      />
+      <path
+        class="rg-rosette__blue"
+        d="M32 21 C37 20.5 41.5 25 41 30 C41 35.5 37 39 32 39 C26.5 39 23 35 23 30 C23 25 27 21.5 32 21 Z"
+      />
+      <path
+        class="rg-rosette__star"
+        d="M32 24 L33.9 27.9 L38 28.4 L35 31.2 L35.8 35.3 L32 33.3 L28.2 35.3 L29 31.2 L26 28.4 L30.1 27.9 Z"
+      />
+    </svg>
+    """
+  end
+
+  @doc """
+  A pen-drawn trophy: a tall gold cup with a star above it, on a two-step
+  plinth marked "1", with confetti thrown around it. `class` places and
+  sizes it, e.g. on the Standings note's corner or beside a Standings link.
   """
   attr :class, :any, default: nil
 
   @spec trophy(map()) :: Phoenix.LiveView.Rendered.t()
   def trophy(assigns) do
     ~H"""
-    <svg class={["rg-doodle rg-trophy", @class]} viewBox="0 0 80 84" aria-hidden="true">
+    <svg class={["rg-doodle rg-trophy", @class]} viewBox="0 0 80 92" aria-hidden="true">
+      <path class="rg-confetti rg-confetti--red" d="M8 18 L12 23 M71 54 L76 57 M4 62 L7 57" />
+      <path class="rg-confetti rg-confetti--blue" d="M68 14 L73 11 M10 40 L5 43 M74 34 L77 39" />
+      <path class="rg-confetti rg-confetti--gold" d="M16 6 L16.1 6 M64 26 L64.1 26 M6 50 L6.1 50" />
+      <path
+        class="rg-trophy__star"
+        d="M40 2 L41.7 6 L46 6.4 L42.7 9.2 L43.8 13.5 L40 11.2 L36.2 13.5 L37.3 9.2 L34 6.4 L38.3 6 Z"
+      />
+      <path d="M28 7 L31 9.5 M52 7 L49 9.5 M30 15 L33 15 M50 15 L47 15" />
+      <path d="M23 26 C11 21 8 39 21 45" />
+      <path d="M57 26 C69 21 72 39 59 45" />
       <path
         class="rg-trophy__cup"
-        d="M24 14 C34 12.5 46 12.5 56 14 C57 30 52 42 40.5 45 C29 42 23.5 30 24 14 Z"
+        d="M22 24 C34 22 46 22 58 24 C57.5 40 51.5 52 40 55 C28.5 52 22.5 40 22 24 Z"
       />
-      <path d="M24.5 19 C15 17.5 13 25 16 30 C18.5 34 23 35 27 35" />
-      <path d="M55.5 19 C65 17.5 67 25 64 30 C61.5 34 57 35 53 35" />
-      <path d="M40.5 45 L40 55" />
-      <path class="rg-trophy__cup" d="M33 55 C38 54 43 54 48 55 L50 62 C43 61 37 61 31 62 Z" />
-      <path class="rg-trophy__base" d="M27 62 C36 61 45 61 54 62 L54.5 69 C45 68 36 68 26.5 69 Z" />
-      <path d="M33 20 C32.5 27 34 33 37 37" />
-      <path d="M8 8 L8 16 M4 12 L12 12" />
-      <path d="M70 4 L70 10 M67 7 L73 7" />
-      <path d="M72 40 L77 38 M71 46 L77 47 M68 51 L72 55" />
-      <path d="M6 44 C4 42 4 40 6 39 M3 50 L8 49" />
+      <path class="rg-trophy__cup" d="M19.5 19 C33 16.5 47 16.5 60.5 19 L58 24 C46 22 34 22 22 24 Z" />
+      <path d="M29 29 C29 37 31 43 35 47.5" />
+      <path
+        class="rg-trophy__cup"
+        d="M40 55 C37 57.5 37 61 40 63 C43 61 43 57.5 40 55 Z M40 63 L40 67"
+      />
+      <path class="rg-trophy__cup" d="M30 67 C37 66 43 66 50 67 L51 74 C44 73 36 73 29 74 Z" />
+      <path class="rg-trophy__base" d="M23 74 C34 73 46 73 57 74 L58 86 C46 85 34 85 22 86 Z" />
+      <path d="M37.5 78.5 L40.5 76.5 L40.5 83" />
     </svg>
     """
   end

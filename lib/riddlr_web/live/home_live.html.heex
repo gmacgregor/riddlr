@@ -75,10 +75,7 @@
             </div>
           </div>
         <% end %>
-        <p id="hero-standings" class="rg-hero__standings">
-          <GameComponents.trophy class="rg-hero__trophy" />
-          <.link navigate={~p"/standings"} class="rg-link-btn">{GameCopy.standings_link()}</.link>
-        </p>
+        <GameComponents.standings_note id="hero-standings" />
       </section>
 
       <section id="timeline" class="rg-panel rg-intro" aria-labelledby="timeline-h">
@@ -182,7 +179,7 @@
             <span class="rg-sched__solve">
               <GameComponents.icon name="clock" /> {GameComponents.Clock.clock_str(
                 riddle.solve_time
-              )}
+              )} · {riddle.difficulty}
             </span>
           </li>
         </ol>
@@ -211,10 +208,9 @@
             {GameCopy.Home.last_link()}
           </.link>
         </div>
-        <.link navigate={~p"/standings"} class="rg-link-btn rg-last__standings">
-          {GameCopy.standings_link()}
-        </.link>
       </section>
+
+      <GameComponents.standings_note id="home-standings" />
     </div>
   </section>
 </Layouts.game>

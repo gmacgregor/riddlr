@@ -112,11 +112,11 @@ defmodule RiddlrWeb.GameCopy.Home do
 
   @doc "The last riddle card's line when nobody solved the riddle."
   @spec last_unsolved() :: String.t()
-  def last_unsolved, do: "Nobody cracked it"
+  def last_unsolved, do: "This one stumped everyone. Nobody cracked it!"
 
   @doc "The link from the last riddle card to its Results."
   @spec last_link() :: String.t()
-  def last_link, do: "See the board and chat"
+  def last_link, do: "View game results and post-game chat"
 
   @doc "The last riddle card's title when no riddle has finished."
   @spec last_empty_title() :: String.t()

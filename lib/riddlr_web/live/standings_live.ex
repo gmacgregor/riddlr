@@ -134,6 +134,8 @@ defmodule RiddlrWeb.StandingsLive do
       <section class="rg-view" aria-labelledby="standings-h">
         <div class="rg-wrap rg-standings">
           <section class="rg-panel rg-stand-note">
+            <GameComponents.rosette class="rg-rosette--start" />
+            <GameComponents.rosette class="rg-rosette--end" />
             <GameComponents.trophy class="rg-stand__trophy" />
             <div class="rg-stand__head">
               <.laurel />
