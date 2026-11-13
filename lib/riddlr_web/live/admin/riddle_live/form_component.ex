@@ -18,7 +18,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <%!-- <.header>{@title}</.header> --%>
       <p>
         Play status
         <span class={["adm-badge", play_status_color(@riddle.play_status)]}>
@@ -224,13 +223,11 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
       end
 
     changeset = Games.change_riddle(riddle)
-    form_title = title(assigns.action)
 
     {:ok,
      socket
      |> assign(assigns)
      |> assign(:riddle, riddle)
-     |> assign(:title, form_title)
      |> assign(:categories, categories)
      |> assign(:seasons, seasons)
      |> assign(:season, season_choice(riddle, seasons))
@@ -380,9 +377,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   @spec pick([Season.t()]) :: season_choice()
   defp pick([]), do: :none
   defp pick(seasons), do: {:pick, Enum.map(seasons, &{&1.name, &1.id})}
-
-  defp title(:new), do: "New Riddle"
-  defp title(:edit), do: "Edit Riddle"
 
   # Convert live_date from EST/EDT to UTC
   defp convert_live_date_param(params) do

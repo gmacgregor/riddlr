@@ -49,11 +49,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
     socket |> assign(:riddle, riddle) |> assign(:page_title, "Edit riddle")
   end
 
-  defp apply_action(socket, :show, %{"id" => id}) do
-    riddle = Games.get_riddle!(id)
-    socket |> assign(:riddle, riddle) |> assign(:page_title, riddle.name)
-  end
-
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
     riddle = Games.get_riddle!(id)

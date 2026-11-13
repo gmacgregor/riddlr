@@ -18,57 +18,6 @@
   />
 </div>
 
-<div :if={@live_action == :show && @riddle} class="adm-form-section">
-  <.header>
-    {@riddle.name}
-    <:actions>
-      <.button patch={~p"/admin/riddles/#{@riddle}/edit"}>Edit</.button>
-      <.link patch={index_path(@status)} class="rg-link-btn">Back</.link>
-    </:actions>
-  </.header>
-  <div class="mt-4 space-y-4">
-    <div>
-      <h4 class="font-semibold">Description</h4>
-      <p>{@riddle.description}</p>
-    </div>
-    <div>
-      <h4 class="font-semibold">Play status</h4>
-      <p>{play_status_text(@riddle.play_status)}</p>
-    </div>
-    <div>
-      <h4 class="font-semibold">Category</h4>
-      <p>{@riddle.category.name}</p>
-    </div>
-    <div>
-      <h4 class="font-semibold">Season</h4>
-      <p id="riddle-season">{@riddle.season.name}</p>
-    </div>
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <h4 class="font-semibold">Difficulty</h4>
-        <p>{@riddle.difficulty}</p>
-      </div>
-      <div>
-        <h4 class="font-semibold">Solve Time</h4>
-        <p>{@riddle.solve_time} seconds</p>
-      </div>
-    </div>
-    <div>
-      <h4 class="font-semibold">Answers</h4>
-      <ul class="adm-list">
-        <%= for answer <- @riddle.answers do %>
-          <li>{answer}</li>
-        <% end %>
-      </ul>
-    </div>
-    <div :if={@riddle.hint}>
-      <h4 class="font-semibold">Hint</h4>
-      <p>{@riddle.hint}</p>
-      <p class="adm-note">Available after {@riddle.hint_delay} seconds</p>
-    </div>
-  </div>
-</div>
-
 <nav :if={@live_action not in [:new, :edit]} id="riddles-tabs" class="adm-tabs">
   <.link
     :for={{status, label} <- [{"published", "Published"}, {"draft", "Drafts"}]}
@@ -88,7 +37,7 @@
   :if={@live_action not in [:new, :edit]}
   id="riddles"
   rows={@streams.riddles}
-  row_click={fn {_id, riddle} -> JS.patch(~p"/admin/riddles/#{riddle}") end}
+  row_click={fn {_id, riddle} -> JS.patch(~p"/admin/riddles/#{riddle}/edit") end}
 >
   <:col :let={{_id, riddle}} label="No.">{riddle.number}</:col>
   <:col :let={{_id, riddle}} label="Name">

@@ -12,7 +12,6 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.FormComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <.header>{@title}</.header>
       <.form
         for={@form}
         id="practice-riddle-form"
@@ -49,7 +48,6 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.FormComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign(:title, title(assigns.action))
      |> assign_form(Games.change_practice_riddle(practice_riddle))}
   end
 
@@ -100,8 +98,4 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.FormComponent do
   @spec assign_form(Phoenix.LiveView.Socket.t(), Ecto.Changeset.t()) ::
           Phoenix.LiveView.Socket.t()
   defp assign_form(socket, changeset), do: assign(socket, :form, to_form(changeset))
-
-  @spec title(:new | :edit) :: String.t()
-  defp title(:new), do: "New practice riddle"
-  defp title(:edit), do: "Edit practice riddle"
 end

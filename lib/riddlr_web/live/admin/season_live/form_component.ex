@@ -10,7 +10,6 @@ defmodule RiddlrWeb.Admin.SeasonLive.FormComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <.header>{@title}</.header>
       <.form
         :let={f}
         for={@form}
@@ -55,7 +54,6 @@ defmodule RiddlrWeb.Admin.SeasonLive.FormComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign(:title, title(assigns.action))
      |> assign(:locked, Games.season_locked_dates(season))
      |> assign_form(Games.change_season(season))}
   end
@@ -109,8 +107,4 @@ defmodule RiddlrWeb.Admin.SeasonLive.FormComponent do
   @spec locked_note([:starts_on | :ends_on]) :: String.t()
   defp locked_note([:starts_on, :ends_on]), do: "This season is over, so its dates are locked."
   defp locked_note([:starts_on]), do: "This season has started, so its start date is locked."
-
-  @spec title(:new | :edit) :: String.t()
-  defp title(:new), do: "New Season"
-  defp title(:edit), do: "Edit Season"
 end

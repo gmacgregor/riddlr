@@ -119,7 +119,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
     test "marks Riddles as the current nav item on riddle pages", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, live, _html} = live(conn, ~p"/admin/riddles/#{riddle.id}")
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles/#{riddle.id}/edit")
 
       assert has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/riddles"]))
       refute has_element?(live, ~s(.adm-nav a[aria-current="page"][href="/admin/categories"]))
@@ -168,18 +168,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert has_element?(index_live, "#riddle-form")
     end
 
-    test "shows riddle details", %{conn: conn, admin: admin} do
-      riddle = GamesFixtures.riddle_fixture()
-      conn = log_in_user(conn, admin)
-      {:ok, _index_live, _html} = live(conn, ~p"/admin/riddles")
-
-      # Navigate to show view via patch
-      {:ok, _show_live, html} = live(conn, ~p"/admin/riddles/#{riddle.id}")
-
-      assert html =~ riddle.name
-      assert html =~ riddle.description
-    end
-
     test "deletes riddle", %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
@@ -202,17 +190,13 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert Riddlr.Games.get_riddle!(riddle.id)
     end
 
-    test "refuses to show or edit a riddle once the editor's role is taken away",
+    test "refuses to edit a riddle once the editor's role is taken away",
          %{conn: conn, admin: admin} do
       riddle = GamesFixtures.riddle_fixture()
       conn = log_in_user(conn, admin)
-      {:ok, show_live, _html} = live(conn, ~p"/admin/riddles")
       {:ok, edit_live, _html} = live(conn, ~p"/admin/riddles")
 
       admin |> Ecto.Changeset.change(role: :viewer) |> Riddlr.Repo.update!()
-
-      assert {:error, {:live_redirect, %{to: "/"}}} =
-               render_patch(show_live, ~p"/admin/riddles/#{riddle.id}")
 
       assert {:error, {:live_redirect, %{to: "/"}}} =
                render_patch(edit_live, ~p"/admin/riddles/#{riddle.id}/edit")
@@ -239,16 +223,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       {:ok, view, _html} = live(conn, ~p"/admin/riddles?status=draft")
 
       assert has_element?(view, "#riddles-#{riddle.id} [data-role=season]", "Spring Fling")
-    end
-
-    test "shows the riddle's season on its details", %{conn: conn, admin: admin} do
-      season = GamesFixtures.season_fixture(%{name: "Spring Fling"})
-      riddle = GamesFixtures.riddle_fixture(%{season_id: season.id})
-
-      conn = log_in_user(conn, admin)
-      {:ok, view, _html} = live(conn, ~p"/admin/riddles/#{riddle.id}")
-
-      assert has_element?(view, "#riddle-season", "Spring Fling")
     end
   end
 
@@ -302,8 +276,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       paths = [
         ~p"/admin/riddles",
         ~p"/admin/riddles/new",
-        ~p"/admin/riddles/#{riddle.id}/edit",
-        ~p"/admin/riddles/#{riddle.id}"
+        ~p"/admin/riddles/#{riddle.id}/edit"
       ]
 
       %{paths: paths}

@@ -7,7 +7,6 @@ defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <.header>{@title}</.header>
       <.form
         :let={f}
         for={@form}
@@ -31,7 +30,6 @@ defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
     {:ok,
      socket
      |> assign(assigns)
-     |> assign(:title, title(assigns.action))
      |> assign_form(Games.change_category(category))}
   end
 
@@ -71,6 +69,4 @@ defmodule RiddlrWeb.Admin.CategoryLive.FormComponent do
     do: {:noreply, AdminAuth.unauthorized(socket)}
 
   defp assign_form(socket, changeset), do: assign(socket, :form, to_form(changeset))
-  defp title(:new), do: "New Category"
-  defp title(:edit), do: "Edit Category"
 end
