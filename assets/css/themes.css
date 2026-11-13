@@ -14,7 +14,8 @@
    its browser bar colour to RiddlrWeb.Theme.
 
    Colour tokens carry role names, not colour names, so a palette change
-   never renames anything:
+   never renames anything. Raw colours shared by both modes live once in
+   `:root` as `--palette-*`; role tokens point at them:
 
      --surface, -2, -3     page ground, raised note, higher panel / field
      --surface-feature     hero note, the "do something here" fill
@@ -29,8 +30,9 @@
      --fg-muted, -subtle   secondary, tertiary text
      --grid                background grid line
      --hairline, -strong   faint pen lines (row dividers, flap crease, tape edge)
-     --accent, -press      the highlighter: kicker badge, logo
+     --accent, -press      the highlighter: kicker badge, own tile
      --accent-swipe        the highlighter as a swipe behind text
+     --doodle-fill         the felt-pen yellow in the bolt and trophy star
      --on-accent           text on bright fills
      --action, --on-action buttons, links, underlines, focus; text on it
      --underline           one colour for every link / heading underline + hover
@@ -133,6 +135,15 @@
   --wob-sm: 7px 11px 8px 12px / 11px 7px 12px 8px;
   --wob-pill: 40px 26px 36px 28px / 28px 38px 26px 40px;
   --wob-ring: 52% 48% 55% 45% / 48% 56% 44% 52%;
+
+  /* Palette. Raw colours, read only through role tokens in the mode
+     blocks below. Not every colour has a role yet. */
+  --palette-sea-glass: #9ac2c4;
+  --palette-sage: #bcc49b;
+  --palette-oat: #c4ab9b;
+  --palette-lilac: #b69bc4;
+  --palette-spruce: #4b6e6f;
+  --palette-yellow: #fee434;
 }
 
 /* ───────────────── Light (default): cool paper, pen ink, highlighter ───────────────── */
@@ -161,9 +172,10 @@
   --shadow: var(--fg);
   --shadow-soft: color-mix(in srgb, var(--fg) 35%, transparent);
 
-  --accent: #fee434;
-  --accent-press: #e6cc1a;
+  --accent: var(--palette-sea-glass);
+  --accent-press: color-mix(in srgb, var(--accent) 82%, black);
   --accent-swipe: var(--accent);
+  --doodle-fill: var(--palette-yellow);
   --on-accent: #172440;
   --action: #364159;
   --on-action: #fff;
@@ -213,7 +225,9 @@
 /* ───────────────── Dark: night ink on deep prussian paper ─────────────────
    Pen ink flips to light, so borders and text read as chalk. Fills that carry
    text in --fg go deep (tones 3, 4, 7, 8, 9) so light text stays readable on
-   them; fills that carry dark text stay bright (accent, success, medals). */
+   them; fills that carry dark text stay bright (accent, success, medals).
+   The highlighter swipe sits behind light heading ink, so it takes the deep
+   spruce instead of the bright sea glass. */
 [data-theme="dark"] {
   color-scheme: dark;
 
@@ -240,9 +254,10 @@
   --shadow: #050a15;
   --shadow-soft: rgb(0 0 0 / 0.5);
 
-  --accent: #fee434;
-  --accent-press: #e6cc1a;
-  --accent-swipe: color-mix(in srgb, var(--accent) 38%, transparent);
+  --accent: var(--palette-sea-glass);
+  --accent-press: color-mix(in srgb, var(--accent) 82%, black);
+  --accent-swipe: var(--palette-spruce);
+  --doodle-fill: var(--palette-yellow);
   --on-accent: #172440;
   --action: #8fb0f2;
   --on-action: #0d1526;

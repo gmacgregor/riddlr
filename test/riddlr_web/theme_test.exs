@@ -20,6 +20,19 @@ defmodule RiddlrWeb.ThemeTest do
     |> LazyHTML.attribute("data-theme")
   end
 
+  @spec root_block() :: String.t()
+  defp root_block do
+    [_, block] = Regex.run(~r/^:root \{(.*?)\n\}/ms, File.read!("assets/css/themes.css"))
+    block
+  end
+
+  @spec mode_block(String.t()) :: String.t()
+  defp mode_block(theme) do
+    css = File.read!("assets/css/themes.css")
+    [_, block] = Regex.run(~r/\[data-theme="#{theme}"\] \{(.*?)\n\}/s, css)
+    block
+  end
+
   describe "modes" do
     test "are light and dark" do
       assert Theme.themes() == ~w(light dark)
@@ -41,21 +54,16 @@ defmodule RiddlrWeb.ThemeTest do
     end
 
     test "theme_color/1 matches each mode's page ground in themes.css" do
-      css = File.read!("assets/css/themes.css")
-
       for theme <- Theme.themes() do
-        [_, block] = Regex.run(~r/\[data-theme="#{theme}"\] \{(.*?)\n\}/s, css)
-        [_, surface] = Regex.run(~r/--surface: (#[0-9a-f]{6});/, block)
+        [_, surface] = Regex.run(~r/--surface: (#[0-9a-f]{6});/, mode_block(theme))
 
         assert Theme.theme_color(theme) == surface
       end
     end
 
     test "each mode gives flashes a ground that stands off the page" do
-      css = File.read!("assets/css/themes.css")
-
       for theme <- Theme.themes() do
-        [_, block] = Regex.run(~r/\[data-theme="#{theme}"\] \{(.*?)\n\}/s, css)
+        block = mode_block(theme)
         [_, surface] = Regex.run(~r/--surface: ([^;]+);/, block)
         [_, flash] = Regex.run(~r/--surface-flash: ([^;]+);/, block)
 
@@ -64,6 +72,55 @@ defmodule RiddlrWeb.ThemeTest do
 
       assert File.read!("assets/css/game.css") =~
                ~r/\.rg-flash \{[^}]*background: var\(--surface-flash\);/s
+    end
+  end
+
+  describe "palette" do
+    test "defines the five palette colours once, for every mode" do
+      block = root_block()
+
+      for {name, hex} <- [
+            {"sea-glass", "#9ac2c4"},
+            {"sage", "#bcc49b"},
+            {"oat", "#c4ab9b"},
+            {"lilac", "#b69bc4"},
+            {"spruce", "#4b6e6f"}
+          ] do
+        assert block =~ "--palette-#{name}: #{hex};"
+      end
+    end
+
+    test "light highlights in sea glass, not yellow" do
+      block = mode_block("light")
+
+      assert block =~ "--accent: var(--palette-sea-glass);"
+      assert block =~ "--accent-swipe: var(--accent);"
+      refute block =~ "#fee434"
+    end
+
+    test "dark highlights in sea glass, with a spruce swipe behind light ink" do
+      block = mode_block("dark")
+
+      assert block =~ "--accent: var(--palette-sea-glass);"
+      assert block =~ "--accent-swipe: var(--palette-spruce);"
+      refute block =~ "#fee434"
+    end
+
+    test "the bolt and trophy star keep the felt-pen yellow in every mode" do
+      assert root_block() =~ "--palette-yellow: #fee434;"
+
+      for theme <- Theme.themes() do
+        assert mode_block(theme) =~ "--doodle-fill: var(--palette-yellow);"
+      end
+
+      game = File.read!("assets/css/game.css")
+
+      for selector <- ~w(.rg-bolt__fill .rg-bolt__scribble .rg-trophy__star) do
+        [_, rule] = Regex.run(~r/#{Regex.escape(selector)} \{([^}]*)\}/, game)
+
+        assert rule =~ "var(--doodle-fill)"
+        refute rule =~ "var(--accent)"
+      end
     end
   end
 

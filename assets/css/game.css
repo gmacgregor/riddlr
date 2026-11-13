@@ -1281,11 +1281,11 @@ select.rg-input option {
 /* The yellow sits off the outline and a scribble runs past its edges, as
    if coloured in with a felt pen in a hurry. */
 .rg-bolt__fill {
-  fill: var(--accent);
+  fill: var(--doodle-fill);
   stroke: none;
 }
 .rg-bolt__scribble {
-  stroke: var(--accent);
+  stroke: var(--doodle-fill);
   stroke-width: 3.5;
 }
 .rg-doodle--bolt.rg-doodle--flip {
@@ -1532,7 +1532,7 @@ select.rg-input option {
   transform: rotate(-5deg);
 }
 .rg-trophy__star {
-  fill: var(--accent);
+  fill: var(--doodle-fill);
 }
 .rg-confetti {
   stroke-width: 3.2;
