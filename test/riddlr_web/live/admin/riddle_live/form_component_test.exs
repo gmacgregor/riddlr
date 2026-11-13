@@ -117,35 +117,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
     |> List.first()
   end
 
-  describe "Create riddle" do
-    @tag :skip
-    test "creates riddle with valid data", %{conn: conn, admin: admin} do
-      # TODO: Re-enable when answers field is added to form component
-      # Currently deferred per plan notes (line 886)
-      conn = log_in_user(conn, admin)
-      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
-
-      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
-
-      riddle_attrs = %{
-        name: "Test Riddle",
-        description: "Test description",
-        category: "logic",
-        difficulty: "easy",
-        solve_time: 60
-      }
-
-      assert index_live
-             |> form("#riddle-form", riddle: riddle_attrs)
-             |> render_submit()
-
-      assert_patch(index_live, ~p"/admin/riddles")
-
-      assert has_element?(index_live, "#flash-info")
-      assert has_element?(index_live, "#riddles", "Test Riddle")
-    end
-  end
-
   describe "Season" do
     setup do
       Riddlr.Clock.Frozen.freeze(~U[2030-06-15 12:00:00Z])
