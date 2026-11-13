@@ -172,46 +172,10 @@
             </span>
           </li>
         </ol>
+        <p class="rg-payout__home">
+          <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.Results.home_link()}</.link>
+        </p>
       </section>
-      <div id="res-next" class="rg-next">
-        <span :if={!@next} class="rg-next__t">{GameCopy.Results.next_none()}</span>
-        <span :if={@next && @next.play_status == "live"} class="rg-next__t">
-          {GameCopy.Results.next_lead()} <b :if={@next.number}>No. {@next.number}</b>
-          <span :if={@next.number}>·</span> {@next.category.name} · {GameCopy.Results.next_live_now()}
-        </span>
-        <span :if={@next && @next.play_status != "live"} class="rg-next__t">
-          {GameCopy.Results.next_lead()} <b>{@next.category.name}</b>
-          · {GameCopy.Results.next_drops()}
-          <b><GameComponents.Clock.drop_time
-            id={"res-next-at-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
-            at={@next.live_date}
-            local={false}
-            mid_sentence
-          /></b>
-          <GameComponents.Clock.drop_local
-            id={"res-next-local-#{@next.id}-#{DateTime.to_unix(@next.live_date)}"}
-            at={@next.live_date}
-          />
-        </span>
-        <.link
-          :if={@next && @next.play_status == "ready"}
-          navigate={~p"/game/#{@next.id}/lobby"}
-          class="rg-btn rg-btn--accent rg-btn--wide"
-        >
-          {GameCopy.Results.next_enter_lobby()} <GameComponents.icon name="arrow" />
-        </.link>
-        <.link
-          :if={@next && @next.play_status == "live"}
-          navigate={~p"/game/#{@next.id}/play"}
-          class="rg-btn rg-btn--accent rg-btn--wide"
-        >
-          {GameCopy.Results.next_jump_in()} <GameComponents.icon name="arrow" />
-        </.link>
-        <.link navigate={~p"/"} class="rg-link-btn">{GameCopy.Results.next_home()}</.link>
-        <.link navigate={~p"/standings"} class="rg-link-btn">
-          {GameCopy.standings_link()}
-        </.link>
-      </div>
     </section>
 
     <section

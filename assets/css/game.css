@@ -3359,26 +3359,9 @@ select.rg-input option {
 .rg-pt.is-me {
   border: 2px solid var(--fg);
 }
-
-.rg-next {
-  display: grid;
-  gap: var(--space-xs);
+.rg-payout__home {
   margin-top: var(--space-m);
-  padding: var(--space-s);
-  border-radius: var(--r-lg);
-  border: 1px dashed var(--border-strong);
-}
-.rg-next__t {
-  display: block;
-  color: var(--fg-muted);
-  font-size: var(--step--1);
-}
-.rg-next__t b {
-  color: var(--fg);
-  font-family: var(--f-label);
-}
-.rg-next .rg-link-btn {
-  justify-self: start;
+  text-align: center;
 }
 
 .rg-results__chat {

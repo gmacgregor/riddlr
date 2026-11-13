@@ -15,9 +15,7 @@ defmodule RiddlrWeb.GameLive.Results do
   until Archive (`Riddlr.GameClock.archive_at/1`). When Archive arrives, chat
   closes in place: the feed stays and the form gives way to an emoji.
 
-  A card under the board points to the next riddle (`Games.next_riddle/0`)
-  and follows its state while the page is open. A `scheduled` riddle gets no
-  button: its Lobby does not open until the riddle is `ready`.
+  A link under the points payout leads back to Home.
 
   A guest sees the board and reads the chat, but gets a join note in place of
   the "you" card and no chat form. The server drops any chat a guest sends.
@@ -39,18 +37,6 @@ defmodule RiddlrWeb.GameLive.Results do
   # that marks where the race stopped. A stream can't add a row at render
   # time, so the divider is an item in the stream.
   @round_ended %{id: "round-ended", divider: true}
-
-  # Each of these can change which riddle is next, or its state. Completed is
-  # here so a live next riddle drops off the card when it ends.
-  @next_topics ~w(games:riddle:scheduled games:riddle:ready games:riddle:live games:riddle:completed)
-  @next_messages [
-    :riddle_scheduled,
-    :riddle_rescheduled,
-    :riddle_unscheduled,
-    :riddle_ready,
-    :riddle_live,
-    :riddle_completed
-  ]
 
   # One saved solve as the podium, board and payout show it. `username` picks
   # the tile; `shown_as` is the name on screen, "you" for the viewer.
@@ -90,7 +76,6 @@ defmodule RiddlrWeb.GameLive.Results do
           if connected?(socket) do
             if chat_open?, do: subscribe_to_chat(id)
             if user, do: Phoenix.PubSub.subscribe(Riddlr.PubSub, "user:#{user.id}")
-            Enum.each(@next_topics, &Phoenix.PubSub.subscribe(Riddlr.PubSub, &1))
             load_feed(riddle.id) ++ [@round_ended]
           else
             []
@@ -119,7 +104,6 @@ defmodule RiddlrWeb.GameLive.Results do
          # Nil for a guest, who gets the join note instead, and before connect.
          |> assign(:you, user && board && you_card(mine, riddle.id, user.id))
          |> assign(:payout, payout(entries))
-         |> assign(:next, Games.next_riddle())
          # "win", "lose" or nil. Set by handle_params/3.
          |> assign(:celebrate, nil)
          # Negative: chat joins at the bottom, so the oldest rows drop first.
@@ -219,10 +203,6 @@ defmodule RiddlrWeb.GameLive.Results do
   def handle_info(:drop_celebrate_param, socket) do
     {:noreply,
      push_patch(socket, to: ~p"/game/#{socket.assigns.riddle.id}/results", replace: true)}
-  end
-
-  def handle_info({message, _riddle}, socket) when message in @next_messages do
-    {:noreply, assign(socket, :next, Games.next_riddle())}
   end
 
   def handle_info({:user_status_changed, :banned}, socket) do

@@ -81,34 +81,15 @@ defmodule RiddlrWeb.GameCopy.Results do
   @spec payout_unclaimed() :: String.t()
   def payout_unclaimed, do: "unclaimed"
 
-  @doc "The words before the next riddle on Results."
-  @spec next_lead() :: String.t()
-  def next_lead, do: "Next up:"
+  @doc "The link under the Results payout back to Home."
+  @spec home_link() :: String.t()
+  def home_link, do: "Back to home"
 
-  @doc "The Results card's line when no riddle is scheduled."
-  @spec next_none() :: String.t()
-  def next_none, do: "No riddle on the schedule yet."
-
-  @doc "The link from Results back to Home."
-  @spec next_home() :: String.t()
-  def next_home, do: "Back to home"
-
-  @doc """
-  The words before the next riddle's drop time on Results and the Home card,
-  e.g. "drops today at 1:17pm EST" or "drops Nov 3, 1:17pm EST".
-  """
-  @spec next_drops() :: String.t()
-  def next_drops, do: "drops"
-
-  @doc "The Results button to a ready riddle's lobby."
+  @doc "The Home card's button to a ready riddle's lobby."
   @spec next_enter_lobby() :: String.t()
   def next_enter_lobby, do: "Enter the lobby"
 
-  @doc "The Results tag on a next riddle that is already live."
-  @spec next_live_now() :: String.t()
-  def next_live_now, do: "live now"
-
-  @doc "The Results button into a live riddle."
+  @doc "The Home card's button into a live riddle."
   @spec next_jump_in() :: String.t()
   def next_jump_in, do: "Jump in"
 

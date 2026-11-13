@@ -663,102 +663,27 @@ defmodule RiddlrWeb.GameLive.ResultsTest do
     end
   end
 
-  describe "next riddle card" do
-    test "links to the Standings", %{conn: conn, user: user} do
+  describe "home link" do
+    test "sits under the payout", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
 
-      assert has_element?(live, "#res-next a[href='/standings']")
+      assert has_element?(live, ".rg-payout .rg-payout__home a[href='/']")
     end
 
-    test "says nothing is scheduled when there is no next riddle", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
-
-      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-
-      assert has_element?(live, "#res-next", GameCopy.Results.next_none())
-      assert has_element?(live, "#res-next a[href='/']")
-      refute has_element?(live, "#res-next .rg-btn")
-    end
-
-    test "sends players to the lobby of a ready riddle", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
-      live_date = ~U[2030-01-01 14:05:00Z]
-      next = upcoming_fixture("ready", live_date)
-
-      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-
-      assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
-
-      assert has_element?(
-               live,
-               "#res-next time[datetime='2030-01-01T14:05:00Z']",
-               "Jan 1, 9:05am EST"
-             )
-
-      assert has_element?(live, "#res-next .rg-drop-local[hidden]")
-
-      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/lobby']")
-
-      assert has_element?(live, "#res-next a[href='/']")
-    end
-
-    # The Lobby opens only once a riddle is ready, so a button would bounce
-    # the player home.
-    test "shows a scheduled riddle's start time with no lobby button", %{
+    test "is the only way on: no next riddle card, even with one ready", %{
       conn: conn,
       user: user
     } do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
-      next = upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
-
-      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-
-      assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
-      assert has_element?(live, "#res-next time", "Jan 1, 9:05am EST")
-      refute has_element?(live, "#res-next .rg-btn")
-      assert has_element?(live, "#res-next a[href='/']")
-    end
-
-    test "sends players straight into a live riddle", %{conn: conn, user: user} do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
-      next = upcoming_fixture("live", ~U[2020-01-01 14:05:00Z])
-
-      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-
-      assert has_element?(live, "#res-next .rg-next__t b", "#{next.number}")
-      assert has_element?(live, "#res-next .rg-next__t", next.category.name)
-      assert has_element?(live, "#res-next .rg-next__t", GameCopy.Results.next_live_now())
-      refute has_element?(live, "#res-next time")
-
-      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/play']")
-    end
-
-    test "switches to Jump in when the next riddle goes live", %{conn: conn, user: user} do
       riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
       next = upcoming_fixture("ready", ~U[2030-01-01 14:05:00Z])
 
       {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/lobby']")
 
-      {:ok, _} = Games.transition(next.id, :live)
-
-      assert has_element?(live, "#res-next a.rg-btn[href='/game/#{next.id}/play']")
-    end
-
-    test "shows a riddle scheduled while the viewer is on the page", %{
-      conn: conn,
-      user: user
-    } do
-      riddle = GamesFixtures.riddle_fixture() |> set_play_status("completed")
-
-      {:ok, live, _html} = live(log_in_user(conn, user), ~p"/game/#{riddle.id}/results")
-      assert has_element?(live, "#res-next", GameCopy.Results.next_none())
-
-      next = GamesFixtures.scheduled_riddle_fixture()
-
-      assert has_element?(live, "#res-next .rg-next__t b", next.category.name)
+      refute has_element?(live, "#res-next")
+      refute has_element?(live, "a[href='/game/#{next.id}/lobby']")
+      refute has_element?(live, "#panel-board a[href='/standings']")
     end
   end
 
