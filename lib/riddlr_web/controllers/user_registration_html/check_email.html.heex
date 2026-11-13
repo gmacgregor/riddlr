@@ -1,17 +1,16 @@
 <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
   <.auth_shell title="Check your email 📨">
-    <:subtitle>
+    <p>
       We sent a confirmation email to <strong data-registered-email>{@email}</strong>.
-      Open it and follow the link within to confirm your account and log in.
-    </:subtitle>
-
+    </p>
+    <p>Open it and follow the link within to confirm your account.</p>
     <.form
       for={%{}}
       id="resend_form"
       action={~p"/users/register/check-email"}
       class="rg-auth__form"
     >
-      <p class="rg-auth__footer">Didn't get the email?</p>
+      <p class="rg-auth__footer">Not in your inbox?</p>
       <.auth_ghost_button phx-disable-with="Sending...">Resend email</.auth_ghost_button>
     </.form>
 
