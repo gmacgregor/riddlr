@@ -8,7 +8,7 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket |> assign(:page_title, "Manage Categories") |> stream(:categories, [])}
+    {:ok, stream(socket, :categories, [])}
   end
 
   @impl true
@@ -17,7 +17,10 @@ defmodule RiddlrWeb.Admin.CategoryLive.Index do
   end
 
   defp apply_action(socket, :index, _params) do
-    socket |> stream(:categories, Games.list_categories(), reset: true) |> assign(:category, nil)
+    socket
+    |> assign(:page_title, "Manage Categories")
+    |> stream(:categories, Games.list_categories(), reset: true)
+    |> assign(:category, nil)
   end
 
   defp apply_action(socket, :new, _params) do

@@ -31,6 +31,20 @@ defmodule RiddlrWeb.Admin.CategoryLive.IndexTest do
     assert_raise RiddlrWeb.NotFoundError, fn -> live(conn, ~p"/admin/categories") end
   end
 
+  test "restores the list's page heading when an edit is cancelled",
+       %{conn: conn, admin: admin} do
+    {:ok, category} = Riddlr.Games.create_category(system_scope(), %{name: "cancel me"})
+    {:ok, live, _html} = conn |> log_in_user(admin) |> live(~p"/admin/categories")
+    list_heading = live |> element("header.rg-pagehead h1") |> render()
+
+    live |> element("a[href='/admin/categories/#{category.id}/edit']") |> render_click()
+    refute live |> element("header.rg-pagehead h1") |> render() == list_heading
+
+    live |> element("#category-form a[href='/admin/categories']") |> render_click()
+    assert_patch(live, ~p"/admin/categories")
+    assert live |> element("header.rg-pagehead h1") |> render() == list_heading
+  end
+
   test "creates new category", %{conn: conn, admin: admin} do
     conn = log_in_user(conn, admin)
     {:ok, index_live, _html} = live(conn, ~p"/admin/categories")

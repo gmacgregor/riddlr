@@ -14,10 +14,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:page_title, "Manage Practice Riddles")
-     |> stream(:practice_riddles, [])}
+    {:ok, stream(socket, :practice_riddles, [])}
   end
 
   @impl true
@@ -28,6 +25,7 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.Index do
   @spec apply_action(Phoenix.LiveView.Socket.t(), atom(), map()) :: Phoenix.LiveView.Socket.t()
   defp apply_action(socket, :index, _params) do
     socket
+    |> assign(:page_title, "Manage Practice Riddles")
     |> stream(:practice_riddles, Games.list_practice_riddles(), reset: true)
     |> assign(:practice_riddle, nil)
   end

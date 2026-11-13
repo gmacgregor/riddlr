@@ -20,7 +20,6 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
 
     {:ok,
      socket
-     |> assign(:page_title, "Manage Riddles")
      |> assign(:status, "published")
      |> assign(:counts, nil)
      |> stream(:riddles, [])}
@@ -35,6 +34,7 @@ defmodule RiddlrWeb.Admin.RiddleLive.Index do
   # query for it. Each tab shows at most 100 riddles of one publish status.
   defp apply_action(socket, :index, params) do
     socket
+    |> assign(:page_title, "Manage Riddles")
     |> assign(:status, tab_status(params["status"]))
     |> assign(:riddle, nil)
     |> load_riddles()

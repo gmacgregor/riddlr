@@ -158,6 +158,24 @@ defmodule RiddlrWeb.Admin.RiddleLive.IndexTest do
       assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/admin/riddles")
     end
 
+    test "restores the list's page heading when an edit is cancelled",
+         %{conn: conn, admin: admin} do
+      riddle = GamesFixtures.riddle_fixture()
+      conn = log_in_user(conn, admin)
+      {:ok, live, _html} = live(conn, ~p"/admin/riddles?status=draft")
+      list_heading = live |> element("header.rg-pagehead h1") |> render()
+
+      live
+      |> element("#riddles-#{riddle.id} a[href='/admin/riddles/#{riddle.id}/edit']")
+      |> render_click()
+
+      refute live |> element("header.rg-pagehead h1") |> render() == list_heading
+
+      live |> element("#riddle-form a[href='/admin/riddles?status=draft']") |> render_click()
+      assert_patch(live, ~p"/admin/riddles?status=draft")
+      assert live |> element("header.rg-pagehead h1") |> render() == list_heading
+    end
+
     test "creates new riddle", %{conn: conn, admin: admin} do
       conn = log_in_user(conn, admin)
       {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")

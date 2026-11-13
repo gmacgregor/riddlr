@@ -60,6 +60,20 @@ defmodule RiddlrWeb.Admin.PracticeRiddleLive.IndexTest do
            )
   end
 
+  test "restores the list's page heading when an edit is cancelled",
+       %{conn: conn, editor: editor} do
+    practice = practice_fixture()
+    {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles")
+    list_heading = live |> element("header.rg-pagehead h1") |> render()
+
+    live |> element("a[href='/admin/practice-riddles/#{practice.id}/edit']") |> render_click()
+    refute live |> element("header.rg-pagehead h1") |> render() == list_heading
+
+    live |> element("#practice-riddle-form a[href='/admin/practice-riddles']") |> render_click()
+    assert_patch(live, ~p"/admin/practice-riddles")
+    assert live |> element("header.rg-pagehead h1") |> render() == list_heading
+  end
+
   test "creates a practice riddle", %{conn: conn, editor: editor} do
     {:ok, live, _html} = conn |> log_in_user(editor) |> live(~p"/admin/practice-riddles")
 

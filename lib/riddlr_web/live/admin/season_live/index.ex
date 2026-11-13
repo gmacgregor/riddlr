@@ -11,7 +11,7 @@ defmodule RiddlrWeb.Admin.SeasonLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket |> assign(:page_title, "Manage Seasons") |> stream(:seasons, [])}
+    {:ok, stream(socket, :seasons, [])}
   end
 
   @impl true

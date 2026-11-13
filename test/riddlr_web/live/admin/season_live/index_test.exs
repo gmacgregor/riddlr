@@ -69,6 +69,19 @@ defmodule RiddlrWeb.Admin.SeasonLive.IndexTest do
     assert has_element?(live, "#seasons-#{season.id}", "Renamed")
   end
 
+  test "restores the list's page heading when an edit is cancelled", %{conn: conn} do
+    season = season_fixture(%{name: "Cancel me"})
+    {:ok, live, _html} = live(conn, ~p"/admin/seasons")
+    list_heading = live |> element("header.rg-pagehead h1") |> render()
+
+    live |> element("a[href='/admin/seasons/#{season.id}/edit']") |> render_click()
+    refute live |> element("header.rg-pagehead h1") |> render() == list_heading
+
+    live |> element("#season-form a[href='/admin/seasons']") |> render_click()
+    assert_patch(live, ~p"/admin/seasons")
+    assert live |> element("header.rg-pagehead h1") |> render() == list_heading
+  end
+
   test "deletes a season", %{conn: conn} do
     season = season_fixture(%{})
     {:ok, live, _html} = live(conn, ~p"/admin/seasons")
