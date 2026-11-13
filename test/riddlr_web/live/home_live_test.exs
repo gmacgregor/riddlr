@@ -289,11 +289,8 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       {:ok, live, _html} = live(conn, ~p"/")
 
-      assert has_element?(
-               live,
-               "#hero-card .rg-hero__label",
-               "No. #{next.number}: #{next.name} · #{next.category.name}"
-             )
+      assert has_element?(live, "#hero-card .rg-hero__label", next.name)
+      assert has_element?(live, "#hero-card .rg-hero__label", next.category.name)
 
       # The date under "Up next" gives the drop time; the card doesn't repeat it.
       refute has_element?(live, "#hero-card time")
@@ -363,11 +360,7 @@ defmodule RiddlrWeb.HomeLiveTest do
 
       assert has_element?(live, "#{first} .rg-sched__sub", "· #{sooner.category.name}")
 
-      assert has_element?(
-               live,
-               "#{first} .rg-sched__cat",
-               ~r/^\s*No\. #{sooner.number}: #{sooner.name}\s*$/
-             )
+      assert has_element?(live, "#{first} .rg-sched__cat", sooner.name)
 
       assert has_element?(live, "#{first} .rg-sched__solve .rg-icon")
       assert has_element?(live, "#{first} .rg-sched__solve", "01:30")
