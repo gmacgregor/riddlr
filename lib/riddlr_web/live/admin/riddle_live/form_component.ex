@@ -285,8 +285,8 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponent do
   defp saved_message(%{play_status: "scheduled"} = riddle, _action) do
     ready_at = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
 
-    "Riddle scheduled. The lobby will open #{ready_time_display(to_est_datetime(ready_at))}, " <>
-      "and the game will be live #{live_time_display(to_est_datetime(riddle.live_date))}"
+    "Riddle scheduled. The lobby will open #{live_time_display(ready_at)}, " <>
+      "and the game will be live #{live_time_display(riddle.live_date)}"
   end
 
   defp saved_message(_riddle, :new), do: "Riddle created"

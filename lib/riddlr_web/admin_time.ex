@@ -78,17 +78,6 @@ defmodule RiddlrWeb.AdminTime do
   def to_est_datetime(_), do: nil
 
   @doc """
-  Formats a datetime as given, e.g. "Mar 10, 2026 14:27". Returns nil for
-  anything else.
-  """
-  @spec ready_time_display(term()) :: String.t() | nil
-  def ready_time_display(datetime) when is_struct(datetime, DateTime) do
-    Calendar.strftime(datetime, "%b %-d, %Y %H:%M")
-  end
-
-  def ready_time_display(_), do: nil
-
-  @doc """
   Formats a UTC datetime in Eastern, e.g. "Mar 10, 2026 2:27pm EDT".
   Returns nil for anything else.
   """

@@ -379,6 +379,39 @@ defmodule RiddlrWeb.Admin.RiddleLive.FormComponentTest do
       assert length(jobs) == 2
     end
 
+    test "the scheduled flash shows the lobby time in the Live date format", %{
+      conn: conn,
+      admin: admin,
+      category: category
+    } do
+      conn = log_in_user(conn, admin)
+      {:ok, index_live, _html} = live(conn, ~p"/admin/riddles")
+      index_live |> element("a[href='/admin/riddles/new']") |> render_click()
+
+      index_live
+      |> form("#riddle-form",
+        riddle: %{
+          name: "Lobby time format",
+          description: "When does the lobby open?",
+          answers: "keyboard",
+          solve_time: 120,
+          category_id: category.id,
+          publish_status: "published",
+          live_date: format_datetime_local(@future)
+        }
+      )
+      |> render_submit()
+
+      riddle = Riddlr.Repo.get_by(Riddlr.Games.Riddle, name: "Lobby time format")
+      ready_at = DateTime.add(riddle.live_date, -riddle.ready_before_seconds, :second)
+
+      assert has_element?(
+               index_live,
+               "#flash-info",
+               RiddlrWeb.AdminTime.live_time_display(ready_at)
+             )
+    end
+
     test "does not schedule when created with draft status", %{
       conn: conn,
       admin: admin,
