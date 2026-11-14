@@ -59,7 +59,7 @@ defmodule RiddlrWeb.GameCopy.Results do
 
   @doc "The words before the first solver's name on Results."
   @spec results_by_lead() :: String.t()
-  def results_by_lead, do: "Cracked first by"
+  def results_by_lead, do: "Solved first by"
 
   @doc "The Results line when nobody solved the riddle."
   @spec results_unsolved() :: String.t()

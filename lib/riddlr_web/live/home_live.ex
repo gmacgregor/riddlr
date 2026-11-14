@@ -297,6 +297,7 @@ defmodule RiddlrWeb.HomeLive do
     |> assign(:last_answer, last && List.first(last.answers, ""))
     |> assign(:last_tone, last && answer_tone(last.id))
     |> assign(:last_win, last_win(last_solve))
+    |> assign(:last_stamp, if(last_solve, do: :cracked, else: :stumped))
   end
 
   # The highlighter colour behind the last answer. It looks picked at random,

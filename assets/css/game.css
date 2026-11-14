@@ -1905,6 +1905,39 @@ select.rg-input option {
   gap: var(--space-m);
   margin-block-start: var(--space-xs);
 }
+/* A teacher's rubber stamp on the note's corner: green when someone cracked
+   it, red when it stumped everyone. Two rings of ink, a little faded. */
+.rg-last__stamp {
+  position: absolute;
+  inset: var(--space-m) var(--space-m) auto auto;
+  padding: 0 0.45em;
+  border: 3px solid currentColor;
+  outline: 1.5px solid currentColor;
+  outline-offset: 3px;
+  border-radius: var(--wob-sm);
+  color: var(--success-text);
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: var(--step-1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.8;
+  transform: rotate(9deg);
+  pointer-events: none;
+}
+.rg-last__stamp[data-state="stumped"] {
+  color: var(--urgent-text);
+  transform: rotate(-7deg);
+}
+/* The question, marked "Q." in red pen. */
+.rg-lastcard__q::before {
+  content: "Q.";
+  margin-inline-end: 0.3em;
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: 0.75em;
+  color: var(--urgent-text);
+}
 .rg-lastcard__q {
   max-inline-size: 38ch;
   font-family: var(--f-display);
@@ -1912,15 +1945,37 @@ select.rg-input option {
   line-height: 1.15;
   color: var(--fg-muted);
 }
+/* A red pen arrow curls down from the question into the answer. */
 .rg-lastcard__a {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-s);
+  gap: var(--space-m);
+  padding-inline-start: 3rem;
 }
+.rg-lastcard__arrow {
+  position: absolute;
+  inset: -1.5rem auto auto 0.25rem;
+  inline-size: 2.5rem;
+  block-size: 3.25rem;
+  color: var(--urgent-text);
+}
+/* On a phone the answer needs the width more than the arrow does. */
+@media (max-width: 480px) {
+  .rg-lastcard__a {
+    padding-inline-start: 0;
+  }
+  .rg-lastcard__arrow {
+    display: none;
+  }
+}
+/* The answer is stuck on at a tilt, and wiggles when the pointer finds it. */
 .rg-lastcard__answer {
   position: relative;
   display: inline-block;
+  transform: rotate(-3deg);
+  transform-origin: left center;
   padding: 0 0.3em;
   margin-inline-start: 0.2em;
   font-family: var(--f-display);
@@ -1931,38 +1986,35 @@ select.rg-input option {
 }
 /* The highlighter covers the whole word, line by line, so a long answer
    that wraps still reads as marked text, not a block. data-tone picks the
-   colour (see HomeLive); the text takes that tone's ink. */
-.rg-lastcard__answer > span {
+   colour (see HomeLive). */
+.rg-lastcard__word {
   padding: 0 0.12em;
   border-radius: var(--wob-sm);
-  background: var(--answer-tone, var(--tone-1));
-  color: var(--answer-ink, var(--on-tone-1));
+  /* A faint sticker, so the pen rings and the word stand out on it. */
+  border: var(--stroke) solid color-mix(in srgb, var(--fg) 30%, transparent);
+  box-shadow: 3px 4px 0 color-mix(in srgb, var(--shadow) 25%, transparent);
+  background: color-mix(in srgb, var(--answer-tone, var(--tone-1)) 30%, transparent);
+  color: var(--fg);
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
 .rg-lastcard__answer[data-tone="variant-2"] {
   --answer-tone: var(--tone-2);
-  --answer-ink: var(--on-tone-2);
 }
 .rg-lastcard__answer[data-tone="variant-3"] {
   --answer-tone: var(--tone-3);
-  --answer-ink: var(--on-tone-3);
 }
 .rg-lastcard__answer[data-tone="variant-4"] {
   --answer-tone: var(--tone-4);
-  --answer-ink: var(--on-tone-4);
 }
 .rg-lastcard__answer[data-tone="variant-7"] {
   --answer-tone: var(--tone-7);
-  --answer-ink: var(--on-tone-7);
 }
 .rg-lastcard__answer[data-tone="variant-8"] {
   --answer-tone: var(--tone-8);
-  --answer-ink: var(--on-tone-8);
 }
 .rg-lastcard__answer[data-tone="variant-9"] {
   --answer-tone: var(--tone-9);
-  --answer-ink: var(--on-tone-9);
 }
 .rg-lastcard__answer::after {
   content: "";
@@ -1973,15 +2025,90 @@ select.rg-input option {
   border-radius: var(--wob-ring);
   transform: rotate(-2deg);
 }
+/* Two more passes of the pen round the answer, as if circled again and
+   again: a thin, light pencil line and a thick, soft marker. */
+.rg-lastcard__rings {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.rg-lastcard__rings::before,
+.rg-lastcard__rings::after {
+  content: "";
+  position: absolute;
+  border-radius: var(--wob-ring);
+}
+.rg-lastcard__rings::before {
+  inset: -12px -4px -9px -14px;
+  border: 1.5px solid color-mix(in srgb, var(--fg) 55%, transparent);
+  transform: rotate(3deg);
+}
+.rg-lastcard__rings::after {
+  inset: -3px -16px -10px -4px;
+  border: 5px solid color-mix(in srgb, var(--fg) 22%, transparent);
+  transform: rotate(-5deg);
+}
+/* Pen ticks spring off the answer's top corner, as off the logo. */
+.rg-lastcard__ticks {
+  position: absolute;
+  inset: -1.6rem -2.1rem auto auto;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  color: var(--fg);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .rg-lastcard__answer:hover {
+    animation: rg-answer-wiggle 520ms var(--ease-out);
+  }
+}
+@keyframes rg-answer-wiggle {
+  30% {
+    transform: rotate(2deg);
+  }
+  60% {
+    transform: rotate(-5deg);
+  }
+}
+/* The first solver: a trophy, their name in highlighter, and their time on
+   a small tag. */
 .rg-lastcard__win {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   font-size: var(--step-0);
   color: var(--fg-muted);
 }
 .rg-lastcard__win b {
   color: var(--fg);
 }
+.rg-lastcard__trophy {
+  flex: none;
+  inline-size: 2.5rem;
+  block-size: 2.9rem;
+  transform: rotate(-6deg);
+}
+.rg-lastcard__time {
+  display: inline-block;
+  padding: 0 0.4em;
+  border: 2px solid var(--fg);
+  border-radius: var(--wob-sm);
+  background: var(--surface-3);
+  color: var(--fg);
+  font-family: var(--f-label);
+  font-weight: 700;
+  transform: rotate(3deg);
+}
 .rg-lastcard .rg-link-btn {
-  justify-self: start;
+  justify-self: center;
+  gap: var(--space-3xs);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .rg-lastcard__link .rg-icon {
+    transition: translate var(--t-slow) var(--ease-out);
+  }
+  .rg-lastcard__link:hover .rg-icon {
+    translate: 0.25em 0;
+  }
 }
 
 /* Motion: pens draw once, and the timeline flips in when it scrolls into

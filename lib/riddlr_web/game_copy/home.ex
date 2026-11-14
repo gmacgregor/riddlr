@@ -114,9 +114,17 @@ defmodule RiddlrWeb.GameCopy.Home do
   @spec last_unsolved() :: String.t()
   def last_unsolved, do: "This one stumped everyone. Nobody cracked it!"
 
+  @doc """
+  The rubber stamp on the last riddle card's corner: `:cracked` when someone
+  solved it, `:stumped` when nobody did.
+  """
+  @spec last_stamp(:cracked | :stumped) :: String.t()
+  def last_stamp(:cracked), do: "Cracked!"
+  def last_stamp(:stumped), do: "Stumped!"
+
   @doc "The link from the last riddle card to its Results."
   @spec last_link() :: String.t()
-  def last_link, do: "View game results and post-game chat"
+  def last_link, do: "View game results"
 
   @doc "The last riddle card's title when no riddle has finished."
   @spec last_empty_title() :: String.t()

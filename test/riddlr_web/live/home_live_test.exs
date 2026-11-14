@@ -454,6 +454,62 @@ defmodule RiddlrWeb.HomeLiveTest do
       assert has_element?(live, "#last a[href='/game/#{last.id}/results']")
     end
 
+    test "stamps the card cracked when someone solved it", %{conn: conn} do
+      last = upcoming_fixture("completed", ~U[2030-01-01 14:05:00Z])
+      GamesFixtures.solve_fixture(last, user_fixture(), %{solve_time_ms: 12_340})
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last .rg-last__stamp[data-state='cracked'][aria-hidden='true']")
+    end
+
+    test "puts a trophy and a time tag by the first solver", %{conn: conn} do
+      last = upcoming_fixture("completed", ~U[2030-01-01 14:05:00Z])
+      GamesFixtures.solve_fixture(last, user_fixture(), %{solve_time_ms: 12_340})
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last .rg-lastcard__win .rg-trophy")
+      assert has_element?(live, "#last .rg-lastcard__time", GameCopy.solve_secs(12_340))
+    end
+
+    test "draws an arrow, rings and ticks round the answer, hidden from screen readers", %{
+      conn: conn
+    } do
+      upcoming_fixture("completed", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last svg.rg-lastcard__arrow[aria-hidden='true']")
+
+      assert has_element?(
+               live,
+               "#last .rg-lastcard__answer svg.rg-lastcard__ticks[aria-hidden='true']"
+             )
+
+      assert has_element?(
+               live,
+               "#last .rg-lastcard__answer .rg-lastcard__rings[aria-hidden='true']"
+             )
+    end
+
+    test "points the results link on with an arrow", %{conn: conn} do
+      last = upcoming_fixture("completed", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last a[href='/game/#{last.id}/results'] .rg-icon")
+    end
+
+    test "stamps the card stumped when nobody solved it", %{conn: conn} do
+      upcoming_fixture("archived", ~U[2030-01-01 14:05:00Z])
+
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "#last .rg-last__stamp[data-state='stumped']")
+      refute has_element?(live, "#last .rg-trophy")
+    end
+
     test "shows no text or answer of a riddle that has not finished", %{conn: conn} do
       next = upcoming_fixture("live", ~U[2030-01-01 14:05:00Z])
       upcoming_fixture("scheduled", ~U[2030-01-01 15:05:00Z])
