@@ -33,6 +33,8 @@
      --accent, -press      the highlighter: kicker badge, own tile
      --accent-swipe        the highlighter as a swipe behind text
      --doodle-fill         the felt-pen yellow in the bolt and trophy star
+     --leaf-ink            the pen line round Home's falling leaves; softer
+                           in dark, where full ink glares
      --on-accent           text on bright fills
      --action, --on-action buttons, links, underlines, focus; text on it
      --underline           one colour for every link / heading underline + hover
@@ -176,6 +178,7 @@
   --accent-press: color-mix(in srgb, var(--accent) 82%, black);
   --accent-swipe: var(--accent);
   --doodle-fill: var(--palette-yellow);
+  --leaf-ink: var(--fg);
   --on-accent: #172440;
   --action: #364159;
   --on-action: #fff;
@@ -258,6 +261,7 @@
   --accent-press: color-mix(in srgb, var(--accent) 82%, black);
   --accent-swipe: var(--palette-spruce);
   --doodle-fill: var(--palette-yellow);
+  --leaf-ink: color-mix(in srgb, var(--fg) 45%, transparent);
   --on-accent: #172440;
   --action: #8fb0f2;
   --on-action: #0d1526;

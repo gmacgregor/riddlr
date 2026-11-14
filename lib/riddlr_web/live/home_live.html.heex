@@ -1,4 +1,189 @@
 <Layouts.game flash={@flash} current_scope={@current_scope} theme={@theme}>
+  <canvas
+    id="home-leaves"
+    class="rg-leaves"
+    phx-hook=".Leaves"
+    phx-update="ignore"
+    aria-hidden="true"
+  ></canvas>
+  <script :type={Phoenix.LiveView.ColocatedHook} name=".Leaves">
+    // Leaves fall from the top of the page once, as it loads, and pile up at
+    // the bottom, behind everything. The physics lives in leaves.js; this
+    // draws each leaf as a doodle (a felt-pen fill set off its ink outline)
+    // and feeds in the pointer, so a moving mouse or finger knocks along any
+    // leaf it touches, falling or in the pile.
+    //
+    // It runs light. Frames run only while a leaf moves: once the pile is
+    // still, the loop stops, and only a pointer touching a leaf starts it
+    // again. The canvas is at most 1.5 times the page's pixel size. Under
+    // reduced motion the pile is drawn once, still, and the pointer is not
+    // watched.
+    import {createField, isStill, leafPaths, resize, settle, step, touchesAny} from "@/js/leaves"
+
+    const COUNT = 40
+    const TONES = ["--tone-3", "--tone-4", "--doodle-fill", "--success"]
+    // Past this, more pixels per CSS pixel cost memory and barely sharpen
+    // leaves this small.
+    const MAX_DPR = 1.5
+    // A pointer that has not moved for this long counts as still.
+    const STILL_MS = 80
+    // Leaves settle well inside this; past it, the loop stops whatever, so a
+    // bug can't leave it running.
+    const MAX_AWAKE_MS = 90000
+
+    export default {
+      mounted() {
+        this.ctx = this.el.getContext("2d")
+        this.reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        this.readColours()
+        this.fit()
+        this.field = createField({width: this.w, height: this.h, count: COUNT})
+
+        // Resizes come in bursts; fit once a frame at most.
+        this.onResize = () => {
+          if (this.sizing) return
+          this.sizing = requestAnimationFrame(() => {
+            this.sizing = null
+            this.fit()
+            resize(this.field, this.w, this.h)
+            if (this.reduced) settle(this.field)
+            this.draw()
+            this.wake()
+          })
+        }
+        window.addEventListener("resize", this.onResize)
+
+        if (this.reduced) {
+          settle(this.field)
+          this.draw()
+        } else {
+          this.onPointer = (e) => {
+            const p = e.touches ? e.touches[0] : e
+            if (p) this.track(p.clientX, p.clientY)
+          }
+          window.addEventListener("pointermove", this.onPointer, {passive: true})
+          window.addEventListener("touchmove", this.onPointer, {passive: true})
+          this.wake()
+        }
+
+        // The colour mode switch flips data-theme on <html>.
+        this.themer = new MutationObserver(() => {
+          this.readColours()
+          this.draw()
+        })
+        this.themer.observe(document.documentElement, {attributeFilter: ["data-theme"]})
+      },
+
+      destroyed() {
+        cancelAnimationFrame(this.frame)
+        cancelAnimationFrame(this.sizing)
+        window.removeEventListener("resize", this.onResize)
+        if (this.onPointer) {
+          window.removeEventListener("pointermove", this.onPointer)
+          window.removeEventListener("touchmove", this.onPointer)
+        }
+        this.themer.disconnect()
+        this.field = null
+      },
+
+      // Sizes the canvas to the viewport, sharp on high-density screens. It
+      // only takes new pixels when the size has changed.
+      fit() {
+        const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR)
+        this.w = window.innerWidth
+        this.h = window.innerHeight
+        const width = Math.round(this.w * dpr)
+        const height = Math.round(this.h * dpr)
+        if (this.el.width !== width || this.el.height !== height) {
+          this.el.width = width
+          this.el.height = height
+        }
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      },
+
+      // Reads the theme tokens as colours the canvas takes, through a probe.
+      // The probe sits on <body>, outside .rg-app, whose reduced-motion rule
+      // gives every element a short transition: inside, the probe would
+      // still show its old colour when read.
+      readColours() {
+        const probe = document.createElement("i")
+        probe.style.cssText = "position:absolute;visibility:hidden"
+        document.body.append(probe)
+        const get = (name) => {
+          probe.style.color = `var(${name})`
+          return getComputedStyle(probe).color
+        }
+        this.ink = get("--leaf-ink")
+        this.tones = TONES.map(get)
+        probe.remove()
+      },
+
+      // Works out the pointer's speed from its last move. A sleeping loop
+      // wakes only when the pointer touches a leaf.
+      track(x, y) {
+        const now = performance.now()
+        const last = this.pointer
+        const dt = last ? (now - last.t) / 1000 : 0
+        if (last && dt < 0.004) return
+        const vx = dt > 0 && dt < 0.1 ? (x - last.x) / dt : 0
+        const vy = dt > 0 && dt < 0.1 ? (y - last.y) / dt : 0
+        this.pointer = {
+          x, y, t: now,
+          px: last ? last.x : x,
+          py: last ? last.y : y,
+          vx: last ? (last.vx + vx) / 2 : 0,
+          vy: last ? (last.vy + vy) / 2 : 0,
+        }
+        if (!this.frame && touchesAny(this.field, this.pointer)) this.wake()
+      },
+
+      wake() {
+        if (this.reduced || this.frame) return
+        this.last = this.woke = performance.now()
+        this.frame = requestAnimationFrame((t) => this.tick(t))
+      },
+
+      tick(now) {
+        const dt = Math.min(0.05, (now - this.last) / 1000)
+        this.last = now
+        const p = this.pointer
+        step(this.field, dt, p && now - p.t < STILL_MS ? p : null)
+        this.draw()
+        const done = isStill(this.field) || now - this.woke > MAX_AWAKE_MS
+        this.frame = done ? null : requestAnimationFrame((t) => this.tick(t))
+      },
+
+      draw() {
+        const ctx = this.ctx
+        ctx.clearRect(0, 0, this.w, this.h)
+        ctx.lineCap = "round"
+        ctx.lineJoin = "round"
+        ctx.strokeStyle = this.ink
+        for (const leaf of this.field.leaves) {
+          if (leaf.y < -leaf.size) continue
+          leaf.paths ||= this.paths(leaf)
+          ctx.save()
+          ctx.translate(leaf.x, leaf.y)
+          ctx.rotate(leaf.rot)
+          ctx.scale(1, leaf.face)
+          ctx.fillStyle = this.tones[leaf.tone % this.tones.length]
+          ctx.translate(1.5, 1.2)
+          ctx.fill(leaf.paths.outline)
+          ctx.translate(-1.5, -1.2)
+          ctx.lineWidth = 1.5
+          ctx.stroke(leaf.paths.outline)
+          ctx.lineWidth = 1.1
+          ctx.stroke(leaf.paths.veins)
+          ctx.restore()
+        }
+      },
+
+      paths(leaf) {
+        const {outline, veins} = leafPaths(leaf.shape, leaf.size)
+        return {outline: new Path2D(outline), veins: new Path2D(veins)}
+      },
+    }
+  </script>
   <section class="rg-view" aria-labelledby="home-h">
     <div class="rg-wrap rg-home">
       <section class="rg-hero" aria-labelledby="home-h">

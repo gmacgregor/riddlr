@@ -921,6 +921,21 @@ select.rg-input option {
   }
 }
 
+/* Home's falling leaves (the .Leaves hook): a click-through canvas over the
+   viewport, behind everything. The shell makes its own stacking context, so
+   the canvas sits over its paper grid but under all the page. */
+.rg-app:has(.rg-leaves) {
+  isolation: isolate;
+}
+.rg-leaves {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  inline-size: 100%;
+  block-size: 100%;
+  pointer-events: none;
+}
+
 .rg-doodle {
   display: block;
   overflow: visible;

@@ -113,6 +113,14 @@ defmodule RiddlrWeb.HomeLiveTest do
     end
   end
 
+  describe "leaves" do
+    test "puts a leaves canvas behind the page, hidden from screen readers", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/")
+
+      assert has_element?(live, "canvas#home-leaves[phx-hook][aria-hidden='true']")
+    end
+  end
+
   describe "thinker" do
     test "draws one of the thinkers on the card", %{conn: conn} do
       upcoming_fixture("scheduled", ~U[2030-01-01 14:05:00Z])
